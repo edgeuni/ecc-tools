@@ -47,6 +47,7 @@ class SRNode : public LayerCoord
   std::map<int32_t, std::set<Orientation>>& get_ignore_net_orient_map() { return _ignore_net_orient_map; }
   std::map<Orientation, std::set<int32_t>>& get_orient_net_map() { return _orient_net_map; }
   std::map<int32_t, std::set<Orientation>>& get_net_orient_map() { return _net_orient_map; }
+  double get_congestion_risk() const { return _congestion_risk; }
   // setter
   void set_boundary_wire_unit(const double boundary_wire_unit) { _boundary_wire_unit = boundary_wire_unit; }
   void set_internal_wire_unit(const double internal_wire_unit) { _internal_wire_unit = internal_wire_unit; }
@@ -56,6 +57,7 @@ class SRNode : public LayerCoord
   void set_ignore_net_orient_map(const std::map<int32_t, std::set<Orientation>>& ignore_net_orient_map) { _ignore_net_orient_map = ignore_net_orient_map; }
   void set_orient_net_map(const std::map<Orientation, std::set<int32_t>>& orient_net_map) { _orient_net_map = orient_net_map; }
   void set_net_orient_map(const std::map<int32_t, std::set<Orientation>>& net_orient_map) { _net_orient_map = net_orient_map; }
+  void set_congestion_risk(const double congestion_risk) { _congestion_risk = congestion_risk; }
   // function
   SRNode* getNeighborNode(Orientation orientation)
   {
@@ -371,6 +373,7 @@ class SRNode : public LayerCoord
   std::map<int32_t, std::set<Orientation>> _ignore_net_orient_map;
   std::map<Orientation, std::set<int32_t>> _orient_net_map;
   std::map<int32_t, std::set<Orientation>> _net_orient_map;
+  double _congestion_risk = 0;
 #if 1  // astar
   // single path
   SRNodeState _state = SRNodeState::kNone;

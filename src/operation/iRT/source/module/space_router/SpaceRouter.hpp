@@ -52,6 +52,7 @@ class SpaceRouter
   void buildLayerNodeMap(SRModel& sr_model);
   void buildOrientSupply(SRModel& sr_model);
   void reviseNodeDemand(SRModel& sr_model);
+  void updateCongestionRisk(SRModel& sr_model);
   void routeSRModel(SRModel& sr_model);
   void initRoutingState(SRModel& sr_model);
   void setSRIterParam(SRModel& sr_model, int32_t iter, SRIterParam& sr_iter_param);
@@ -67,6 +68,7 @@ class SpaceRouter
   void buildBoxTrackAxis(SRBox& sr_box);
   void buildLayerNodeMap(SRModel& sr_model, SRBox& sr_box);
   void buildSRNodeNeighbor(SRBox& sr_box);
+  void buildCongestionRisk(SRModel& sr_model, SRBox& sr_box);
   void buildOrientSupply(SRModel& sr_model, SRBox& sr_box);
   void buildOrientDemand(SRModel& sr_model, SRBox& sr_box);
   void routeSRBox(SRBox& sr_box);
@@ -97,12 +99,17 @@ class SpaceRouter
   double getEstimateWireCost(SRBox& sr_box, SRNode* start_node, SRNode* end_node);
   double getEstimateViaCost(SRBox& sr_box, SRNode* start_node, SRNode* end_node);
   void updateOverflow(SRBox& sr_box);
+  void updateCongestionRisk(SRBox& sr_box);
+  double getTaskCongestionRisk(SRBox& sr_box, SRTask* sr_task);
+  double getSegmentCongestionRisk(SRBox& sr_box, Segment<LayerCoord>& segment);
+  double getSegmentCongestionRisk(Segment<LayerCoord>& segment, std::vector<GridMap<double>>& layer_congestion_risk_map);
   void updateBestResult(SRBox& sr_box);
   void updateTaskSchedule(SRBox& sr_box, std::vector<SRTask*>& routing_task_list);
   void selectBestResult(SRBox& sr_box);
   void uploadBestResult(SRBox& sr_box);
   void freeSRBox(SRBox& sr_box);
   double getOverflow(SRModel& sr_model);
+  double getCongestionRisk(SRModel& sr_model);
   void uploadNetResult(SRModel& sr_model);
   void updateBestResult(SRModel& sr_model);
   bool stopIteration(SRModel& sr_model, std::vector<SRIterParam>& sr_iter_param_list);
