@@ -72,6 +72,8 @@ class SpaceRouter
   void buildOrientSupply(SRModel& sr_model, SRBox& sr_box);
   void buildOrientDemand(SRModel& sr_model, SRBox& sr_box);
   void routeSRBox(SRBox& sr_box);
+  void initNodeCostCache(SRBox& sr_box);
+  void resetNodeCostCache(SRBox& sr_box);
   std::vector<SRTask*> initTaskSchedule(SRBox& sr_box);
   void routeSRTask(SRBox& sr_box, SRTask* sr_task);
   void initSingleTask(SRBox& sr_box, SRTask* sr_task);
@@ -108,6 +110,8 @@ class SpaceRouter
   void selectBestResult(SRBox& sr_box);
   void uploadBestResult(SRBox& sr_box);
   void freeSRBox(SRBox& sr_box);
+  int32_t getNodeCostCacheIndex(SRBox& sr_box, SRNode* curr_node);
+  int32_t getNodeCostCacheDirectionIndex(Direction direction);
   double getOverflow(SRModel& sr_model);
   double getCongestionRisk(SRModel& sr_model);
   void uploadNetResult(SRModel& sr_model);

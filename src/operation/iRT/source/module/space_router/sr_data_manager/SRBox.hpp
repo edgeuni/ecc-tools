@@ -16,6 +16,9 @@
 // ***************************************************************************************
 #pragma once
 
+#include <array>
+#include <cstdint>
+
 #include "LayerCoord.hpp"
 #include "LayerRect.hpp"
 #include "OpenQueue.hpp"
@@ -83,6 +86,9 @@ class SRBox
   std::vector<SRNode*>& get_path_node_list() { return _path_node_list; }
   std::vector<SRNode*>& get_single_task_visited_node_list() { return _single_task_visited_node_list; }
   std::vector<Segment<LayerCoord>>& get_routing_segment_list() { return _routing_segment_list; }
+  std::vector<std::array<double, 3>>& get_node_cost_cache() { return _node_cost_cache; }
+  std::vector<uint8_t>& get_node_cost_cache_valid_mask() { return _node_cost_cache_valid_mask; }
+  std::vector<int32_t>& get_node_cost_cache_touched_index_list() { return _node_cost_cache_touched_index_list; }
   void set_curr_sr_task(SRTask* curr_sr_task) { _curr_sr_task = curr_sr_task; }
   void set_start_node_list_list(const std::vector<std::vector<SRNode*>>& start_node_list_list) { _start_node_list_list = start_node_list_list; }
   void set_end_node_list_list(const std::vector<std::vector<SRNode*>>& end_node_list_list) { _end_node_list_list = end_node_list_list; }
@@ -130,6 +136,9 @@ class SRBox
   std::vector<SRNode*> _path_node_list;
   std::vector<SRNode*> _single_task_visited_node_list;
   std::vector<Segment<LayerCoord>> _routing_segment_list;
+  std::vector<std::array<double, 3>> _node_cost_cache;
+  std::vector<uint8_t> _node_cost_cache_valid_mask;
+  std::vector<int32_t> _node_cost_cache_touched_index_list;
   // single path
   OpenQueue<SRNode> _open_queue;
   std::vector<SRNode*> _single_path_visited_node_list;

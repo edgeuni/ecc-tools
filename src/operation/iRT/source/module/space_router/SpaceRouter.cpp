@@ -159,8 +159,7 @@ void SpaceRouter::reviseNodeDemand(SRModel& sr_model)
   for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
     for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
       for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_node_map.size()); layer_idx++) {
-        layer_node_map[layer_idx][x][y].get_orient_net_map().clear();
-        layer_node_map[layer_idx][x][y].get_net_orient_map().clear();
+        layer_node_map[layer_idx][x][y].clearDemand();
       }
     }
   }
@@ -877,6 +876,7 @@ void SpaceRouter::buildOrientDemand(SRModel& sr_model, SRBox& sr_box)
         SRNode& sr_node = sr_node_map[x][y];
         sr_node.set_orient_net_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_orient_net_map());
         sr_node.set_net_orient_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_net_orient_map());
+        sr_node.rebuildFastDemand();
       }
     }
   }
@@ -884,9 +884,11 @@ void SpaceRouter::buildOrientDemand(SRModel& sr_model, SRBox& sr_box)
 
 void SpaceRouter::routeSRBox(SRBox& sr_box)
 {
+  initNodeCostCache(sr_box);
   std::vector<SRTask*> routing_task_list = initTaskSchedule(sr_box);
   while (!routing_task_list.empty()) {
     for (SRTask* routing_task : routing_task_list) {
+      resetNodeCostCache(sr_box);
       routeSRTask(sr_box, routing_task);
       routing_task->addRoutedTimes();
     }
@@ -895,6 +897,32 @@ void SpaceRouter::routeSRBox(SRBox& sr_box)
     updateBestResult(sr_box);
     updateTaskSchedule(sr_box, routing_task_list);
   }
+}
+
+void SpaceRouter::initNodeCostCache(SRBox& sr_box)
+{
+  std::vector<GridMap<SRNode>>& layer_node_map = sr_box.get_layer_node_map();
+  if (layer_node_map.empty()) {
+    return;
+  }
+  size_t node_num = 0;
+  for (GridMap<SRNode>& sr_node_map : layer_node_map) {
+    node_num += static_cast<size_t>(sr_node_map.get_x_size()) * static_cast<size_t>(sr_node_map.get_y_size());
+  }
+  sr_box.get_node_cost_cache().assign(node_num, {0.0, 0.0, 0.0});
+  sr_box.get_node_cost_cache_valid_mask().assign(node_num, 0);
+  sr_box.get_node_cost_cache_touched_index_list().clear();
+}
+
+void SpaceRouter::resetNodeCostCache(SRBox& sr_box)
+{
+  std::vector<uint8_t>& valid_mask = sr_box.get_node_cost_cache_valid_mask();
+  for (int32_t cache_idx : sr_box.get_node_cost_cache_touched_index_list()) {
+    if (0 <= cache_idx && cache_idx < static_cast<int32_t>(valid_mask.size())) {
+      valid_mask[cache_idx] = 0;
+    }
+  }
+  sr_box.get_node_cost_cache_touched_index_list().clear();
 }
 
 std::vector<SRTask*> SpaceRouter::initTaskSchedule(SRBox& sr_box)
@@ -1225,12 +1253,31 @@ double SpaceRouter::getKnownCost(SRBox& sr_box, SRNode* start_node, SRNode* end_
 
 double SpaceRouter::getNodeCost(SRBox& sr_box, SRNode* curr_node, Direction direction)
 {
+  int32_t cache_idx = getNodeCostCacheIndex(sr_box, curr_node);
+  int32_t direction_idx = getNodeCostCacheDirectionIndex(direction);
+  if (direction_idx < 0) {
+    return 0;
+  }
+  std::vector<std::array<double, 3>>& cost_cache = sr_box.get_node_cost_cache();
+  std::vector<uint8_t>& valid_mask = sr_box.get_node_cost_cache_valid_mask();
+  uint8_t direction_mask = static_cast<uint8_t>(1 << direction_idx);
+  if (0 <= cache_idx && cache_idx < static_cast<int32_t>(cost_cache.size()) && (valid_mask[cache_idx] & direction_mask)) {
+    return cost_cache[cache_idx][direction_idx];
+  }
+
   double overflow_unit = sr_box.get_sr_iter_param()->get_overflow_unit();
   double congestion_risk_unit = sr_box.get_sr_iter_param()->get_congestion_risk_unit();
 
   double node_cost = 0;
-  node_cost += curr_node->getOverflowCost(sr_box.get_curr_sr_task()->get_net_idx(), direction, overflow_unit);
+  node_cost += curr_node->getFastCost(sr_box.get_curr_sr_task()->get_net_idx(), direction, overflow_unit);
   node_cost += congestion_risk_unit * curr_node->get_congestion_risk();
+  if (0 <= cache_idx && cache_idx < static_cast<int32_t>(cost_cache.size())) {
+    cost_cache[cache_idx][direction_idx] = node_cost;
+    if (valid_mask[cache_idx] == 0) {
+      sr_box.get_node_cost_cache_touched_index_list().push_back(cache_idx);
+    }
+    valid_mask[cache_idx] |= direction_mask;
+  }
   return node_cost;
 }
 
@@ -1531,6 +1578,40 @@ void SpaceRouter::freeSRBox(SRBox& sr_box)
   }
   sr_box.get_sr_task_list().clear();
   sr_box.get_layer_node_map().clear();
+  sr_box.get_node_cost_cache().clear();
+  sr_box.get_node_cost_cache_valid_mask().clear();
+  sr_box.get_node_cost_cache_touched_index_list().clear();
+}
+
+int32_t SpaceRouter::getNodeCostCacheIndex(SRBox& sr_box, SRNode* curr_node)
+{
+  std::vector<GridMap<SRNode>>& layer_node_map = sr_box.get_layer_node_map();
+  int32_t layer_idx = curr_node->get_layer_idx();
+  if (layer_idx < 0 || static_cast<int32_t>(layer_node_map.size()) <= layer_idx) {
+    return -1;
+  }
+  GridMap<SRNode>& sr_node_map = layer_node_map[layer_idx];
+  int32_t x = curr_node->get_x() - sr_box.get_box_rect().get_grid_ll_x();
+  int32_t y = curr_node->get_y() - sr_box.get_box_rect().get_grid_ll_y();
+  if (!sr_node_map.isInside(x, y)) {
+    return -1;
+  }
+  return (layer_idx * sr_node_map.get_x_size() + x) * sr_node_map.get_y_size() + y;
+}
+
+int32_t SpaceRouter::getNodeCostCacheDirectionIndex(Direction direction)
+{
+  if (direction == Direction::kHorizontal) {
+    return 0;
+  }
+  if (direction == Direction::kVertical) {
+    return 1;
+  }
+  if (direction == Direction::kProximal) {
+    return 2;
+  }
+  RTLOG.error(Loc::current(), "The direction is error!");
+  return -1;
 }
 
 double SpaceRouter::getOverflow(SRModel& sr_model)
