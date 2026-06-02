@@ -37,6 +37,14 @@ struct TGRouteMetrics
   int32_t segment_num = 0;
 };
 
+struct TGLocalRerouteMetrics
+{
+  double overflow = 0;
+  double overflow_cost = 0;
+  double high_usage = 0;
+  double max_usage_ratio = 0;
+};
+
 bool isSamePlanarSegment(const Segment<PlanarCoord>& lhs, const Segment<PlanarCoord>& rhs)
 {
   return ((lhs.get_first() == rhs.get_first() && lhs.get_second() == rhs.get_second())
@@ -262,14 +270,41 @@ double getCoordSetHighUsage(TGModel& tg_model, std::set<PlanarCoord, CmpPlanarCo
   return high_usage;
 }
 
+TGLocalRerouteMetrics getCoordSetLocalMetrics(TGModel& tg_model, std::set<PlanarCoord, CmpPlanarCoordByXASC>& coord_set)
+{
+  GridMap<TGNode>& tg_node_map = tg_model.get_tg_node_map();
+  double overflow_unit = tg_model.get_tg_iter_param().get_overflow_unit();
+  double high_usage_ratio_threshold = tg_model.get_tg_iter_param().get_high_usage_ratio_threshold();
+
+  TGLocalRerouteMetrics metrics;
+  for (PlanarCoord coord : coord_set) {
+    if (!tg_node_map.isInside(coord.get_x(), coord.get_y())) {
+      continue;
+    }
+    TGNode& tg_node = tg_node_map[coord.get_x()][coord.get_y()];
+    TGNodeCost node_cost = tg_node.getFastCost(kTGMaskNone, overflow_unit);
+    metrics.overflow += tg_node.getOverflow();
+    metrics.overflow_cost += node_cost.overflow_cost;
+    metrics.high_usage += tg_node.getHighUsage(high_usage_ratio_threshold);
+    metrics.max_usage_ratio = std::max(metrics.max_usage_ratio, tg_node.getMaxUsageRatio());
+  }
+  return metrics;
+}
+
+bool passRerouteShapeGuard(TGRouteMetrics& old_metrics, TGRouteMetrics& new_metrics)
+{
+  bool overflow_task = old_metrics.overflow > RT_ERROR;
+  int32_t max_corner_num = overflow_task ? 8 : 6;
+  int32_t max_segment_num = max_corner_num + 1;
+  double max_wire_length = old_metrics.wire_length * (overflow_task ? 3.0 : 2.0) + 10;
+  return new_metrics.corner_num <= max_corner_num && new_metrics.segment_num <= max_segment_num && new_metrics.wire_length <= max_wire_length;
+}
+
 bool acceptReroute(TGRouteMetrics& old_metrics, TGRouteMetrics& new_metrics)
 {
   bool overflow_task = old_metrics.overflow > RT_ERROR;
   bool high_usage_task = old_metrics.high_usage > RT_ERROR;
-  int32_t max_corner_num = overflow_task ? 8 : 6;
-  int32_t max_segment_num = max_corner_num + 1;
-  double max_wire_length = old_metrics.wire_length * (overflow_task ? 3.0 : 2.0) + 10;
-  if (new_metrics.corner_num > max_corner_num || new_metrics.segment_num > max_segment_num || new_metrics.wire_length > max_wire_length) {
+  if (!passRerouteShapeGuard(old_metrics, new_metrics)) {
     return false;
   }
   if (overflow_task) {
@@ -315,6 +350,81 @@ bool acceptReroute(TGRouteMetrics& old_metrics, TGRouteMetrics& new_metrics)
       return true;
     }
     return false;
+  }
+  return false;
+}
+
+bool acceptTrueLocalReroute(TGRouteMetrics& old_route_metrics, TGRouteMetrics& new_route_metrics, TGLocalRerouteMetrics& old_local_metrics,
+                            TGLocalRerouteMetrics& new_local_metrics)
+{
+  if (!passRerouteShapeGuard(old_route_metrics, new_route_metrics)) {
+    return false;
+  }
+
+  bool overflow_task = old_route_metrics.overflow > RT_ERROR;
+  bool high_usage_task = old_route_metrics.high_usage > RT_ERROR;
+  if (overflow_task) {
+    if (new_local_metrics.overflow < old_local_metrics.overflow
+        && !RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)) {
+      return true;
+    }
+    if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+        && new_local_metrics.overflow_cost < old_local_metrics.overflow_cost
+        && !RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)) {
+      return true;
+    }
+    if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)
+        && new_local_metrics.high_usage < old_local_metrics.high_usage
+        && !RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)) {
+      return true;
+    }
+    if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)
+        && new_local_metrics.max_usage_ratio < old_local_metrics.max_usage_ratio
+        && !RTUTIL.equalDoubleByError(new_local_metrics.max_usage_ratio, old_local_metrics.max_usage_ratio, RT_ERROR)) {
+      return true;
+    }
+    if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.max_usage_ratio, old_local_metrics.max_usage_ratio, RT_ERROR)
+        && new_route_metrics.congestion_risk < old_route_metrics.congestion_risk
+        && !RTUTIL.equalDoubleByError(new_route_metrics.congestion_risk, old_route_metrics.congestion_risk, RT_ERROR)) {
+      return true;
+    }
+    if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.max_usage_ratio, old_local_metrics.max_usage_ratio, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_route_metrics.congestion_risk, old_route_metrics.congestion_risk, RT_ERROR)
+        && new_route_metrics.wire_length <= old_route_metrics.wire_length && new_route_metrics.corner_num <= old_route_metrics.corner_num) {
+      return true;
+    }
+    return false;
+  }
+
+  if (new_local_metrics.overflow > old_local_metrics.overflow
+      && !RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)) {
+    return false;
+  }
+  if (high_usage_task) {
+    if (new_local_metrics.high_usage < old_local_metrics.high_usage
+        && !RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)) {
+      return true;
+    }
+    if (RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)
+        && new_local_metrics.max_usage_ratio < old_local_metrics.max_usage_ratio
+        && !RTUTIL.equalDoubleByError(new_local_metrics.max_usage_ratio, old_local_metrics.max_usage_ratio, RT_ERROR)) {
+      return true;
+    }
+    if (RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)
+        && RTUTIL.equalDoubleByError(new_local_metrics.max_usage_ratio, old_local_metrics.max_usage_ratio, RT_ERROR)
+        && new_route_metrics.congestion_risk < old_route_metrics.congestion_risk
+        && !RTUTIL.equalDoubleByError(new_route_metrics.congestion_risk, old_route_metrics.congestion_risk, RT_ERROR)) {
+      return true;
+    }
   }
   return false;
 }
@@ -1322,7 +1432,8 @@ void TopologyGenerator::rerouteTGModel(TGModel& tg_model)
       if (tg_segment_task.get_routed_times() >= tg_iter_param.get_max_routed_times()) {
         continue;
       }
-      if (routeTGSegmentTask(tg_model, tg_segment_task)) {
+      bool enable_true_local_accept = (iter == tg_iter_param.get_max_iter_num());
+      if (routeTGSegmentTask(tg_model, tg_segment_task, enable_true_local_accept)) {
         success_task_num++;
       }
       tg_segment_task.addRoutedTimes();
@@ -1347,13 +1458,13 @@ void TopologyGenerator::setTGIterParam(TGModel& tg_model)
 {
   int32_t max_iter_num = 3;
   int32_t max_routed_times = 1;
-  int32_t max_task_num = 5000;
+  int32_t max_task_num = 8000;
   double wire_unit = 1;
   double corner_unit = 5 * wire_unit;
   double overflow_unit = tg_model.get_tg_com_param().get_overflow_unit();
   double congestion_risk_unit = overflow_unit;
   double high_usage_unit = overflow_unit;
-  double high_usage_ratio_threshold = 0.95;
+  double high_usage_ratio_threshold = 0.90;
   int32_t congestion_risk_radius = 3;
   int32_t route_window_base_expand = 10;
   int32_t route_window_max_expand_times = 3;
@@ -1577,6 +1688,26 @@ std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_
       if (!cross_overflow && !cross_high_usage) {
         continue;
       }
+      std::map<PlanarCoord, double, CmpPlanarCoordByXASC> origin_overflow_penalty_map;
+      if (cross_overflow) {
+        PlanarCoord first_coord = segment->get_first().get_planar_coord();
+        PlanarCoord second_coord = segment->get_second().get_planar_coord();
+        int32_t first_x = first_coord.get_x();
+        int32_t second_x = second_coord.get_x();
+        int32_t first_y = first_coord.get_y();
+        int32_t second_y = second_coord.get_y();
+        RTUTIL.swapByASC(first_x, second_x);
+        RTUTIL.swapByASC(first_y, second_y);
+        for (int32_t x = first_x; x <= second_x; x++) {
+          for (int32_t y = first_y; y <= second_y; y++) {
+            PlanarCoord coord(x, y);
+            if (coord == first_coord || coord == second_coord || !RTUTIL.exist(overflow_coord_set, coord)) {
+              continue;
+            }
+            origin_overflow_penalty_map[coord] = tg_model.get_tg_node_map()[x][y].getOverflow();
+          }
+        }
+      }
       TGSegmentTask tg_segment_task;
       tg_segment_task.set_net_idx(net_idx);
       tg_segment_task.set_connect_type(tg_net_list[net_idx].get_connect_type());
@@ -1587,6 +1718,7 @@ std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_
       tg_segment_task.set_congestion_risk(segment_congestion_risk);
       tg_segment_task.set_high_usage(segment_high_usage);
       tg_segment_task.set_max_usage_ratio(segment_max_usage_ratio);
+      tg_segment_task.set_origin_overflow_penalty_map(origin_overflow_penalty_map);
       tg_segment_task_list.push_back(tg_segment_task);
     }
   }
@@ -1619,7 +1751,7 @@ std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_
   return tg_segment_task_list;
 }
 
-bool TopologyGenerator::routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_segment_task)
+bool TopologyGenerator::routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_segment_task, bool enable_true_local_accept)
 {
   Segment<LayerCoord>* curr_segment = getCurrentGlobalSegment(tg_segment_task.get_net_idx(), tg_segment_task.get_planar_segment());
   if (curr_segment == nullptr) {
@@ -1635,7 +1767,12 @@ bool TopologyGenerator::routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_
   std::vector<Segment<PlanarCoord>> origin_segment_list = {tg_segment_task.get_planar_segment()};
   TGRouteMetrics old_metrics = getRouteMetrics(tg_model, net_idx, origin_segment_list);
   TGRouteMetrics accepted_metrics;
+  std::set<PlanarCoord, CmpPlanarCoordByXASC> accepted_affected_coord_set;
+  TGLocalRerouteMetrics accepted_old_local_metrics;
+  TGLocalRerouteMetrics accepted_new_local_metrics;
   std::vector<Segment<PlanarCoord>> routing_segment_list;
+
+  updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, origin_segment_list);
   for (PlanarRect& route_window : getRouteWindowList(tg_model, tg_segment_task)) {
     routing_segment_list.clear();
     if (!searchSegmentByAStar(tg_model, tg_segment_task, route_window, routing_segment_list) || routing_segment_list.empty()) {
@@ -1646,27 +1783,62 @@ bool TopologyGenerator::routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_
       continue;
     }
     TGRouteMetrics new_metrics = getRouteMetrics(tg_model, net_idx, routing_segment_list);
-    if (acceptReroute(old_metrics, new_metrics)) {
+    bool accepted = false;
+    std::set<PlanarCoord, CmpPlanarCoordByXASC> affected_coord_set;
+    TGLocalRerouteMetrics old_local_metrics;
+    TGLocalRerouteMetrics new_local_metrics;
+    if (enable_true_local_accept) {
+      collectSegmentCoordSet(origin_segment_list, affected_coord_set);
+      collectSegmentCoordSet(routing_segment_list, affected_coord_set);
+
+      updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, origin_segment_list);
+      old_local_metrics = getCoordSetLocalMetrics(tg_model, affected_coord_set);
+      updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, origin_segment_list);
+
+      updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, routing_segment_list);
+      new_local_metrics = getCoordSetLocalMetrics(tg_model, affected_coord_set);
+      updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, routing_segment_list);
+
+      accepted = acceptTrueLocalReroute(old_metrics, new_metrics, old_local_metrics, new_local_metrics);
+    } else {
+      accepted = acceptReroute(old_metrics, new_metrics);
+    }
+    if (accepted) {
       accepted_metrics = new_metrics;
+      if (enable_true_local_accept) {
+        accepted_affected_coord_set = affected_coord_set;
+        accepted_old_local_metrics = old_local_metrics;
+        accepted_new_local_metrics = new_local_metrics;
+      }
       break;
     }
     routing_segment_list.clear();
   }
   if (routing_segment_list.empty()) {
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, origin_segment_list);
     return false;
   }
 
   std::set<PlanarCoord, CmpPlanarCoordByXASC> affected_coord_set;
-  collectSegmentCoordSet(origin_segment_list, affected_coord_set);
-  collectSegmentCoordSet(routing_segment_list, affected_coord_set);
-  double old_affected_overflow = getCoordSetOverflow(tg_model, affected_coord_set);
-  double old_affected_high_usage = getCoordSetHighUsage(tg_model, affected_coord_set);
+  double old_affected_overflow = 0;
+  double old_affected_high_usage = 0;
+  if (enable_true_local_accept) {
+    affected_coord_set = accepted_affected_coord_set;
+    old_affected_overflow = accepted_old_local_metrics.overflow;
+    old_affected_high_usage = accepted_old_local_metrics.high_usage;
+  } else {
+    collectSegmentCoordSet(origin_segment_list, affected_coord_set);
+    collectSegmentCoordSet(routing_segment_list, affected_coord_set);
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, origin_segment_list);
+    old_affected_overflow = getCoordSetOverflow(tg_model, affected_coord_set);
+    old_affected_high_usage = getCoordSetHighUsage(tg_model, affected_coord_set);
+    updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, origin_segment_list);
+  }
 
-  updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, origin_segment_list);
   updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, routing_segment_list);
 
-  double new_affected_overflow = getCoordSetOverflow(tg_model, affected_coord_set);
-  double new_affected_high_usage = getCoordSetHighUsage(tg_model, affected_coord_set);
+  double new_affected_overflow = enable_true_local_accept ? accepted_new_local_metrics.overflow : getCoordSetOverflow(tg_model, affected_coord_set);
+  double new_affected_high_usage = enable_true_local_accept ? accepted_new_local_metrics.high_usage : getCoordSetHighUsage(tg_model, affected_coord_set);
   if (tg_model.get_metric_valid()) {
     tg_model.set_curr_overflow(tg_model.get_curr_overflow() + new_affected_overflow - old_affected_overflow);
     tg_model.set_curr_high_usage(tg_model.get_curr_high_usage() + new_affected_high_usage - old_affected_high_usage);
@@ -1920,12 +2092,19 @@ double TopologyGenerator::getNodeCost(TGModel& tg_model, TGSegmentTask& tg_segme
   double high_usage_unit = tg_model.get_tg_iter_param().get_high_usage_unit();
   double high_usage_ratio_threshold = tg_model.get_tg_iter_param().get_high_usage_ratio_threshold();
   double node_cost = 0;
-  TGNodeCost tg_node_cost = curr_node->getFastCost(tg_segment_task.get_net_idx(), getTGDirectionMask(direction), overflow_unit, true);
+  TGNodeCost tg_node_cost = curr_node->getFastCost(tg_segment_task.get_net_idx(), getTGDirectionMask(direction), overflow_unit, false);
   node_cost += tg_node_cost.getTotalCost();
   if (tg_node_cost.max_usage_ratio >= high_usage_ratio_threshold) {
     double high_usage_ratio
         = (tg_node_cost.max_usage_ratio - high_usage_ratio_threshold) / std::max(RT_ERROR, 1.0 - high_usage_ratio_threshold);
     node_cost += high_usage_unit * std::pow(high_usage_ratio, 2);
+  }
+  if (tg_segment_task.get_overflow() > RT_ERROR) {
+    auto iter = tg_segment_task.get_origin_overflow_penalty_map().find(PlanarCoord(x, y));
+    if (iter != tg_segment_task.get_origin_overflow_penalty_map().end()) {
+      constexpr double kEscapePenaltyScale = 0.5;
+      node_cost += overflow_unit * kEscapePenaltyScale * std::pow(iter->second + 1, 4);
+    }
   }
   node_cost += congestion_risk_unit * curr_node->get_congestion_risk();
   node_cost_cache.cost_map[cache_x][cache_y][direction_idx] = node_cost;

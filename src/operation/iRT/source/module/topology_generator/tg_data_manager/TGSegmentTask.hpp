@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include <map>
+
 #include "ConnectType.hpp"
 #include "LayerCoord.hpp"
 #include "Segment.hpp"
@@ -38,6 +40,11 @@ class TGSegmentTask
   double get_high_usage() const { return _high_usage; }
   double get_max_usage_ratio() const { return _max_usage_ratio; }
   double get_wire_length() const { return _wire_length; }
+  std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_overflow_penalty_map() { return _origin_overflow_penalty_map; }
+  const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_overflow_penalty_map() const
+  {
+    return _origin_overflow_penalty_map;
+  }
   // setter
   void set_net_idx(const int32_t net_idx) { _net_idx = net_idx; }
   void set_connect_type(const ConnectType connect_type) { _connect_type = connect_type; }
@@ -49,6 +56,10 @@ class TGSegmentTask
   void set_high_usage(const double high_usage) { _high_usage = high_usage; }
   void set_max_usage_ratio(const double max_usage_ratio) { _max_usage_ratio = max_usage_ratio; }
   void set_wire_length(const double wire_length) { _wire_length = wire_length; }
+  void set_origin_overflow_penalty_map(const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& origin_overflow_penalty_map)
+  {
+    _origin_overflow_penalty_map = origin_overflow_penalty_map;
+  }
   // function
   void addRoutedTimes() { ++_routed_times; }
 
@@ -63,6 +74,7 @@ class TGSegmentTask
   double _high_usage = 0.0;
   double _max_usage_ratio = 0.0;
   double _wire_length = 0.0;
+  std::map<PlanarCoord, double, CmpPlanarCoordByXASC> _origin_overflow_penalty_map;
 };
 
 }  // namespace irt

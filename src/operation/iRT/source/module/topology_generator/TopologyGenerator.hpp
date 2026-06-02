@@ -134,7 +134,7 @@ class TopologyGenerator
                             std::set<PlanarCoord, CmpPlanarCoordByXASC>& high_usage_coord_set,
                             std::set<int32_t>& high_usage_net_set);
   std::vector<TGSegmentTask> initTGSegmentTaskList(TGModel& tg_model);
-  bool routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_segment_task);
+  bool routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_segment_task, bool enable_true_local_accept);
   std::vector<PlanarRect> getRouteWindowList(TGModel& tg_model, TGSegmentTask& tg_segment_task);
   PlanarRect getRouteWindow(TGModel& tg_model, TGSegmentTask& tg_segment_task, int32_t expand_size);
   PlanarRect getDieWindow(TGModel& tg_model);
