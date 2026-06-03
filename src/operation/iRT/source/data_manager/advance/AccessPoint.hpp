@@ -21,6 +21,7 @@
 #include "Orientation.hpp"
 #include "RTHeader.hpp"
 #include "SortStatus.hpp"
+#include "ViaMasterIdx.hpp"
 
 namespace irt {
 
@@ -37,14 +38,18 @@ class AccessPoint : public EXTLayerCoord
   ~AccessPoint() = default;
   // getter
   int32_t get_pin_idx() const { return _pin_idx; }
+  std::vector<ViaMasterIdx>& get_candidate_via_list() { return _candidate_via_list; }
+  const std::vector<ViaMasterIdx>& get_candidate_via_list() const { return _candidate_via_list; }
   // setter
   void set_pin_idx(const int32_t pin_idx) { _pin_idx = pin_idx; }
+  void set_candidate_via_list(const std::vector<ViaMasterIdx>& candidate_via_list) { _candidate_via_list = candidate_via_list; }
   // function
   LayerCoord getGridLayerCoord() { return LayerCoord(get_grid_coord(), get_layer_idx()); }
   LayerCoord getRealLayerCoord() { return LayerCoord(get_real_coord(), get_layer_idx()); }
 
  private:
   int32_t _pin_idx = -1;
+  std::vector<ViaMasterIdx> _candidate_via_list;
 };
 
 struct CmpAccessPoint

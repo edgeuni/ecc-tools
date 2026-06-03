@@ -28,10 +28,17 @@
 #include "PANet.hpp"
 #include "PANode.hpp"
 #include "RTHeader.hpp"
+#include "ViaMasterIdx.hpp"
 
 namespace irt {
 
 #define RTPA (irt::PinAccessor::getInst())
+
+struct PALegalShape
+{
+  LayerRect shape;
+  ViaMasterIdx via_master_idx;
+};
 
 class PinAccessor
 {
@@ -58,11 +65,21 @@ class PinAccessor
   PANet convertToPANet(Net& net);
   void setPAComParam(PAModel& pa_model);
   void initAccessPointList(PAModel& pa_model);
+  void updateAccessPointList(PAModel& pa_model, std::vector<std::pair<int32_t, PAPin*>>& net_pin_pair_list, bool enable_via_candidate);
   std::vector<LayerRect> getLegalShapeList(PAModel& pa_model, int32_t net_idx, PAPin* pa_pin);
   std::vector<PlanarRect> getPlanarLegalRectList(PAModel& pa_model, int32_t curr_net_idx, PAPin* pa_pin, std::vector<EXTLayerRect>& pin_shape_list);
   std::vector<AccessPoint> getAccessPointList(PAModel& pa_model, int32_t pin_idx, std::vector<LayerRect>& legal_shape_list);
+  std::vector<PALegalShape> getViaLegalShapeList(PAModel& pa_model, int32_t net_idx, PAPin* pa_pin,
+                                                 const std::map<int32_t, std::vector<ViaMaster*>>& selected_via_master_list_map);
+  std::vector<PALegalShape> getPlanarViaLegalShapeList(PAModel& pa_model, int32_t curr_net_idx, PAPin* pa_pin,
+                                                       std::vector<EXTLayerRect>& pin_shape_list, ViaMaster* via_master);
+  std::vector<ViaMaster*> getSelectedViaMasterList(PAModel& pa_model, int32_t routing_layer_idx);
+  PlanarRect getViaEnclosure(ViaMaster& via_master, int32_t routing_layer_idx);
+  std::vector<AccessPoint> getViaAccessPointList(PAModel& pa_model, int32_t pin_idx, std::vector<PALegalShape>& legal_shape_list);
   void uniformSampleCoordList(PAModel& pa_model, std::vector<LayerCoord>& layer_coord_list);
   void uploadAccessPointList(PAModel& pa_model);
+  std::vector<std::pair<int32_t, PAPin*>> getReroutePinList(PAModel& pa_model);
+  void updateRerouteAccessPointList(PAModel& pa_model);
   void routePAModel(PAModel& pa_model);
   void initRoutingState(PAModel& pa_model);
   void setPAIterParam(PAModel& pa_model, int32_t iter, PAIterParam& pa_iter_param);
@@ -97,6 +114,7 @@ class PinAccessor
   void resetPathHead(PABox& pa_box);
   void updatePathResult(PABox& pa_box);
   std::vector<Segment<LayerCoord>> getRoutingSegmentListByNode(PANode* node);
+  void updateSegmentViaMaster(Segment<LayerCoord>& segment);
   void resetStartAndEnd(PABox& pa_box);
   void resetSinglePath(PABox& pa_box);
   void updateTaskResult(PABox& pa_box);
@@ -109,6 +127,8 @@ class PinAccessor
   double getKnownWireCost(PABox& pa_box, PANode* start_node, PANode* end_node);
   double getKnownViaCost(PABox& pa_box, PANode* start_node, PANode* end_node);
   double getKnownSelfCost(PABox& pa_box, PANode* start_node, PANode* end_node);
+  ViaMasterIdx getSelectedViaMasterIdx(PABox& pa_box, AccessPoint* access_point, const LayerCoord& via_coord);
+  double getViaMasterCost(PABox& pa_box, int32_t net_idx, const Segment<LayerCoord>& via_segment);
   double getEstimateCostToEnd(PABox& pa_box, PANode* curr_node);
   double getEstimateCost(PABox& pa_box, PANode* start_node, PANode* end_node);
   double getEstimateWireCost(PABox& pa_box, PANode* start_node, PANode* end_node);

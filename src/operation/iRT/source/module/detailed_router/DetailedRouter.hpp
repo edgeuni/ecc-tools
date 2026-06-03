@@ -96,6 +96,7 @@ class DetailedRouter
   void resetSinglePath(DRBox& dr_box);
   void updateTaskResult(DRBox& dr_box);
   std::vector<Segment<LayerCoord>> getRoutingSegmentList(DRBox& dr_box);
+  void updateSegmentViaMaster(Segment<LayerCoord>& segment);
   void resetSingleRouteTask(DRBox& dr_box);
   void pushToOpenList(DRBox& dr_box, DRNode* curr_node);
   DRNode* popFromOpenList(DRBox& dr_box);

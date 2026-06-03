@@ -973,9 +973,16 @@ void DetailedRouter::initSingleRouteTask(DRBox& dr_box, DRTask* dr_task)
 {
   ScaleAxis& box_track_axis = dr_box.get_box_track_axis();
   std::vector<GridMap<DRNode>>& layer_node_map = dr_box.get_layer_node_map();
+  std::map<LayerCoord, AccessPoint*, CmpLayerCoordByXASC> source_access_point_map;
+  for (AccessPoint* access_point : dr_box.get_net_access_point_map()[dr_task->get_net_idx()]) {
+    if (!access_point->get_candidate_via_list().empty()) {
+      source_access_point_map[access_point->getRealLayerCoord()] = access_point;
+    }
+  }
 
   // single task
   dr_box.set_curr_route_task(dr_task);
+  dr_box.get_source_node_access_point_map().clear();
   {
     std::vector<std::vector<DRNode*>> node_list_list;
     std::vector<DRGroup>& dr_group_list = dr_task->get_dr_group_list();
@@ -989,6 +996,9 @@ void DetailedRouter::initSingleRouteTask(DRBox& dr_box, DRTask* dr_task)
         DRNode& dr_node = layer_node_map[coord.get_layer_idx()][grid_coord.get_x()][grid_coord.get_y()];
         dr_node.set_direction_set(direction_set);
         node_list.push_back(&dr_node);
+        if (RTUTIL.exist(source_access_point_map, coord)) {
+          dr_box.get_source_node_access_point_map()[&dr_node] = source_access_point_map[coord];
+        }
       }
       node_list_list.push_back(node_list);
     }
@@ -1069,14 +1079,42 @@ void DetailedRouter::expandSearching(DRBox& dr_box)
     if (neighbor_node->isClose()) {
       continue;
     }
+    ViaMasterIdx parent_via_master_idx;
+    if (orientation == Orientation::kAbove || orientation == Orientation::kBelow) {
+      int32_t below_layer_idx = std::min(path_head_node->get_layer_idx(), neighbor_node->get_layer_idx());
+      auto getCandidateViaList = [&](DRNode* dr_node) {
+        std::vector<ViaMasterIdx> candidate_via_list;
+        if (!RTUTIL.exist(dr_box.get_source_node_access_point_map(), dr_node)) {
+          return candidate_via_list;
+        }
+        AccessPoint* access_point = dr_box.get_source_node_access_point_map()[dr_node];
+        for (ViaMasterIdx& via_master_idx : access_point->get_candidate_via_list()) {
+          if (via_master_idx.get_below_layer_idx() == below_layer_idx && !RTUTIL.exist(candidate_via_list, via_master_idx)) {
+            candidate_via_list.push_back(via_master_idx);
+          }
+        }
+        return candidate_via_list;
+      };
+      std::vector<ViaMasterIdx> candidate_via_list = getCandidateViaList(path_head_node);
+      for (ViaMasterIdx& via_master_idx : getCandidateViaList(neighbor_node)) {
+        if (!RTUTIL.exist(candidate_via_list, via_master_idx)) {
+          candidate_via_list.push_back(via_master_idx);
+        }
+      }
+      if (candidate_via_list.size() == 1) {
+        parent_via_master_idx = candidate_via_list.front();
+      }
+    }
     double known_cost = getKnownCost(dr_box, path_head_node, neighbor_node);
     if (neighbor_node->isOpen() && known_cost < neighbor_node->get_known_cost()) {
       neighbor_node->set_known_cost(known_cost);
       neighbor_node->set_parent_node(path_head_node);
+      neighbor_node->set_parent_via_master_idx(parent_via_master_idx);
       open_queue.push(neighbor_node);
     } else if (neighbor_node->isNone()) {
       neighbor_node->set_known_cost(known_cost);
       neighbor_node->set_parent_node(path_head_node);
+      neighbor_node->set_parent_via_master_idx(parent_via_master_idx);
       neighbor_node->set_estimated_cost(getEstimateCostToEnd(dr_box, neighbor_node));
       pushToOpenList(dr_box, neighbor_node);
     }
@@ -1106,19 +1144,66 @@ std::vector<Segment<LayerCoord>> DetailedRouter::getRoutingSegmentListByNode(DRN
     // 起点和终点重合
     return routing_segment_list;
   }
-  Orientation curr_orientation = RTUTIL.getOrientation(*curr_node, *pre_node);
-  while (pre_node->get_parent_node() != nullptr) {
-    Orientation pre_orientation = RTUTIL.getOrientation(*pre_node, *pre_node->get_parent_node());
-    if (curr_orientation != pre_orientation) {
-      routing_segment_list.emplace_back(*curr_node, *pre_node);
-      curr_orientation = pre_orientation;
-      curr_node = pre_node;
+  DRNode* planar_first_node = nullptr;
+  DRNode* planar_second_node = nullptr;
+  Orientation planar_orientation = Orientation::kNone;
+  auto pushPlanarSegment = [&]() {
+    if (planar_first_node == nullptr) {
+      return;
     }
-    pre_node = pre_node->get_parent_node();
+    Segment<LayerCoord> routing_segment(*planar_first_node, *planar_second_node);
+    updateSegmentViaMaster(routing_segment);
+    routing_segment_list.push_back(routing_segment);
+    planar_first_node = nullptr;
+    planar_second_node = nullptr;
+    planar_orientation = Orientation::kNone;
+  };
+  while (pre_node != nullptr) {
+    Orientation curr_orientation = RTUTIL.getOrientation(*curr_node, *pre_node);
+    if (curr_node->get_layer_idx() != pre_node->get_layer_idx()) {
+      pushPlanarSegment();
+      Segment<LayerCoord> routing_segment(*curr_node, *pre_node, curr_node->get_parent_via_master_idx());
+      updateSegmentViaMaster(routing_segment);
+      routing_segment_list.push_back(routing_segment);
+    } else if (planar_first_node != nullptr && curr_orientation == planar_orientation) {
+      planar_second_node = pre_node;
+    } else {
+      pushPlanarSegment();
+      planar_first_node = curr_node;
+      planar_second_node = pre_node;
+      planar_orientation = curr_orientation;
+    }
+    DRNode* next_node = pre_node->get_parent_node();
+    curr_node = pre_node;
+    pre_node = next_node;
   }
-  routing_segment_list.emplace_back(*curr_node, *pre_node);
+  pushPlanarSegment();
 
   return routing_segment_list;
+}
+
+void DetailedRouter::updateSegmentViaMaster(Segment<LayerCoord>& segment)
+{
+  if (segment.hasValidViaMaster()) {
+    return;
+  }
+  LayerCoord& first_coord = segment.get_first();
+  LayerCoord& second_coord = segment.get_second();
+  if (first_coord.get_layer_idx() == second_coord.get_layer_idx()) {
+    return;
+  }
+  if (std::abs(first_coord.get_layer_idx() - second_coord.get_layer_idx()) != 1) {
+    return;
+  }
+  std::vector<std::vector<ViaMaster>>& layer_via_master_list = RTDM.getDatabase().get_layer_via_master_list();
+  int32_t below_layer_idx = std::min(first_coord.get_layer_idx(), second_coord.get_layer_idx());
+  if (below_layer_idx < 0 || below_layer_idx >= static_cast<int32_t>(layer_via_master_list.size())) {
+    return;
+  }
+  if (layer_via_master_list[below_layer_idx].empty()) {
+    return;
+  }
+  segment.set_via_master_idx(layer_via_master_list[below_layer_idx].front().get_via_master_idx());
 }
 
 void DetailedRouter::updateDirectionSet(DRBox& dr_box)
@@ -1173,6 +1258,7 @@ void DetailedRouter::resetSinglePath(DRBox& dr_box)
   for (DRNode* visited_node : single_path_visited_node_list) {
     visited_node->set_state(DRNodeState::kNone);
     visited_node->set_parent_node(nullptr);
+    visited_node->set_parent_via_master_idx(ViaMasterIdx());
     visited_node->set_known_cost(0);
     visited_node->set_estimated_cost(0);
   }
@@ -1198,6 +1284,20 @@ std::vector<Segment<LayerCoord>> DetailedRouter::getRoutingSegmentList(DRBox& dr
 {
   DRTask* curr_route_task = dr_box.get_curr_route_task();
 
+  auto isViaSegment = [](Segment<LayerCoord>& segment) {
+    return segment.get_first().get_planar_coord() == segment.get_second().get_planar_coord()
+           && std::abs(segment.get_first().get_layer_idx() - segment.get_second().get_layer_idx()) == 1;
+  };
+  auto isSameViaSegment = [](Segment<LayerCoord>& a, Segment<LayerCoord>& b) {
+    return (a.get_first() == b.get_first() && a.get_second() == b.get_second()) || (a.get_first() == b.get_second() && a.get_second() == b.get_first());
+  };
+  std::vector<Segment<LayerCoord>> via_segment_list;
+  for (Segment<LayerCoord>& routing_segment : dr_box.get_routing_segment_list()) {
+    if (isViaSegment(routing_segment)) {
+      via_segment_list.push_back(routing_segment);
+    }
+  }
+
   std::vector<LayerCoord> candidate_root_coord_list;
   std::map<LayerCoord, std::set<int32_t>, CmpLayerCoordByXASC> key_coord_pin_map;
   std::vector<DRGroup>& dr_group_list = curr_route_task->get_dr_group_list();
@@ -1211,7 +1311,17 @@ std::vector<Segment<LayerCoord>> DetailedRouter::getRoutingSegmentList(DRBox& dr
 
   std::vector<Segment<LayerCoord>> routing_segment_list;
   for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
-    routing_segment_list.emplace_back(coord_segment.get_first()->value(), coord_segment.get_second()->value());
+    Segment<LayerCoord> routing_segment(coord_segment.get_first()->value(), coord_segment.get_second()->value());
+    if (isViaSegment(routing_segment)) {
+      for (Segment<LayerCoord>& via_segment : via_segment_list) {
+        if (isSameViaSegment(routing_segment, via_segment) && via_segment.hasValidViaMaster()) {
+          routing_segment.set_via_master_idx(via_segment.get_via_master_idx());
+          break;
+        }
+      }
+    }
+    updateSegmentViaMaster(routing_segment);
+    routing_segment_list.push_back(routing_segment);
   }
   return routing_segment_list;
 }
@@ -1227,6 +1337,7 @@ void DetailedRouter::resetSingleRouteTask(DRBox& dr_box)
   }
   dr_box.get_single_task_visited_node_list().clear();
   dr_box.get_routing_segment_list().clear();
+  dr_box.get_source_node_access_point_map().clear();
 }
 
 // manager open list
@@ -2030,6 +2141,7 @@ void DetailedRouter::freeDRBox(DRBox& dr_box)
   }
   dr_box.get_dr_task_list().clear();
   dr_box.get_layer_node_map().clear();
+  dr_box.get_source_node_access_point_map().clear();
 }
 
 int32_t DetailedRouter::getRouteViolationNum(DRModel& dr_model)
@@ -2058,9 +2170,21 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
     new_detailed_result_list.resize(dr_net_list.size());
 #pragma omp parallel for
     for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(detailed_result_list.size()); net_idx++) {
+      auto isViaSegment = [](Segment<LayerCoord>& segment) {
+        return segment.get_first().get_planar_coord() == segment.get_second().get_planar_coord()
+               && std::abs(segment.get_first().get_layer_idx() - segment.get_second().get_layer_idx()) == 1;
+      };
+      auto isSameViaSegment = [](Segment<LayerCoord>& a, Segment<LayerCoord>& b) {
+        return (a.get_first() == b.get_first() && a.get_second() == b.get_second())
+               || (a.get_first() == b.get_second() && a.get_second() == b.get_first());
+      };
       std::vector<Segment<LayerCoord>> routing_segment_list;
+      std::vector<Segment<LayerCoord>> via_segment_list;
       for (Segment<LayerCoord>* segment : detailed_result_list[net_idx]) {
-        routing_segment_list.emplace_back(segment->get_first(), segment->get_second());
+        routing_segment_list.push_back(*segment);
+        if (isViaSegment(*segment) && segment->hasValidViaMaster()) {
+          via_segment_list.push_back(*segment);
+        }
       }
       std::vector<LayerCoord> candidate_root_coord_list;
       std::map<LayerCoord, std::set<int32_t>, CmpLayerCoordByXASC> key_coord_pin_map;
@@ -2072,7 +2196,17 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
       }
       MTree<LayerCoord> coord_tree = RTUTIL.getTreeByFullFlow(candidate_root_coord_list, routing_segment_list, key_coord_pin_map);
       for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
-        new_detailed_result_list[net_idx].insert(new Segment<LayerCoord>(coord_segment.get_first()->value(), coord_segment.get_second()->value()));
+        Segment<LayerCoord>* new_segment = new Segment<LayerCoord>(coord_segment.get_first()->value(), coord_segment.get_second()->value());
+        if (isViaSegment(*new_segment)) {
+          for (Segment<LayerCoord>& via_segment : via_segment_list) {
+            if (isSameViaSegment(*new_segment, via_segment)) {
+              new_segment->set_via_master_idx(via_segment.get_via_master_idx());
+              break;
+            }
+          }
+        }
+        updateSegmentViaMaster(*new_segment);
+        new_detailed_result_list[net_idx].insert(new_segment);
       }
     }
     for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(detailed_result_list.size()); net_idx++) {
