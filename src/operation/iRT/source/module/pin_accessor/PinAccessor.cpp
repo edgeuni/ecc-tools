@@ -3585,27 +3585,70 @@ void PinAccessor::addRouteViolationToGraph(PABox& pa_box, Violation& violation)
 {
   LayerRect searched_rect = violation.get_violation_shape().get_real_rect();
   std::vector<Segment<LayerCoord>> overlap_segment_list;
+  int32_t curr_layer_idx = violation.get_violation_shape().get_layer_idx();
+  std::set<int32_t> same_violation_layer_set;
+  for (Violation& other_violation : pa_box.get_route_violation_list()) {
+    if (other_violation.get_violation_type() != violation.get_violation_type() || other_violation.get_is_routing() != violation.get_is_routing()
+        || other_violation.get_required_size() != violation.get_required_size()
+        || other_violation.get_violation_shape().get_real_rect() != violation.get_violation_shape().get_real_rect()
+        || other_violation.get_violation_net_set() != violation.get_violation_net_set()) {
+      continue;
+    }
+    same_violation_layer_set.insert(other_violation.get_violation_shape().get_layer_idx());
+  }
+  int32_t main_layer_idx = curr_layer_idx;
+  if (!same_violation_layer_set.empty()) {
+    main_layer_idx = (*same_violation_layer_set.begin() + *same_violation_layer_set.rbegin()) / 2;
+  }
+  bool use_per_net_search = same_violation_layer_set.size() > 1 && curr_layer_idx == main_layer_idx;
+  std::set<int32_t> target_net_set;
+  std::set<int32_t> found_net_set;
+  if (use_per_net_search) {
+    for (auto& [net_idx, task_access_result_map] : pa_box.get_net_task_access_result_map()) {
+      if (net_idx == -1 || !RTUTIL.exist(violation.get_violation_net_set(), net_idx)) {
+        continue;
+      }
+      target_net_set.insert(net_idx);
+    }
+    if (target_net_set.empty()) {
+      return;
+    }
+  }
+  int32_t searched_times = 0;
+  constexpr int32_t max_searched_times = 5;
   while (true) {
     searched_rect.set_rect(RTUTIL.getEnlargedRect(searched_rect, RTDM.getOnlyPitch()));
+    searched_times++;
     if (violation.get_is_routing()) {
       searched_rect.set_layer_idx(violation.get_violation_shape().get_layer_idx());
     } else {
       RTLOG.error(Loc::current(), "The violation layer is cut!");
     }
     for (auto& [net_idx, task_access_result_map] : pa_box.get_net_task_access_result_map()) {
+      if (use_per_net_search && (!RTUTIL.exist(target_net_set, net_idx) || RTUTIL.exist(found_net_set, net_idx))) {
+        continue;
+      }
+      if (!use_per_net_search && !RTUTIL.exist(violation.get_violation_net_set(), net_idx)) {
+        continue;
+      }
+      bool found_curr_net = false;
       for (auto& [task_idx, segment_list] : task_access_result_map) {
-        if (!RTUTIL.exist(violation.get_violation_net_set(), net_idx)) {
-          continue;
-        }
         for (Segment<LayerCoord>& segment : segment_list) {
           if (!RTUTIL.isOverlap(searched_rect, segment)) {
             continue;
           }
           overlap_segment_list.push_back(segment);
+          found_curr_net = true;
         }
       }
+      if (found_curr_net) {
+        found_net_set.insert(net_idx);
+      }
     }
-    if (!overlap_segment_list.empty()) {
+    if ((use_per_net_search && found_net_set.size() == target_net_set.size()) || (!use_per_net_search && !overlap_segment_list.empty())) {
+      break;
+    }
+    if (searched_times >= max_searched_times) {
       break;
     }
     if (!RTUTIL.isInside(pa_box.get_box_rect().get_real_rect(), searched_rect)) {
