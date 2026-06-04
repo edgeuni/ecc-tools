@@ -2085,7 +2085,7 @@ void DetailedRouter::updateTaskSchedule(DRBox& dr_box, std::vector<DRTask*>& rou
   std::vector<DRTask*> new_routing_task_list;
   for (Violation& violation : dr_box.get_route_violation_list()) {
     EXTLayerRect& violation_shape = violation.get_violation_shape();
-    if (!RTUTIL.isInside(dr_box.get_box_rect().get_real_rect(), violation_shape.get_real_rect())) {
+    if (!RTUTIL.isOpenOverlap(dr_box.get_box_rect().get_real_rect(), violation_shape.get_real_rect())) {
       continue;
     }
     for (DRTask* dr_task : dr_box.get_dr_task_list()) {
@@ -2411,6 +2411,7 @@ void DetailedRouter::patchFinalMinArea(DRModel& dr_model)
 
   GridMap<DRBox>& dr_box_map = dr_model.get_dr_box_map();
   for (std::vector<DRBoxId>& dr_box_id_list : dr_model.get_dr_box_id_list_list()) {
+#pragma omp parallel for
     for (DRBoxId& dr_box_id : dr_box_id_list) {
       DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
       buildFinalPatchBox(dr_model, dr_box);
@@ -2424,6 +2425,7 @@ void DetailedRouter::patchFinalMinArea(DRModel& dr_model)
         for (DRTask* dr_task : dr_box.get_dr_task_list()) {
           patchDRTask(dr_box, dr_task);
         }
+#pragma omp critical(DRFinalPatchUpload)
         uploadFinalPatch(dr_box);
       }
       freeDRBox(dr_box);
@@ -2437,10 +2439,6 @@ void DetailedRouter::buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box)
 {
   PlanarRect& box_real_rect = dr_box.get_box_rect().get_real_rect();
   std::vector<DRNet>& dr_net_list = dr_model.get_dr_net_list();
-
-  buildFixedRect(dr_box);
-  dr_box.set_net_detailed_result_map(RTDM.getNetDetailedResultMap(dr_box.get_box_rect()));
-  dr_box.set_net_detailed_patch_map(RTDM.getNetDetailedPatchMap(dr_box.get_box_rect()));
 
   std::set<int32_t> patch_net_set;
   for (Violation* violation : RTDM.getViolationSet(dr_box.get_box_rect())) {
@@ -2457,6 +2455,13 @@ void DetailedRouter::buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box)
       patch_net_set.insert(net_idx);
     }
   }
+  if (patch_net_set.empty()) {
+    return;
+  }
+
+  buildFixedRect(dr_box);
+  dr_box.set_net_detailed_result_map(RTDM.getNetDetailedResultMap(dr_box.get_box_rect()));
+  dr_box.set_net_detailed_patch_map(RTDM.getNetDetailedPatchMap(dr_box.get_box_rect()));
 
   for (int32_t net_idx : patch_net_set) {
     DRTask* dr_task = new DRTask();
@@ -2469,8 +2474,7 @@ void DetailedRouter::buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box)
 
 void DetailedRouter::uploadFinalPatch(DRBox& dr_box)
 {
-  Die& die = RTDM.getDatabase().get_die();
-  std::map<int32_t, std::set<EXTLayerRect*>> net_patch_map = RTDM.getNetDetailedPatchMap(die);
+  std::map<int32_t, std::set<EXTLayerRect*>> net_patch_map = RTDM.getNetDetailedPatchMap(dr_box.get_box_rect());
 
   auto hasSamePatch = [&net_patch_map](int32_t net_idx, EXTLayerRect& patch) {
     for (EXTLayerRect* exist_patch : net_patch_map[net_idx]) {
