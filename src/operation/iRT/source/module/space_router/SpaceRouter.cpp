@@ -264,6 +264,7 @@ void SpaceRouter::routeSRModel(SRModel& sr_model)
     outputGuide(sr_model);
     outputNetCSV(sr_model);
     outputOverflowCSV(sr_model);
+    outputCongestionCSV(sr_model);
     outputJson(sr_model);
     RTLOG.info(Loc::current(), "***** End Iteration ", iter, "/", sr_iter_param_list.size(), "(", RTUTIL.getPercentage(iter, sr_iter_param_list.size()), ")",
                iter_monitor.getStatsInfo(), "*****");
@@ -1739,6 +1740,7 @@ void SpaceRouter::selectBestResult(SRModel& sr_model)
   outputGuide(sr_model);
   outputNetCSV(sr_model);
   outputOverflowCSV(sr_model);
+  outputCongestionCSV(sr_model);
   outputJson(sr_model);
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -2176,6 +2178,208 @@ void SpaceRouter::outputOverflowCSV(SRModel& sr_model)
       RTUTIL.pushStream(overflow_csv_file, "\n");
     }
     RTUTIL.closeFileStream(overflow_csv_file);
+  }
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void SpaceRouter::outputCongestionCSV(SRModel& sr_model)
+{
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
+  std::string& sr_temp_directory_path = RTDM.getConfig().sr_temp_directory_path;
+  int32_t output_inter_result = RTDM.getConfig().output_inter_result;
+  if (!output_inter_result) {
+    return;
+  }
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
+  constexpr int32_t kMaxNetListSize = 64;
+  constexpr double kHighUsageThreshold = 0.90;
+  bool output_full = (output_inter_result >= 2);
+  int32_t micron_dbu = RTDM.getDatabase().get_micron_dbu();
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  std::vector<GridMap<SRNode>>& layer_node_map = sr_model.get_layer_node_map();
+
+  auto calcUsageRatio = [](double demand, double supply) {
+    if (supply <= 0) {
+      return demand <= 0 ? 0.0 : demand + 1.0;
+    }
+    return demand / supply;
+  };
+  auto joinNetSet = [&](const std::set<int32_t>& net_set) {
+    std::string net_list_str;
+    int32_t output_num = 0;
+    for (int32_t net_idx : net_set) {
+      if (output_num >= kMaxNetListSize) {
+        net_list_str += "|...";
+        break;
+      }
+      if (!net_list_str.empty()) {
+        net_list_str += "|";
+      }
+      net_list_str += std::to_string(net_idx);
+      output_num++;
+    }
+    return net_list_str;
+  };
+  auto getDemandNetSet = [](SRNode& sr_node, Orientation orient) {
+    std::set<int32_t> net_set;
+    if (RTUTIL.exist(sr_node.get_orient_net_map(), orient)) {
+      for (int32_t net_idx : sr_node.get_orient_net_map()[orient]) {
+        if (RTUTIL.exist(sr_node.get_ignore_net_orient_map(), net_idx) && RTUTIL.exist(sr_node.get_ignore_net_orient_map()[net_idx], orient)) {
+          continue;
+        }
+        net_set.insert(net_idx);
+      }
+    }
+    return net_set;
+  };
+  auto getInternalDemand = [](SRNode& sr_node, std::set<int32_t>& internal_net_set) {
+    double demand = 0;
+    for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+      if (RTUTIL.exist(sr_node.get_orient_net_map(), orient)) {
+        for (int32_t net_idx : sr_node.get_orient_net_map()[orient]) {
+          if (RTUTIL.exist(sr_node.get_ignore_net_orient_map(), net_idx) && RTUTIL.exist(sr_node.get_ignore_net_orient_map()[net_idx], orient)) {
+            continue;
+          }
+          demand += sr_node.get_internal_wire_unit();
+          internal_net_set.insert(net_idx);
+        }
+      }
+    }
+    for (auto& [net_idx, orient_set] : sr_node.get_net_orient_map()) {
+      if (RTUTIL.exist(sr_node.get_ignore_net_orient_map(), net_idx)
+          && (RTUTIL.exist(sr_node.get_ignore_net_orient_map()[net_idx], Orientation::kAbove)
+              || RTUTIL.exist(sr_node.get_ignore_net_orient_map()[net_idx], Orientation::kBelow))) {
+        continue;
+      }
+      if (RTUTIL.exist(orient_set, Orientation::kEast) || RTUTIL.exist(orient_set, Orientation::kWest)
+          || RTUTIL.exist(orient_set, Orientation::kSouth) || RTUTIL.exist(orient_set, Orientation::kNorth)) {
+        continue;
+      }
+      if (RTUTIL.exist(orient_set, Orientation::kAbove) || RTUTIL.exist(orient_set, Orientation::kBelow)) {
+        demand += sr_node.get_internal_via_unit();
+        internal_net_set.insert(net_idx);
+      }
+    }
+    return demand;
+  };
+  auto getSupply = [](SRNode& sr_node, Orientation orient) {
+    if (RTUTIL.exist(sr_node.get_orient_supply_map(), orient)) {
+      return static_cast<double>(sr_node.get_orient_supply_map()[orient]);
+    }
+    return 0.0;
+  };
+  auto getInternalSupply = [](SRNode& sr_node) {
+    double supply = 0;
+    for (auto& [orient, orient_supply] : sr_node.get_orient_supply_map()) {
+      if (orient == Orientation::kEast || orient == Orientation::kWest || orient == Orientation::kSouth || orient == Orientation::kNorth) {
+        supply += orient_supply;
+      }
+    }
+    return supply;
+  };
+  auto getMaxUsageRatio = [&](SRNode& sr_node) {
+    double max_usage_ratio = 0;
+    for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+      std::set<int32_t> net_set = getDemandNetSet(sr_node, orient);
+      max_usage_ratio = std::max(max_usage_ratio, calcUsageRatio(net_set.size() * sr_node.get_boundary_wire_unit(), getSupply(sr_node, orient)));
+    }
+    std::set<int32_t> internal_net_set;
+    max_usage_ratio = std::max(max_usage_ratio, calcUsageRatio(getInternalDemand(sr_node, internal_net_set), getInternalSupply(sr_node)));
+    return max_usage_ratio;
+  };
+  auto getHighUsage = [&](SRNode& sr_node) {
+    double high_usage = 0;
+    for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+      std::set<int32_t> net_set = getDemandNetSet(sr_node, orient);
+      high_usage += std::max(0.0, calcUsageRatio(net_set.size() * sr_node.get_boundary_wire_unit(), getSupply(sr_node, orient)) - kHighUsageThreshold);
+    }
+    std::set<int32_t> internal_net_set;
+    high_usage += std::max(0.0, calcUsageRatio(getInternalDemand(sr_node, internal_net_set), getInternalSupply(sr_node)) - kHighUsageThreshold);
+    return high_usage;
+  };
+  auto getHighUsageNetSet = [&](SRNode& sr_node) {
+    std::set<int32_t> high_usage_net_set;
+    for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+      std::set<int32_t> net_set = getDemandNetSet(sr_node, orient);
+      double demand = net_set.size() * sr_node.get_boundary_wire_unit();
+      if (calcUsageRatio(demand, getSupply(sr_node, orient)) > kHighUsageThreshold + RT_ERROR) {
+        high_usage_net_set.insert(net_set.begin(), net_set.end());
+      }
+    }
+    std::set<int32_t> internal_net_set;
+    if (calcUsageRatio(getInternalDemand(sr_node, internal_net_set), getInternalSupply(sr_node)) > kHighUsageThreshold + RT_ERROR) {
+      high_usage_net_set.insert(internal_net_set.begin(), internal_net_set.end());
+    }
+    return high_usage_net_set;
+  };
+  auto pushHeader = [](std::ofstream* csv_file) {
+    RTUTIL.pushStream(csv_file,
+                      "stage,iter,layer_idx,layer_name,x,y,real_llx,real_lly,real_urx,real_ury,resource,orient,demand,supply,overflow,"
+                      "usage_ratio,node_total_demand,node_total_overflow,node_max_usage_ratio,high_usage,congestion_risk,net_count,"
+                      "overflow_net_count,high_usage_net_count,net_list,overflow_net_list,high_usage_net_list\n");
+  };
+  auto pushRow = [&](std::ofstream* csv_file, bool include_all, SRNode& sr_node, RoutingLayer& routing_layer, const std::string& resource,
+                     const std::string& orient_name, double demand, double supply, const std::set<int32_t>& net_set,
+                     const std::set<int32_t>& overflow_net_set, const std::set<int32_t>& high_usage_net_set) {
+    double usage_ratio = calcUsageRatio(demand, supply);
+    double overflow = std::max(0.0, demand - supply);
+    if (!include_all && overflow <= 0 && usage_ratio < kHighUsageThreshold && sr_node.get_congestion_risk() <= 0) {
+      return;
+    }
+    PlanarRect real_rect = RTUTIL.getRealRectByGCell(sr_node.get_planar_coord(), gcell_axis);
+    RTUTIL.pushStream(csv_file, "SR,", sr_model.get_iter(), ",", routing_layer.get_layer_idx(), ",", routing_layer.get_layer_name(), ",",
+                      sr_node.get_x(), ",", sr_node.get_y(), ",", real_rect.get_ll_x() / 1.0 / micron_dbu, ",",
+                      real_rect.get_ll_y() / 1.0 / micron_dbu, ",", real_rect.get_ur_x() / 1.0 / micron_dbu, ",",
+                      real_rect.get_ur_y() / 1.0 / micron_dbu, ",", resource, ",", orient_name, ",", demand, ",", supply, ",", overflow,
+                      ",", usage_ratio, ",", sr_node.getDemand(), ",", sr_node.getOverflow(), ",", getMaxUsageRatio(sr_node), ",",
+                      getHighUsage(sr_node), ",", sr_node.get_congestion_risk(), ",", net_set.size(), ",", overflow_net_set.size(), ",",
+                      high_usage_net_set.size(), ",", joinNetSet(net_set), ",", joinNetSet(overflow_net_set), ",",
+                      joinNetSet(high_usage_net_set), "\n");
+  };
+
+  std::ofstream* hotspot_csv_file
+      = RTUTIL.getOutputFileStream(RTUTIL.getString(sr_temp_directory_path, "congestion_hotspot_SR_", sr_model.get_iter(), ".csv"));
+  pushHeader(hotspot_csv_file);
+  std::ofstream* full_csv_file = nullptr;
+  if (output_full) {
+    full_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(sr_temp_directory_path, "congestion_full_SR_", sr_model.get_iter(), ".csv"));
+    pushHeader(full_csv_file);
+  }
+  auto pushToFiles = [&](SRNode& sr_node, RoutingLayer& routing_layer, const std::string& resource, const std::string& orient_name, double demand,
+                         double supply, const std::set<int32_t>& net_set, const std::set<int32_t>& overflow_net_set,
+                         const std::set<int32_t>& high_usage_net_set) {
+    pushRow(hotspot_csv_file, false, sr_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
+    if (full_csv_file != nullptr) {
+      pushRow(full_csv_file, true, sr_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
+    }
+  };
+
+  for (RoutingLayer& routing_layer : routing_layer_list) {
+    GridMap<SRNode>& sr_node_map = layer_node_map[routing_layer.get_layer_idx()];
+    for (int32_t x = 0; x < sr_node_map.get_x_size(); x++) {
+      for (int32_t y = 0; y < sr_node_map.get_y_size(); y++) {
+        SRNode& sr_node = sr_node_map[x][y];
+        std::set<int32_t> overflow_net_set = sr_node.getOverflowNetSet();
+        std::set<int32_t> high_usage_net_set = getHighUsageNetSet(sr_node);
+        for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+          std::set<int32_t> net_set = getDemandNetSet(sr_node, orient);
+          double demand = net_set.size() * sr_node.get_boundary_wire_unit();
+          pushToFiles(sr_node, routing_layer, "boundary", GetOrientationName()(orient), demand, getSupply(sr_node, orient), net_set,
+                      overflow_net_set, high_usage_net_set);
+        }
+        std::set<int32_t> internal_net_set;
+        double internal_demand = getInternalDemand(sr_node, internal_net_set);
+        pushToFiles(sr_node, routing_layer, "internal", "internal", internal_demand, getInternalSupply(sr_node), internal_net_set,
+                    overflow_net_set, high_usage_net_set);
+      }
+    }
+  }
+
+  RTUTIL.closeFileStream(hotspot_csv_file);
+  if (full_csv_file != nullptr) {
+    RTUTIL.closeFileStream(full_csv_file);
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
