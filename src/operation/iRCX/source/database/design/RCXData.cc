@@ -25,8 +25,13 @@ namespace ircx {
 
 RCXData::CornerData::CornerData() = default;
 RCXData::CornerData::~CornerData() = default;
-RCXData::CornerData::CornerData(CornerData&&) noexcept = default;
-RCXData::CornerData& RCXData::CornerData::operator=(CornerData&&) noexcept = default;
+RCXData::CornerData::CornerData(CornerData&&) = default;
+RCXData::CornerData& RCXData::CornerData::operator=(CornerData&&) = default;
+
+F64 RCXData::CornerData::halfNodeScaleFactor() const
+{
+  return process_corner == nullptr ? 1.0 : process_corner->get_half_node_scale_factor();
+}
 
 RCXData::~RCXData() = default;
 
@@ -63,6 +68,11 @@ bool RCXData::hasCorner(const Str& corner_name) const
                      [&](const CornerData& corner) {
                        return corner.name == corner_name;
                      });
+}
+
+F64 RCXData::halfNodeScaleFactor(Size corner_idx) const
+{
+  return corner_idx < corners_.size() ? corners_[corner_idx].halfNodeScaleFactor() : 1.0;
 }
 
 }  // namespace ircx

@@ -26,11 +26,8 @@ namespace ircx {
 
 auto Report::dumpSpef() -> bool
 {
-  LOG_INFO << "report spef start";
-
-  const Str& config_output_dir = RCX_CONFIG_INST.get_output_dir();
-  const Str resolved_output_dir = config_output_dir.empty() ? "." : config_output_dir;
-  if (!path::mkdirs(resolved_output_dir, "output_dir")) {
+  const Str& output_dir = RCX_CONFIG_INST.get_output_dir();
+  if (!path::mkdirs(output_dir, "output_dir")) {
     return false;
   }
 
@@ -47,11 +44,11 @@ auto Report::dumpSpef() -> bool
   dumper.set_topo_pool(&data.topo_pool());
   dumper.set_rc_table(&data.rc_table());
   dumper.set_corner_data(&corner_data);
-  if (!dumper.dump(resolved_output_dir)) {
+  dumper.set_layer_table(&data.layer_table());
+  if (!dumper.dump(output_dir)) {
     return false;
   }
 
-  LOG_INFO << "report spef end";
   return true;
 }
 

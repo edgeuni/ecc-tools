@@ -16,47 +16,66 @@
 // ***************************************************************************************
 #include "RCXAPI.hh"
 
-#include "Flow.hh"
+#include <omp.h>
+
+#include <utility>
+
+#include "CompareSpef.hh"
+#include "Extraction.hh"
+#include "RCXConfig.hh"
+#include "RCXData.hh"
+#include "Report.hh"
 #include "Setup.hh"
+#include "StageLog.hh"
+#include "log/Log.hh"
 
 namespace ircx {
 
+RCXAPI::RCXAPI()
+{
+  char config[] = "iRCX";
+  char* argv[] = {config, nullptr};
+  ieda::Log::init(argv);
+}
+
 auto RCXAPI::init(const std::string& config_file) -> bool
 {
-  RCX_FLOW_INST.reset();
-  return Setup::initialize(config_file);
+  return runStage("init_rcx", [&]() {
+    RCX_DATA_INST.reset();
+    return Setup::initialize(config_file);
+  });
 }
 
 auto RCXAPI::run() -> bool
 {
-  return RCX_FLOW_INST.run();
+  return runStage("run_rcx", []() {
+    if (!RCX_CONFIG_INST.get_initialized()) {
+      LOG_ERROR << "run_rcx failed: RCX config is not initialized.";
+      return false;
+    }
+
+    if (!Setup::adaptDB()) {
+      return false;
+    }
+
+    omp_set_num_threads(RCX_CONFIG_INST.get_thread_num());
+
+    return Extraction::run();
+  });
 }
 
 auto RCXAPI::report() -> bool
 {
-  return RCX_FLOW_INST.report();
+  return runStage("report_spef", []() {
+    return Report::dumpSpef(); 
+  });
 }
 
-auto RCXAPI::readCorner(const std::string& corner_name,
-                        const char* itf_file,
-                        const char* captab_file) -> bool
+auto RCXAPI::compare_spef(compare_spef::Config config) -> bool
 {
-  return Setup::readCorner(corner_name, itf_file, captab_file);
-}
-
-auto RCXAPI::readMapping(const char* mapping_file) -> bool
-{
-  return Setup::readMapping(mapping_file);
-}
-
-auto RCXAPI::adaptDB() -> bool
-{
-  return RCX_FLOW_INST.adaptDB();
-}
-
-auto RCXAPI::extract() -> bool
-{
-  return RCX_FLOW_INST.extract();
+  return runStage("compare_spef", [&]() {
+    return CompareSpef::run(std::move(config));
+  }, {.profile = true});
 }
 
 }  // namespace ircx

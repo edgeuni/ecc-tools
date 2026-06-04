@@ -2454,7 +2454,6 @@ void TopologyGenerator::updateSummary(TGModel& tg_model)
   double& total_overflow = summary.tg_summary.total_overflow;
   double& total_wire_length = summary.tg_summary.total_wire_length;
   std::map<std::string, std::map<std::string, double>>& clock_timing_map = summary.tg_summary.clock_timing_map;
-  std::map<std::string, double>& type_power_map = summary.tg_summary.type_power_map;
 
   std::vector<TGNet>& tg_net_list = tg_model.get_tg_net_list();
   GridMap<TGNode>& tg_node_map = tg_model.get_tg_node_map();
@@ -2463,7 +2462,6 @@ void TopologyGenerator::updateSummary(TGModel& tg_model)
   total_overflow = 0;
   total_wire_length = 0;
   clock_timing_map.clear();
-  type_power_map.clear();
 
   for (int32_t x = 0; x < tg_node_map.get_x_size(); x++) {
     for (int32_t y = 0; y < tg_node_map.get_y_size(); y++) {
@@ -2511,7 +2509,7 @@ void TopologyGenerator::updateSummary(TGModel& tg_model)
         routing_segment_list_list[net_idx].emplace_back(first_real_coord, second_real_coord);
       }
     }
-    RTI.updateTimingAndPower(real_pin_coord_map_list, routing_segment_list_list, clock_timing_map, type_power_map);
+    RTI.updateTiming(real_pin_coord_map_list, routing_segment_list_list, clock_timing_map);
   }
 }
 
@@ -2524,7 +2522,6 @@ void TopologyGenerator::printSummary(TGModel& tg_model)
   double& total_overflow = summary.tg_summary.total_overflow;
   double& total_wire_length = summary.tg_summary.total_wire_length;
   std::map<std::string, std::map<std::string, double>>& clock_timing_map = summary.tg_summary.clock_timing_map;
-  std::map<std::string, double>& type_power_map = summary.tg_summary.type_power_map;
 
   fort::char_table summary_table;
   {
@@ -2535,8 +2532,6 @@ void TopologyGenerator::printSummary(TGModel& tg_model)
   }
   fort::char_table timing_table;
   timing_table.set_cell_text_align(fort::text_align::right);
-  fort::char_table power_table;
-  power_table.set_cell_text_align(fort::text_align::right);
   if (enable_timing) {
     timing_table << fort::header << "clock_name"
                  << "tns"
@@ -2545,19 +2540,9 @@ void TopologyGenerator::printSummary(TGModel& tg_model)
     for (auto& [clock_name, timing_map] : clock_timing_map) {
       timing_table << clock_name << timing_map["TNS"] << timing_map["WNS"] << timing_map["Freq(MHz)"] << fort::endr;
     }
-    power_table << fort::header << "power_type";
-    for (auto& [type, power] : type_power_map) {
-      power_table << fort::header << type;
-    }
-    power_table << fort::endr;
-    power_table << "power_value";
-    for (auto& [type, power] : type_power_map) {
-      power_table << power;
-    }
-    power_table << fort::endr;
   }
   RTUTIL.printTableList({summary_table});
-  RTUTIL.printTableList({timing_table, power_table});
+  RTUTIL.printTableList({timing_table});
 }
 
 void TopologyGenerator::outputGuide(TGModel& tg_model)
@@ -2911,7 +2896,6 @@ std::string TopologyGenerator::outputSummaryJson(TGModel& tg_model)
   double& total_overflow = summary.tg_summary.total_overflow;
   double& total_wire_length = summary.tg_summary.total_wire_length;
   std::map<std::string, std::map<std::string, double>>& clock_timing_map = summary.tg_summary.clock_timing_map;
-  std::map<std::string, double>& type_power_map = summary.tg_summary.type_power_map;
 
   nlohmann::json summary_json;
   summary_json["total_demand"] = total_demand;
@@ -2920,10 +2904,6 @@ std::string TopologyGenerator::outputSummaryJson(TGModel& tg_model)
   for (auto& [clock_name, timing] : clock_timing_map) {
     summary_json["clock_timing_map"]["clock_name"] = clock_name;
     summary_json["clock_timing_map"]["timing"] = timing;
-  }
-  for (auto& [type, power] : type_power_map) {
-    summary_json["type_power_map"]["type"] = type;
-    summary_json["type_power_map"]["power"] = power;
   }
   std::string summary_json_file_path = RTUTIL.getString(tg_temp_directory_path, "summary.json");
   std::ofstream* summary_json_file = RTUTIL.getOutputFileStream(summary_json_file_path);

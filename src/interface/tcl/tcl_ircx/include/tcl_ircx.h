@@ -32,7 +32,6 @@ class TclInitRCX : public TclCmd
 
   unsigned check() override;
   unsigned exec() override;
-
 };
 
 /**
@@ -60,6 +59,20 @@ class TclReportRCX : public TclCmd
   ~TclReportRCX() override = default;
 
   unsigned check() override { return 1; }
+  unsigned exec() override;
+};
+
+/**
+ * @brief Compare two SPEF netlists.
+ *
+ */
+class TclCompareSpef : public TclCmd
+{
+ public:
+  explicit TclCompareSpef(const char* cmd_name);
+  ~TclCompareSpef() override = default;
+
+  unsigned check() override;
   unsigned exec() override;
 };
 

@@ -18,6 +18,8 @@
 
 #include <string>
 
+#include "config/CompareSpefConfig.hh"
+
 namespace ircx {
 
 #define RCX_API_INST (ircx::RCXAPI::getInst())
@@ -34,16 +36,7 @@ class RCXAPI
   static auto init(const std::string& config_file) -> bool;
   static auto run() -> bool;
   static auto report() -> bool;
-
-  // init
-  static auto readCorner(const std::string& corner_name,
-                         const char* itf_file,
-                         const char* captab_file) -> bool;
-  static auto readMapping(const char* mapping_file) -> bool;
-
-  // run
-  static auto adaptDB() -> bool;
-  static auto extract() -> bool;
+  static auto compare_spef(compare_spef::Config config) -> bool;
 
   RCXAPI(const RCXAPI& other) = delete;
   RCXAPI(RCXAPI&& other) = delete;
@@ -51,7 +44,7 @@ class RCXAPI
   auto operator=(RCXAPI&& other) -> RCXAPI& = delete;
 
  private:
-  RCXAPI() = default;
+  RCXAPI();
   ~RCXAPI() = default;
 };
 
