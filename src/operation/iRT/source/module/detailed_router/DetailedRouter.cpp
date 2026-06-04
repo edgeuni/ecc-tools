@@ -142,6 +142,8 @@ void DetailedRouter::routeDRModel(DRModel& dr_model)
     uploadNetResult(dr_model);
     uploadNetPatch(dr_model);
     uploadViolation(dr_model);
+    patchFinalMinArea(dr_model);
+    uploadViolation(dr_model);
     updateBestResult(dr_model);
     // debugPlotDRModel(dr_model, "after");
     updateSummary(dr_model);
@@ -915,7 +917,7 @@ void DetailedRouter::routeDRBox(DRBox& dr_box)
     for (DRTask* routing_task : routing_task_list) {
       updateGraph(dr_box, routing_task);
       routeDRTask(dr_box, routing_task);
-      patchDRTask(dr_box, routing_task);
+      patchDRTask(dr_box, routing_task); 
       routing_task->addRoutedTimes();
     }
     updateRouteViolationList(dr_box);
@@ -1722,6 +1724,7 @@ std::vector<PlanarRect> DetailedRouter::getViolationOverlapRect(DRBox& dr_box, V
     for (GTLPolyInt& gtl_poly : gtl_poly_list) {
       int32_t overlap_area = static_cast<int32_t>(gtl::area(gtl_poly & RTUTIL.convertToGTLRectInt(violation_real_rect)));
       if (max_overlap_area < overlap_area) {
+        max_overlap_area = overlap_area;
         best_gtl_poly = gtl_poly;
       }
     }
@@ -2386,6 +2389,9 @@ void DetailedRouter::selectBestResult(DRModel& dr_model)
 
   dr_model.set_iter(dr_model.get_iter() + 1);
   uploadBestResult(dr_model);
+  uploadViolation(dr_model);
+  patchFinalMinArea(dr_model);
+  uploadViolation(dr_model);
   updateSummary(dr_model);
   printSummary(dr_model);
   outputNetCSV(dr_model);
@@ -2393,6 +2399,98 @@ void DetailedRouter::selectBestResult(DRModel& dr_model)
   outputJson(dr_model);
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void DetailedRouter::patchFinalMinArea(DRModel& dr_model)
+{
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
+  initDRBoxMap(dr_model);
+  buildBoxSchedule(dr_model);
+
+  GridMap<DRBox>& dr_box_map = dr_model.get_dr_box_map();
+  for (std::vector<DRBoxId>& dr_box_id_list : dr_model.get_dr_box_id_list_list()) {
+    for (DRBoxId& dr_box_id : dr_box_id_list) {
+      DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
+      buildFinalPatchBox(dr_model, dr_box);
+      if (!dr_box.get_dr_task_list().empty()) {
+        buildBoxTrackAxis(dr_box);
+        buildLayerNodeMap(dr_box);
+        buildLayerShadowMap(dr_box);
+        buildDRNodeNeighbor(dr_box);
+        buildOrientNetMap(dr_box);
+        buildNetShadowMap(dr_box);
+        for (DRTask* dr_task : dr_box.get_dr_task_list()) {
+          patchDRTask(dr_box, dr_task);
+        }
+        uploadFinalPatch(dr_box);
+      }
+      freeDRBox(dr_box);
+    }
+  }
+
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void DetailedRouter::buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box)
+{
+  PlanarRect& box_real_rect = dr_box.get_box_rect().get_real_rect();
+  std::vector<DRNet>& dr_net_list = dr_model.get_dr_net_list();
+
+  buildFixedRect(dr_box);
+  dr_box.set_net_detailed_result_map(RTDM.getNetDetailedResultMap(dr_box.get_box_rect()));
+  dr_box.set_net_detailed_patch_map(RTDM.getNetDetailedPatchMap(dr_box.get_box_rect()));
+
+  std::set<int32_t> patch_net_set;
+  for (Violation* violation : RTDM.getViolationSet(dr_box.get_box_rect())) {
+    if (violation->get_violation_type() != ViolationType::kMinimumArea) {
+      continue;
+    }
+    if (!RTUTIL.isOpenOverlap(box_real_rect, violation->get_violation_shape().get_real_rect())) {
+      continue;
+    }
+    for (int32_t net_idx : violation->get_violation_net_set()) {
+      if (net_idx < 0 || static_cast<int32_t>(dr_net_list.size()) <= net_idx) {
+        continue;
+      }
+      patch_net_set.insert(net_idx);
+    }
+  }
+
+  for (int32_t net_idx : patch_net_set) {
+    DRTask* dr_task = new DRTask();
+    dr_task->set_net_idx(net_idx);
+    dr_task->set_connect_type(dr_net_list[net_idx].get_connect_type());
+    dr_task->set_bounding_box(box_real_rect);
+    dr_box.get_dr_task_list().push_back(dr_task);
+  }
+}
+
+void DetailedRouter::uploadFinalPatch(DRBox& dr_box)
+{
+  Die& die = RTDM.getDatabase().get_die();
+  std::map<int32_t, std::set<EXTLayerRect*>> net_patch_map = RTDM.getNetDetailedPatchMap(die);
+
+  auto hasSamePatch = [&net_patch_map](int32_t net_idx, EXTLayerRect& patch) {
+    for (EXTLayerRect* exist_patch : net_patch_map[net_idx]) {
+      if (exist_patch->get_layer_idx() == patch.get_layer_idx() && exist_patch->get_real_rect() == patch.get_real_rect()) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (auto& [net_idx, patch_list] : dr_box.get_net_task_detailed_patch_map()) {
+    for (EXTLayerRect& patch : patch_list) {
+      if (hasSamePatch(net_idx, patch)) {
+        continue;
+      }
+      EXTLayerRect* new_patch = new EXTLayerRect(patch);
+      RTDM.updateNetDetailedPatchToGCellMap(ChangeType::kAdd, net_idx, new_patch);
+      net_patch_map[net_idx].insert(new_patch);
+    }
+  }
 }
 
 void DetailedRouter::uploadBestResult(DRModel& dr_model)

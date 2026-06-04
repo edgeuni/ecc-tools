@@ -139,6 +139,9 @@ class DetailedRouter
   void updateBestResult(DRModel& dr_model);
   bool stopIteration(DRModel& dr_model, std::vector<DRIterParam>& dr_iter_param_list);
   void selectBestResult(DRModel& dr_model);
+  void patchFinalMinArea(DRModel& dr_model);
+  void buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box);
+  void uploadFinalPatch(DRBox& dr_box);
   void uploadBestResult(DRModel& dr_model);
 
 #if 1  // update env
