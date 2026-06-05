@@ -865,17 +865,15 @@ void DetailedRouter::exemptPinShape(DRModel& dr_model, DRBox& dr_box)
         }
         PlanarCoord grid_coord = RTUTIL.getTrackGrid(access_point->get_real_coord(), box_track_axis);
         DRNode& dr_node = layer_node_map[access_point->get_layer_idx()][grid_coord.get_x()][grid_coord.get_y()];
-        for (auto& [orient, net_set] : dr_node.get_orient_fixed_rect_map()) {
-          if (orient == Orientation::kAbove || orient == Orientation::kBelow) {
-            net_set.erase(-1);
+        for (Orientation orient : {Orientation::kAbove, Orientation::kBelow}) {
+          if (dr_node.hasFixedRectOrient(orient)) {
+            dr_node.delFixedRectNet(orient, -1);
             DRNode* neighbor_node = dr_node.getNeighborNode(orient);
             if (neighbor_node == nullptr) {
               continue;
             }
             Orientation oppo_orientation = RTUTIL.getOppositeOrientation(orient);
-            if (RTUTIL.exist(neighbor_node->get_orient_fixed_rect_map(), oppo_orientation)) {
-              neighbor_node->get_orient_fixed_rect_map()[oppo_orientation].erase(-1);
-            }
+            neighbor_node->delFixedRectNet(oppo_orientation, -1);
           }
         }
       } else {
@@ -898,10 +896,8 @@ void DetailedRouter::exemptPinShape(DRModel& dr_model, DRBox& dr_box)
             if (within_shape) {
               continue;
             }
-            for (auto& [orient, net_set] : dr_node.get_orient_fixed_rect_map()) {
-              if (orient == Orientation::kEast || orient == Orientation::kWest || orient == Orientation::kSouth || orient == Orientation::kNorth) {
-                net_set.erase(-1);
-              }
+            for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+              dr_node.delFixedRectNet(orient, -1);
             }
           }
         }
@@ -2695,17 +2691,17 @@ void DetailedRouter::addRouteViolationToGraph(DRBox& dr_box, LayerRect& searched
     Orientation oppo_orientation = RTUTIL.getOppositeOrientation(orientation);
     for (DRNode* valid_node : valid_node_set) {
       if (LayerCoord(*valid_node) != first_coord) {
-        valid_node->get_orient_violation_number_map()[oppo_orientation]++;
+        valid_node->addViolationNumber(oppo_orientation);
         DRNode* neighbor_node = valid_node->getNeighborNode(oppo_orientation);
         if (neighbor_node != nullptr) {
-          neighbor_node->get_orient_violation_number_map()[orientation]++;
+          neighbor_node->addViolationNumber(orientation);
         }
       }
       if (LayerCoord(*valid_node) != second_coord) {
-        valid_node->get_orient_violation_number_map()[orientation]++;
+        valid_node->addViolationNumber(orientation);
         DRNode* neighbor_node = valid_node->getNeighborNode(orientation);
         if (neighbor_node != nullptr) {
-          neighbor_node->get_orient_violation_number_map()[oppo_orientation]++;
+          neighbor_node->addViolationNumber(oppo_orientation);
         }
       }
     }
@@ -2723,14 +2719,17 @@ void DetailedRouter::updateNetShapeToGraph(DRBox& dr_box, ChangeType change_type
 
 void DetailedRouter::updateNodeNetToGraph(DRNode& dr_node, ChangeType change_type, int32_t net_idx, Orientation orientation, bool is_fixed)
 {
-  std::map<Orientation, std::set<int32_t>>& orient_net_map
-      = is_fixed ? dr_node.get_orient_fixed_rect_map() : dr_node.get_orient_routed_rect_map();
   if (change_type == ChangeType::kAdd) {
-    orient_net_map[orientation].insert(net_idx);
+    if (is_fixed) {
+      dr_node.addFixedRectNet(orientation, net_idx);
+    } else {
+      dr_node.addRoutedRectNet(orientation, net_idx);
+    }
   } else if (change_type == ChangeType::kDel) {
-    auto iter = orient_net_map.find(orientation);
-    if (iter != orient_net_map.end()) {
-      iter->second.erase(net_idx);
+    if (is_fixed) {
+      dr_node.delFixedRectNet(orientation, net_idx);
+    } else {
+      dr_node.delRoutedRectNet(orientation, net_idx);
     }
   }
 }
@@ -3979,15 +3978,15 @@ void DetailedRouter::debugPlotDRBox(DRBox& dr_box, std::string flag)
             gp_text_orient_fixed_rect_map.set_presentation(GPTextPresentation::kLeftMiddle);
             dr_node_map_struct.push(gp_text_orient_fixed_rect_map);
 
-            if (!dr_node.get_orient_fixed_rect_map().empty()) {
+            if (dr_node.hasOrientFixedRect()) {
               y -= y_reduced_span;
               GPText gp_text_orient_fixed_rect_map_info;
               gp_text_orient_fixed_rect_map_info.set_coord(real_rect.get_ll_x(), y);
               gp_text_orient_fixed_rect_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
               std::string orient_fixed_rect_map_info_message = "--";
-              for (auto& [orient, net_set] : dr_node.get_orient_fixed_rect_map()) {
+              for (auto& [orient, net_list] : dr_node.get_orient_fixed_rect_list()) {
                 orient_fixed_rect_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient));
-                for (int32_t net_idx : net_set) {
+                for (int32_t net_idx : net_list) {
                   orient_fixed_rect_map_info_message += RTUTIL.getString(",", net_idx);
                 }
                 orient_fixed_rect_map_info_message += RTUTIL.getString(")");
@@ -4007,15 +4006,15 @@ void DetailedRouter::debugPlotDRBox(DRBox& dr_box, std::string flag)
             gp_text_orient_routed_rect_map.set_presentation(GPTextPresentation::kLeftMiddle);
             dr_node_map_struct.push(gp_text_orient_routed_rect_map);
 
-            if (!dr_node.get_orient_routed_rect_map().empty()) {
+            if (dr_node.hasOrientRoutedRect()) {
               y -= y_reduced_span;
               GPText gp_text_orient_routed_rect_map_info;
               gp_text_orient_routed_rect_map_info.set_coord(real_rect.get_ll_x(), y);
               gp_text_orient_routed_rect_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
               std::string orient_routed_rect_map_info_message = "--";
-              for (auto& [orient, net_set] : dr_node.get_orient_routed_rect_map()) {
+              for (auto& [orient, net_list] : dr_node.get_orient_routed_rect_list()) {
                 orient_routed_rect_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient));
-                for (int32_t net_idx : net_set) {
+                for (int32_t net_idx : net_list) {
                   orient_routed_rect_map_info_message += RTUTIL.getString(",", net_idx);
                 }
                 orient_routed_rect_map_info_message += RTUTIL.getString(")");
@@ -4035,15 +4034,15 @@ void DetailedRouter::debugPlotDRBox(DRBox& dr_box, std::string flag)
             gp_text_orient_violation_number_map.set_presentation(GPTextPresentation::kLeftMiddle);
             dr_node_map_struct.push(gp_text_orient_violation_number_map);
 
-            if (!dr_node.get_orient_violation_number_map().empty()) {
+            if (dr_node.hasOrientViolationNumber()) {
               y -= y_reduced_span;
               GPText gp_text_orient_violation_number_map_info;
               gp_text_orient_violation_number_map_info.set_coord(real_rect.get_ll_x(), y);
               gp_text_orient_violation_number_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
               std::string orient_violation_number_map_info_message = "--";
-              for (auto& [orient, violation_number] : dr_node.get_orient_violation_number_map()) {
+              dr_node.forEachViolationNumber([&](Orientation orient, int32_t violation_number) {
                 orient_violation_number_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient), ",", violation_number != 0, ")");
-              }
+              });
               gp_text_orient_violation_number_map_info.set_message(orient_violation_number_map_info_message);
               gp_text_orient_violation_number_map_info.set_layer_idx(RTGP.getGDSIdxByRouting(dr_node.get_layer_idx()));
               gp_text_orient_violation_number_map_info.set_presentation(GPTextPresentation::kLeftMiddle);

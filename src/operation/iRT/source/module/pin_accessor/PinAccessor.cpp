@@ -1779,17 +1779,15 @@ void PinAccessor::exemptPinShape(PAModel& pa_model, PABox& pa_box)
         }
         PlanarCoord grid_coord = RTUTIL.getTrackGrid(access_point->get_real_coord(), box_track_axis);
         PANode& pa_node = layer_node_map[access_point->get_layer_idx()][grid_coord.get_x()][grid_coord.get_y()];
-        for (auto& [orient, net_set] : pa_node.get_orient_fixed_rect_map()) {
-          if (orient == Orientation::kAbove || orient == Orientation::kBelow) {
-            net_set.erase(-1);
+        for (Orientation orient : {Orientation::kAbove, Orientation::kBelow}) {
+          if (pa_node.hasFixedRectOrient(orient)) {
+            pa_node.delFixedRectNet(orient, -1);
             PANode* neighbor_node = pa_node.getNeighborNode(orient);
             if (neighbor_node == nullptr) {
               continue;
             }
             Orientation oppo_orientation = RTUTIL.getOppositeOrientation(orient);
-            if (RTUTIL.exist(neighbor_node->get_orient_fixed_rect_map(), oppo_orientation)) {
-              neighbor_node->get_orient_fixed_rect_map()[oppo_orientation].erase(-1);
-            }
+            neighbor_node->delFixedRectNet(oppo_orientation, -1);
           }
         }
       } else {
@@ -1812,10 +1810,8 @@ void PinAccessor::exemptPinShape(PAModel& pa_model, PABox& pa_box)
             if (within_shape) {
               continue;
             }
-            for (auto& [orient, net_set] : pa_node.get_orient_fixed_rect_map()) {
-              if (orient == Orientation::kEast || orient == Orientation::kWest || orient == Orientation::kSouth || orient == Orientation::kNorth) {
-                net_set.erase(-1);
-              }
+            for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+              pa_node.delFixedRectNet(orient, -1);
             }
           }
         }
@@ -3652,17 +3648,17 @@ void PinAccessor::addRouteViolationToGraph(PABox& pa_box, LayerRect& searched_re
     Orientation oppo_orientation = RTUTIL.getOppositeOrientation(orientation);
     for (PANode* valid_node : valid_node_set) {
       if (LayerCoord(*valid_node) != first_coord) {
-        valid_node->get_orient_violation_number_map()[oppo_orientation]++;
+        valid_node->addViolationNumber(oppo_orientation);
         PANode* neighbor_node = valid_node->getNeighborNode(oppo_orientation);
         if (neighbor_node != nullptr) {
-          neighbor_node->get_orient_violation_number_map()[orientation]++;
+          neighbor_node->addViolationNumber(orientation);
         }
       }
       if (LayerCoord(*valid_node) != second_coord) {
-        valid_node->get_orient_violation_number_map()[orientation]++;
+        valid_node->addViolationNumber(orientation);
         PANode* neighbor_node = valid_node->getNeighborNode(orientation);
         if (neighbor_node != nullptr) {
-          neighbor_node->get_orient_violation_number_map()[oppo_orientation]++;
+          neighbor_node->addViolationNumber(oppo_orientation);
         }
       }
     }
@@ -3680,14 +3676,17 @@ void PinAccessor::updateNetShapeToGraph(PABox& pa_box, ChangeType change_type, N
 
 void PinAccessor::updateNodeNetToGraph(PANode& pa_node, ChangeType change_type, int32_t net_idx, Orientation orientation, bool is_fixed)
 {
-  std::map<Orientation, std::set<int32_t>>& orient_net_map
-      = is_fixed ? pa_node.get_orient_fixed_rect_map() : pa_node.get_orient_routed_rect_map();
   if (change_type == ChangeType::kAdd) {
-    orient_net_map[orientation].insert(net_idx);
+    if (is_fixed) {
+      pa_node.addFixedRectNet(orientation, net_idx);
+    } else {
+      pa_node.addRoutedRectNet(orientation, net_idx);
+    }
   } else if (change_type == ChangeType::kDel) {
-    auto iter = orient_net_map.find(orientation);
-    if (iter != orient_net_map.end()) {
-      iter->second.erase(net_idx);
+    if (is_fixed) {
+      pa_node.delFixedRectNet(orientation, net_idx);
+    } else {
+      pa_node.delRoutedRectNet(orientation, net_idx);
     }
   }
 }
@@ -4900,15 +4899,15 @@ void PinAccessor::debugPlotPABox(PABox& pa_box, std::string flag)
             gp_text_orient_fixed_rect_map.set_presentation(GPTextPresentation::kLeftMiddle);
             pa_node_map_struct.push(gp_text_orient_fixed_rect_map);
 
-            if (!pa_node.get_orient_fixed_rect_map().empty()) {
+            if (pa_node.hasOrientFixedRect()) {
               y -= y_reduced_span;
               GPText gp_text_orient_fixed_rect_map_info;
               gp_text_orient_fixed_rect_map_info.set_coord(real_rect.get_ll_x(), y);
               gp_text_orient_fixed_rect_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
               std::string orient_fixed_rect_map_info_message = "--";
-              for (auto& [orient, net_set] : pa_node.get_orient_fixed_rect_map()) {
+              for (auto& [orient, net_list] : pa_node.get_orient_fixed_rect_list()) {
                 orient_fixed_rect_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient));
-                for (int32_t net_idx : net_set) {
+                for (int32_t net_idx : net_list) {
                   orient_fixed_rect_map_info_message += RTUTIL.getString(",", net_idx);
                 }
                 orient_fixed_rect_map_info_message += RTUTIL.getString(")");
@@ -4928,15 +4927,15 @@ void PinAccessor::debugPlotPABox(PABox& pa_box, std::string flag)
             gp_text_orient_routed_rect_map.set_presentation(GPTextPresentation::kLeftMiddle);
             pa_node_map_struct.push(gp_text_orient_routed_rect_map);
 
-            if (!pa_node.get_orient_routed_rect_map().empty()) {
+            if (pa_node.hasOrientRoutedRect()) {
               y -= y_reduced_span;
               GPText gp_text_orient_routed_rect_map_info;
               gp_text_orient_routed_rect_map_info.set_coord(real_rect.get_ll_x(), y);
               gp_text_orient_routed_rect_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
               std::string orient_routed_rect_map_info_message = "--";
-              for (auto& [orient, net_set] : pa_node.get_orient_routed_rect_map()) {
+              for (auto& [orient, net_list] : pa_node.get_orient_routed_rect_list()) {
                 orient_routed_rect_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient));
-                for (int32_t net_idx : net_set) {
+                for (int32_t net_idx : net_list) {
                   orient_routed_rect_map_info_message += RTUTIL.getString(",", net_idx);
                 }
                 orient_routed_rect_map_info_message += RTUTIL.getString(")");
@@ -4956,15 +4955,15 @@ void PinAccessor::debugPlotPABox(PABox& pa_box, std::string flag)
             gp_text_orient_violation_number_map.set_presentation(GPTextPresentation::kLeftMiddle);
             pa_node_map_struct.push(gp_text_orient_violation_number_map);
 
-            if (!pa_node.get_orient_violation_number_map().empty()) {
+            if (pa_node.hasOrientViolationNumber()) {
               y -= y_reduced_span;
               GPText gp_text_orient_violation_number_map_info;
               gp_text_orient_violation_number_map_info.set_coord(real_rect.get_ll_x(), y);
               gp_text_orient_violation_number_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
               std::string orient_violation_number_map_info_message = "--";
-              for (auto& [orient, violation_number] : pa_node.get_orient_violation_number_map()) {
+              pa_node.forEachViolationNumber([&](Orientation orient, int32_t violation_number) {
                 orient_violation_number_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient), ",", violation_number != 0, ")");
-              }
+              });
               gp_text_orient_violation_number_map_info.set_message(orient_violation_number_map_info_message);
               gp_text_orient_violation_number_map_info.set_layer_idx(RTGP.getGDSIdxByRouting(pa_node.get_layer_idx()));
               gp_text_orient_violation_number_map_info.set_presentation(GPTextPresentation::kLeftMiddle);
