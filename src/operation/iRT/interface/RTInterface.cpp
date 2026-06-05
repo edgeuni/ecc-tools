@@ -28,6 +28,7 @@
 #include "RTInterface.hpp"
 #include "SpaceRouter.hpp"
 #include "SupplyAnalyzer.hpp"
+#include "GlobalSpatialRouter.hpp"
 #include "TopologyGenerator.hpp"
 #include "TrackAssigner.hpp"
 #include "ViolationReporter.hpp"
@@ -125,17 +126,21 @@ void RTInterface::runRT()
   RTSA.analyze();
   SupplyAnalyzer::destroyInst();
 
-  TopologyGenerator::initInst();
-  RTTG.generate();
-  TopologyGenerator::destroyInst();
+  // TopologyGenerator::initInst();
+  // RTTG.generate();
+  // TopologyGenerator::destroyInst();
+  //
+  // LayerAssigner::initInst();
+  // RTLA.assign();
+  // LayerAssigner::destroyInst();
+  //
+  // SpaceRouter::initInst();
+  // RTSR.route();
+  // SpaceRouter::destroyInst();
 
-  LayerAssigner::initInst();
-  RTLA.assign();
-  LayerAssigner::destroyInst();
-
-  SpaceRouter::initInst();
-  RTSR.route();
-  SpaceRouter::destroyInst();
+  GlobalSpatialRouter::initInst();
+  RTGSR.route();
+  GlobalSpatialRouter::destroyInst();
 
   TrackAssigner::initInst();
   RTTA.assign();
