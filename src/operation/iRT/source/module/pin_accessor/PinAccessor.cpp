@@ -148,6 +148,12 @@ void PinAccessor::updateAccessPointList(PAModel& pa_model, std::vector<std::pair
   int32_t bottom_routing_layer_idx = RTDM.getConfig().bottom_routing_layer_idx;
   int32_t top_routing_layer_idx = RTDM.getConfig().top_routing_layer_idx;
 
+  for (auto& [net_idx, pa_pin] : net_pin_pair_list) {
+    for (AccessPoint& access_point : pa_pin->get_access_point_list()) {
+      RTDM.updateNetAccessPointToGCellMap(ChangeType::kDel, net_idx, &access_point);
+    }
+  }
+
   std::map<int32_t, std::vector<ViaMaster*>> selected_via_master_list_map;
   if (enable_via_candidate) {
     for (RoutingLayer& routing_layer : routing_layer_list) {
@@ -3446,6 +3452,39 @@ void PinAccessor::uploadAccessPoint(PAModel& pa_model)
       access_point.set_grid_coord(RTUTIL.getGCellGridCoordByBBox(access_point.get_real_coord(), gcell_axis, bounding_box));
       origin_pin.set_access_point(access_point);
       RTDM.updateNetAccessPointToGCellMap(ChangeType::kAdd, pa_net.get_net_idx(), &origin_pin.get_access_point());
+    }
+  }
+  {
+    std::map<int32_t, std::map<int32_t, std::vector<LayerCoord>>> net_pin_access_coord_map;
+    for (auto& [net_idx, access_point_set] : RTDM.getNetAccessPointMap(die)) {
+      for (AccessPoint* access_point : access_point_set) {
+        net_pin_access_coord_map[net_idx][access_point->get_pin_idx()].push_back(access_point->getRealLayerCoord());
+      }
+    }
+    for (auto& [net_idx, pin_access_coord_map] : net_pin_access_coord_map) {
+      for (auto& [pin_idx, access_coord_list] : pin_access_coord_map) {
+        if (access_coord_list.size() <= 1) {
+          continue;
+        }
+        std::string net_name = "--";
+        std::string pin_name = "--";
+        if (0 <= net_idx && net_idx < static_cast<int32_t>(pa_model.get_pa_net_list().size())) {
+          PANet& pa_net = pa_model.get_pa_net_list()[net_idx];
+          if (pa_net.get_origin_net() != nullptr) {
+            net_name = pa_net.get_origin_net()->get_net_name();
+            if (0 <= pin_idx && pin_idx < static_cast<int32_t>(pa_net.get_origin_net()->get_pin_list().size())) {
+              pin_name = pa_net.get_origin_net()->get_pin_list()[pin_idx].get_pin_name();
+            }
+          }
+        }
+        std::string coord_info;
+        for (size_t i = 0; i < access_coord_list.size() && i < 4; i++) {
+          LayerCoord& coord = access_coord_list[i];
+          coord_info += RTUTIL.getString(" (", coord.get_x(), ",", coord.get_y(), ",", coord.get_layer_idx(), ")");
+        }
+        RTLOG.warn(Loc::current(), "PA upload duplicate access points. net_idx=", net_idx, " net_name=", net_name, " pin_idx=", pin_idx,
+                   " pin_name=", pin_name, " access_point_num=", access_coord_list.size(), " coords=", coord_info);
+      }
     }
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
