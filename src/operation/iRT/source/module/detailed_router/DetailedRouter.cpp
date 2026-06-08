@@ -3779,6 +3779,32 @@ void DetailedRouter::debugCheckDRBox(DRBox& dr_box)
   }
 }
 
+void DetailedRouter::debugPlotBestDRBox(DRModel& dr_model, DRBox& dr_box, std::string flag)
+{
+  DRBox best_dr_box;
+  best_dr_box.set_box_rect(dr_box.get_box_rect());
+  best_dr_box.set_dr_box_id(dr_box.get_dr_box_id());
+  best_dr_box.set_dr_iter_param(dr_box.get_dr_iter_param());
+  best_dr_box.set_initial_routing(dr_box.get_initial_routing());
+  best_dr_box.set_type_layer_net_fixed_rect_map(dr_box.get_type_layer_net_fixed_rect_map());
+  best_dr_box.set_net_access_point_map(dr_box.get_net_access_point_map());
+  best_dr_box.set_net_detailed_result_map(dr_box.get_net_detailed_result_map());
+  best_dr_box.set_net_task_detailed_result_map(dr_box.get_best_net_task_detailed_result_map());
+  best_dr_box.set_net_detailed_patch_map(dr_box.get_net_detailed_patch_map());
+  best_dr_box.set_net_task_detailed_patch_map(dr_box.get_best_net_task_detailed_patch_map());
+  best_dr_box.set_dr_task_list(dr_box.get_dr_task_list());
+  best_dr_box.set_route_violation_list(dr_box.get_best_route_violation_list());
+
+  buildBoxTrackAxis(best_dr_box);
+  buildLayerNodeMap(best_dr_box);
+  buildLayerShadowMap(best_dr_box);
+  buildDRNodeNeighbor(best_dr_box);
+  buildOrientNetMap(best_dr_box);
+  buildNetShadowMap(best_dr_box);
+  exemptPinShape(dr_model, best_dr_box);
+  debugPlotDRBox(best_dr_box, flag);
+}
+
 void DetailedRouter::debugPlotDRBox(DRBox& dr_box, std::string flag)
 {
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();

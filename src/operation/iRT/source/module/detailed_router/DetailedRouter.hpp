@@ -188,6 +188,7 @@ class DetailedRouter
 #if 1  // debug
   void debugPlotDRModel(DRModel& dr_model, std::string flag);
   void debugCheckDRBox(DRBox& dr_box);
+  void debugPlotBestDRBox(DRModel& dr_model, DRBox& dr_box, std::string flag);
   void debugPlotDRBox(DRBox& dr_box, std::string flag);
 #endif
 };
