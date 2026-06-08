@@ -407,8 +407,37 @@ std::vector<AccessPoint> PinAccessor::getAccessPointList(PAModel& pa_model, int3
   Die& die = RTDM.getDatabase().get_die();
   int32_t manufacture_grid = RTDM.getDatabase().get_manufacture_grid();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
+  int32_t cost_unit = RTDM.getOnlyPitch();
+  double prefer_wire_unit = 1;
+  double non_prefer_wire_unit = 2.5 * prefer_wire_unit;
+  double violation_unit = 4 * non_prefer_wire_unit * cost_unit;
 
-  std::vector<LayerCoord> layer_coord_list;
+  PlanarRect die_valid_rect = die.get_real_rect();
+  int32_t shrinked_size = cost_unit;
+  if (RTUTIL.hasShrinkedRect(die_valid_rect, shrinked_size)) {
+    die_valid_rect = RTUTIL.getShrinkedRect(die_valid_rect, shrinked_size);
+  }
+
+  struct CandidateAccessPoint
+  {
+    LayerCoord coord;
+    int32_t track_num = 0;
+  };
+  std::map<LayerCoord, int32_t, CmpLayerCoordByXASC> coord_track_num_map;
+  auto addCandidate = [&](const LayerCoord& layer_coord, int32_t track_num) {
+    if (!RTUTIL.isInside(die_valid_rect, layer_coord)) {
+      return;
+    }
+    if (layer_coord.get_x() % manufacture_grid != 0 || layer_coord.get_y() % manufacture_grid != 0) {
+      RTLOG.error(Loc::current(), "The coord is off_grid!");
+    }
+    auto iter = coord_track_num_map.find(layer_coord);
+    if (iter == coord_track_num_map.end()) {
+      coord_track_num_map[layer_coord] = track_num;
+    } else {
+      iter->second = std::max(iter->second, track_num);
+    }
+  };
   for (LayerRect& legal_shape : legal_shape_list) {
     int32_t ll_x = legal_shape.get_ll_x();
     int32_t ll_y = legal_shape.get_ll_y();
@@ -431,6 +460,8 @@ std::vector<AccessPoint> PinAccessor::getAccessPointList(PAModel& pa_model, int3
     RoutingLayer& curr_routing_layer = routing_layer_list[curr_layer_idx];
     std::vector<int32_t> x_track_list = RTUTIL.getScaleList(ll_x, ur_x, curr_routing_layer.getXTrackGridList());
     std::vector<int32_t> y_track_list = RTUTIL.getScaleList(ll_y, ur_y, curr_routing_layer.getYTrackGridList());
+    std::set<int32_t> x_track_set(x_track_list.begin(), x_track_list.end());
+    std::set<int32_t> y_track_set(y_track_list.begin(), y_track_list.end());
     std::vector<int32_t> x_shape_list;
     {
       x_shape_list.emplace_back(ll_x);
@@ -456,59 +487,55 @@ std::vector<AccessPoint> PinAccessor::getAccessPointList(PAModel& pa_model, int3
     // track grid
     for (int32_t x : x_track_list) {
       for (int32_t y : y_track_list) {
-        layer_coord_list.emplace_back(x, y, curr_layer_idx);
+        addCandidate(LayerCoord(x, y, curr_layer_idx), 2);
       }
     }
     // on track
     {
       for (int32_t x : x_shape_list) {
         for (int32_t y : y_track_list) {
-          layer_coord_list.emplace_back(x, y, curr_layer_idx);
+          addCandidate(LayerCoord(x, y, curr_layer_idx), RTUTIL.exist(x_track_set, x) ? 2 : 1);
         }
       }
       for (int32_t x : x_track_list) {
         for (int32_t y : y_shape_list) {
-          layer_coord_list.emplace_back(x, y, curr_layer_idx);
+          addCandidate(LayerCoord(x, y, curr_layer_idx), RTUTIL.exist(y_track_set, y) ? 2 : 1);
         }
       }
     }
     // on shape
     for (int32_t x : x_shape_list) {
       for (int32_t y : y_shape_list) {
-        layer_coord_list.emplace_back(x, y, curr_layer_idx);
+        int32_t track_num = (RTUTIL.exist(x_track_set, x) ? 1 : 0) + (RTUTIL.exist(y_track_set, y) ? 1 : 0);
+        addCandidate(LayerCoord(x, y, curr_layer_idx), track_num);
       }
     }
   }
-  {
-    PlanarRect die_valid_rect = die.get_real_rect();
-    int32_t shrinked_size = RTDM.getOnlyPitch();
-    if (RTUTIL.hasShrinkedRect(die_valid_rect, shrinked_size)) {
-      die_valid_rect = RTUTIL.getShrinkedRect(die_valid_rect, shrinked_size);
-    }
-    std::vector<LayerCoord> new_layer_coord_list;
-    for (LayerCoord& layer_coord : layer_coord_list) {
-      if (RTUTIL.isInside(die_valid_rect, layer_coord)) {
-        new_layer_coord_list.push_back(layer_coord);
-      }
-    }
-    layer_coord_list = new_layer_coord_list;
+
+  auto getInitCost = [&](int32_t track_num) {
+    return (track_num == 2 ? 0 : (track_num == 1 ? violation_unit / 4.0 : violation_unit / 2.0));
+  };
+  std::vector<CandidateAccessPoint> candidate_list;
+  candidate_list.reserve(coord_track_num_map.size());
+  for (auto& [coord, track_num] : coord_track_num_map) {
+    candidate_list.push_back({coord, track_num});
   }
-  {
-    for (LayerCoord& layer_coord : layer_coord_list) {
-      if (layer_coord.get_x() % manufacture_grid != 0) {
-        RTLOG.error(Loc::current(), "The coord is off_grid!");
-      }
-      if (layer_coord.get_y() % manufacture_grid != 0) {
-        RTLOG.error(Loc::current(), "The coord is off_grid!");
-      }
+  std::sort(candidate_list.begin(), candidate_list.end(), [](const CandidateAccessPoint& a, const CandidateAccessPoint& b) {
+    if (a.track_num != b.track_num) {
+      return a.track_num > b.track_num;
     }
+    return CmpLayerCoordByXASC()(a.coord, b.coord);
+  });
+  std::vector<LayerCoord> layer_coord_list;
+  for (CandidateAccessPoint& candidate : candidate_list) {
+    layer_coord_list.push_back(candidate.coord);
   }
-  std::sort(layer_coord_list.begin(), layer_coord_list.end(), CmpLayerCoordByXASC());
-  layer_coord_list.erase(std::unique(layer_coord_list.begin(), layer_coord_list.end()), layer_coord_list.end());
   uniformSampleCoordList(pa_model, layer_coord_list);
   std::vector<AccessPoint> access_point_list;
   for (LayerCoord& layer_coord : layer_coord_list) {
-    access_point_list.emplace_back(pin_idx, layer_coord);
+    AccessPoint access_point(pin_idx, layer_coord);
+    access_point.set_init_cost(getInitCost(coord_track_num_map[layer_coord]));
+    access_point_list.push_back(access_point);
   }
   return access_point_list;
 }
@@ -764,20 +791,30 @@ PlanarRect PinAccessor::getViaEnclosure(ViaMaster& via_master, int32_t routing_l
 
 std::vector<AccessPoint> PinAccessor::getViaAccessPointList(PAModel& pa_model, int32_t pin_idx, std::vector<PALegalShape>& legal_shape_list)
 {
-  (void) pa_model;
   Die& die = RTDM.getDatabase().get_die();
   int32_t manufacture_grid = RTDM.getDatabase().get_manufacture_grid();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   int32_t ap_per_via_master = std::max(1, pa_model.get_pa_com_param().get_ap_per_via_master());
 
   PlanarRect die_valid_rect = die.get_real_rect();
-  int32_t shrinked_size = RTDM.getOnlyPitch();
+  int32_t cost_unit = RTDM.getOnlyPitch();
+  double prefer_wire_unit = 1;
+  double non_prefer_wire_unit = 2.5 * prefer_wire_unit;
+  double violation_unit = 4 * non_prefer_wire_unit * cost_unit;
+  int32_t shrinked_size = cost_unit;
   if (RTUTIL.hasShrinkedRect(die_valid_rect, shrinked_size)) {
     die_valid_rect = RTUTIL.getShrinkedRect(die_valid_rect, shrinked_size);
   }
 
-  std::vector<std::pair<LayerCoord, ViaMasterIdx>> coord_via_pair_list;
+  struct CandidateAccessPoint
+  {
+    LayerCoord coord;
+    ViaMasterIdx via_master_idx;
+    int32_t track_num = 0;
+    double init_cost = 0;
+  };
   std::map<std::pair<int32_t, int32_t>, std::set<LayerCoord, CmpLayerCoordByXASC>> via_coord_set_map;
+  std::map<std::pair<int32_t, int32_t>, std::vector<CandidateAccessPoint>> via_candidate_list_map;
   for (PALegalShape& legal_shape : legal_shape_list) {
     if (!legal_shape.via_master_idx.isValid()) {
       continue;
@@ -859,24 +896,46 @@ std::vector<AccessPoint> PinAccessor::getViaAccessPointList(PAModel& pa_model, i
       if (RTUTIL.exist(via_coord_set, layer_coord)) {
         continue;
       }
-      if (static_cast<int32_t>(via_coord_set.size()) >= ap_per_via_master) {
-        continue;
-      }
       via_coord_set.insert(layer_coord);
-      coord_via_pair_list.emplace_back(layer_coord, legal_shape.via_master_idx);
+      int32_t track_num = (RTUTIL.exist(x_track_list, layer_coord.get_x()) ? 1 : 0) + (RTUTIL.exist(y_track_list, layer_coord.get_y()) ? 1 : 0);
+      double init_cost = (track_num == 2 ? 0 : (track_num == 1 ? violation_unit / 4.0 : violation_unit / 2.0));
+      via_candidate_list_map[via_key].push_back({layer_coord, legal_shape.via_master_idx, track_num, init_cost});
+    }
+  }
+
+  std::vector<CandidateAccessPoint> selected_candidate_list;
+  for (auto& via_candidate_pair : via_candidate_list_map) {
+    std::vector<CandidateAccessPoint>& via_candidate_list = via_candidate_pair.second;
+    std::sort(via_candidate_list.begin(), via_candidate_list.end(), [](const CandidateAccessPoint& a, const CandidateAccessPoint& b) {
+      if (a.track_num != b.track_num) {
+        return a.track_num > b.track_num;
+      }
+      return CmpLayerCoordByXASC()(a.coord, b.coord);
+    });
+    int32_t selected_num = 0;
+    for (CandidateAccessPoint& candidate : via_candidate_list) {
+      if (selected_num >= ap_per_via_master) {
+        break;
+      }
+      selected_candidate_list.push_back(candidate);
+      selected_num++;
     }
   }
 
   std::vector<AccessPoint> access_point_list;
   std::map<LayerCoord, size_t, CmpLayerCoordByXASC> coord_access_point_map;
-  for (std::pair<LayerCoord, ViaMasterIdx>& coord_via_pair : coord_via_pair_list) {
-    LayerCoord& layer_coord = coord_via_pair.first;
-    ViaMasterIdx& via_master_idx = coord_via_pair.second;
+  for (CandidateAccessPoint& candidate : selected_candidate_list) {
+    LayerCoord& layer_coord = candidate.coord;
+    ViaMasterIdx& via_master_idx = candidate.via_master_idx;
     if (!RTUTIL.exist(coord_access_point_map, layer_coord)) {
       coord_access_point_map[layer_coord] = access_point_list.size();
       access_point_list.emplace_back(pin_idx, layer_coord);
+      access_point_list.back().set_init_cost(candidate.init_cost);
     }
     AccessPoint& access_point = access_point_list[coord_access_point_map[layer_coord]];
+    if (candidate.init_cost < access_point.get_init_cost()) {
+      access_point.set_init_cost(candidate.init_cost);
+    }
     if (!RTUTIL.exist(access_point.get_candidate_via_list(), via_master_idx)) {
       access_point.get_candidate_via_list().push_back(via_master_idx);
     }
@@ -1894,7 +1953,7 @@ void PinAccessor::initSingleRouteTask(PABox& pa_box, PATask* pa_task)
   std::vector<GridMap<PANode>>& layer_node_map = pa_box.get_layer_node_map();
   std::map<LayerCoord, AccessPoint*, CmpLayerCoordByXASC> source_access_point_map;
   for (AccessPoint* access_point : pa_box.get_net_access_point_map()[pa_task->get_net_idx()]) {
-    if (access_point->get_pin_idx() == pa_task->get_pa_pin()->get_pin_idx() && !access_point->get_candidate_via_list().empty()) {
+    if (access_point->get_pin_idx() == pa_task->get_pa_pin()->get_pin_idx()) {
       source_access_point_map[access_point->getRealLayerCoord()] = access_point;
     }
   }
@@ -1951,9 +2010,15 @@ void PinAccessor::initPathHead(PABox& pa_box)
 {
   std::vector<std::vector<PANode*>>& start_node_list_list = pa_box.get_start_node_list_list();
   std::vector<PANode*>& path_node_list = pa_box.get_path_node_list();
+  std::map<PANode*, AccessPoint*>& source_node_access_point_map = pa_box.get_source_node_access_point_map();
 
   for (std::vector<PANode*>& start_node_list : start_node_list_list) {
     for (PANode* start_node : start_node_list) {
+      if (RTUTIL.exist(source_node_access_point_map, start_node)) {
+        start_node->set_known_cost(source_node_access_point_map[start_node]->get_init_cost());
+      } else {
+        start_node->set_known_cost(0);
+      }
       start_node->set_estimated_cost(getEstimateCostToEnd(pa_box, start_node));
       pushToOpenList(pa_box, start_node);
     }
@@ -3081,6 +3146,7 @@ void PinAccessor::updateAccessPoint(PABox& pa_box)
     }
     for (AccessPoint* candidate_access_point : pa_box.get_net_access_point_map()[net_idx]) {
       if (candidate_access_point->get_pin_idx() == pin_idx && candidate_access_point->getRealLayerCoord() == access_point.getRealLayerCoord()) {
+        access_point.set_init_cost(candidate_access_point->get_init_cost());
         access_point.set_candidate_via_list(candidate_access_point->get_candidate_via_list());
         break;
       }
