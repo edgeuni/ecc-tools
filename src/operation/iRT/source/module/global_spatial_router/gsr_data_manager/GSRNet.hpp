@@ -42,6 +42,7 @@ class GSRNet
   double get_route_congestion_risk() const { return _route_congestion_risk; }
   // const getter
   const std::string& get_net_name() const { return _net_name; }
+  const Net* get_origin_net() const { return _origin_net; }
   const std::vector<GSRPin>& get_gsr_pin_list() const { return _gsr_pin_list; }
   const GSRTree& get_routing_tree() const { return _routing_tree; }
   const GSRTree& get_best_routing_tree() const { return _best_routing_tree; }

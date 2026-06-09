@@ -80,6 +80,18 @@ class GlobalSpatialRouter
     int32_t touched_overflow_accept_num = 0;
     int32_t congestion_risk_accept_num = 0;
     int32_t route_cost_accept_num = 0;
+    int32_t route_sanitize_num = 0;
+    int32_t route_sanitize_changed_num = 0;
+    int32_t route_sanitize_fail_num = 0;
+    int32_t shape_guard_reject_num = 0;
+    int32_t planar_cycle_check_num = 0;
+    int32_t planar_cycle_detect_num = 0;
+    int32_t planar_cycle_repair_num = 0;
+    int32_t planar_cycle_repair_fail_num = 0;
+    int32_t planar_overlap_check_num = 0;
+    int32_t planar_overlap_detect_num = 0;
+    int32_t planar_overlap_repair_num = 0;
+    int32_t planar_overlap_repair_fail_num = 0;
     int32_t sparse_hotspot_line_num = 0;
     int32_t sparse_offset_line_num = 0;
     int32_t ta_visible_net_num = 0;
@@ -230,7 +242,7 @@ class GlobalSpatialRouter
   ~GlobalSpatialRouter() = default;
   GlobalSpatialRouter& operator=(const GlobalSpatialRouter& other) = delete;
   GlobalSpatialRouter& operator=(GlobalSpatialRouter&& other) = delete;
-  // function
+  // initialization
   GSRModel initGSRModel(GSRRouteStats& route_stats);
   GSRNet convertToGSRNet(GSRModel& gsr_model, Net& net, GSRRouteStats& route_stats);
   void setGSRComParam(GSRModel& gsr_model);
@@ -238,6 +250,8 @@ class GlobalSpatialRouter
   int32_t getLowestPreferLayerIdx(const int32_t bottom_routing_layer_idx, const int32_t top_routing_layer_idx, const bool prefer_h);
   void buildGSRGridGraph(GSRModel& gsr_model);
   void clearGlobalResult(GSRRouteStats& route_stats);
+
+  // routing flow
   void routeGSRModel(GSRModel& gsr_model, GSRRouteStats& route_stats);
   void routeGSRNet(GSRModel& gsr_model, GSRNet& gsr_net, GSRRouteStats& route_stats);
   void rerouteGSRModel(GSRModel& gsr_model, GSRRouteStats& route_stats);
@@ -247,6 +261,8 @@ class GlobalSpatialRouter
                     GSRRerouteAttemptRecord* attempt_record = nullptr);
   bool trySparseMazeNet(GSRModel& gsr_model, GSRNet& gsr_net, GSRCongestionView& congestion_view, GSRWireCostView& wire_cost_view,
                         GSRRouteStats& route_stats, GSRRerouteAttemptRecord* attempt_record = nullptr);
+
+  // congestion and cost views
   GSRCongestionView extractCongestionView(GSRModel& gsr_model);
   void addCongestionRisk(GridMap<double>& risk_map, const int32_t x, const int32_t y, const double value, const int32_t risk_radius);
   void rebuildCongestionRiskPrefix(GSRCongestionView& congestion_view);
@@ -268,6 +284,8 @@ class GlobalSpatialRouter
   void updateWireCostView(GSRModel& gsr_model, GSRWireCostView& wire_cost_view, const std::vector<Segment<LayerCoord>>& segment_list,
                           GSRRouteStats* route_stats = nullptr);
   double getWireCost(GSRWireCostView& wire_cost_view, const Direction direction, const PlanarCoord& first_coord, const PlanarCoord& second_coord);
+
+  // pattern, maze, and tree refinement
   std::vector<Segment<LayerCoord>> routeByPattern(GSRModel& gsr_model, GSRNet& gsr_net, GSRCongestionView* congestion_view, const bool enable_detour,
                                                   GSRRouteStats& route_stats);
   std::vector<Segment<LayerCoord>> routeByMaze(GSRModel& gsr_model, GSRNet& gsr_net, GSRCongestionView& congestion_view,
@@ -276,15 +294,17 @@ class GlobalSpatialRouter
   GSRTree buildGSRTree(GSRModel& gsr_model, GSRNet& gsr_net, std::vector<Segment<PlanarCoord>>& planar_topo_list, GSRRouteStats& route_stats);
   GSRTree buildGSRTreeFromSegmentList(GSRModel& gsr_model, GSRNet& gsr_net, std::vector<Segment<LayerCoord>>& segment_list, GSRRouteStats& route_stats);
   GSRTree canonicalizeGSRTree(GSRModel& gsr_model, GSRNet& gsr_net, GSRTree& gsr_tree, GSRRouteStats& route_stats);
-  std::vector<Segment<PlanarCoord>> getPlanarSegmentList(GSRTree& gsr_tree);
   std::vector<GSRPatternCandidate> buildPatternCandidateList(GSRModel& gsr_model, const PlanarCoord& first_coord, const PlanarCoord& second_coord,
                                                             GSRCongestionView* congestion_view, const bool enable_detour,
                                                             GSRRouteStats& route_stats);
-  std::vector<Segment<LayerCoord>> refineTreeByPatternDAG(GSRModel& gsr_model, GSRNet& gsr_net, GSRTree& gsr_tree, GSRCongestionView* congestion_view,
-                                                          const bool enable_detour, GSRRouteStats& route_stats);
+  std::vector<Segment<LayerCoord>> refineTreeByPatternLayerDP(GSRModel& gsr_model, GSRNet& gsr_net, GSRTree& gsr_tree,
+                                                              GSRCongestionView* congestion_view, const bool enable_detour,
+                                                              GSRRouteStats& route_stats);
   std::vector<Segment<LayerCoord>> buildCandidateSegmentList(const std::vector<PlanarCoord>& coord_list, const int32_t h_layer_idx,
                                                              const int32_t v_layer_idx);
   bool hasCongestion(GSRCongestionView& congestion_view, const std::vector<PlanarCoord>& coord_list, const double threshold);
+
+  // validation and capacity
   std::vector<Orientation> getViaSideOrientList(const GSRNode& gsr_node);
   GSRUsageCapacityEval evalUsageCapacity(const GSRModel& gsr_model, const GSRNode& gsr_node, const int32_t net_idx,
                                          const std::set<Orientation>& orient_set);
@@ -292,6 +312,25 @@ class GlobalSpatialRouter
                            const bool allow_soft_overflow);
   double getRouteCapacityPenalty(GSRModel& gsr_model, const int32_t net_idx, const std::vector<Segment<LayerCoord>>& segment_list);
   bool isRouteConnected(GSRNet& gsr_net, const std::vector<Segment<LayerCoord>>& segment_list);
+  bool isRoutePreferredOnly(GSRModel& gsr_model, const std::vector<Segment<LayerCoord>>& routing_segment_list);
+  bool isValidSegment(GSRModel& gsr_model, Segment<LayerCoord>& segment);
+  std::vector<Segment<LayerCoord>> sanitizeRouteSegmentList(GSRModel& gsr_model, GSRNet& gsr_net,
+                                                            const std::vector<Segment<LayerCoord>>& segment_list,
+                                                            GSRRouteStats& route_stats);
+  bool hasPlanarProjectionCycle(GSRNet& gsr_net, const std::vector<Segment<LayerCoord>>& segment_list, GSRRouteStats& route_stats);
+  std::vector<Segment<LayerCoord>> rebuildRouteByPlanarProjectionTree(GSRModel& gsr_model, GSRNet& gsr_net,
+                                                                      const std::vector<Segment<LayerCoord>>& segment_list,
+                                                                      const bool require_no_cycle, const bool require_no_overlap,
+                                                                      GSRRouteStats& route_stats);
+  std::vector<Segment<LayerCoord>> repairPlanarProjectionCycle(GSRModel& gsr_model, GSRNet& gsr_net,
+                                                               const std::vector<Segment<LayerCoord>>& segment_list,
+                                                               GSRRouteStats& route_stats);
+  bool hasPlanarProjectionOverlap(GSRNet& gsr_net, const std::vector<Segment<LayerCoord>>& segment_list, GSRRouteStats& route_stats);
+  std::vector<Segment<LayerCoord>> repairPlanarProjectionOverlap(GSRModel& gsr_model, GSRNet& gsr_net,
+                                                                 const std::vector<Segment<LayerCoord>>& segment_list,
+                                                                 GSRRouteStats& route_stats);
+
+  // result upload and model state
   std::vector<Segment<LayerCoord>> getRoutingSegmentList(GSRModel& gsr_model, GSRNet& gsr_net, std::vector<Segment<PlanarCoord>>& planar_topo_list,
                                                          GSRRouteStats& route_stats);
   std::vector<Segment<LayerCoord>> getValidUniqueSegmentList(GSRModel& gsr_model, std::vector<Segment<LayerCoord>>& routing_segment_list,
@@ -304,6 +343,8 @@ class GlobalSpatialRouter
   void updateGSRNetCost(GSRModel& gsr_model, GSRNet& gsr_net);
   void updateBestResult(GSRModel& gsr_model);
   void selectBestResult(GSRModel& gsr_model);
+
+  // reroute transaction and acceptance
   GSRRouteSnapshot snapshotRoute(GSRModel& gsr_model, GSRNet& gsr_net);
   void initRerouteAttemptRecord(const GSRNet& gsr_net, const GSRRouteSnapshot& route_snapshot, GSRRerouteAttemptRecord* attempt_record);
   void removeSnapshotRoute(GSRModel& gsr_model, GSRNet& gsr_net, const GSRRouteSnapshot& route_snapshot, GSRWireCostView* wire_cost_view,
@@ -323,10 +364,11 @@ class GlobalSpatialRouter
                       const double old_total_congestion_risk, const double new_total_congestion_risk, const double old_touched_overflow,
                       const double new_touched_overflow,
                       const double old_route_cost, const double new_route_cost, GSRRouteStats& route_stats, std::string* accept_reason = nullptr);
+
+  // shared helpers and diagnostics
   std::vector<int32_t> getCandidateLayerList(const GSRComParam& gsr_com_param, const bool prefer_h);
   std::vector<Segment<LayerCoord>> buildPatternRoute(const PlanarCoord& first_coord, const PlanarCoord& second_coord, const bool h_first,
                                                      const int32_t h_layer_idx, const int32_t v_layer_idx);
-  bool isRoutePreferredOnly(GSRModel& gsr_model, const std::vector<Segment<LayerCoord>>& routing_segment_list);
   int64_t getGSRNetHPWL(const GSRNet& gsr_net);
   std::map<int32_t, GSRLayerUsage> getLayerUsageMap(std::vector<RoutingLayer>& routing_layer_list, GSRGridGraph& gsr_grid_graph,
                                                    GSRRouteStats& route_stats);
@@ -343,9 +385,9 @@ class GlobalSpatialRouter
                             const int32_t stage);
   void flushRerouteAttemptCSV();
   void outputRerouteAttemptCSV(const GSRRerouteAttemptRecord& attempt_record);
+  void outputStage1RouteOrderCSV(const std::vector<GSRNet>& gsr_net_list);
+  void outputGuide(GSRModel& gsr_model);
   void outputSummaryCSV(GSRModel& gsr_model, GSRRouteStats& route_stats);
-  bool isValidAccessCoord(GSRModel& gsr_model, const LayerCoord& access_coord);
-  bool isValidSegment(GSRModel& gsr_model, Segment<LayerCoord>& segment);
 };
 
 }  // namespace irt

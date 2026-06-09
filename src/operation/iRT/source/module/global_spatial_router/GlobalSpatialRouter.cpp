@@ -30,12 +30,27 @@ namespace {
 using LayerSetByPlanarCoord = std::map<PlanarCoord, std::set<int32_t>, CmpPlanarCoordByXASC>;
 using SegmentKey = std::tuple<int32_t, int32_t, int32_t, int32_t, int32_t, int32_t>;
 using PlanarKey = std::tuple<int32_t, int32_t>;
+using PlanarEdgeKey = std::tuple<int32_t, int32_t, int32_t, int32_t>;
 using UndirectedPlanarEdgeKey = std::tuple<int32_t, int32_t, int32_t, int32_t>;
 
 constexpr double kCapacityPressureWeight = 20.0;
 constexpr double kCapacityBlockPenalty = 1.0e9;
 constexpr double kCapacityOverflowPenalty = 1000.0;
 constexpr double kViaSidePenalty = 200.0;
+
+struct GSRStage1RouteOrderKey
+{
+  bool is_clock = false;
+  int32_t bbox_total = 0;
+  int32_t x_span = 0;
+  int32_t y_span = 0;
+  double aspect_ratio = 1.0;
+  int32_t pin_num = 0;
+  int32_t layer_span = 0;
+  double avg_access_layer = 0;
+  int64_t hpwl = 0;
+  int32_t net_idx = -1;
+};
 
 struct GSRSparseMazeNode
 {
@@ -67,6 +82,13 @@ struct CmpGSRMazeHeapItem
   }
 };
 
+struct GSRPlanarProjection
+{
+  std::vector<Segment<PlanarCoord>> split_segment_list;
+  std::map<PlanarEdgeKey, std::set<SegmentKey>> edge_segment_key_set_map;
+  std::set<PlanarKey> node_key_set;
+};
+
 std::string joinNetSet(const std::set<int32_t>& net_set)
 {
   std::string net_list = "[";
@@ -80,6 +102,51 @@ std::string joinNetSet(const std::set<int32_t>& net_set)
   }
   net_list += "]";
   return net_list;
+}
+
+GSRStage1RouteOrderKey buildStage1RouteOrderKey(const GSRNet& gsr_net)
+{
+  GSRStage1RouteOrderKey order_key;
+  order_key.net_idx = gsr_net.get_net_idx();
+  order_key.pin_num = static_cast<int32_t>(gsr_net.get_gsr_pin_list().size());
+
+  const Net* origin_net = gsr_net.get_origin_net();
+  order_key.is_clock = origin_net != nullptr && origin_net->get_connect_type() == ConnectType::kClock;
+
+  if (order_key.pin_num == 0) {
+    return order_key;
+  }
+
+  int32_t ll_x = std::numeric_limits<int32_t>::max();
+  int32_t ll_y = std::numeric_limits<int32_t>::max();
+  int32_t ur_x = std::numeric_limits<int32_t>::min();
+  int32_t ur_y = std::numeric_limits<int32_t>::min();
+  int32_t min_layer_idx = std::numeric_limits<int32_t>::max();
+  int32_t max_layer_idx = std::numeric_limits<int32_t>::min();
+  int64_t layer_sum = 0;
+
+  for (const GSRPin& gsr_pin : gsr_net.get_gsr_pin_list()) {
+    const LayerCoord& access_coord = gsr_pin.get_access_coord();
+    ll_x = std::min(ll_x, access_coord.get_x());
+    ll_y = std::min(ll_y, access_coord.get_y());
+    ur_x = std::max(ur_x, access_coord.get_x());
+    ur_y = std::max(ur_y, access_coord.get_y());
+    min_layer_idx = std::min(min_layer_idx, access_coord.get_layer_idx());
+    max_layer_idx = std::max(max_layer_idx, access_coord.get_layer_idx());
+    layer_sum += access_coord.get_layer_idx();
+  }
+
+  order_key.x_span = ur_x - ll_x;
+  order_key.y_span = ur_y - ll_y;
+  order_key.bbox_total = order_key.x_span + order_key.y_span;
+  order_key.hpwl = order_key.bbox_total;
+
+  int32_t safe_x_size = std::max(1, order_key.x_span + 1);
+  int32_t safe_y_size = std::max(1, order_key.y_span + 1);
+  order_key.aspect_ratio = std::max(safe_x_size, safe_y_size) / 1.0 / std::min(safe_x_size, safe_y_size);
+  order_key.layer_span = max_layer_idx - min_layer_idx;
+  order_key.avg_access_layer = layer_sum / 1.0 / order_key.pin_num;
+  return order_key;
 }
 
 LayerCoord makeLayerCoord(const PlanarCoord& coord, const int32_t layer_idx)
@@ -100,9 +167,28 @@ SegmentKey makeSegmentKey(const Segment<LayerCoord>& segment)
                     second_coord.get_y());
 }
 
+std::set<SegmentKey> makeSegmentKeySet(const std::vector<Segment<LayerCoord>>& segment_list)
+{
+  std::set<SegmentKey> segment_key_set;
+  for (const Segment<LayerCoord>& segment : segment_list) {
+    segment_key_set.insert(makeSegmentKey(segment));
+  }
+  return segment_key_set;
+}
+
 PlanarKey makePlanarKey(const PlanarCoord& coord)
 {
   return PlanarKey(coord.get_x(), coord.get_y());
+}
+
+PlanarEdgeKey makePlanarEdgeKey(const PlanarCoord& first_coord, const PlanarCoord& second_coord)
+{
+  PlanarKey first_key = makePlanarKey(first_coord);
+  PlanarKey second_key = makePlanarKey(second_coord);
+  if (second_key < first_key) {
+    std::swap(first_key, second_key);
+  }
+  return PlanarEdgeKey(std::get<0>(first_key), std::get<1>(first_key), std::get<0>(second_key), std::get<1>(second_key));
 }
 
 UndirectedPlanarEdgeKey makeUndirectedPlanarEdgeKey(const PlanarCoord& first_coord, const PlanarCoord& second_coord)
@@ -138,6 +224,192 @@ Direction getPlanarSegmentDirection(const Segment<LayerCoord>& segment)
 int32_t getSegmentPlanarLength(const Segment<LayerCoord>& segment)
 {
   return RTUTIL.getManhattanDistance(segment.get_first().get_planar_coord(), segment.get_second().get_planar_coord());
+}
+
+int64_t getRoutePlanarLength(const std::vector<Segment<LayerCoord>>& segment_list)
+{
+  int64_t length = 0;
+  for (const Segment<LayerCoord>& segment : segment_list) {
+    length += getSegmentPlanarLength(segment);
+  }
+  return length;
+}
+
+int32_t getRouteViaNum(const std::vector<Segment<LayerCoord>>& segment_list)
+{
+  int32_t via_num = 0;
+  for (const Segment<LayerCoord>& segment : segment_list) {
+    if (segment.get_first().get_layer_idx() != segment.get_second().get_layer_idx()) {
+      via_num++;
+    }
+  }
+  return via_num;
+}
+
+bool passRerouteShapeGuard(const std::vector<Segment<LayerCoord>>& old_segment_list,
+                           const std::vector<Segment<LayerCoord>>& new_segment_list,
+                           const double old_total_overflow, const double new_total_overflow,
+                           const double old_route_cost = 0, const double new_route_cost = 0)
+{
+  if (old_segment_list.empty()) {
+    return true;
+  }
+  double overflow_improve = old_total_overflow - new_total_overflow;
+  if (overflow_improve > 1.0 + RT_ERROR) {
+    return true;
+  }
+
+  int32_t old_segment_num = static_cast<int32_t>(old_segment_list.size());
+  int32_t new_segment_num = static_cast<int32_t>(new_segment_list.size());
+  int64_t old_wire_length = getRoutePlanarLength(old_segment_list);
+  int64_t new_wire_length = getRoutePlanarLength(new_segment_list);
+  int32_t old_via_num = getRouteViaNum(old_segment_list);
+  int32_t new_via_num = getRouteViaNum(new_segment_list);
+
+  double segment_ratio = overflow_improve > RT_ERROR ? 3.0 : 2.0;
+  double wire_ratio = overflow_improve > RT_ERROR ? 2.0 : 1.5;
+  int32_t via_allowance = overflow_improve > RT_ERROR ? 6 : 4;
+
+  if (new_segment_num > static_cast<int32_t>(old_segment_num * segment_ratio) + 4) {
+    return false;
+  }
+  if (new_wire_length > static_cast<int64_t>(old_wire_length * wire_ratio) + 10) {
+    return false;
+  }
+  if (new_via_num > old_via_num + via_allowance) {
+    return false;
+  }
+  if (overflow_improve <= RT_ERROR && new_route_cost > old_route_cost + RT_ERROR) {
+    return false;
+  }
+  return true;
+}
+
+GSRPlanarProjection buildPlanarProjection(const std::vector<LayerCoord>& key_coord_list,
+                                          const std::vector<Segment<LayerCoord>>& segment_list)
+{
+  struct PlanarWire
+  {
+    PlanarCoord first_coord;
+    PlanarCoord second_coord;
+    SegmentKey segment_key;
+  };
+
+  GSRPlanarProjection projection;
+  std::map<PlanarKey, std::set<int32_t>> x_cut_set_map;
+  std::map<PlanarKey, std::set<int32_t>> y_cut_set_map;
+  std::vector<PlanarWire> planar_wire_list;
+
+  auto addPlanarCoord = [&](const PlanarCoord& coord) {
+    projection.node_key_set.insert(makePlanarKey(coord));
+    x_cut_set_map[PlanarKey(coord.get_y(), 0)].insert(coord.get_x());
+    y_cut_set_map[PlanarKey(coord.get_x(), 0)].insert(coord.get_y());
+  };
+
+  for (const LayerCoord& key_coord : key_coord_list) {
+    addPlanarCoord(key_coord.get_planar_coord());
+  }
+  for (const Segment<LayerCoord>& segment : segment_list) {
+    PlanarCoord first_planar_coord = segment.get_first().get_planar_coord();
+    PlanarCoord second_planar_coord = segment.get_second().get_planar_coord();
+    addPlanarCoord(first_planar_coord);
+    addPlanarCoord(second_planar_coord);
+    if (segment.get_first().get_layer_idx() == segment.get_second().get_layer_idx() && first_planar_coord != second_planar_coord) {
+      PlanarWire planar_wire;
+      planar_wire.first_coord = first_planar_coord;
+      planar_wire.second_coord = second_planar_coord;
+      planar_wire.segment_key = makeSegmentKey(segment);
+      planar_wire_list.push_back(planar_wire);
+    }
+  }
+
+  for (size_t i = 0; i < planar_wire_list.size(); i++) {
+    PlanarCoord first_i = planar_wire_list[i].first_coord;
+    PlanarCoord second_i = planar_wire_list[i].second_coord;
+    bool i_horizontal = first_i.get_y() == second_i.get_y();
+    bool i_vertical = first_i.get_x() == second_i.get_x();
+    if (!i_horizontal && !i_vertical) {
+      continue;
+    }
+    for (size_t j = i + 1; j < planar_wire_list.size(); j++) {
+      PlanarCoord first_j = planar_wire_list[j].first_coord;
+      PlanarCoord second_j = planar_wire_list[j].second_coord;
+      bool j_horizontal = first_j.get_y() == second_j.get_y();
+      bool j_vertical = first_j.get_x() == second_j.get_x();
+      if (i_horizontal && j_horizontal && first_i.get_y() == first_j.get_y()) {
+        int32_t lower_x = std::max(std::min(first_i.get_x(), second_i.get_x()), std::min(first_j.get_x(), second_j.get_x()));
+        int32_t upper_x = std::min(std::max(first_i.get_x(), second_i.get_x()), std::max(first_j.get_x(), second_j.get_x()));
+        if (lower_x < upper_x) {
+          addPlanarCoord(PlanarCoord(lower_x, first_i.get_y()));
+          addPlanarCoord(PlanarCoord(upper_x, first_i.get_y()));
+        }
+      } else if (i_vertical && j_vertical && first_i.get_x() == first_j.get_x()) {
+        int32_t lower_y = std::max(std::min(first_i.get_y(), second_i.get_y()), std::min(first_j.get_y(), second_j.get_y()));
+        int32_t upper_y = std::min(std::max(first_i.get_y(), second_i.get_y()), std::max(first_j.get_y(), second_j.get_y()));
+        if (lower_y < upper_y) {
+          addPlanarCoord(PlanarCoord(first_i.get_x(), lower_y));
+          addPlanarCoord(PlanarCoord(first_i.get_x(), upper_y));
+        }
+      } else if (i_horizontal && j_vertical) {
+        int32_t x = first_j.get_x();
+        int32_t y = first_i.get_y();
+        if (std::min(first_i.get_x(), second_i.get_x()) <= x && x <= std::max(first_i.get_x(), second_i.get_x())
+            && std::min(first_j.get_y(), second_j.get_y()) <= y && y <= std::max(first_j.get_y(), second_j.get_y())) {
+          addPlanarCoord(PlanarCoord(x, y));
+        }
+      } else if (i_vertical && j_horizontal) {
+        int32_t x = first_i.get_x();
+        int32_t y = first_j.get_y();
+        if (std::min(first_j.get_x(), second_j.get_x()) <= x && x <= std::max(first_j.get_x(), second_j.get_x())
+            && std::min(first_i.get_y(), second_i.get_y()) <= y && y <= std::max(first_i.get_y(), second_i.get_y())) {
+          addPlanarCoord(PlanarCoord(x, y));
+        }
+      }
+    }
+  }
+
+  std::set<PlanarEdgeKey> visited_planar_edge_key_set;
+  for (PlanarWire& planar_wire : planar_wire_list) {
+    PlanarCoord first_coord = planar_wire.first_coord;
+    PlanarCoord second_coord = planar_wire.second_coord;
+    std::vector<PlanarCoord> split_coord_list;
+    if (first_coord.get_x() == second_coord.get_x()) {
+      int32_t x = first_coord.get_x();
+      int32_t lower_y = std::min(first_coord.get_y(), second_coord.get_y());
+      int32_t upper_y = std::max(first_coord.get_y(), second_coord.get_y());
+      for (int32_t y : y_cut_set_map[PlanarKey(x, 0)]) {
+        if (lower_y <= y && y <= upper_y) {
+          split_coord_list.emplace_back(x, y);
+        }
+      }
+      std::sort(split_coord_list.begin(), split_coord_list.end(), CmpPlanarCoordByYASC());
+    } else if (first_coord.get_y() == second_coord.get_y()) {
+      int32_t y = first_coord.get_y();
+      int32_t lower_x = std::min(first_coord.get_x(), second_coord.get_x());
+      int32_t upper_x = std::max(first_coord.get_x(), second_coord.get_x());
+      for (int32_t x : x_cut_set_map[PlanarKey(y, 0)]) {
+        if (lower_x <= x && x <= upper_x) {
+          split_coord_list.emplace_back(x, y);
+        }
+      }
+      std::sort(split_coord_list.begin(), split_coord_list.end(), CmpPlanarCoordByXASC());
+    }
+    for (size_t i = 1; i < split_coord_list.size(); i++) {
+      PlanarCoord first_split_coord = split_coord_list[i - 1];
+      PlanarCoord second_split_coord = split_coord_list[i];
+      if (first_split_coord == second_split_coord) {
+        continue;
+      }
+      PlanarEdgeKey edge_key = makePlanarEdgeKey(first_split_coord, second_split_coord);
+      projection.edge_segment_key_set_map[edge_key].insert(planar_wire.segment_key);
+      projection.node_key_set.insert(makePlanarKey(first_split_coord));
+      projection.node_key_set.insert(makePlanarKey(second_split_coord));
+      if (visited_planar_edge_key_set.insert(edge_key).second) {
+        projection.split_segment_list.emplace_back(first_split_coord, second_split_coord);
+      }
+    }
+  }
+  return projection;
 }
 
 std::vector<PlanarCoord> getLineCoordList(const PlanarCoord& first_coord, const PlanarCoord& second_coord)
@@ -244,6 +516,7 @@ void GlobalSpatialRouter::route()
   rerouteGSRModel(gsr_model, route_stats);
   selectBestResult(gsr_model);
   uploadGSRModelResult(gsr_model, route_stats);
+  outputGuide(gsr_model);
   updateHandoffStats(gsr_model, route_stats);
   outputSummaryCSV(gsr_model, route_stats);
 
@@ -253,6 +526,8 @@ void GlobalSpatialRouter::route()
 // private
 
 GlobalSpatialRouter* GlobalSpatialRouter::_gsr_instance = nullptr;
+
+// initialization
 
 GSRModel GlobalSpatialRouter::initGSRModel(GSRRouteStats& route_stats)
 {
@@ -274,17 +549,37 @@ GSRModel GlobalSpatialRouter::initGSRModel(GSRRouteStats& route_stats)
     route_stats.task_net_num++;
     gsr_net_list.push_back(gsr_net);
   }
-  std::sort(gsr_net_list.begin(), gsr_net_list.end(), [&](GSRNet& a, GSRNet& b) {
-    int64_t a_hpwl = getGSRNetHPWL(a);
-    int64_t b_hpwl = getGSRNetHPWL(b);
-    if (a_hpwl != b_hpwl) {
-      return a_hpwl > b_hpwl;
+  std::map<int32_t, GSRStage1RouteOrderKey> stage1_order_key_map;
+  for (GSRNet& gsr_net : gsr_net_list) {
+    stage1_order_key_map[gsr_net.get_net_idx()] = buildStage1RouteOrderKey(gsr_net);
+  }
+  std::sort(gsr_net_list.begin(), gsr_net_list.end(), [&](const GSRNet& a, const GSRNet& b) {
+    const GSRStage1RouteOrderKey& a_key = stage1_order_key_map.at(a.get_net_idx());
+    const GSRStage1RouteOrderKey& b_key = stage1_order_key_map.at(b.get_net_idx());
+    if (a_key.is_clock != b_key.is_clock) {
+      return a_key.is_clock;
     }
-    if (a.get_gsr_pin_list().size() != b.get_gsr_pin_list().size()) {
-      return a.get_gsr_pin_list().size() > b.get_gsr_pin_list().size();
+    if (a_key.bbox_total != b_key.bbox_total) {
+      return a_key.bbox_total < b_key.bbox_total;
     }
-    return a.get_net_idx() < b.get_net_idx();
+    if (!RTUTIL.equalDoubleByError(a_key.aspect_ratio, b_key.aspect_ratio, RT_ERROR)) {
+      return a_key.aspect_ratio > b_key.aspect_ratio;
+    }
+    if (a_key.pin_num != b_key.pin_num) {
+      return a_key.pin_num > b_key.pin_num;
+    }
+    if (a_key.layer_span != b_key.layer_span) {
+      return a_key.layer_span < b_key.layer_span;
+    }
+    if (!RTUTIL.equalDoubleByError(a_key.avg_access_layer, b_key.avg_access_layer, RT_ERROR)) {
+      return a_key.avg_access_layer < b_key.avg_access_layer;
+    }
+    if (a_key.hpwl != b_key.hpwl) {
+      return a_key.hpwl < b_key.hpwl;
+    }
+    return a_key.net_idx < b_key.net_idx;
   });
+  outputStage1RouteOrderCSV(gsr_net_list);
   gsr_model.set_gsr_net_list(gsr_net_list);
   std::map<int32_t, int32_t> net_idx_to_gsr_net_idx_map;
   for (int32_t gsr_net_idx = 0; gsr_net_idx < static_cast<int32_t>(gsr_model.get_gsr_net_list().size()); gsr_net_idx++) {
@@ -421,6 +716,8 @@ void GlobalSpatialRouter::clearGlobalResult(GSRRouteStats& route_stats)
     }
   }
 }
+
+// routing flow
 
 void GlobalSpatialRouter::routeGSRModel(GSRModel& gsr_model, GSRRouteStats& route_stats)
 {
@@ -596,6 +893,8 @@ void GlobalSpatialRouter::rerouteGSRModel(GSRModel& gsr_model, GSRRouteStats& ro
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
+
+// congestion and cost views
 
 GlobalSpatialRouter::GSRCongestionView GlobalSpatialRouter::extractCongestionView(GSRModel& gsr_model)
 {
@@ -1050,6 +1349,8 @@ double GlobalSpatialRouter::getWireCost(GSRWireCostView& wire_cost_view, const D
   return queryLinePrefixSum(wire_cost_view.h_prefix_sum_map, wire_cost_view.v_prefix_sum_map, direction, first_coord, second_coord, false, 1.0e12);
 }
 
+// reroute task selection and attempts
+
 std::vector<GSRNet*> GlobalSpatialRouter::getRerouteTaskList(GSRModel& gsr_model, GSRCongestionView& congestion_view, const int32_t iter,
                                            const bool prefer_uncovered, GSRRouteStats& route_stats, const bool stage3)
 {
@@ -1334,8 +1635,8 @@ std::vector<Segment<LayerCoord>> GlobalSpatialRouter::routeByPattern(GSRModel& g
 {
   std::vector<Segment<PlanarCoord>> planar_topo_list = getPlanarTopoList(gsr_net, route_stats);
   GSRTree gsr_tree = buildGSRTree(gsr_model, gsr_net, planar_topo_list, route_stats);
-  std::vector<Segment<LayerCoord>> raw_routing_segment_list = refineTreeByPatternDAG(gsr_model, gsr_net, gsr_tree, congestion_view, enable_detour,
-                                                                                     route_stats);
+  std::vector<Segment<LayerCoord>> raw_routing_segment_list
+      = refineTreeByPatternLayerDP(gsr_model, gsr_net, gsr_tree, congestion_view, enable_detour, route_stats);
   std::vector<Segment<LayerCoord>> valid_segment_list = getValidUniqueSegmentList(gsr_model, raw_routing_segment_list, route_stats);
   if (!isRouteConnected(gsr_net, valid_segment_list)) {
     return {};
@@ -1688,7 +1989,7 @@ std::vector<Segment<LayerCoord>> GlobalSpatialRouter::routeByMaze(GSRModel& gsr_
     }
 
     GSRTree maze_tree = buildGSRTreeFromSegmentList(gsr_model, gsr_net, maze_skeleton_segment_list, route_stats);
-    std::vector<Segment<LayerCoord>> refined_segment_list = refineTreeByPatternDAG(gsr_model, gsr_net, maze_tree, &congestion_view, true, route_stats);
+    std::vector<Segment<LayerCoord>> refined_segment_list = refineTreeByPatternLayerDP(gsr_model, gsr_net, maze_tree, &congestion_view, true, route_stats);
     refined_segment_list = getValidUniqueSegmentList(gsr_model, refined_segment_list, route_stats);
     if (!refined_segment_list.empty() && isRoutePreferredOnly(gsr_model, refined_segment_list) && isRouteConnected(gsr_net, refined_segment_list)) {
       maze_tree.set_segment_list(refined_segment_list);
@@ -1698,6 +1999,8 @@ std::vector<Segment<LayerCoord>> GlobalSpatialRouter::routeByMaze(GSRModel& gsr_
   }
   return {};
 }
+
+// pattern, maze, and tree refinement
 
 std::vector<Segment<PlanarCoord>> GlobalSpatialRouter::getPlanarTopoList(GSRNet& gsr_net, GSRRouteStats& route_stats)
 {
@@ -1991,20 +2294,6 @@ GSRTree GlobalSpatialRouter::canonicalizeGSRTree(GSRModel& gsr_model, GSRNet& gs
   return canonical_tree;
 }
 
-std::vector<Segment<PlanarCoord>> GlobalSpatialRouter::getPlanarSegmentList(GSRTree& gsr_tree)
-{
-  std::vector<Segment<PlanarCoord>> planar_segment_list;
-  std::vector<GSRTreeNode>& node_list = gsr_tree.get_node_list();
-  for (int32_t node_idx = 0; node_idx < static_cast<int32_t>(node_list.size()); node_idx++) {
-    for (int32_t child_idx : node_list[node_idx].child_idx_list) {
-      if (0 <= child_idx && child_idx < static_cast<int32_t>(node_list.size()) && node_list[node_idx].coord != node_list[child_idx].coord) {
-        planar_segment_list.emplace_back(node_list[node_idx].coord, node_list[child_idx].coord);
-      }
-    }
-  }
-  return planar_segment_list;
-}
-
 std::vector<GlobalSpatialRouter::GSRPatternCandidate> GlobalSpatialRouter::buildPatternCandidateList(GSRModel& gsr_model, const PlanarCoord& first_coord, const PlanarCoord& second_coord,
                                                                   GSRCongestionView* congestion_view, const bool enable_detour,
                                                                   GSRRouteStats& route_stats)
@@ -2095,9 +2384,9 @@ std::vector<GlobalSpatialRouter::GSRPatternCandidate> GlobalSpatialRouter::build
   return candidate_list;
 }
 
-std::vector<Segment<LayerCoord>> GlobalSpatialRouter::refineTreeByPatternDAG(GSRModel& gsr_model, GSRNet& gsr_net, GSRTree& gsr_tree,
-                                                            GSRCongestionView* congestion_view, const bool enable_detour,
-                                                            GSRRouteStats& route_stats)
+std::vector<Segment<LayerCoord>> GlobalSpatialRouter::refineTreeByPatternLayerDP(GSRModel& gsr_model, GSRNet& gsr_net, GSRTree& gsr_tree,
+                                                                 GSRCongestionView* congestion_view, const bool enable_detour,
+                                                                 GSRRouteStats& route_stats)
 {
   GSRComParam& gsr_com_param = gsr_model.get_gsr_com_param();
   GSRGridGraph& gsr_grid_graph = gsr_model.get_gsr_grid_graph();
@@ -2442,6 +2731,8 @@ std::vector<Segment<LayerCoord>> GlobalSpatialRouter::buildCandidateSegmentList(
   return segment_list;
 }
 
+// validation and capacity
+
 bool GlobalSpatialRouter::hasCongestion(GSRCongestionView& congestion_view, const std::vector<PlanarCoord>& coord_list, const double threshold)
 {
   double risk_threshold = std::max(threshold, 0.1);
@@ -2686,6 +2977,8 @@ std::vector<Segment<LayerCoord>> GlobalSpatialRouter::getValidUniqueSegmentList(
   return valid_segment_list;
 }
 
+// result upload and model state
+
 void GlobalSpatialRouter::uploadNetResult(GSRNet& gsr_net, std::vector<Segment<LayerCoord>>& routing_segment_list, GSRRouteStats& route_stats)
 {
   for (Segment<LayerCoord>& routing_segment : routing_segment_list) {
@@ -2702,9 +2995,40 @@ void GlobalSpatialRouter::uploadNetResult(GSRNet& gsr_net, std::vector<Segment<L
 void GlobalSpatialRouter::uploadGSRModelResult(GSRModel& gsr_model, GSRRouteStats& route_stats)
 {
   for (GSRNet& gsr_net : gsr_model.get_gsr_net_list()) {
-    std::vector<Segment<LayerCoord>>& routing_segment_list = gsr_net.get_routing_segment_list();
+    std::vector<Segment<LayerCoord>> routing_segment_list = gsr_net.get_routing_segment_list();
+    if (!routing_segment_list.empty()) {
+      std::vector<Segment<LayerCoord>> sanitized_segment_list = sanitizeRouteSegmentList(gsr_model, gsr_net, routing_segment_list, route_stats);
+      if (!sanitized_segment_list.empty() && makeSegmentKeySet(routing_segment_list) != makeSegmentKeySet(sanitized_segment_list)) {
+        removeRouteDemand(gsr_model, gsr_net, routing_segment_list);
+        gsr_net.set_routing_segment_list(sanitized_segment_list);
+        addRouteDemand(gsr_model, gsr_net, gsr_net.get_routing_segment_list());
+        updateGSRNetCost(gsr_model, gsr_net);
+      }
+      routing_segment_list = gsr_net.get_routing_segment_list();
+      if (!routing_segment_list.empty() && hasPlanarProjectionCycle(gsr_net, routing_segment_list, route_stats)) {
+        std::vector<Segment<LayerCoord>> repaired_segment_list = repairPlanarProjectionCycle(gsr_model, gsr_net, routing_segment_list, route_stats);
+        if (!repaired_segment_list.empty()) {
+          removeRouteDemand(gsr_model, gsr_net, routing_segment_list);
+          gsr_net.set_routing_segment_list(repaired_segment_list);
+          addRouteDemand(gsr_model, gsr_net, gsr_net.get_routing_segment_list());
+          updateGSRNetCost(gsr_model, gsr_net);
+        }
+      }
+      routing_segment_list = gsr_net.get_routing_segment_list();
+      if (!routing_segment_list.empty() && hasPlanarProjectionOverlap(gsr_net, routing_segment_list, route_stats)) {
+        std::vector<Segment<LayerCoord>> repaired_segment_list = repairPlanarProjectionOverlap(gsr_model, gsr_net, routing_segment_list, route_stats);
+        if (!repaired_segment_list.empty()) {
+          removeRouteDemand(gsr_model, gsr_net, routing_segment_list);
+          gsr_net.set_routing_segment_list(repaired_segment_list);
+          addRouteDemand(gsr_model, gsr_net, gsr_net.get_routing_segment_list());
+          updateGSRNetCost(gsr_model, gsr_net);
+        }
+      }
+    }
+    routing_segment_list = gsr_net.get_routing_segment_list();
     uploadNetResult(gsr_net, routing_segment_list, route_stats);
   }
+  updateGSRModelCost(gsr_model);
 }
 
 void GlobalSpatialRouter::addRouteDemand(GSRModel& gsr_model, GSRNet& gsr_net, const std::vector<Segment<LayerCoord>>& routing_segment_list)
@@ -2788,6 +3112,8 @@ void GlobalSpatialRouter::selectBestResult(GSRModel& gsr_model)
   updateGSRModelCost(gsr_model);
 }
 
+// reroute transaction and acceptance
+
 GlobalSpatialRouter::GSRRouteSnapshot GlobalSpatialRouter::snapshotRoute(GSRModel& gsr_model, GSRNet& gsr_net)
 {
   GSRRouteSnapshot route_snapshot;
@@ -2855,12 +3181,64 @@ bool GlobalSpatialRouter::tryCommitCandidateRoute(GSRModel& gsr_model, GSRNet& g
                                                   const std::chrono::steady_clock::time_point& attempt_start_time,
                                                   GSRWireCostView* wire_cost_view)
 {
-  if (candidate_segment_list.empty() || !isRoutePreferredOnly(gsr_model, candidate_segment_list)) {
+  if (candidate_segment_list.empty()) {
     if (attempt_record != nullptr) {
-      attempt_record->result = candidate_segment_list.empty() ? empty_result : "non_preferred";
+      attempt_record->result = empty_result;
       attempt_record->new_segment_num = static_cast<int32_t>(candidate_segment_list.size());
     }
     return false;
+  }
+
+  auto sanitize_start_time = std::chrono::steady_clock::now();
+  std::vector<Segment<LayerCoord>> sanitized_segment_list = sanitizeRouteSegmentList(gsr_model, gsr_net, candidate_segment_list, route_stats);
+  appendRerouteTiming(attempt_record == nullptr ? -1 : attempt_record->iter, stage, "sanitize_candidate_route", getElapsedMs(sanitize_start_time), 1);
+  if (sanitized_segment_list.empty() || !isRoutePreferredOnly(gsr_model, sanitized_segment_list)) {
+    if (attempt_record != nullptr) {
+      attempt_record->result = isRoutePreferredOnly(gsr_model, candidate_segment_list) ? "sanitize_fail" : "non_preferred";
+      attempt_record->new_segment_num = static_cast<int32_t>(sanitized_segment_list.size());
+    }
+    return false;
+  }
+  candidate_segment_list = sanitized_segment_list;
+
+  auto planar_cycle_start_time = std::chrono::steady_clock::now();
+  if (hasPlanarProjectionCycle(gsr_net, candidate_segment_list, route_stats)) {
+    std::vector<Segment<LayerCoord>> repaired_segment_list = repairPlanarProjectionCycle(gsr_model, gsr_net, candidate_segment_list, route_stats);
+    appendRerouteTiming(attempt_record == nullptr ? -1 : attempt_record->iter, stage, "repair_planar_cycle", getElapsedMs(planar_cycle_start_time), 1);
+    if (repaired_segment_list.empty()) {
+      if (attempt_record != nullptr) {
+        attempt_record->result = "reject_planar_cycle";
+        attempt_record->accept_reason = "planar_cycle_repair_fail";
+        attempt_record->new_segment_num = static_cast<int32_t>(candidate_segment_list.size());
+      }
+      return false;
+    }
+    candidate_segment_list = repaired_segment_list;
+    if (attempt_record != nullptr) {
+      attempt_record->accept_reason = "planar_cycle_repair";
+    }
+  } else {
+    appendRerouteTiming(attempt_record == nullptr ? -1 : attempt_record->iter, stage, "check_planar_cycle", getElapsedMs(planar_cycle_start_time), 1);
+  }
+
+  auto planar_overlap_start_time = std::chrono::steady_clock::now();
+  if (hasPlanarProjectionOverlap(gsr_net, candidate_segment_list, route_stats)) {
+    std::vector<Segment<LayerCoord>> repaired_segment_list = repairPlanarProjectionOverlap(gsr_model, gsr_net, candidate_segment_list, route_stats);
+    appendRerouteTiming(attempt_record == nullptr ? -1 : attempt_record->iter, stage, "repair_planar_overlap", getElapsedMs(planar_overlap_start_time), 1);
+    if (repaired_segment_list.empty()) {
+      if (attempt_record != nullptr) {
+        attempt_record->result = "reject_planar_overlap";
+        attempt_record->accept_reason = "planar_overlap_repair_fail";
+        attempt_record->new_segment_num = static_cast<int32_t>(candidate_segment_list.size());
+      }
+      return false;
+    }
+    candidate_segment_list = repaired_segment_list;
+    if (attempt_record != nullptr) {
+      attempt_record->accept_reason = "planar_overlap_repair";
+    }
+  } else {
+    appendRerouteTiming(attempt_record == nullptr ? -1 : attempt_record->iter, stage, "check_planar_overlap", getElapsedMs(planar_overlap_start_time), 1);
   }
 
   auto eval_start_time = std::chrono::steady_clock::now();
@@ -2947,6 +3325,13 @@ bool GlobalSpatialRouter::acceptNewRoute(GSRModel& gsr_model, GSRNet& gsr_net, c
   (void) gsr_net;
 
   if (new_total_overflow + RT_ERROR < old_total_overflow) {
+    if (!passRerouteShapeGuard(old_segment_list, new_segment_list, old_total_overflow, new_total_overflow, old_route_cost, new_route_cost)) {
+      route_stats.shape_guard_reject_num++;
+      if (accept_reason != nullptr) {
+        *accept_reason = "reject_shape_guard";
+      }
+      return false;
+    }
     route_stats.total_overflow_accept_num++;
     if (accept_reason != nullptr) {
       *accept_reason = "total_overflow";
@@ -2960,6 +3345,13 @@ bool GlobalSpatialRouter::acceptNewRoute(GSRModel& gsr_model, GSRNet& gsr_net, c
     return false;
   }
   if (new_touched_overflow + RT_ERROR < old_touched_overflow) {
+    if (!passRerouteShapeGuard(old_segment_list, new_segment_list, old_total_overflow, new_total_overflow, old_route_cost, new_route_cost)) {
+      route_stats.shape_guard_reject_num++;
+      if (accept_reason != nullptr) {
+        *accept_reason = "reject_shape_guard";
+      }
+      return false;
+    }
     route_stats.touched_overflow_accept_num++;
     if (accept_reason != nullptr) {
       *accept_reason = "touched_overflow";
@@ -2973,6 +3365,13 @@ bool GlobalSpatialRouter::acceptNewRoute(GSRModel& gsr_model, GSRNet& gsr_net, c
     return false;
   }
   if (new_total_congestion_risk + RT_ERROR < old_total_congestion_risk) {
+    if (!passRerouteShapeGuard(old_segment_list, new_segment_list, old_total_overflow, new_total_overflow, old_route_cost, new_route_cost)) {
+      route_stats.shape_guard_reject_num++;
+      if (accept_reason != nullptr) {
+        *accept_reason = "reject_shape_guard";
+      }
+      return false;
+    }
     route_stats.congestion_risk_accept_num++;
     if (accept_reason != nullptr) {
       *accept_reason = "congestion_risk";
@@ -2986,6 +3385,13 @@ bool GlobalSpatialRouter::acceptNewRoute(GSRModel& gsr_model, GSRNet& gsr_net, c
     return false;
   }
   if (new_route_cost + RT_ERROR < old_route_cost) {
+    if (!passRerouteShapeGuard(old_segment_list, new_segment_list, old_total_overflow, new_total_overflow, old_route_cost, new_route_cost)) {
+      route_stats.shape_guard_reject_num++;
+      if (accept_reason != nullptr) {
+        *accept_reason = "reject_shape_guard";
+      }
+      return false;
+    }
     route_stats.route_cost_accept_num++;
     if (accept_reason != nullptr) {
       *accept_reason = "route_cost";
@@ -3017,17 +3423,33 @@ bool GlobalSpatialRouter::acceptNewRoute(GSRModel& gsr_model, GSRNet& gsr_net, c
   }
   if (new_via_num != old_via_num) {
     bool accept = new_via_num < old_via_num;
+    if (accept && !passRerouteShapeGuard(old_segment_list, new_segment_list, old_total_overflow, new_total_overflow, old_route_cost, new_route_cost)) {
+      route_stats.shape_guard_reject_num++;
+      if (accept_reason != nullptr) {
+        *accept_reason = "reject_shape_guard";
+      }
+      return false;
+    }
     if (accept_reason != nullptr) {
       *accept_reason = accept ? "via_num" : "reject_via_num_worse";
     }
     return accept;
   }
   bool accept = new_length <= old_length;
+  if (accept && !passRerouteShapeGuard(old_segment_list, new_segment_list, old_total_overflow, new_total_overflow, old_route_cost, new_route_cost)) {
+    route_stats.shape_guard_reject_num++;
+    if (accept_reason != nullptr) {
+      *accept_reason = "reject_shape_guard";
+    }
+    return false;
+  }
   if (accept_reason != nullptr) {
     *accept_reason = accept ? "wire_length" : "reject_wire_length_worse";
   }
   return accept;
 }
+
+// shared helpers and diagnostics
 
 std::vector<int32_t> GlobalSpatialRouter::getCandidateLayerList(const GSRComParam& gsr_com_param, const bool prefer_h)
 {
@@ -3050,6 +3472,215 @@ bool GlobalSpatialRouter::isRoutePreferredOnly(GSRModel& gsr_model, const std::v
     }
   }
   return true;
+}
+
+std::vector<Segment<LayerCoord>> GlobalSpatialRouter::sanitizeRouteSegmentList(GSRModel& gsr_model, GSRNet& gsr_net,
+                                                                               const std::vector<Segment<LayerCoord>>& segment_list,
+                                                                               GSRRouteStats& route_stats)
+{
+  route_stats.route_sanitize_num++;
+  if (segment_list.empty()) {
+    route_stats.route_sanitize_fail_num++;
+    return {};
+  }
+
+  std::vector<Segment<LayerCoord>> working_segment_list = segment_list;
+  working_segment_list = getValidUniqueSegmentList(gsr_model, working_segment_list, route_stats);
+  if (working_segment_list.empty() || !isRoutePreferredOnly(gsr_model, working_segment_list)
+      || !isRouteConnected(gsr_net, working_segment_list)) {
+    route_stats.route_sanitize_fail_num++;
+    return {};
+  }
+
+  std::vector<LayerCoord> candidate_root_coord_list;
+  std::map<LayerCoord, std::set<int32_t>, CmpLayerCoordByXASC> key_coord_pin_map;
+  for (size_t pin_idx = 0; pin_idx < gsr_net.get_gsr_pin_list().size(); pin_idx++) {
+    LayerCoord access_coord = gsr_net.get_gsr_pin_list()[pin_idx].get_access_coord();
+    if (!gsr_model.get_gsr_grid_graph().isInside(access_coord)) {
+      continue;
+    }
+    candidate_root_coord_list.push_back(access_coord);
+    key_coord_pin_map[access_coord].insert(static_cast<int32_t>(pin_idx));
+  }
+  if (candidate_root_coord_list.size() < 2 || key_coord_pin_map.size() < 2) {
+    return working_segment_list;
+  }
+
+  std::vector<Segment<LayerCoord>> tree_input_segment_list = working_segment_list;
+  MTree<LayerCoord> coord_tree = RTUTIL.getTreeByFullFlow(candidate_root_coord_list, tree_input_segment_list, key_coord_pin_map);
+
+  std::vector<Segment<LayerCoord>> sanitized_segment_list;
+  for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
+    sanitized_segment_list.emplace_back(coord_segment.get_first()->value(), coord_segment.get_second()->value());
+  }
+  sanitized_segment_list = getValidUniqueSegmentList(gsr_model, sanitized_segment_list, route_stats);
+  if (sanitized_segment_list.empty() || !isRoutePreferredOnly(gsr_model, sanitized_segment_list)
+      || !isRouteConnected(gsr_net, sanitized_segment_list)) {
+    route_stats.route_sanitize_fail_num++;
+    return {};
+  }
+
+  if (makeSegmentKeySet(working_segment_list) != makeSegmentKeySet(sanitized_segment_list)) {
+    route_stats.route_sanitize_changed_num++;
+  }
+  return sanitized_segment_list;
+}
+
+bool GlobalSpatialRouter::hasPlanarProjectionCycle(GSRNet& gsr_net, const std::vector<Segment<LayerCoord>>& segment_list,
+                                                   GSRRouteStats& route_stats)
+{
+  route_stats.planar_cycle_check_num++;
+
+  std::vector<LayerCoord> key_coord_list;
+  for (GSRPin& gsr_pin : gsr_net.get_gsr_pin_list()) {
+    key_coord_list.push_back(gsr_pin.get_access_coord());
+  }
+  GSRPlanarProjection projection = buildPlanarProjection(key_coord_list, segment_list);
+
+  if (projection.node_key_set.empty()) {
+    return false;
+  }
+
+  std::map<PlanarKey, std::vector<PlanarKey>> adjacency_map;
+  for (Segment<PlanarCoord>& split_segment : projection.split_segment_list) {
+    PlanarKey first_key = makePlanarKey(split_segment.get_first());
+    PlanarKey second_key = makePlanarKey(split_segment.get_second());
+    adjacency_map[first_key].push_back(second_key);
+    adjacency_map[second_key].push_back(first_key);
+  }
+
+  int32_t component_num = 0;
+  std::set<PlanarKey> visited_key_set;
+  for (PlanarKey node_key : projection.node_key_set) {
+    if (RTUTIL.exist(visited_key_set, node_key)) {
+      continue;
+    }
+    component_num++;
+    std::queue<PlanarKey> node_queue;
+    node_queue.push(node_key);
+    visited_key_set.insert(node_key);
+    while (!node_queue.empty()) {
+      PlanarKey curr_key = node_queue.front();
+      node_queue.pop();
+      for (PlanarKey neighbor_key : adjacency_map[curr_key]) {
+        if (visited_key_set.insert(neighbor_key).second) {
+          node_queue.push(neighbor_key);
+        }
+      }
+    }
+  }
+
+  bool has_cycle = static_cast<int32_t>(projection.split_segment_list.size()) - static_cast<int32_t>(projection.node_key_set.size()) + component_num > 0;
+  if (has_cycle) {
+    route_stats.planar_cycle_detect_num++;
+  }
+  return has_cycle;
+}
+
+bool GlobalSpatialRouter::hasPlanarProjectionOverlap(GSRNet& gsr_net, const std::vector<Segment<LayerCoord>>& segment_list,
+                                                     GSRRouteStats& route_stats)
+{
+  route_stats.planar_overlap_check_num++;
+
+  std::vector<LayerCoord> key_coord_list;
+  for (GSRPin& gsr_pin : gsr_net.get_gsr_pin_list()) {
+    key_coord_list.push_back(gsr_pin.get_access_coord());
+  }
+  GSRPlanarProjection projection = buildPlanarProjection(key_coord_list, segment_list);
+  for (auto& [edge_key, segment_key_set] : projection.edge_segment_key_set_map) {
+    if (segment_key_set.size() > 1) {
+      route_stats.planar_overlap_detect_num++;
+      return true;
+    }
+  }
+  return false;
+}
+
+std::vector<Segment<LayerCoord>> GlobalSpatialRouter::rebuildRouteByPlanarProjectionTree(GSRModel& gsr_model, GSRNet& gsr_net,
+                                                                                         const std::vector<Segment<LayerCoord>>& segment_list,
+                                                                                         const bool require_no_cycle,
+                                                                                         const bool require_no_overlap,
+                                                                                         GSRRouteStats& route_stats)
+{
+  std::vector<PlanarCoord> candidate_root_coord_list;
+  std::map<PlanarCoord, std::set<int32_t>, CmpPlanarCoordByXASC> key_coord_pin_map;
+  std::vector<LayerCoord> key_coord_list;
+  for (size_t pin_idx = 0; pin_idx < gsr_net.get_gsr_pin_list().size(); pin_idx++) {
+    LayerCoord access_coord = gsr_net.get_gsr_pin_list()[pin_idx].get_access_coord();
+    if (!gsr_model.get_gsr_grid_graph().isInside(access_coord)) {
+      continue;
+    }
+    key_coord_list.push_back(access_coord);
+    PlanarCoord planar_coord = access_coord.get_planar_coord();
+    candidate_root_coord_list.push_back(planar_coord);
+    key_coord_pin_map[planar_coord].insert(static_cast<int32_t>(pin_idx));
+  }
+  if (candidate_root_coord_list.size() < 2 || key_coord_pin_map.size() < 2) {
+    return {};
+  }
+
+  GSRPlanarProjection projection = buildPlanarProjection(key_coord_list, segment_list);
+  std::vector<Segment<PlanarCoord>> planar_segment_list = projection.split_segment_list;
+  if (planar_segment_list.empty()) {
+    return {};
+  }
+
+  if (!RTUTIL.passCheckingConnectivity(candidate_root_coord_list, planar_segment_list)) {
+    return {};
+  }
+
+  MTree<PlanarCoord> planar_tree = RTUTIL.getTreeByFullFlow(candidate_root_coord_list, planar_segment_list, key_coord_pin_map);
+  std::vector<Segment<PlanarCoord>> planar_topo_list;
+  for (Segment<TNode<PlanarCoord>*>& coord_segment : RTUTIL.getSegListByTree(planar_tree)) {
+    planar_topo_list.emplace_back(coord_segment.get_first()->value(), coord_segment.get_second()->value());
+  }
+  if (planar_topo_list.empty()) {
+    return {};
+  }
+
+  GSRTree repaired_tree = buildGSRTree(gsr_model, gsr_net, planar_topo_list, route_stats);
+  std::vector<Segment<LayerCoord>> repaired_segment_list = refineTreeByPatternLayerDP(gsr_model, gsr_net, repaired_tree, nullptr, false, route_stats);
+  repaired_segment_list = getValidUniqueSegmentList(gsr_model, repaired_segment_list, route_stats);
+  if (repaired_segment_list.empty() || !isRoutePreferredOnly(gsr_model, repaired_segment_list)
+      || !isRouteConnected(gsr_net, repaired_segment_list)) {
+    return {};
+  }
+  if (require_no_cycle && hasPlanarProjectionCycle(gsr_net, repaired_segment_list, route_stats)) {
+    return {};
+  }
+  if (require_no_overlap && hasPlanarProjectionOverlap(gsr_net, repaired_segment_list, route_stats)) {
+    return {};
+  }
+
+  return repaired_segment_list;
+}
+
+std::vector<Segment<LayerCoord>> GlobalSpatialRouter::repairPlanarProjectionCycle(GSRModel& gsr_model, GSRNet& gsr_net,
+                                                                                  const std::vector<Segment<LayerCoord>>& segment_list,
+                                                                                  GSRRouteStats& route_stats)
+{
+  std::vector<Segment<LayerCoord>> repaired_segment_list
+      = rebuildRouteByPlanarProjectionTree(gsr_model, gsr_net, segment_list, true, false, route_stats);
+  if (repaired_segment_list.empty()) {
+    route_stats.planar_cycle_repair_fail_num++;
+    return {};
+  }
+  route_stats.planar_cycle_repair_num++;
+  return repaired_segment_list;
+}
+
+std::vector<Segment<LayerCoord>> GlobalSpatialRouter::repairPlanarProjectionOverlap(GSRModel& gsr_model, GSRNet& gsr_net,
+                                                                                    const std::vector<Segment<LayerCoord>>& segment_list,
+                                                                                    GSRRouteStats& route_stats)
+{
+  std::vector<Segment<LayerCoord>> repaired_segment_list
+      = rebuildRouteByPlanarProjectionTree(gsr_model, gsr_net, segment_list, true, true, route_stats);
+  if (repaired_segment_list.empty()) {
+    route_stats.planar_overlap_repair_fail_num++;
+    return {};
+  }
+  route_stats.planar_overlap_repair_num++;
+  return repaired_segment_list;
 }
 
 std::vector<Segment<LayerCoord>> GlobalSpatialRouter::buildPatternRoute(const PlanarCoord& first_coord, const PlanarCoord& second_coord, const bool h_first,
@@ -3445,6 +4076,123 @@ void GlobalSpatialRouter::outputRerouteAttemptCSV(const GSRRerouteAttemptRecord&
                     attempt_record.runtime_ms, "\n");
 }
 
+void GlobalSpatialRouter::outputStage1RouteOrderCSV(const std::vector<GSRNet>& gsr_net_list)
+{
+  if (!RTDM.getConfig().output_inter_result) {
+    return;
+  }
+
+  std::ofstream* route_order_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(RTDM.getConfig().gsr_temp_directory_path, "stage1_route_order.csv"));
+  RTUTIL.pushStream(route_order_csv_file,
+                    "order,net_idx,net_name,is_clock,pin_num,bbox_total,x_span,y_span,aspect_ratio,layer_span,avg_access_layer,hpwl\n");
+  for (int32_t order = 0; order < static_cast<int32_t>(gsr_net_list.size()); order++) {
+    const GSRNet& gsr_net = gsr_net_list[order];
+    GSRStage1RouteOrderKey order_key = buildStage1RouteOrderKey(gsr_net);
+    RTUTIL.pushStream(route_order_csv_file, order, ",", order_key.net_idx, ",", gsr_net.get_net_name(), ",", (order_key.is_clock ? 1 : 0),
+                      ",", order_key.pin_num, ",", order_key.bbox_total, ",", order_key.x_span, ",", order_key.y_span, ",",
+                      order_key.aspect_ratio, ",", order_key.layer_span, ",", order_key.avg_access_layer, ",", order_key.hpwl, "\n");
+  }
+  RTUTIL.closeFileStream(route_order_csv_file);
+}
+
+void GlobalSpatialRouter::outputGuide(GSRModel& gsr_model)
+{
+  if (!RTDM.getConfig().output_inter_result) {
+    return;
+  }
+
+  int32_t micron_dbu = RTDM.getDatabase().get_micron_dbu();
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  Die& die = RTDM.getDatabase().get_die();
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
+  std::string& gsr_temp_directory_path = RTDM.getConfig().gsr_temp_directory_path;
+  std::map<int32_t, int32_t>& net_idx_to_gsr_net_idx_map = gsr_model.get_net_idx_to_gsr_net_idx_map();
+  std::vector<GSRNet>& gsr_net_list = gsr_model.get_gsr_net_list();
+
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
+  std::ofstream* guide_file_stream = RTUTIL.getOutputFileStream(RTUTIL.getString(gsr_temp_directory_path, "route.guide"));
+  if (guide_file_stream == nullptr) {
+    return;
+  }
+  RTUTIL.pushStream(guide_file_stream, "guide net_name\n");
+  RTUTIL.pushStream(guide_file_stream, "pin grid_x grid_y real_x real_y layer energy name\n");
+  RTUTIL.pushStream(guide_file_stream, "wire grid1_x grid1_y grid2_x grid2_y real1_x real1_y real2_x real2_y layer\n");
+  RTUTIL.pushStream(guide_file_stream, "via grid_x grid_y real_x real_y layer1 layer2\n");
+
+  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+    if (!RTUTIL.exist(net_idx_to_gsr_net_idx_map, net_idx)) {
+      continue;
+    }
+    GSRNet& gsr_net = gsr_net_list[net_idx_to_gsr_net_idx_map[net_idx]];
+    RTUTIL.pushStream(guide_file_stream, "guide ", gsr_net.get_net_name(), "\n");
+
+    Net* origin_net = gsr_net.get_origin_net();
+    for (GSRPin& gsr_pin : gsr_net.get_gsr_pin_list()) {
+      LayerCoord access_coord = gsr_pin.get_access_coord();
+      double grid_x = access_coord.get_x();
+      double grid_y = access_coord.get_y();
+      PlanarCoord real_coord = RTUTIL.getRealRectByGCell(access_coord, gcell_axis).getMidPoint();
+      double real_x = real_coord.get_x() / 1.0 / micron_dbu;
+      double real_y = real_coord.get_y() / 1.0 / micron_dbu;
+      int32_t layer_idx = access_coord.get_layer_idx();
+      if (layer_idx < 0 || static_cast<int32_t>(routing_layer_list.size()) <= layer_idx) {
+        continue;
+      }
+      std::string layer = routing_layer_list[layer_idx].get_layer_name();
+      std::string connect = "load";
+      int32_t pin_idx = gsr_pin.get_pin_idx();
+      if (origin_net != nullptr && 0 <= pin_idx && pin_idx < static_cast<int32_t>(origin_net->get_pin_list().size())
+          && origin_net->get_pin_list()[pin_idx].get_is_driven()) {
+        connect = "driven";
+      }
+      RTUTIL.pushStream(guide_file_stream, "pin ", grid_x, " ", grid_y, " ", real_x, " ", real_y, " ", layer, " ", connect, " ",
+                        gsr_pin.get_pin_name(), "\n");
+    }
+
+    for (Segment<LayerCoord>* segment : segment_set) {
+      LayerCoord first_layer_coord = segment->get_first();
+      double grid1_x = first_layer_coord.get_x();
+      double grid1_y = first_layer_coord.get_y();
+      int32_t first_layer_idx = first_layer_coord.get_layer_idx();
+
+      PlanarCoord first_mid_coord = RTUTIL.getRealRectByGCell(first_layer_coord, gcell_axis).getMidPoint();
+      double real1_x = first_mid_coord.get_x() / 1.0 / micron_dbu;
+      double real1_y = first_mid_coord.get_y() / 1.0 / micron_dbu;
+
+      LayerCoord second_layer_coord = segment->get_second();
+      double grid2_x = second_layer_coord.get_x();
+      double grid2_y = second_layer_coord.get_y();
+      int32_t second_layer_idx = second_layer_coord.get_layer_idx();
+
+      PlanarCoord second_mid_coord = RTUTIL.getRealRectByGCell(second_layer_coord, gcell_axis).getMidPoint();
+      double real2_x = second_mid_coord.get_x() / 1.0 / micron_dbu;
+      double real2_y = second_mid_coord.get_y() / 1.0 / micron_dbu;
+
+      if (first_layer_idx != second_layer_idx) {
+        RTUTIL.swapByASC(first_layer_idx, second_layer_idx);
+        if (first_layer_idx < 0 || static_cast<int32_t>(routing_layer_list.size()) <= first_layer_idx || second_layer_idx < 0
+            || static_cast<int32_t>(routing_layer_list.size()) <= second_layer_idx) {
+          continue;
+        }
+        std::string layer1 = routing_layer_list[first_layer_idx].get_layer_name();
+        std::string layer2 = routing_layer_list[second_layer_idx].get_layer_name();
+        RTUTIL.pushStream(guide_file_stream, "via ", grid1_x, " ", grid1_y, " ", real1_x, " ", real1_y, " ", layer1, " ", layer2, "\n");
+      } else {
+        if (first_layer_idx < 0 || static_cast<int32_t>(routing_layer_list.size()) <= first_layer_idx) {
+          continue;
+        }
+        std::string layer = routing_layer_list[first_layer_idx].get_layer_name();
+        RTUTIL.pushStream(guide_file_stream, "wire ", grid1_x, " ", grid1_y, " ", grid2_x, " ", grid2_y, " ", real1_x, " ", real1_y,
+                          " ", real2_x, " ", real2_y, " ", layer, "\n");
+      }
+    }
+  }
+  RTUTIL.closeFileStream(guide_file_stream);
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
 void GlobalSpatialRouter::outputSummaryCSV(GSRModel& gsr_model, GSRRouteStats& route_stats)
 {
   if (!RTDM.getConfig().output_inter_result) {
@@ -3496,6 +4244,18 @@ void GlobalSpatialRouter::outputSummaryCSV(GSRModel& gsr_model, GSRRouteStats& r
   RTUTIL.pushStream(summary_csv_file, "touched_overflow_accept_num,", route_stats.touched_overflow_accept_num, "\n");
   RTUTIL.pushStream(summary_csv_file, "congestion_risk_accept_num,", route_stats.congestion_risk_accept_num, "\n");
   RTUTIL.pushStream(summary_csv_file, "route_cost_accept_num,", route_stats.route_cost_accept_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "route_sanitize_num,", route_stats.route_sanitize_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "route_sanitize_changed_num,", route_stats.route_sanitize_changed_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "route_sanitize_fail_num,", route_stats.route_sanitize_fail_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "shape_guard_reject_num,", route_stats.shape_guard_reject_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "planar_cycle_check_num,", route_stats.planar_cycle_check_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "planar_cycle_detect_num,", route_stats.planar_cycle_detect_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "planar_cycle_repair_num,", route_stats.planar_cycle_repair_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "planar_cycle_repair_fail_num,", route_stats.planar_cycle_repair_fail_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "planar_overlap_check_num,", route_stats.planar_overlap_check_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "planar_overlap_detect_num,", route_stats.planar_overlap_detect_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "planar_overlap_repair_num,", route_stats.planar_overlap_repair_num, "\n");
+  RTUTIL.pushStream(summary_csv_file, "planar_overlap_repair_fail_num,", route_stats.planar_overlap_repair_fail_num, "\n");
   RTUTIL.pushStream(summary_csv_file, "sparse_hotspot_line_num,", route_stats.sparse_hotspot_line_num, "\n");
   RTUTIL.pushStream(summary_csv_file, "sparse_offset_line_num,", route_stats.sparse_offset_line_num, "\n");
   RTUTIL.pushStream(summary_csv_file, "ta_visible_net_num,", route_stats.ta_visible_net_num, "\n");
@@ -3599,11 +4359,6 @@ void GlobalSpatialRouter::outputSummaryCSV(GSRModel& gsr_model, GSRRouteStats& r
     }
   }
   RTUTIL.closeFileStream(hotspot_csv_file);
-}
-
-bool GlobalSpatialRouter::isValidAccessCoord(GSRModel& gsr_model, const LayerCoord& access_coord)
-{
-  return gsr_model.get_gsr_grid_graph().isInside(access_coord);
 }
 
 bool GlobalSpatialRouter::isValidSegment(GSRModel& gsr_model, Segment<LayerCoord>& segment)
