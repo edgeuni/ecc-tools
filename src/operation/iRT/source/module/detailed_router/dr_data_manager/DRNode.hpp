@@ -124,7 +124,13 @@ class DRNode : public LayerCoord
   void addRoutedRectNet(Orientation orientation, int32_t net_idx) { addOrientNet(_orient_routed_rect_list, _orient_routed_rect_net_idx_list, orientation, net_idx); }
   void delFixedRectNet(Orientation orientation, int32_t net_idx) { delOrientNet(_orient_fixed_rect_list, _orient_fixed_rect_net_idx_list, orientation, net_idx); }
   void delRoutedRectNet(Orientation orientation, int32_t net_idx) { delOrientNet(_orient_routed_rect_list, _orient_routed_rect_net_idx_list, orientation, net_idx); }
-  bool hasFixedRectOrient(Orientation orientation) const { return getOrientNet(_orient_fixed_rect_list, orientation) != nullptr; }
+  bool hasFixedRectOrient(Orientation orientation) const
+  {
+    if (!isNeighborOrientation(orientation)) {
+      return false;
+    }
+    return _orient_fixed_rect_net_idx_list[getNeighborOrientationIdx(orientation)] != kNoOrientNetIdx;
+  }
   bool hasOrientFixedRect() const { return hasOrientNet(_orient_fixed_rect_net_idx_list); }
   bool hasOrientRoutedRect() const { return hasOrientNet(_orient_routed_rect_net_idx_list); }
   bool hasOrientViolationNumber() const
@@ -286,14 +292,21 @@ class DRNode : public LayerCoord
   static void delOrientNet(OrientNetList& orient_net_list, std::array<int32_t, kNeighborOrientationNum>& orient_net_idx_list, Orientation orientation,
                            int32_t net_idx)
   {
-    std::vector<int32_t>* net_list = getOrientNet(orient_net_list, orientation);
-    if (net_list == nullptr) {
+    if (!isNeighborOrientation(orientation)) {
       return;
     }
-    size_t lower_idx = getNetLowerIdx(*net_list, net_idx);
-    if (lower_idx < net_list->size() && (*net_list)[lower_idx] == net_idx) {
-      net_list->erase(net_list->begin() + lower_idx);
-      updateOrientNetIdx(orient_net_idx_list, orientation, *net_list);
+    size_t orient_idx = getOrientLowerIdx(orient_net_list, orientation);
+    if (orient_idx == orient_net_list.size() || orient_net_list[orient_idx].first != orientation) {
+      return;
+    }
+    std::vector<int32_t>& net_list = orient_net_list[orient_idx].second;
+    size_t lower_idx = getNetLowerIdx(net_list, net_idx);
+    if (lower_idx < net_list.size() && net_list[lower_idx] == net_idx) {
+      net_list.erase(net_list.begin() + lower_idx);
+      updateOrientNetIdx(orient_net_idx_list, orientation, net_list);
+      if (net_list.empty()) {
+        orient_net_list.erase(orient_net_list.begin() + orient_idx);
+      }
     }
   }
   static bool hasOrientNet(const std::array<int32_t, kNeighborOrientationNum>& orient_net_idx_list)
@@ -312,7 +325,7 @@ class DRNode : public LayerCoord
     orient_net_idx_list.fill(kNoOrientNetIdx);
     orient_net_list.reserve(orient_net_map.size());
     for (auto& [orientation, net_set] : orient_net_map) {
-      if (!isNeighborOrientation(orientation)) {
+      if (!isNeighborOrientation(orientation) || net_set.empty()) {
         continue;
       }
       orient_net_list.emplace_back(orientation, std::vector<int32_t>(net_set.begin(), net_set.end()));

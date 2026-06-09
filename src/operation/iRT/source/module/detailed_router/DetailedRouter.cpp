@@ -1987,7 +1987,10 @@ void DetailedRouter::updateRouteViolationList(DRBox& dr_box)
 {
   dr_box.get_route_violation_list().clear();
   for (Violation new_violation : getRouteViolationList(dr_box)) {
-    dr_box.get_route_violation_list().push_back(new_violation);
+    if (RTUTIL.isOpenOverlap(dr_box.get_box_rect().get_real_rect(), 
+      RTUTIL.getEnlargedRect(new_violation.get_violation_shape().get_real_rect(), RTDM.getOnlyPitch()))) {
+      dr_box.get_route_violation_list().push_back(new_violation);
+    }
   }
   // 新结果添加到graph
   for (Violation& violation : dr_box.get_route_violation_list()) {
@@ -2079,7 +2082,8 @@ void DetailedRouter::updateTaskSchedule(DRBox& dr_box, std::vector<DRTask*>& rou
   std::vector<DRTask*> new_routing_task_list;
   for (Violation& violation : dr_box.get_route_violation_list()) {
     EXTLayerRect& violation_shape = violation.get_violation_shape();
-    if (!RTUTIL.isOpenOverlap(dr_box.get_box_rect().get_real_rect(), violation_shape.get_real_rect())) {
+    if (!RTUTIL.isOpenOverlap(dr_box.get_box_rect().get_real_rect(), 
+      RTUTIL.getEnlargedRect(violation_shape.get_real_rect(), RTDM.getOnlyPitch()))) {
       continue;
     }
     for (DRTask* dr_task : dr_box.get_dr_task_list()) {

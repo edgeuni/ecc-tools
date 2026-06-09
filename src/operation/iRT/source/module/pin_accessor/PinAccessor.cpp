@@ -3047,7 +3047,10 @@ void PinAccessor::updateRouteViolationList(PABox& pa_box)
 {
   pa_box.get_route_violation_list().clear();
   for (Violation new_violation : getRouteViolationList(pa_box)) {
-    pa_box.get_route_violation_list().push_back(new_violation);
+    if (RTUTIL.isOpenOverlap(pa_box.get_box_rect().get_real_rect(),
+                             RTUTIL.getEnlargedRect(new_violation.get_violation_shape().get_real_rect(), RTDM.getOnlyPitch()))) {
+      pa_box.get_route_violation_list().push_back(new_violation);
+    }
   }
   // 新结果添加到graph
   for (Violation& violation : pa_box.get_route_violation_list()) {
@@ -3201,7 +3204,8 @@ void PinAccessor::updateTaskSchedule(PABox& pa_box, std::vector<PATask*>& routin
   std::vector<PATask*> new_routing_task_list;
   for (Violation& violation : pa_box.get_route_violation_list()) {
     EXTLayerRect& violation_shape = violation.get_violation_shape();
-    if (!RTUTIL.isInside(pa_box.get_box_rect().get_real_rect(), violation_shape.get_real_rect())) {
+    if (!RTUTIL.isOpenOverlap(pa_box.get_box_rect().get_real_rect(),
+                              RTUTIL.getEnlargedRect(violation_shape.get_real_rect(), RTDM.getOnlyPitch()))) {
       continue;
     }
     for (PATask* pa_task : pa_box.get_pa_task_list()) {
