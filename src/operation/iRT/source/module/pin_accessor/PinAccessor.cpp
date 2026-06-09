@@ -27,6 +27,8 @@
 #include "PANode.hpp"
 #include "PinAccessor.hpp"
 #include "RTInterface.hpp"
+#include "Violation.hpp"
+#include "ViolationType.hpp"
 
 namespace irt {
 
@@ -1892,7 +1894,7 @@ void PinAccessor::routePABox(PABox& pa_box)
     for (PATask* routing_task : routing_task_list) {
       updateGraph(pa_box, routing_task);
       routePATask(pa_box, routing_task);
-      patchPATask(pa_box, routing_task);
+      // patchPATask(pa_box, routing_task);
       routing_task->addRoutedTimes();
     }
     updateRouteViolationList(pa_box);
@@ -3122,7 +3124,13 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PABox& pa_box)
   de_task.set_net_result_map(net_result_map);
   de_task.set_net_patch_map(net_patch_map);
   de_task.set_need_checked_net_set(need_checked_net_set);
-  return RTDE.getViolationList(de_task);
+  std::vector<Violation> result_violations;
+  for (Violation vio : RTDE.getViolationList(de_task))  {
+    if (vio.get_violation_type() != ViolationType::kMinimumArea) {
+      result_violations.push_back(vio);
+    }
+  }
+  return result_violations;
 }
 
 void PinAccessor::updateAccessPoint(PABox& pa_box)
@@ -3238,7 +3246,6 @@ void PinAccessor::updateTaskSchedule(PABox& pa_box, std::vector<PATask*>& routin
         visited_routing_task_set.insert(pa_task);
         new_routing_task_list.push_back(pa_task);
       }
-      break;
     }
   }
   routing_task_list = new_routing_task_list;
@@ -3367,7 +3374,13 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PAModel& pa_model)
     de_task.set_net_patch_map(net_patch_map);
     de_task.set_need_checked_net_set(need_checked_net_set);
   }
-  return RTDE.getViolationList(de_task);
+  std::vector<Violation> result_violations;
+  for (Violation vio : RTDE.getViolationList(de_task))  {
+    if (vio.get_violation_type() != ViolationType::kMinimumArea) {
+      result_violations.push_back(vio);
+    }
+  }
+  return result_violations;
 }
 
 void PinAccessor::updateBestResult(PAModel& pa_model)
@@ -3494,6 +3507,7 @@ void PinAccessor::uploadAccessPoint(PAModel& pa_model)
 
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
   Die& die = RTDM.getDatabase().get_die();
+  std::vector<std::vector<ViaMaster>>& layer_via_master_list = RTDM.getDatabase().get_layer_via_master_list();
 
   for (auto& [net_idx, access_point_set] : RTDM.getNetAccessPointMap(die)) {
     for (AccessPoint* access_point : access_point_set) {
@@ -3519,6 +3533,20 @@ void PinAccessor::uploadAccessPoint(PAModel& pa_model)
         RTLOG.error(Loc::current(), "The pin idx is not equal!");
       }
       AccessPoint& access_point = pa_pin.get_access_point();
+      std::vector<ViaMasterIdx>& candidate_via_list = access_point.get_candidate_via_list();
+      if (candidate_via_list.size() == 1 && candidate_via_list.front().isValid()) {
+        ViaMasterIdx& via_master_idx = candidate_via_list.front();
+        int32_t below_layer_idx = via_master_idx.get_below_layer_idx();
+        if (0 <= below_layer_idx && below_layer_idx < static_cast<int32_t>(layer_via_master_list.size()) && !layer_via_master_list[below_layer_idx].empty()) {
+          ViaMasterIdx& default_via_master_idx = layer_via_master_list[below_layer_idx].front().get_via_master_idx();
+          if (via_master_idx != default_via_master_idx) {
+            RTLOG.info(Loc::current(), "PA upload non-default via master access point. net_idx=", pa_net.get_net_idx(),
+                       " net_name=", origin_net->get_net_name(), " pin_idx=", pa_pin.get_pin_idx(), " pin_name=", origin_pin.get_pin_name(), " coord=(",
+                       access_point.get_real_coord().get_x(), ",", access_point.get_real_coord().get_y(), ",", access_point.get_layer_idx(),
+                       ") via_master_idx=(", via_master_idx.get_below_layer_idx(), ",", via_master_idx.get_via_idx(), ")");
+          }
+        }
+      }
       access_point.set_grid_coord(RTUTIL.getGCellGridCoordByBBox(access_point.get_real_coord(), gcell_axis, bounding_box));
       origin_pin.set_access_point(access_point);
       RTDM.updateNetAccessPointToGCellMap(ChangeType::kAdd, pa_net.get_net_idx(), &origin_pin.get_access_point());

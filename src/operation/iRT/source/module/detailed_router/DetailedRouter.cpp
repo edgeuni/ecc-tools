@@ -2094,7 +2094,6 @@ void DetailedRouter::updateTaskSchedule(DRBox& dr_box, std::vector<DRTask*>& rou
         visited_routing_task_set.insert(dr_task);
         new_routing_task_list.push_back(dr_task);
       }
-      break;
     }
   }
   routing_task_list = new_routing_task_list;
