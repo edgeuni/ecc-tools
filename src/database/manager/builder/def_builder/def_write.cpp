@@ -1116,21 +1116,26 @@ int32_t DefWrite::write_fill()
   writestr("FILLS %d ;\n", fill_list->get_num_fill());
 
   for (IdbFill* fill : fill_list->get_fill_list()) {
-    writestr("    - LAYER %s ", fill->get_layer()->get_layer()->get_name().c_str());
+    if (fill->get_type() == IdbFill::IdbFillType::kLayer) {
+      writestr("    - LAYER %s ", fill->get_layer()->get_layer()->get_name().c_str());
 
-    for (IdbRect* rect : fill->get_layer()->get_rect_list()) {
-      writestr("RECT ( %d %d ) ( %d %d ) ", rect->get_low_x(), rect->get_low_y(), rect->get_high_x(), rect->get_high_y());
+      for (IdbRect* rect : fill->get_layer()->get_rect_list()) {
+        writestr("RECT ( %d %d ) ( %d %d ) ", rect->get_low_x(), rect->get_low_y(), rect->get_high_x(), rect->get_high_y());
+      }
+
+      writestr(";\n");
+      continue;
     }
 
-    writestr(";\n");
+    if (fill->get_type() == IdbFill::IdbFillType::kVia) {
+      writestr("    - VIA %s ", fill->get_via()->get_via()->get_name().c_str());
 
-    writestr("    - VIA %s ", fill->get_via()->get_via()->get_name().c_str());
+      for (IdbCoordinate<int32_t>* point : fill->get_via()->get_coordinate_list()) {
+        writestr("( %d %d ) ", point->get_x(), point->get_y());
+      }
 
-    for (IdbCoordinate<int32_t>* point : fill->get_via()->get_coordinate_list()) {
-      writestr("( %d %d ) ", point->get_x(), point->get_y());
+      writestr(";\n");
     }
-
-    writestr(";\n");
   }
 
   cout << "Write FILLS success..." << endl;

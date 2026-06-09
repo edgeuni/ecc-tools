@@ -34,6 +34,7 @@
 #include "tcl_register_feature.h"
 #include "tcl_register_flow.h"
 #include "tcl_register_fp.h"
+#include "tcl_register_ifill.h"
 #include "tcl_register_idb.h"
 #include "tcl_register_idrc.h"
 #include "tcl_register_inst.h"
@@ -73,6 +74,9 @@ int registerCommands()
 
   /// FP
   registerCmdFP();
+
+  /// metal fill
+  registerCmdIFill();
 
   /// PDN
   registerCmdPDN();
