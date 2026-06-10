@@ -1678,11 +1678,8 @@ void PinAccessor::buildBoxTrackAxis(PABox& pa_box)
     for (PAGroup& pa_group : pa_task->get_pa_group_list()) {
       for (LayerCoord& coord : pa_group.get_coord_list()) {
         int32_t layer_idx = coord.get_layer_idx();
-        if (routing_layer_list[layer_idx].isPreferH()) {
           layer_axis_map[layer_idx].first.insert(coord.get_x());
-        } else {
           layer_axis_map[layer_idx].second.insert(coord.get_y());
-        }
       }
     }
   }
@@ -1775,7 +1772,7 @@ void PinAccessor::buildPANodeNeighbor(PABox& pa_box)
         PANode& pa_node = pa_node_map[x][y];
         if (routing_hv) {
           if (!routing_layer_list[layer_idx].isPreferH()) {
-            if (RTUTIL.exist(curr_axis, pa_node_map[x][y].get_y())) {
+            if (RTUTIL.exist(curr_axis, pa_node_map[x][y].get_y()) || RTUTIL.exist(neighbor_layer_y_axis_set, pa_node_map[x][y].get_y())) {
               if (x != 0) {
                 pa_node.setNeighborNode(Orientation::kWest, &pa_node_map[x - 1][y]);
               }
@@ -1792,7 +1789,7 @@ void PinAccessor::buildPANodeNeighbor(PABox& pa_box)
               }
             }
           } else if (routing_layer_list[layer_idx].isPreferH()) {
-            if (RTUTIL.exist(curr_axis, pa_node_map[x][y].get_x())) {
+            if (RTUTIL.exist(curr_axis, pa_node_map[x][y].get_x()) || RTUTIL.exist(neighbor_layer_x_axis_set, pa_node_map[x][y].get_x())) {
               if (y != 0) {
                 pa_node.setNeighborNode(Orientation::kSouth, &pa_node_map[x][y - 1]);
               }

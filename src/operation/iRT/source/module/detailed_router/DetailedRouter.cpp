@@ -626,11 +626,8 @@ void DetailedRouter::buildBoxTrackAxis(DRBox& dr_box)
     for (DRGroup& dr_group : dr_task->get_dr_group_list()) {
       for (auto& [coord, _] : dr_group.get_coord_direction_map()) {
         int32_t layer_idx = coord.get_layer_idx();
-        if (routing_layer_list[layer_idx].isPreferH()) {
           layer_axis_map[layer_idx].first.insert(coord.get_x());
-        } else {
           layer_axis_map[layer_idx].second.insert(coord.get_y());
-        }
       }
     }
   }
@@ -723,7 +720,7 @@ void DetailedRouter::buildDRNodeNeighbor(DRBox& dr_box)
         DRNode& dr_node = dr_node_map[x][y];
         if (routing_hv) {
           if (!routing_layer_list[layer_idx].isPreferH()) {
-            if (RTUTIL.exist(curr_axis, dr_node.get_y())) {
+            if (RTUTIL.exist(curr_axis, dr_node.get_y()) || RTUTIL.exist(neighbor_layer_y_axis_set, dr_node.get_y())) {
               if (x != 0) {
                 dr_node.setNeighborNode(Orientation::kWest, &dr_node_map[x - 1][y]);
               }
@@ -740,7 +737,7 @@ void DetailedRouter::buildDRNodeNeighbor(DRBox& dr_box)
               }
             }
           } else if (routing_layer_list[layer_idx].isPreferH()) {
-            if (RTUTIL.exist(curr_axis, dr_node.get_x())) {
+            if (RTUTIL.exist(curr_axis, dr_node.get_x()) || RTUTIL.exist(neighbor_layer_x_axis_set, dr_node.get_x())) {
               if (y != 0) {
                 dr_node.setNeighborNode(Orientation::kSouth, &dr_node_map[x][y - 1]);
               }
