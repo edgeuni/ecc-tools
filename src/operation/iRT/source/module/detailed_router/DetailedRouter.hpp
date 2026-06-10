@@ -126,6 +126,8 @@ class DetailedRouter
   void resetSinglePatchTask(DRBox& dr_box);
   void updateRouteViolationList(DRBox& dr_box);
   std::vector<Violation> getRouteViolationList(DRBox& dr_box);
+  int32_t getViolationWeight(ViolationType violation_type);
+  int32_t getViolationScore(const std::vector<Violation>& violation_list);
   void updateBestResult(DRBox& dr_box);
   void updateTaskSchedule(DRBox& dr_box, std::vector<DRTask*>& routing_task_list);
   void selectBestResult(DRBox& dr_box);

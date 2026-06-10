@@ -175,9 +175,6 @@ void DRCEngine::checkViolationList(DETask& de_task)
     if (!violation.get_is_routing()) {
       RTLOG.error(Loc::current(), "The violations in the cut layer!");
     }
-    if (violation.get_violation_net_set().size() > 2) {
-      RTLOG.error(Loc::current(), "The violation_net_set size > 2!");
-    }
   }
 }
 

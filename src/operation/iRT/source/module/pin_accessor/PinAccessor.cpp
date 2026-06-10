@@ -1158,6 +1158,7 @@ void PinAccessor::routePAModel(PAModel& pa_model)
   pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 3, 2, 3, 2 * fixed_rect_unit, 2 * routed_rect_unit, 2 * violation_unit, 20, 10);
   // clang-format on
   initRoutingState(pa_model);
+  bool checked_ap_via_only = false;
   for (int32_t i = 0, iter = 1; i < static_cast<int32_t>(pa_iter_param_list.size()); i++, iter++) {
     Monitor iter_monitor;
     RTLOG.info(Loc::current(), "***** Begin iteration ", iter, "/", pa_iter_param_list.size(), "(", RTUTIL.getPercentage(iter, pa_iter_param_list.size()),
@@ -1173,7 +1174,9 @@ void PinAccessor::routePAModel(PAModel& pa_model)
     std::vector<Violation> ap_via_only_violation_list;
     bool need_reroute_access_point = false;
     bool reroute_access_point_updated = false;
-    if (iter == 3) {
+    bool need_check_ap_via_only = (iter == 3 || (!checked_ap_via_only && getRouteViolationNum(pa_model) == 0));
+    if (need_check_ap_via_only) {
+      checked_ap_via_only = true;
       ap_via_only_violation_list = getRouteViolationList(pa_model, true);
       RTLOG.info(Loc::current(), "AP via-only violation num: ", ap_via_only_violation_list.size());
       std::map<ViolationType, int32_t> ap_via_only_violation_type_num_map;
@@ -1210,7 +1213,7 @@ void PinAccessor::routePAModel(PAModel& pa_model)
       RTLOG.info(Loc::current(), "Cleared ", pa_model.get_reroute_pin_set().size(), " pending reroute pins");
       pa_model.get_reroute_pin_set().clear();
     }
-    if (!reroute_access_point_updated && stopIteration(pa_model, pa_iter_param_list)) {
+    if (!reroute_access_point_updated && checked_ap_via_only && stopIteration(pa_model, pa_iter_param_list)) {
       break;
     }
   }
