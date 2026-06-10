@@ -38,6 +38,30 @@ constexpr uint8_t kInt2 = 0x02;
 constexpr uint8_t kInt4 = 0x03;
 constexpr uint8_t kReal8 = 0x05;
 constexpr uint8_t kAscii = 0x06;
+constexpr size_t kGDSFileBufferSize = 16 * 1024 * 1024;
+
+const std::string& getInnovusColor(int32_t layer_idx)
+{
+  static const std::vector<std::string> color_list = {"#2f3bff", "#e52b2b", "#41e65a", "#f0ee66", "#8e2631",
+                                                      "#f2b63f", "#c438d0", "#35d4c8", "#8b5a3c", "#f0e85a"};
+  if (layer_idx < 0) {
+    layer_idx = 0;
+  }
+  return color_list[layer_idx % color_list.size()];
+}
+
+int32_t getCutUpperRoutingLayerIdx(const std::string& cut_layer_name)
+{
+  int32_t number = 0;
+  bool has_number = false;
+  for (char ch : cut_layer_name) {
+    if ('0' <= ch && ch <= '9') {
+      has_number = true;
+      number = number * 10 + (ch - '0');
+    }
+  }
+  return has_number ? number : 0;
+}
 
 void appendInt2(std::vector<uint8_t>& data, int32_t value)
 {
@@ -91,27 +115,38 @@ void appendReal8(std::vector<uint8_t>& data, double value)
   }
 }
 
-void writeRecord(std::ofstream* gds_file, uint8_t record_type, uint8_t data_type, const std::vector<uint8_t>& data = {})
+void writeRecord(std::ofstream* gds_file, uint8_t record_type, uint8_t data_type)
+{
+  uint8_t header[4];
+  header[0] = 0;
+  header[1] = 4;
+  header[2] = record_type;
+  header[3] = data_type;
+  gds_file->write(reinterpret_cast<const char*>(header), static_cast<std::streamsize>(sizeof(header)));
+}
+
+void writeRecord(std::ofstream* gds_file, uint8_t record_type, uint8_t data_type, const std::vector<uint8_t>& data)
 {
   int32_t record_size = 4 + static_cast<int32_t>(data.size());
   if (record_size > std::numeric_limits<uint16_t>::max()) {
     RTLOG.error(Loc::current(), "GDS record is too large!");
   }
 
-  std::vector<uint8_t> header;
-  appendInt2(header, record_size);
-  header.push_back(record_type);
-  header.push_back(data_type);
+  thread_local std::vector<uint8_t> record;
+  record.clear();
+  record.reserve(record_size);
+  appendInt2(record, record_size);
+  record.push_back(record_type);
+  record.push_back(data_type);
+  record.insert(record.end(), data.begin(), data.end());
 
-  gds_file->write(reinterpret_cast<const char*>(header.data()), static_cast<std::streamsize>(header.size()));
-  if (!data.empty()) {
-    gds_file->write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
-  }
+  gds_file->write(reinterpret_cast<const char*>(record.data()), static_cast<std::streamsize>(record.size()));
 }
 
 void writeInt2Record(std::ofstream* gds_file, uint8_t record_type, std::initializer_list<int32_t> value_list)
 {
-  std::vector<uint8_t> data;
+  thread_local std::vector<uint8_t> data;
+  data.clear();
   data.reserve(value_list.size() * 2);
   for (int32_t value : value_list) {
     appendInt2(data, value);
@@ -121,7 +156,8 @@ void writeInt2Record(std::ofstream* gds_file, uint8_t record_type, std::initiali
 
 void writeInt2Record(std::ofstream* gds_file, uint8_t record_type, const std::vector<int32_t>& value_list)
 {
-  std::vector<uint8_t> data;
+  thread_local std::vector<uint8_t> data;
+  data.clear();
   data.reserve(value_list.size() * 2);
   for (int32_t value : value_list) {
     appendInt2(data, value);
@@ -131,14 +167,16 @@ void writeInt2Record(std::ofstream* gds_file, uint8_t record_type, const std::ve
 
 void writeBitArrayRecord(std::ofstream* gds_file, uint8_t record_type, int32_t value)
 {
-  std::vector<uint8_t> data;
+  thread_local std::vector<uint8_t> data;
+  data.clear();
   appendInt2(data, value);
   writeRecord(gds_file, record_type, kBitArray, data);
 }
 
 void writeInt4Record(std::ofstream* gds_file, uint8_t record_type, std::initializer_list<int32_t> value_list)
 {
-  std::vector<uint8_t> data;
+  thread_local std::vector<uint8_t> data;
+  data.clear();
   data.reserve(value_list.size() * 4);
   for (int32_t value : value_list) {
     appendInt4(data, value);
@@ -148,7 +186,8 @@ void writeInt4Record(std::ofstream* gds_file, uint8_t record_type, std::initiali
 
 void writeReal8Record(std::ofstream* gds_file, uint8_t record_type, std::initializer_list<double> value_list)
 {
-  std::vector<uint8_t> data;
+  thread_local std::vector<uint8_t> data;
+  data.clear();
   data.reserve(value_list.size() * 8);
   for (double value : value_list) {
     appendReal8(data, value);
@@ -158,7 +197,8 @@ void writeReal8Record(std::ofstream* gds_file, uint8_t record_type, std::initial
 
 void writeStringRecord(std::ofstream* gds_file, uint8_t record_type, const std::string& value)
 {
-  std::vector<uint8_t> data(value.begin(), value.end());
+  thread_local std::vector<uint8_t> data;
+  data.assign(value.begin(), value.end());
   if ((data.size() % 2) == 1) {
     data.push_back('\0');
   }
@@ -287,13 +327,12 @@ void GDSPlotter::buildGraphLypFile()
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   std::vector<CutLayer>& cut_layer_list = RTDM.getDatabase().get_cut_layer_list();
+  std::map<int32_t, std::vector<int32_t>>& cut_to_adjacent_routing_map = RTDM.getDatabase().get_cut_to_adjacent_routing_map();
   std::string& gp_temp_directory_path = RTDM.getConfig().gp_temp_directory_path;
 
-  std::vector<std::string> color_list
-      = {"#ff9d9d", "#ff80a8", "#c080ff", "#9580ff", "#8086ff", "#80a8ff", "#ff0000", "#ff0080", "#ff00ff", "#8000ff", "#0000ff", "#0080ff",
-         "#800000", "#800057", "#800080", "#500080", "#000080", "#004080", "#80fffb", "#80ff8d", "#afff80", "#f3ff80", "#ffc280", "#ffa080",
-         "#00ffff", "#01ff6b", "#91ff00", "#ddff00", "#ffae00", "#ff8000", "#008080", "#008050", "#008000", "#508000", "#808000", "#805000"};
-  std::vector<std::string> pattern_list = {"I5", "I9"};
+  std::string base_color = "#b0b0b0";
+  std::string routing_pattern = "I5";
+  std::string cut_pattern = "I9";
 
   std::map<GPDataType, bool> routing_data_type_visible_map
       = {{GPDataType::kNone, false},          {GPDataType::kOpen, false},      {GPDataType::kClose, false},
@@ -309,25 +348,34 @@ void GDSPlotter::buildGraphLypFile()
 
   std::vector<GPLYPLayer> lyp_layer_list;
   for (int32_t gds_layer_idx = 0; gds_layer_idx < gds_layer_size; gds_layer_idx++) {
-    std::string color = color_list[gds_layer_idx % color_list.size()];
-    std::string pattern = pattern_list[gds_layer_idx % pattern_list.size()];
-
     if (gds_layer_idx == 0) {
-      lyp_layer_list.emplace_back(color, pattern, true, "base_region", gds_layer_idx, 0);
-      lyp_layer_list.emplace_back(color, pattern, false, "gcell", gds_layer_idx, 1);
-      lyp_layer_list.emplace_back(color, pattern, false, "bounding_box", gds_layer_idx, 2);
+      lyp_layer_list.emplace_back(base_color, routing_pattern, true, "base_region", gds_layer_idx, 0);
+      lyp_layer_list.emplace_back(base_color, cut_pattern, false, "gcell", gds_layer_idx, 1);
+      lyp_layer_list.emplace_back(base_color, routing_pattern, false, "bounding_box", gds_layer_idx, 2);
     } else if (RTUTIL.exist(_gds_routing_layer_map, gds_layer_idx)) {
       // routing
-      std::string routing_layer_name = routing_layer_list[_gds_routing_layer_map[gds_layer_idx]].get_layer_name();
+      int32_t routing_layer_idx = _gds_routing_layer_map[gds_layer_idx];
+      std::string color = getInnovusColor(routing_layer_idx);
+      std::string routing_layer_name = routing_layer_list[routing_layer_idx].get_layer_name();
       for (auto& [routing_data_type, visible] : routing_data_type_visible_map) {
-        lyp_layer_list.emplace_back(color, pattern, visible, RTUTIL.getString(routing_layer_name, "_", GetGPDataTypeName()(routing_data_type)), gds_layer_idx,
-                                    static_cast<int32_t>(routing_data_type));
+        lyp_layer_list.emplace_back(color, routing_pattern, visible, RTUTIL.getString(routing_layer_name, "_", GetGPDataTypeName()(routing_data_type)),
+                                    gds_layer_idx, static_cast<int32_t>(routing_data_type));
       }
     } else if (RTUTIL.exist(_gds_cut_layer_map, gds_layer_idx)) {
       // cut
-      std::string cut_layer_name = cut_layer_list[_gds_cut_layer_map[gds_layer_idx]].get_layer_name();
+      int32_t cut_layer_idx = _gds_cut_layer_map[gds_layer_idx];
+      std::string cut_layer_name = cut_layer_list[cut_layer_idx].get_layer_name();
+      int32_t upper_routing_layer_idx = getCutUpperRoutingLayerIdx(cut_layer_name);
+      if (RTUTIL.exist(cut_to_adjacent_routing_map, cut_layer_idx)) {
+        for (int32_t routing_layer_idx : cut_to_adjacent_routing_map[cut_layer_idx]) {
+          if (upper_routing_layer_idx < routing_layer_idx) {
+            upper_routing_layer_idx = routing_layer_idx;
+          }
+        }
+      }
+      std::string color = getInnovusColor(upper_routing_layer_idx);
       for (auto& [cut_data_type, visible] : cut_data_type_visible_map) {
-        lyp_layer_list.emplace_back(color, pattern, visible, RTUTIL.getString(cut_layer_name, "_", GetGPDataTypeName()(cut_data_type)), gds_layer_idx,
+        lyp_layer_list.emplace_back(color, cut_pattern, visible, RTUTIL.getString(cut_layer_name, "_", GetGPDataTypeName()(cut_data_type)), gds_layer_idx,
                                     static_cast<int32_t>(cut_data_type));
       }
     }
@@ -420,18 +468,22 @@ void GDSPlotter::plotGDS(GPGDS& gp_gds, std::string gds_file_path)
 
   RTLOG.info(Loc::current(), "The gds file is being saved...");
 
-  std::ofstream* gds_file = new std::ofstream(gds_file_path, std::ios::out | std::ios::binary);
+  std::vector<char> file_buffer(kGDSFileBufferSize);
+  std::ofstream* gds_file = new std::ofstream();
+  gds_file->rdbuf()->pubsetbuf(file_buffer.data(), static_cast<std::streamsize>(file_buffer.size()));
+  gds_file->open(gds_file_path, std::ios::out | std::ios::binary);
   if (!gds_file->is_open()) {
     RTLOG.error(Loc::current(), "Failed to open file '", gds_file_path, "'!");
   }
 
+  std::vector<int32_t> date_list = getDateList();
   writeInt2Record(gds_file, 0x00, {600});
-  writeInt2Record(gds_file, 0x01, getDateList());
+  writeInt2Record(gds_file, 0x01, date_list);
   writeStringRecord(gds_file, 0x02, gp_gds.get_top_name());
   writeReal8Record(gds_file, 0x03, {0.001, 1e-9});
   std::vector<GPStruct>& struct_list = gp_gds.get_struct_list();
   for (size_t i = 0; i < struct_list.size(); i++) {
-    plotStruct(gds_file, struct_list[i]);
+    plotStruct(gds_file, struct_list[i], date_list);
   }
   writeRecord(gds_file, 0x04, kNoData);
   RTUTIL.closeFileStream(gds_file);
@@ -439,9 +491,9 @@ void GDSPlotter::plotGDS(GPGDS& gp_gds, std::string gds_file_path)
   RTLOG.info(Loc::current(), "The gds file has been saved in '", gds_file_path, "'!", monitor.getStatsInfo());
 }
 
-void GDSPlotter::plotStruct(std::ofstream* gds_file, GPStruct& gp_struct)
+void GDSPlotter::plotStruct(std::ofstream* gds_file, GPStruct& gp_struct, const std::vector<int32_t>& date_list)
 {
-  writeInt2Record(gds_file, 0x05, getDateList());
+  writeInt2Record(gds_file, 0x05, date_list);
   writeStringRecord(gds_file, 0x06, gp_struct.get_name());
   // boundary
   for (GPBoundary& gp_boundary : gp_struct.get_boundary_list()) {
