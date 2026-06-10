@@ -38,6 +38,7 @@ class PAModel
   PAIterParam& get_pa_iter_param() { return _pa_iter_param; }
   GridMap<PABox>& get_pa_box_map() { return _pa_box_map; }
   std::vector<std::vector<PABoxId>>& get_pa_box_id_list_list() { return _pa_box_id_list_list; }
+  std::set<std::pair<int32_t, int32_t>>& get_reroute_pin_set() { return _reroute_pin_set; }
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_best_net_pin_access_result_map() { return _best_net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_best_net_pin_access_patch_map() { return _best_net_pin_access_patch_map; }
   std::vector<Violation>& get_best_route_violation_list() { return _best_route_violation_list; }
@@ -67,6 +68,7 @@ class PAModel
   PAIterParam _pa_iter_param;
   GridMap<PABox> _pa_box_map;
   std::vector<std::vector<PABoxId>> _pa_box_id_list_list;
+  std::set<std::pair<int32_t, int32_t>> _reroute_pin_set;
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _best_net_pin_access_result_map;
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _best_net_pin_access_patch_map;
   std::vector<Violation> _best_route_violation_list;

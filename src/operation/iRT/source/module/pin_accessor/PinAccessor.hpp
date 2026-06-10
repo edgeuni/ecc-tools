@@ -78,8 +78,8 @@ class PinAccessor
   std::vector<AccessPoint> getViaAccessPointList(PAModel& pa_model, int32_t pin_idx, std::vector<PALegalShape>& legal_shape_list);
   void uniformSampleCoordList(PAModel& pa_model, std::vector<LayerCoord>& layer_coord_list);
   void uploadAccessPointList(PAModel& pa_model);
-  std::vector<std::pair<int32_t, PAPin*>> getReroutePinList(PAModel& pa_model);
-  void updateRerouteAccessPointList(PAModel& pa_model);
+  std::vector<std::pair<int32_t, PAPin*>> getReroutePinList(PAModel& pa_model, const std::vector<Violation>& extra_violation_list);
+  bool updateRerouteAccessPointList(PAModel& pa_model, const std::vector<Violation>& ap_via_only_violation_list);
   void routePAModel(PAModel& pa_model);
   void initRoutingState(PAModel& pa_model);
   void setPAIterParam(PAModel& pa_model, int32_t iter, PAIterParam& pa_iter_param);
@@ -148,7 +148,9 @@ class PinAccessor
   void updateTaskPatch(PABox& pa_box);
   void resetSinglePatchTask(PABox& pa_box);
   void updateRouteViolationList(PABox& pa_box);
-  std::vector<Violation> getRouteViolationList(PABox& pa_box);
+  std::vector<Violation> getRouteViolationList(PABox& pa_box, bool ap_via_only);
+  LayerCoord getAccessCoord(PATask* pa_task, std::vector<Segment<LayerCoord>>& segment_list);
+  bool isAPViaSegment(const Segment<LayerCoord>& segment, const LayerCoord& access_coord);
   void updateAccessPoint(PABox& pa_box);
   void updateBestResult(PABox& pa_box);
   void updateTaskSchedule(PABox& pa_box, std::vector<PATask*>& routing_task_list);
@@ -156,8 +158,9 @@ class PinAccessor
   void uploadBestResult(PABox& pa_box);
   void freePABox(PABox& pa_box);
   int32_t getRouteViolationNum(PAModel& pa_model);
-  void uploadViolation(PAModel& pa_model);
-  std::vector<Violation> getRouteViolationList(PAModel& pa_model);
+  void uploadViolation(PAModel& pa_model, bool include_ap_via_only);
+  int32_t uploadRouteViolationList(std::set<Violation, CmpViolation>& route_violation_set, const std::vector<Violation>& route_violation_list);
+  std::vector<Violation> getRouteViolationList(PAModel& pa_model, bool ap_via_only);
   void updateBestResult(PAModel& pa_model);
   bool stopIteration(PAModel& pa_model, std::vector<PAIterParam>& pa_iter_param_list);
   void selectBestResult(PAModel& pa_model);
