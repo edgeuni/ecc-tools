@@ -126,21 +126,21 @@ void RTInterface::runRT()
   RTSA.analyze();
   SupplyAnalyzer::destroyInst();
 
-  // TopologyGenerator::initInst();
-  // RTTG.generate();
-  // TopologyGenerator::destroyInst();
-  //
-  // LayerAssigner::initInst();
-  // RTLA.assign();
-  // LayerAssigner::destroyInst();
-  //
-  // SpaceRouter::initInst();
-  // RTSR.route();
-  // SpaceRouter::destroyInst();
+  TopologyGenerator::initInst();
+  RTTG.generate();
+  TopologyGenerator::destroyInst();
+  
+  LayerAssigner::initInst();
+  RTLA.assign();
+  LayerAssigner::destroyInst();
+  
+  SpaceRouter::initInst();
+  RTSR.route();
+  SpaceRouter::destroyInst();
 
-  GlobalSpatialRouter::initInst();
-  RTGSR.route();
-  GlobalSpatialRouter::destroyInst();
+  // GlobalSpatialRouter::initInst();
+  // RTGSR.route();
+  // GlobalSpatialRouter::destroyInst();
 
   TrackAssigner::initInst();
   RTTA.assign();

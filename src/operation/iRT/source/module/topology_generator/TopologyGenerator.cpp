@@ -45,6 +45,17 @@ struct TGLocalRerouteMetrics
   double max_usage_ratio = 0;
 };
 
+struct TGNetTask
+{
+  int32_t net_idx = -1;
+  double overflow = 0;
+  double high_usage = 0;
+  double congestion_risk = 0;
+  double max_usage_ratio = 0;
+  double wire_length = 0;
+  int32_t overflow_segment_num = 0;
+};
+
 bool isSamePlanarSegment(const Segment<PlanarCoord>& lhs, const Segment<PlanarCoord>& rhs)
 {
   return ((lhs.get_first() == rhs.get_first() && lhs.get_second() == rhs.get_second())
@@ -171,6 +182,44 @@ std::vector<Segment<PlanarCoord>> simplifyRoutingSegmentList(std::vector<Segment
   std::vector<PlanarCoord> coord_list = getCoordList(segment_list);
   removeCoordLoop(coord_list);
   return getMergedSegmentList(coord_list);
+}
+
+std::vector<Segment<PlanarCoord>> getPlanarSegmentList(std::vector<Segment<LayerCoord>*>& layer_segment_list)
+{
+  std::vector<Segment<PlanarCoord>> planar_segment_list;
+  planar_segment_list.reserve(layer_segment_list.size());
+  for (Segment<LayerCoord>* layer_segment : layer_segment_list) {
+    if (layer_segment == nullptr) {
+      continue;
+    }
+    planar_segment_list.emplace_back(layer_segment->get_first().get_planar_coord(), layer_segment->get_second().get_planar_coord());
+  }
+  return planar_segment_list;
+}
+
+std::vector<Segment<PlanarCoord>> getPlanarSegmentList(MTree<PlanarCoord>& coord_tree)
+{
+  std::vector<Segment<PlanarCoord>> planar_segment_list;
+  for (Segment<TNode<PlanarCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
+    planar_segment_list.emplace_back(coord_segment.get_first()->value(), coord_segment.get_second()->value());
+  }
+  return planar_segment_list;
+}
+
+std::vector<Segment<LayerCoord>*> getNetGlobalSegmentPtrList(TGModel& tg_model, int32_t net_idx)
+{
+  std::vector<Segment<LayerCoord>*> segment_ptr_list;
+  std::map<int32_t, std::set<Segment<LayerCoord>*>>& net_global_result_map = tg_model.get_net_global_result_map();
+  if (!RTUTIL.exist(net_global_result_map, net_idx)) {
+    return segment_ptr_list;
+  }
+  segment_ptr_list.reserve(net_global_result_map[net_idx].size());
+  for (Segment<LayerCoord>* segment : net_global_result_map[net_idx]) {
+    if (segment != nullptr) {
+      segment_ptr_list.push_back(segment);
+    }
+  }
+  return segment_ptr_list;
 }
 
 TGRouteMetrics getRouteMetrics(TGModel& tg_model, int32_t net_idx, std::vector<Segment<PlanarCoord>>& segment_list)
@@ -425,6 +474,56 @@ bool acceptTrueLocalReroute(TGRouteMetrics& old_route_metrics, TGRouteMetrics& n
         && !RTUTIL.equalDoubleByError(new_route_metrics.congestion_risk, old_route_metrics.congestion_risk, RT_ERROR)) {
       return true;
     }
+  }
+  return false;
+}
+
+bool passNetRerouteShapeGuard(TGRouteMetrics& old_metrics, TGRouteMetrics& new_metrics)
+{
+  double max_wire_length = old_metrics.wire_length * 3.0 + 20;
+  int32_t max_segment_num = old_metrics.segment_num * 4 + 20;
+  return new_metrics.wire_length <= max_wire_length && new_metrics.segment_num <= max_segment_num;
+}
+
+bool acceptNetReroute(TGRouteMetrics& old_route_metrics, TGRouteMetrics& new_route_metrics, TGLocalRerouteMetrics& old_local_metrics,
+                      TGLocalRerouteMetrics& new_local_metrics)
+{
+  if (!passNetRerouteShapeGuard(old_route_metrics, new_route_metrics)) {
+    return false;
+  }
+  if (old_local_metrics.overflow <= RT_ERROR && new_local_metrics.overflow > old_local_metrics.overflow
+      && !RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)) {
+    return false;
+  }
+  if (new_local_metrics.overflow < old_local_metrics.overflow
+      && !RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)) {
+    return true;
+  }
+  if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+      && new_local_metrics.overflow_cost < old_local_metrics.overflow_cost
+      && !RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)) {
+    return true;
+  }
+  if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+      && RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)
+      && new_local_metrics.high_usage < old_local_metrics.high_usage
+      && !RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)) {
+    return true;
+  }
+  if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+      && RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)
+      && RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)
+      && new_local_metrics.max_usage_ratio < old_local_metrics.max_usage_ratio
+      && !RTUTIL.equalDoubleByError(new_local_metrics.max_usage_ratio, old_local_metrics.max_usage_ratio, RT_ERROR)) {
+    return true;
+  }
+  if (RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)
+      && RTUTIL.equalDoubleByError(new_local_metrics.overflow_cost, old_local_metrics.overflow_cost, RT_ERROR)
+      && RTUTIL.equalDoubleByError(new_local_metrics.high_usage, old_local_metrics.high_usage, RT_ERROR)
+      && RTUTIL.equalDoubleByError(new_local_metrics.max_usage_ratio, old_local_metrics.max_usage_ratio, RT_ERROR)
+      && new_route_metrics.congestion_risk < old_route_metrics.congestion_risk
+      && !RTUTIL.equalDoubleByError(new_route_metrics.congestion_risk, old_route_metrics.congestion_risk, RT_ERROR)) {
+    return true;
   }
   return false;
 }
@@ -1421,27 +1520,13 @@ void TopologyGenerator::rerouteTGModel(TGModel& tg_model)
     }
     updateBestResult(tg_model);
 
-    std::vector<TGSegmentTask> tg_segment_task_list = initTGSegmentTaskList(tg_model);
-    if (tg_segment_task_list.empty()) {
-      RTLOG.info(Loc::current(), "No TG segment task found!");
-      break;
+    if (iter < tg_iter_param.get_max_iter_num()) {
+      routeTGNetTaskListByPattern(tg_model);
+    } else {
+      routeTGNetTaskListByAStar(tg_model);
     }
-
-    size_t routed_task_num = 0;
-    size_t success_task_num = 0;
-    for (TGSegmentTask& tg_segment_task : tg_segment_task_list) {
-      if (tg_segment_task.get_routed_times() >= tg_iter_param.get_max_routed_times()) {
-        continue;
-      }
-      bool enable_true_local_accept = (iter == tg_iter_param.get_max_iter_num());
-      if (routeTGSegmentTask(tg_model, tg_segment_task, enable_true_local_accept)) {
-        success_task_num++;
-      }
-      tg_segment_task.addRoutedTimes();
-      routed_task_num++;
-    }
-    RTLOG.info(Loc::current(), "Routed ", routed_task_num, " segment tasks, success ", success_task_num, ", overflow ",
-               tg_model.get_curr_overflow(), ", high_usage ", tg_model.get_curr_high_usage(), iter_monitor.getStatsInfo());
+    RTLOG.info(Loc::current(), "Completed net-level reroute iteration ", iter, ", overflow ", tg_model.get_curr_overflow(), ", high_usage ",
+               tg_model.get_curr_high_usage(), iter_monitor.getStatsInfo());
   }
 
   updateCongestionRisk(tg_model);
@@ -1459,13 +1544,13 @@ void TopologyGenerator::setTGIterParam(TGModel& tg_model)
 {
   int32_t max_iter_num = 3;
   int32_t max_routed_times = 1;
-  int32_t max_task_num = 8000;
+  int32_t max_task_num = 10000;
   double wire_unit = 1;
   double corner_unit = 5 * wire_unit;
   double overflow_unit = tg_model.get_tg_com_param().get_overflow_unit();
   double congestion_risk_unit = overflow_unit;
   double high_usage_unit = overflow_unit;
-  double high_usage_ratio_threshold = 0.90;
+  double high_usage_ratio_threshold = 0.80;
   int32_t congestion_risk_radius = 3;
   int32_t route_window_base_expand = 10;
   int32_t route_window_max_expand_times = 3;
@@ -1860,6 +1945,371 @@ bool TopologyGenerator::routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_
   }
   tg_segment_task.set_origin_segment(nullptr);
   return true;
+}
+
+void TopologyGenerator::routeTGNetTaskListByPattern(TGModel& tg_model)
+{
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
+  std::vector<int32_t> tg_net_task_list = initTGNetTaskList(tg_model, true, true);
+  size_t routed_task_num = 0;
+  size_t success_task_num = 0;
+  for (int32_t net_idx : tg_net_task_list) {
+    if (routeTGNetTaskByPattern(tg_model, net_idx)) {
+      success_task_num++;
+    }
+    routed_task_num++;
+  }
+  RTLOG.info(Loc::current(), "Routed ", routed_task_num, " net tasks by pattern, success ", success_task_num, ", overflow ",
+             tg_model.get_curr_overflow(), ", high_usage ", tg_model.get_curr_high_usage(), monitor.getStatsInfo());
+}
+
+bool TopologyGenerator::routeTGNetTaskByPattern(TGModel& tg_model, int32_t net_idx)
+{
+  if (net_idx < 0 || net_idx >= static_cast<int32_t>(tg_model.get_tg_net_list().size())) {
+    return false;
+  }
+  std::vector<Segment<LayerCoord>*> old_segment_ptr_list = getNetGlobalSegmentPtrList(tg_model, net_idx);
+  if (old_segment_ptr_list.empty()) {
+    return false;
+  }
+  std::vector<Segment<PlanarCoord>> old_planar_segment_list = getPlanarSegmentList(old_segment_ptr_list);
+  if (old_planar_segment_list.empty()) {
+    return false;
+  }
+  TGRouteMetrics old_route_metrics = getRouteMetrics(tg_model, net_idx, old_planar_segment_list);
+  if (old_route_metrics.overflow <= RT_ERROR && old_route_metrics.high_usage <= RT_ERROR) {
+    return false;
+  }
+
+  updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, old_planar_segment_list);
+
+  TGNet* origin_curr_tg_task = tg_model.get_curr_tg_task();
+  tg_model.set_curr_tg_task(&tg_model.get_tg_net_list()[net_idx]);
+  std::vector<Segment<PlanarCoord>> topo_edge_list = getPlanarTopoList(tg_model);
+  TGShadowDemandMap self_shadow = initTGShadowDemandMap(tg_model);
+  std::vector<Segment<PlanarCoord>> new_planar_segment_list;
+  bool success = true;
+  for (size_t topo_idx = 0; topo_idx < topo_edge_list.size(); topo_idx++) {
+    std::vector<Segment<PlanarCoord>> edge_segment_list;
+    if (!routeTGTopoEdgeByPattern(tg_model, static_cast<int32_t>(topo_idx), topo_edge_list[topo_idx], self_shadow, edge_segment_list)
+        || edge_segment_list.empty()) {
+      success = false;
+      break;
+    }
+    new_planar_segment_list.insert(new_planar_segment_list.end(), edge_segment_list.begin(), edge_segment_list.end());
+  }
+  tg_model.set_curr_tg_task(origin_curr_tg_task);
+  if (!success || new_planar_segment_list.empty()) {
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, old_planar_segment_list);
+    return false;
+  }
+
+  MTree<PlanarCoord> coord_tree;
+  {
+    TGNet* saved_curr_tg_task = tg_model.get_curr_tg_task();
+    tg_model.set_curr_tg_task(&tg_model.get_tg_net_list()[net_idx]);
+    coord_tree = getCoordTree(tg_model, new_planar_segment_list);
+    tg_model.set_curr_tg_task(saved_curr_tg_task);
+  }
+  std::vector<Segment<PlanarCoord>> new_tree_segment_list = getPlanarSegmentList(coord_tree);
+  if (new_tree_segment_list.empty()) {
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, old_planar_segment_list);
+    return false;
+  }
+
+  std::set<PlanarCoord, CmpPlanarCoordByXASC> affected_coord_set;
+  collectSegmentCoordSet(old_planar_segment_list, affected_coord_set);
+  collectSegmentCoordSet(new_tree_segment_list, affected_coord_set);
+
+  updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, old_planar_segment_list);
+  TGLocalRerouteMetrics old_local_metrics = getCoordSetLocalMetrics(tg_model, affected_coord_set);
+  updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, old_planar_segment_list);
+
+  updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, new_tree_segment_list);
+  TGLocalRerouteMetrics new_local_metrics = getCoordSetLocalMetrics(tg_model, affected_coord_set);
+  updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, new_tree_segment_list);
+
+  TGRouteMetrics new_route_metrics = getRouteMetrics(tg_model, net_idx, new_tree_segment_list);
+  if (!acceptNetReroute(old_route_metrics, new_route_metrics, old_local_metrics, new_local_metrics)) {
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, old_planar_segment_list);
+    return false;
+  }
+
+  updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, new_tree_segment_list);
+  if (tg_model.get_metric_valid()) {
+    tg_model.set_curr_overflow(tg_model.get_curr_overflow() + new_local_metrics.overflow - old_local_metrics.overflow);
+    tg_model.set_curr_high_usage(tg_model.get_curr_high_usage() + new_local_metrics.high_usage - old_local_metrics.high_usage);
+    tg_model.set_curr_congestion_risk(tg_model.get_curr_congestion_risk() + new_route_metrics.congestion_risk - old_route_metrics.congestion_risk);
+    tg_model.set_curr_wire_length(tg_model.get_curr_wire_length() + new_route_metrics.wire_length - old_route_metrics.wire_length);
+  }
+
+  tg_model.get_net_global_result_map().erase(net_idx);
+  for (Segment<LayerCoord>* old_segment : old_segment_ptr_list) {
+    RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, old_segment);
+  }
+  for (Segment<PlanarCoord>& new_planar_segment : new_tree_segment_list) {
+    Segment<LayerCoord>* new_segment
+        = new Segment<LayerCoord>(LayerCoord(new_planar_segment.get_first(), 0), LayerCoord(new_planar_segment.get_second(), 0));
+    RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, net_idx, new_segment);
+    tg_model.get_net_global_result_map()[net_idx].insert(new_segment);
+  }
+  tg_model.get_changed_net_set().insert(net_idx);
+  return true;
+}
+
+bool TopologyGenerator::routeTGTopoEdgeByPattern(TGModel& tg_model, int32_t topo_idx, Segment<PlanarCoord>& topo_edge,
+                                                 TGShadowDemandMap& shadow_demand_map,
+                                                 std::vector<Segment<PlanarCoord>>& routing_segment_list)
+{
+  const TGShadowDemandMap* shadow_ptr = shadow_demand_map.empty() ? nullptr : &shadow_demand_map;
+  std::vector<TGCandidate> candidate_list = getTGCandidateListByTopo(tg_model, topo_idx, topo_edge, shadow_ptr);
+  if (candidate_list.empty()) {
+    return false;
+  }
+
+#pragma omp parallel for
+  for (TGCandidate& tg_candidate : candidate_list) {
+    updateTGCandidate(tg_model, tg_candidate, shadow_ptr);
+  }
+
+  double corner_weight = tg_model.get_tg_com_param().get_corner_weight();
+  TGCandidate* best_candidate = nullptr;
+  for (TGCandidate& tg_candidate : candidate_list) {
+    if (best_candidate == nullptr || isBetterCandidate(tg_candidate, *best_candidate, corner_weight)) {
+      best_candidate = &tg_candidate;
+    }
+  }
+  if (best_candidate == nullptr || best_candidate->get_routing_segment_list().empty()) {
+    return false;
+  }
+  routing_segment_list = best_candidate->get_routing_segment_list();
+  addCandidateToShadow(shadow_demand_map, *best_candidate);
+  return true;
+}
+
+void TopologyGenerator::routeTGNetTaskListByAStar(TGModel& tg_model)
+{
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
+  std::vector<int32_t> tg_net_task_list = initTGNetTaskList(tg_model, true, false);
+  size_t routed_task_num = 0;
+  size_t success_task_num = 0;
+  for (int32_t net_idx : tg_net_task_list) {
+    if (routeTGNetTaskByAStar(tg_model, net_idx)) {
+      success_task_num++;
+    }
+    routed_task_num++;
+  }
+  RTLOG.info(Loc::current(), "Routed ", routed_task_num, " net tasks by A*, success ", success_task_num, ", overflow ",
+             tg_model.get_curr_overflow(), ", high_usage ", tg_model.get_curr_high_usage(), monitor.getStatsInfo());
+}
+
+std::vector<int32_t> TopologyGenerator::initTGNetTaskList(TGModel& tg_model, bool include_high_usage, bool include_changed_net)
+{
+  std::vector<TGNet>& tg_net_list = tg_model.get_tg_net_list();
+  std::set<PlanarCoord, CmpPlanarCoordByXASC> overflow_coord_set;
+  std::set<int32_t> overflow_net_set;
+  std::set<PlanarCoord, CmpPlanarCoordByXASC> high_usage_coord_set;
+  std::set<int32_t> high_usage_net_set;
+  collectTGHotspotInfo(tg_model, overflow_coord_set, overflow_net_set, high_usage_coord_set, high_usage_net_set);
+
+  std::set<int32_t> candidate_net_set;
+  candidate_net_set.insert(overflow_net_set.begin(), overflow_net_set.end());
+  if (include_high_usage) {
+    candidate_net_set.insert(high_usage_net_set.begin(), high_usage_net_set.end());
+  }
+  if (include_changed_net) {
+    std::set<int32_t> changed_candidate_net_set = tg_model.get_changed_net_set();
+    candidate_net_set.insert(changed_candidate_net_set.begin(), changed_candidate_net_set.end());
+    tg_model.get_changed_net_set().clear();
+  }
+
+  std::vector<TGNetTask> tg_net_task_list;
+  tg_net_task_list.reserve(candidate_net_set.size());
+  std::map<int32_t, std::set<Segment<LayerCoord>*>>& net_global_result_map = tg_model.get_net_global_result_map();
+  for (int32_t net_idx : candidate_net_set) {
+    if (!RTUTIL.exist(net_global_result_map, net_idx)) {
+      continue;
+    }
+    if (net_idx < 0 || net_idx >= static_cast<int32_t>(tg_net_list.size())) {
+      continue;
+    }
+    if (tg_net_list[net_idx].get_connect_type() == ConnectType::kClock) {
+      continue;
+    }
+    TGNetTask tg_net_task;
+    tg_net_task.net_idx = net_idx;
+    for (Segment<LayerCoord>* segment : net_global_result_map[net_idx]) {
+      if (segment == nullptr) {
+        continue;
+      }
+      double segment_overflow = getSegmentOverflow(tg_model, segment);
+      tg_net_task.overflow += segment_overflow;
+      tg_net_task.high_usage += getSegmentHighUsage(tg_model, segment);
+      tg_net_task.congestion_risk += getSegmentCongestionRisk(tg_model, segment);
+      tg_net_task.max_usage_ratio = std::max(tg_net_task.max_usage_ratio, getSegmentMaxUsageRatio(tg_model, segment));
+      tg_net_task.wire_length += RTUTIL.getManhattanDistance(segment->get_first(), segment->get_second());
+      if (segment_overflow > RT_ERROR) {
+        tg_net_task.overflow_segment_num++;
+      }
+    }
+    if (tg_net_task.overflow <= RT_ERROR && tg_net_task.high_usage <= RT_ERROR) {
+      continue;
+    }
+    tg_net_task_list.push_back(tg_net_task);
+  }
+
+  std::sort(tg_net_task_list.begin(), tg_net_task_list.end(), [](TGNetTask& a, TGNetTask& b) {
+    if (!RTUTIL.equalDoubleByError(a.overflow, b.overflow, RT_ERROR)) {
+      return a.overflow > b.overflow;
+    }
+    if (!RTUTIL.equalDoubleByError(a.high_usage, b.high_usage, RT_ERROR)) {
+      return a.high_usage > b.high_usage;
+    }
+    if (!RTUTIL.equalDoubleByError(a.congestion_risk, b.congestion_risk, RT_ERROR)) {
+      return a.congestion_risk > b.congestion_risk;
+    }
+    if (!RTUTIL.equalDoubleByError(a.max_usage_ratio, b.max_usage_ratio, RT_ERROR)) {
+      return a.max_usage_ratio > b.max_usage_ratio;
+    }
+    if (a.overflow_segment_num != b.overflow_segment_num) {
+      return a.overflow_segment_num > b.overflow_segment_num;
+    }
+    if (!RTUTIL.equalDoubleByError(a.wire_length, b.wire_length, RT_ERROR)) {
+      return a.wire_length > b.wire_length;
+    }
+    return a.net_idx < b.net_idx;
+  });
+
+  std::vector<int32_t> net_idx_list;
+  net_idx_list.reserve(tg_net_task_list.size());
+  for (TGNetTask& tg_net_task : tg_net_task_list) {
+    net_idx_list.push_back(tg_net_task.net_idx);
+  }
+  RTLOG.info(Loc::current(), "Generated ", net_idx_list.size(), " TG net tasks");
+  return net_idx_list;
+}
+
+bool TopologyGenerator::routeTGNetTaskByAStar(TGModel& tg_model, int32_t net_idx)
+{
+  if (net_idx < 0 || net_idx >= static_cast<int32_t>(tg_model.get_tg_net_list().size())) {
+    return false;
+  }
+  std::vector<Segment<LayerCoord>*> old_segment_ptr_list = getNetGlobalSegmentPtrList(tg_model, net_idx);
+  if (old_segment_ptr_list.empty()) {
+    return false;
+  }
+  std::vector<Segment<PlanarCoord>> old_planar_segment_list = getPlanarSegmentList(old_segment_ptr_list);
+  if (old_planar_segment_list.empty()) {
+    return false;
+  }
+  TGRouteMetrics old_route_metrics = getRouteMetrics(tg_model, net_idx, old_planar_segment_list);
+  if (old_route_metrics.overflow <= RT_ERROR && old_route_metrics.high_usage <= RT_ERROR) {
+    return false;
+  }
+
+  updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, old_planar_segment_list);
+
+  TGNet* origin_curr_tg_task = tg_model.get_curr_tg_task();
+  tg_model.set_curr_tg_task(&tg_model.get_tg_net_list()[net_idx]);
+  std::vector<Segment<PlanarCoord>> topo_edge_list = getPlanarTopoList(tg_model);
+  std::vector<Segment<PlanarCoord>> new_planar_segment_list;
+  bool success = true;
+  for (Segment<PlanarCoord>& topo_edge : topo_edge_list) {
+    std::vector<Segment<PlanarCoord>> edge_segment_list;
+    if (!routeTGTopoEdgeByAStar(tg_model, net_idx, topo_edge, edge_segment_list) || edge_segment_list.empty()) {
+      success = false;
+      break;
+    }
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, edge_segment_list);
+    new_planar_segment_list.insert(new_planar_segment_list.end(), edge_segment_list.begin(), edge_segment_list.end());
+  }
+  tg_model.set_curr_tg_task(origin_curr_tg_task);
+  if (!new_planar_segment_list.empty()) {
+    updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, new_planar_segment_list);
+  }
+  if (!success || new_planar_segment_list.empty()) {
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, old_planar_segment_list);
+    return false;
+  }
+
+  MTree<PlanarCoord> coord_tree;
+  {
+    TGNet* saved_curr_tg_task = tg_model.get_curr_tg_task();
+    tg_model.set_curr_tg_task(&tg_model.get_tg_net_list()[net_idx]);
+    coord_tree = getCoordTree(tg_model, new_planar_segment_list);
+    tg_model.set_curr_tg_task(saved_curr_tg_task);
+  }
+  std::vector<Segment<PlanarCoord>> new_tree_segment_list = getPlanarSegmentList(coord_tree);
+  if (new_tree_segment_list.empty()) {
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, old_planar_segment_list);
+    return false;
+  }
+
+  std::set<PlanarCoord, CmpPlanarCoordByXASC> affected_coord_set;
+  collectSegmentCoordSet(old_planar_segment_list, affected_coord_set);
+  collectSegmentCoordSet(new_tree_segment_list, affected_coord_set);
+
+  updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, old_planar_segment_list);
+  TGLocalRerouteMetrics old_local_metrics = getCoordSetLocalMetrics(tg_model, affected_coord_set);
+  updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, old_planar_segment_list);
+
+  updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, new_tree_segment_list);
+  TGLocalRerouteMetrics new_local_metrics = getCoordSetLocalMetrics(tg_model, affected_coord_set);
+  updateDemandToGraph(tg_model, ChangeType::kDel, net_idx, new_tree_segment_list);
+
+  TGRouteMetrics new_route_metrics = getRouteMetrics(tg_model, net_idx, new_tree_segment_list);
+  if (!acceptNetReroute(old_route_metrics, new_route_metrics, old_local_metrics, new_local_metrics)) {
+    updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, old_planar_segment_list);
+    return false;
+  }
+
+  updateDemandToGraph(tg_model, ChangeType::kAdd, net_idx, new_tree_segment_list);
+  if (tg_model.get_metric_valid()) {
+    tg_model.set_curr_overflow(tg_model.get_curr_overflow() + new_local_metrics.overflow - old_local_metrics.overflow);
+    tg_model.set_curr_high_usage(tg_model.get_curr_high_usage() + new_local_metrics.high_usage - old_local_metrics.high_usage);
+    tg_model.set_curr_congestion_risk(tg_model.get_curr_congestion_risk() + new_route_metrics.congestion_risk - old_route_metrics.congestion_risk);
+    tg_model.set_curr_wire_length(tg_model.get_curr_wire_length() + new_route_metrics.wire_length - old_route_metrics.wire_length);
+  }
+
+  tg_model.get_net_global_result_map().erase(net_idx);
+  for (Segment<LayerCoord>* old_segment : old_segment_ptr_list) {
+    RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, old_segment);
+  }
+  for (Segment<PlanarCoord>& new_planar_segment : new_tree_segment_list) {
+    Segment<LayerCoord>* new_segment
+        = new Segment<LayerCoord>(LayerCoord(new_planar_segment.get_first(), 0), LayerCoord(new_planar_segment.get_second(), 0));
+    RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, net_idx, new_segment);
+    tg_model.get_net_global_result_map()[net_idx].insert(new_segment);
+  }
+  tg_model.get_changed_net_set().insert(net_idx);
+  return true;
+}
+
+bool TopologyGenerator::routeTGTopoEdgeByAStar(TGModel& tg_model, int32_t net_idx, Segment<PlanarCoord>& topo_edge,
+                                               std::vector<Segment<PlanarCoord>>& routing_segment_list)
+{
+  TGSegmentTask tg_segment_task;
+  tg_segment_task.set_net_idx(net_idx);
+  tg_segment_task.set_connect_type(tg_model.get_tg_net_list()[net_idx].get_connect_type());
+  tg_segment_task.set_planar_segment(topo_edge);
+  tg_segment_task.set_wire_length(RTUTIL.getManhattanDistance(topo_edge.get_first(), topo_edge.get_second()));
+  tg_segment_task.set_overflow(1);
+
+  for (PlanarRect& route_window : getRouteWindowList(tg_model, tg_segment_task)) {
+    routing_segment_list.clear();
+    if (!searchSegmentByAStar(tg_model, tg_segment_task, route_window, routing_segment_list) || routing_segment_list.empty()) {
+      continue;
+    }
+    routing_segment_list = simplifyRoutingSegmentList(routing_segment_list);
+    if (!routing_segment_list.empty()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 std::vector<PlanarRect> TopologyGenerator::getRouteWindowList(TGModel& tg_model, TGSegmentTask& tg_segment_task)

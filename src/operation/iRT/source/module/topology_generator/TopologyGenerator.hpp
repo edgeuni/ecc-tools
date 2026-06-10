@@ -135,6 +135,15 @@ class TopologyGenerator
                             std::set<int32_t>& high_usage_net_set);
   std::vector<TGSegmentTask> initTGSegmentTaskList(TGModel& tg_model);
   bool routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_segment_task, bool enable_true_local_accept);
+  void routeTGNetTaskListByPattern(TGModel& tg_model);
+  bool routeTGNetTaskByPattern(TGModel& tg_model, int32_t net_idx);
+  bool routeTGTopoEdgeByPattern(TGModel& tg_model, int32_t topo_idx, Segment<PlanarCoord>& topo_edge,
+                                TGShadowDemandMap& shadow_demand_map, std::vector<Segment<PlanarCoord>>& routing_segment_list);
+  void routeTGNetTaskListByAStar(TGModel& tg_model);
+  std::vector<int32_t> initTGNetTaskList(TGModel& tg_model, bool include_high_usage, bool include_changed_net);
+  bool routeTGNetTaskByAStar(TGModel& tg_model, int32_t net_idx);
+  bool routeTGTopoEdgeByAStar(TGModel& tg_model, int32_t net_idx, Segment<PlanarCoord>& topo_edge,
+                              std::vector<Segment<PlanarCoord>>& routing_segment_list);
   std::vector<PlanarRect> getRouteWindowList(TGModel& tg_model, TGSegmentTask& tg_segment_task);
   PlanarRect getRouteWindow(TGModel& tg_model, TGSegmentTask& tg_segment_task, int32_t expand_size);
   PlanarRect getDieWindow(TGModel& tg_model);
