@@ -18,7 +18,7 @@
 
 namespace nsta {
 
-#define NSTAI (nsta::STAInterface::getInst())
+#define STAI (nsta::STAInterface::getInst())
 
 class STAInterface
 {

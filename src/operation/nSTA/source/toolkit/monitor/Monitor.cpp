@@ -19,6 +19,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include "Logger.hpp"
 #include "Utility.hpp"
 
 namespace nsta {
@@ -26,24 +27,24 @@ namespace nsta {
 std::string Monitor::getStatsInfo()
 {
   std::string stats_info;
-  stats_info = NSTAUTIL.getString(" (elapsed = ", getElapsedTime(), ", cpu = ", getCPUTime(), ", mem = ", getUsageMemory(), ") ");
+  stats_info = STAUTIL.getString(" (elapsed = ", getElapsedTime(), ", cpu = ", getCPUTime(), ", mem = ", getUsageMemory(), ") ");
   updateStats();
   return stats_info;
 }
 
 std::string Monitor::getElapsedTime()
 {
-  return NSTAUTIL.formatSec(getCurrElapsedTime() - _init_elapsed_time);
+  return STAUTIL.formatSec(getCurrElapsedTime() - _init_elapsed_time);
 }
 
 std::string Monitor::getCPUTime()
 {
-  return NSTAUTIL.formatSec(getCurrCPUTime() - _init_cpu_time);
+  return STAUTIL.formatSec(getCurrCPUTime() - _init_cpu_time);
 }
 
 std::string Monitor::getUsageMemory()
 {
-  return NSTAUTIL.getString(NSTAUTIL.formatByTwoDecimalPlaces(getCurrUsageMemory() - _init_usage_memory), "MB");
+  return STAUTIL.getString(STAUTIL.formatByTwoDecimalPlaces(getCurrUsageMemory() - _init_usage_memory), "MB");
 }
 
 void Monitor::init()
@@ -70,7 +71,7 @@ double Monitor::getCurrCPUTime()
 {
   struct rusage usage;
   if (0 != getrusage(RUSAGE_SELF, &usage)) {
-    return 0;
+    STALOG.error(Loc::current(), "Unable to get rusage!");
   }
   return static_cast<double>(usage.ru_utime.tv_sec) + static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0 + static_cast<double>(usage.ru_stime.tv_sec)
          + static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
@@ -80,7 +81,7 @@ double Monitor::getCurrUsageMemory()
 {
   struct rusage usage;
   if (0 != getrusage(RUSAGE_SELF, &usage)) {
-    return 0;
+    STALOG.error(Loc::current(), "Unable to get rusage!");
   }
   return static_cast<double>(usage.ru_maxrss) / 1000.0;
 }

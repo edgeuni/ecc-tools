@@ -12,6 +12,7 @@ add_library(nsta_monitor
 
 target_link_libraries(nsta_monitor
     PUBLIC
+    nsta_logger
     nsta_utility
 )
 

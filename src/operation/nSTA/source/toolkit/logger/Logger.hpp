@@ -35,7 +35,7 @@ namespace nsta {
 
 using Loc = std::experimental::source_location;
 
-#define NSTALOG (nsta::Logger::getInst())
+#define STALOG (nsta::Logger::getInst())
 
 class Logger
 {
@@ -132,7 +132,7 @@ class Logger
       std::string::size_type pos = file_name.find_last_of('/') + 1;
       file_name = file_name.substr(pos, file_name.length() - pos);
     }
-    std::string prefix = getString("[nSTA ", getTimestamp(), " ", getCompressedBase62(std::stoul(getString(std::this_thread::get_id()))), " ", file_name,
+    std::string prefix = getString("[STA ", getTimestamp(), " ", getCompressedBase62(std::stoul(getString(std::this_thread::get_id()))), " ", file_name,
                                    " ");
     std::string suffix = getString(" ", location.function_name());
     std::string message = getString(value, args...);

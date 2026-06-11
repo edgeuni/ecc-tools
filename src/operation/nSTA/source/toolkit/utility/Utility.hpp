@@ -22,7 +22,7 @@
 
 namespace nsta {
 
-#define NSTAUTIL (nsta::Utility::getInst())
+#define STAUTIL (nsta::Utility::getInst())
 
 class Utility
 {
