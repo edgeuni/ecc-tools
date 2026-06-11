@@ -6,9 +6,16 @@ else()
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-add_library(nsta_monitor INTERFACE)
+add_library(nsta_monitor
+    ${NSTA_TOOLKIT}/monitor/Monitor.cpp
+)
+
+target_link_libraries(nsta_monitor
+    PUBLIC
+    nsta_utility
+)
 
 target_include_directories(nsta_monitor
-    INTERFACE
+    PUBLIC
     ${NSTA_TOOLKIT}/monitor
 )

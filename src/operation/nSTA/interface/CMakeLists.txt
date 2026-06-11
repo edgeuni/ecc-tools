@@ -6,14 +6,16 @@ else()
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-add_library(nsta_interface INTERFACE)
+add_library(nsta_interface
+    ${NSTA_INTERFACE}/STAInterface.cpp
+)
 
 target_link_libraries(nsta_interface
-    INTERFACE
+    PRIVATE
     nsta_source
 )
 
 target_include_directories(nsta_interface
-    INTERFACE
+    PUBLIC
     ${NSTA_INTERFACE}
 )

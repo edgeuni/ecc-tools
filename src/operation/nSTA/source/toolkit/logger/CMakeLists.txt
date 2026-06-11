@@ -6,9 +6,11 @@ else()
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-add_library(nsta_logger INTERFACE)
+add_library(nsta_logger
+    ${NSTA_TOOLKIT}/logger/Logger.cpp
+)
 
 target_include_directories(nsta_logger
-    INTERFACE
+    PUBLIC
     ${NSTA_TOOLKIT}/logger
 )
