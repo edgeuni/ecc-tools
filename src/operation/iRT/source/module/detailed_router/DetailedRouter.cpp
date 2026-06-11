@@ -289,9 +289,19 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
   Die& die = RTDM.getDatabase().get_die();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
 
-  for (auto& [net_idx, segment_set] : RTDM.getNetDetailedResultMap(die)) {
-    std::set<Segment<LayerCoord>*> del_segment_set;
-    std::vector<Segment<LayerCoord>> new_segment_list;
+  const std::map<int32_t, std::set<Segment<LayerCoord>*>> net_detailed_result_map = RTDM.getNetDetailedResultMap(die);
+  std::vector<std::pair<int32_t, const std::set<Segment<LayerCoord>*>*>> net_segment_set_list;
+  net_segment_set_list.reserve(net_detailed_result_map.size());
+  for (auto& [net_idx, segment_set] : net_detailed_result_map) {
+    net_segment_set_list.emplace_back(net_idx, &segment_set);
+  }
+  std::vector<std::set<Segment<LayerCoord>*>> del_segment_set_list(net_segment_set_list.size());
+  std::vector<std::vector<Segment<LayerCoord>>> new_segment_list_list(net_segment_set_list.size());
+#pragma omp parallel for
+  for (int32_t i = 0; i < static_cast<int32_t>(net_segment_set_list.size()); i++) {
+    std::set<Segment<LayerCoord>*>& del_segment_set = del_segment_set_list[i];
+    std::vector<Segment<LayerCoord>>& new_segment_list = new_segment_list_list[i];
+    const std::set<Segment<LayerCoord>*>& segment_set = *net_segment_set_list[i].second;
     for (Segment<LayerCoord>* segment : segment_set) {
       LayerCoord& first_coord = segment->get_first();
       LayerCoord& second_coord = segment->get_second();
@@ -318,9 +328,9 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
         }
         x_scale_list.push_back(second_x);
         del_segment_set.insert(segment);
-        for (size_t i = 1; i < x_scale_list.size(); i++) {
-          new_segment_list.emplace_back(LayerCoord(x_scale_list[i - 1], first_coord.get_y(), first_coord.get_layer_idx()),
-                                        LayerCoord(x_scale_list[i], first_coord.get_y(), first_coord.get_layer_idx()));
+        for (size_t scale_idx = 1; scale_idx < x_scale_list.size(); scale_idx++) {
+          new_segment_list.emplace_back(LayerCoord(x_scale_list[scale_idx - 1], first_coord.get_y(), first_coord.get_layer_idx()),
+                                        LayerCoord(x_scale_list[scale_idx], first_coord.get_y(), first_coord.get_layer_idx()));
         }
       } else if (RTUTIL.isVertical(first_coord, second_coord)) {
         int32_t first_y = first_coord.get_y();
@@ -342,12 +352,17 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
         }
         y_scale_list.push_back(second_y);
         del_segment_set.insert(segment);
-        for (size_t i = 1; i < y_scale_list.size(); i++) {
-          new_segment_list.emplace_back(LayerCoord(first_coord.get_x(), y_scale_list[i - 1], first_coord.get_layer_idx()),
-                                        LayerCoord(first_coord.get_x(), y_scale_list[i], first_coord.get_layer_idx()));
+        for (size_t scale_idx = 1; scale_idx < y_scale_list.size(); scale_idx++) {
+          new_segment_list.emplace_back(LayerCoord(first_coord.get_x(), y_scale_list[scale_idx - 1], first_coord.get_layer_idx()),
+                                        LayerCoord(first_coord.get_x(), y_scale_list[scale_idx], first_coord.get_layer_idx()));
         }
       }
     }
+  }
+  for (int32_t i = 0; i < static_cast<int32_t>(net_segment_set_list.size()); i++) {
+    int32_t net_idx = net_segment_set_list[i].first;
+    std::set<Segment<LayerCoord>*>& del_segment_set = del_segment_set_list[i];
+    std::vector<Segment<LayerCoord>>& new_segment_list = new_segment_list_list[i];
     for (Segment<LayerCoord>* del_segment : del_segment_set) {
       RTDM.updateNetDetailedResultToGCellMap(ChangeType::kDel, net_idx, del_segment);
     }
@@ -611,33 +626,37 @@ void DetailedRouter::buildBoxTrackAxis(DRBox& dr_box)
   while (ur_y % manufacture_grid != 0) {
     ur_y--;
   }
+  std::vector<std::pair<std::vector<int32_t>, std::vector<int32_t>>> layer_scale_list_list(routing_layer_list.size());
+  for (RoutingLayer& routing_layer : routing_layer_list) {
+    layer_scale_list_list[routing_layer.get_layer_idx()].first = RTUTIL.getScaleList(ll_x, ur_x, routing_layer.getXTrackGridList());
+    layer_scale_list_list[routing_layer.get_layer_idx()].second = RTUTIL.getScaleList(ll_y, ur_y, routing_layer.getYTrackGridList());
+  }
   std::map<int32_t, std::pair<std::set<int32_t>, std::set<int32_t>>>& layer_axis_map = dr_box.get_layer_axis_map();
   for (RoutingLayer& routing_layer : routing_layer_list) {
-    for (int32_t x_scale : RTUTIL.getScaleList(ll_x, ur_x, routing_layer.getXTrackGridList())) {
-      if (routing_layer.isPreferH())
+    auto& layer_scale_list = layer_scale_list_list[routing_layer.get_layer_idx()];
+    if (routing_layer.isPreferH()) {
+      for (int32_t x_scale : layer_scale_list.first) {
         layer_axis_map[routing_layer.get_layer_idx()].first.insert(x_scale);
-    }
-    for (int32_t y_scale : RTUTIL.getScaleList(ll_y, ur_y, routing_layer.getYTrackGridList())) {
-      if (!routing_layer.isPreferH())
+      }
+    } else {
+      for (int32_t y_scale : layer_scale_list.second) {
         layer_axis_map[routing_layer.get_layer_idx()].second.insert(y_scale);
+      }
     }
   }
   for (DRTask* dr_task : dr_box.get_dr_task_list()) {
     for (DRGroup& dr_group : dr_task->get_dr_group_list()) {
       for (auto& [coord, _] : dr_group.get_coord_direction_map()) {
         int32_t layer_idx = coord.get_layer_idx();
-          layer_axis_map[layer_idx].first.insert(coord.get_x());
-          layer_axis_map[layer_idx].second.insert(coord.get_y());
+        layer_axis_map[layer_idx].first.insert(coord.get_x());
+        layer_axis_map[layer_idx].second.insert(coord.get_y());
       }
     }
   }
   for (RoutingLayer& routing_layer : routing_layer_list) {
-    for (int32_t x_scale : RTUTIL.getScaleList(ll_x, ur_x, routing_layer.getXTrackGridList())) {
-      x_scale_list.push_back(x_scale);
-    }
-    for (int32_t y_scale : RTUTIL.getScaleList(ll_y, ur_y, routing_layer.getYTrackGridList())) {
-      y_scale_list.push_back(y_scale);
-    }
+    auto& layer_scale_list = layer_scale_list_list[routing_layer.get_layer_idx()];
+    x_scale_list.insert(x_scale_list.end(), layer_scale_list.first.begin(), layer_scale_list.first.end());
+    y_scale_list.insert(y_scale_list.end(), layer_scale_list.second.begin(), layer_scale_list.second.end());
   }
   for (DRTask* dr_task : dr_box.get_dr_task_list()) {
     for (DRGroup& dr_group : dr_task->get_dr_group_list()) {
