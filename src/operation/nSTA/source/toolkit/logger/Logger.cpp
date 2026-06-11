@@ -18,6 +18,8 @@
 
 namespace nsta {
 
+// public
+
 void Logger::initInst()
 {
   if (_log_instance == nullptr) {
@@ -40,6 +42,8 @@ void Logger::destroyInst()
     _log_instance = nullptr;
   }
 }
+
+// private
 
 Logger* Logger::_log_instance = nullptr;
 

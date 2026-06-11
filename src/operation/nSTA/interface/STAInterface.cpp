@@ -18,6 +18,8 @@
 
 namespace nsta {
 
+// public
+
 STAInterface& STAInterface::getInst()
 {
   if (_sta_interface_instance == nullptr) {
@@ -34,6 +36,10 @@ void STAInterface::destroyInst()
   }
 }
 
+#if 1  // 外部调用STA的API
+
+#if 1  // nSTA
+
 void STAInterface::initSTA()
 {
 }
@@ -45,6 +51,12 @@ void STAInterface::runSTA()
 void STAInterface::destroySTA()
 {
 }
+
+#endif
+
+#endif
+
+// private
 
 STAInterface* STAInterface::_sta_interface_instance = nullptr;
 

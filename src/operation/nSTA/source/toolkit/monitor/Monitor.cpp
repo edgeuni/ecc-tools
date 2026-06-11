@@ -24,6 +24,8 @@
 
 namespace nsta {
 
+// public
+
 std::string Monitor::getStatsInfo()
 {
   std::string stats_info;
@@ -46,6 +48,8 @@ std::string Monitor::getUsageMemory()
 {
   return STAUTIL.getString(STAUTIL.formatByTwoDecimalPlaces(getCurrUsageMemory() - _init_usage_memory), "MB");
 }
+
+// private
 
 void Monitor::init()
 {

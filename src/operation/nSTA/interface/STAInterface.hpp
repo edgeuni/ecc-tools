@@ -26,9 +26,15 @@ class STAInterface
   static STAInterface& getInst();
   static void destroyInst();
 
+#if 1  // 外部调用STA的API
+
+#if 1  // nSTA
   void initSTA();
   void runSTA();
   void destroySTA();
+#endif
+
+#endif
 
  private:
   static STAInterface* _sta_interface_instance;

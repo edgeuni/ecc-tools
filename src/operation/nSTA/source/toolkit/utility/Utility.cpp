@@ -18,6 +18,8 @@
 
 namespace nsta {
 
+// public
+
 void Utility::initInst()
 {
   if (_util_instance == nullptr) {
@@ -54,6 +56,8 @@ std::string Utility::formatByTwoDecimalPlaces(double value)
   oss.clear();
   return string;
 }
+
+// private
 
 Utility* Utility::_util_instance = nullptr;
 

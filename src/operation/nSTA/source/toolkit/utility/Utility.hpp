@@ -31,6 +31,8 @@ class Utility
   static Utility& getInst();
   static void destroyInst();
 
+#if 1  // std数据结构工具函数
+
   template <typename T, typename... Args>
   std::string getString(T value, Args... args)
   {
@@ -43,6 +45,8 @@ class Utility
 
   std::string formatSec(double seconds);
   std::string formatByTwoDecimalPlaces(double value);
+
+#endif
 
  private:
   static Utility* _util_instance;
