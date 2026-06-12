@@ -42,6 +42,7 @@
 #include "Log.hh"
 #include "Point.hh"
 #include "SteinerTree.hh"
+#include "config/Config.hh"
 #include "design/Clock.hh"
 #include "design/ClockDAG.hh"
 #include "design/ClockLayout.hh"
@@ -332,6 +333,20 @@ auto InjectRouteTrees(const Design& design, FastSTA& fast_sta, FastStaClockId cl
   LOG_INFO << "Optimization: post-injection power update for clock \"" << clock.get_clock_name() << "\" finished in "
            << ElapsedSeconds(update_start) << " s.";
   return true;
+}
+
+auto ResolveClockTargetSkewNs(const Config& config, const Clock* clock) -> double
+{
+  const double skew_bound_ns = std::max(0.0, config.get_skew_bound());
+  const double skew_period_fraction = config.get_skew_period_fraction();
+  if (skew_period_fraction <= 0.0 || clock == nullptr) {
+    return skew_bound_ns;
+  }
+  const double clock_period_ns = clock->get_clock_period_ns();
+  if (clock_period_ns <= 0.0) {
+    return skew_bound_ns;
+  }
+  return std::min(skew_bound_ns, skew_period_fraction * clock_period_ns);
 }
 
 }  // namespace icts::clock_sizing_optimization

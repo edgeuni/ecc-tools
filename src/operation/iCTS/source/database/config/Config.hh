@@ -51,6 +51,7 @@ class Config
   auto reset() -> void
   {
     _skew_bound = 0.04;
+    _skew_period_fraction = 0.006;
     _max_buf_tran = 1.5;
     _root_input_slew = 0.0;
     _max_sink_tran = 1.5;
@@ -85,6 +86,7 @@ class Config
 
   // algorithm
   auto get_skew_bound() const -> double { return _skew_bound; }
+  auto get_skew_period_fraction() const -> double { return _skew_period_fraction; }
   auto get_max_buf_tran() const -> double { return _max_buf_tran; }
   auto get_root_input_slew() const -> double { return _root_input_slew; }
   auto get_max_sink_tran() const -> double { return _max_sink_tran; }
@@ -119,6 +121,7 @@ class Config
 
   // algorithm
   auto set_skew_bound(double skew_bound) -> void { _skew_bound = skew_bound; }
+  auto set_skew_period_fraction(double skew_period_fraction) -> void { _skew_period_fraction = std::max(0.0, skew_period_fraction); }
   auto set_max_buf_tran(double max_buf_tran) -> void
   {
     _max_buf_tran = max_buf_tran;
@@ -163,6 +166,8 @@ class Config
  private:
   // algorithm
   double _skew_bound = 0.0;
+  // Per-clock target = min(skew_bound, fraction x clock period); 0 disables period-derived tightening.
+  double _skew_period_fraction = 0.006;
   double _max_buf_tran = 0.0;
   double _root_input_slew = 0.0;
   double _max_sink_tran = 0.0;

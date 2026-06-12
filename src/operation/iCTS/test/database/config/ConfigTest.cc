@@ -61,8 +61,47 @@ TEST(ConfigTest, MissingOptionalValuesUseDefaults)
   EXPECT_TRUE(config.init(config_path.string()));
   EXPECT_EQ(config.get_max_fanout(), 32U);
   EXPECT_DOUBLE_EQ(config.get_skew_bound(), 0.04);
+  EXPECT_DOUBLE_EQ(config.get_skew_period_fraction(), 0.006);
   EXPECT_TRUE(config.get_warnings().empty());
   EXPECT_TRUE(config.get_last_error().empty());
+}
+
+TEST(ConfigTest, SkewPeriodFractionParsesWithoutInvalidKeyWarning)
+{
+  const auto config_path = writeConfigFile("skew_period_fraction.json", R"json({
+    "skew_period_fraction": "0.002"
+  })json");
+  icts::Config config;
+
+  EXPECT_TRUE(config.init(config_path.string()));
+  EXPECT_DOUBLE_EQ(config.get_skew_period_fraction(), 0.002);
+  EXPECT_TRUE(config.get_warnings().empty());
+  EXPECT_TRUE(config.get_last_error().empty());
+}
+
+TEST(ConfigTest, SkewPeriodFractionClampsNegativeToZero)
+{
+  icts::Config config;
+  config.set_skew_period_fraction(-0.5);
+  EXPECT_DOUBLE_EQ(config.get_skew_period_fraction(), 0.0);
+
+  const auto config_path = writeConfigFile("skew_period_fraction_negative.json", R"json({
+    "skew_period_fraction": "-0.002"
+  })json");
+  EXPECT_TRUE(config.init(config_path.string()));
+  EXPECT_DOUBLE_EQ(config.get_skew_period_fraction(), 0.0);
+  EXPECT_TRUE(config.get_last_error().empty());
+}
+
+TEST(ConfigTest, SkewPeriodFractionInvalidValueFails)
+{
+  const auto config_path = writeConfigFile("skew_period_fraction_invalid.json", R"json({
+    "skew_period_fraction": "not_a_number"
+  })json");
+  icts::Config config;
+
+  EXPECT_FALSE(config.init(config_path.string()));
+  EXPECT_NE(config.get_last_error().find("invalid numeric value for key \"skew_period_fraction\""), std::string::npos);
 }
 
 TEST(ConfigTest, UnknownAndDeprecatedKeysWarnAndDoNotFail)

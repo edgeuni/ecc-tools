@@ -1,5 +1,6 @@
 {
     "skew_bound": "0.08",
+    "skew_period_fraction": "0.006",
     "max_buf_tran": "0.5",
     "root_input_slew": "0.0",
     "max_sink_tran": "0.5",

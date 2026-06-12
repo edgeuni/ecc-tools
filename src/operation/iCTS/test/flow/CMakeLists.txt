@@ -17,3 +17,4 @@ target_include_directories(
 )
 
 add_subdirectory(synthesis)
+add_subdirectory(optimization)

@@ -45,8 +45,9 @@
 namespace icts {
 namespace {
 
-constexpr std::array<std::string_view, 21> kSupportedConfigKeys = {
+constexpr std::array<std::string_view, 22> kSupportedConfigKeys = {
     "skew_bound",
+    "skew_period_fraction",
     "max_buf_tran",
     "root_input_slew",
     "max_sink_tran",
@@ -371,6 +372,9 @@ auto Config::parse(const std::string& json_file) -> bool
   if (!ApplyDoubleIfPresent(json, "skew_bound", *this, &Config::set_skew_bound, json_file)) {
     return false;
   }
+  if (!ApplyDoubleIfPresent(json, "skew_period_fraction", *this, &Config::set_skew_period_fraction, json_file)) {
+    return false;
+  }
   if (!ApplyDoubleIfPresent(json, "max_buf_tran", *this, &Config::set_max_buf_tran, json_file)) {
     return false;
   }
@@ -445,6 +449,9 @@ auto Config::buildRuntimeConfigRows() const -> logformat::TableRows
 
   return {
       {"skew_bound", logformat::FormatWithUnit(get_skew_bound(), "ns"), "clock skew target"},
+      {"skew_period_fraction", logformat::FormatPercent(get_skew_period_fraction()),
+       get_skew_period_fraction() > 0.0 ? "per-clock target = min(skew_bound, fraction x clock period)"
+                                        : "disabled; per-clock target falls back to skew_bound"},
       {"max_buf_tran", has_max_buf_tran() ? logformat::FormatWithUnit(get_max_buf_tran(), "ns") : "auto",
        has_max_buf_tran() ? "explicit runtime config" : "resolve from liberty slew limit/table-axis during characterization"},
       {"root_input_slew", logformat::FormatWithUnit(get_root_input_slew(), "ns"),

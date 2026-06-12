@@ -1,0 +1,9 @@
+icts_add_test_executable(
+  icts_test_flow_optimization
+  SOURCES
+    ${ICTS_TEST}/flow/optimization/OptimizationTargetSkewTest.cc
+  LIBS
+    icts_source_database_config
+    icts_source_database_design
+    icts_source_flow_optimization_preparation
+)
