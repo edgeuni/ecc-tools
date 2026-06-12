@@ -20,6 +20,7 @@ target_link_libraries(tcl_eval
         eval_io
         idm
         idb
+        eval_util_general_ops
 )
 
 target_include_directories(tcl_eval

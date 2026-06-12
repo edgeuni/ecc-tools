@@ -361,7 +361,7 @@ class LibertyVecIterator
 #define FOREACH_LIBERTY_VEC_ELEM(vec, T, elem) \
   for (LibertyVecIterator<T> elem##_iter(vec); elem##_iter.hasNext() ? (elem = elem##_iter.next(), true) : false;)
 
-namespace ista {
+namespace idb {
 
 class LibBuilder;
 
@@ -448,4 +448,4 @@ class LibertyReader
   LibBuilder* _library_builder;  //!< The liberty library builder.
 };
 
-}  // namespace ista
+}  // namespace idb

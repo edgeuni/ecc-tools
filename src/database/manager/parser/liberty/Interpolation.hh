@@ -14,32 +14,26 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#pragma once
 /**
- * @File Name: tcl_eco.h
- * @Brief :
- * @Author : Yell (12112088@qq.com)
- * @Version : 1.0
- * @Creat Date : 2024-08-26
+ * @file Interpolation.hh
+ * @author simin tao (taosm@pcl.ac.cn)
+ * @brief The utility function of ista.
+ * @version 0.1
+ * @date 2021-06-29
+ *
  *
  */
-#include "ScriptEngine.hh"
-#include "UserShell.hh"
-#include "tcl_vec.h"
 
-using namespace ieda;
+#pragma once
 
-namespace tcl {
+#include <cstdlib>
 
-int registerCmdVectorization()
-{
-  registerTclCmd(CmdVecLayoutPatchs, "layout_patchs");
-  registerTclCmd(CmdVecLayoutGraph, "layout_graph");
-  registerTclCmd(CmdVecFeature, "generate_vectors");
-  registerTclCmd(CmdReadVecNets, "read_vectors_nets");
-  registerTclCmd(CmdReadVecNetsPattern, "read_vectors_nets_patterns");
+#include "Type.hh"
 
-  return EXIT_SUCCESS;
-}
+namespace idb {
 
-}  // namespace tcl
+double LinearInterpolate(double x1, double x2, double y1, double y2, double x);
+double BilinearInterpolation(double q11, double q12, double q21, double q22,
+                             double x1, double x2, double y1, double y2,
+                             double x, double y);
+}  // namespace idb

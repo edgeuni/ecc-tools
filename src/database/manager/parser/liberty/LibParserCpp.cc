@@ -30,7 +30,7 @@
 #include "LibParserCpp.hh"
 #include "log/Log.hh"
 
-namespace ista {
+namespace idb {
 
 /**
  * @brief liberty expr builder.
@@ -1427,4 +1427,4 @@ unsigned LibertyReader::linkLib() {
   return 0;
 }
 
-}  // namespace ista
+}  // namespace idb
