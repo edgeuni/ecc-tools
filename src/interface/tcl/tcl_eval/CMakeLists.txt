@@ -13,7 +13,6 @@ add_library(tcl_eval STATIC
 target_link_libraries(tcl_eval 
     PUBLIC
         tcl
-        shell-cmd
         eval_wirelength_api
         eval_congestion_api
         eval_density_api

@@ -54,5 +54,6 @@ TARGET_LINK_LIBRARIES(log PUBLIC ${LINK_glog} ${LINK_gflags} ${LINK_unwind})
 
 target_include_directories(log
     PUBLIC
+    ${HOME_UTILITY}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
