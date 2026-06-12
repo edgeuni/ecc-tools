@@ -1,0 +1,32 @@
+{
+  "id": "align-commercial-cts",
+  "name": "align-commercial-cts",
+  "title": "对齐商业工具CTS性能",
+  "description": "",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "dawnli",
+  "assignee": "dawnli",
+  "createdAt": "2026-06-11",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "cts_refactor",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "06-11-htree-depth-unlock",
+    "06-11-per-branch-skew-model",
+    "06-11-latency-align",
+    "06-12-fix-wire-res-unit",
+    "06-12-char-wirelength-coverage"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

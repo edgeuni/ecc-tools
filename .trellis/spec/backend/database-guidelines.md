@@ -73,6 +73,13 @@ If a type is shared across modules and is part of the stable data model, prefer 
   | `source/flow/**`, `source/module/**`, evaluation, report, visualization | No raw external database/tool pointers in contracts | `Design`, `Clock`, `Inst`, `Pin`, `Net`, `ClockLayout`, `FastSTA`, and narrow wrapper queries |
 
 - Keep CTS-required routing-layer RC, iDB geometry, and Liberty lookup access inside the adapter boundary above; do not add separate RC, Liberty, or TimingProvider service classes for iCTS.
+
+### Physical Units Contract
+
+- iDB stores LEF values verbatim: `IdbLayerRouting::get_resistance()` is LEF `RESISTANCE RPERSQ` in ohm/sq, `get_capacitance()`/`get_edge_capacitance()` are LEF pF-based values. iDB applies no unit scaling on read.
+- `Wrapper` RC queries publish CTS-facing units directly: resistance in ohm for the queried length, capacitance in pF, lengths in um, DBU conversion only via `queryDbUnit`.
+- Consumers must use `Wrapper` RC results unscaled. Never insert milli/kilo conversion factors at call sites (a historical `/1000` at four call sites underestimated wire resistance 1000x and silently zeroed all length-dependent timing terms; fixed in task 06-12-fix-wire-res-unit). If a different unit is genuinely needed, convert inside `Wrapper` and encode the unit in the accessor or field name (`*_ohm`, `*_pf`, `*_um`).
+- `icts_test_database_io` (WrapperRcTest) pins this contract with a regression sentinel; extend it when adding new RC query surfaces.
 - Do not reintroduce production iCTS dependencies on iSTA/iPA engines, including `ista::TimingEngine`, `api/TimingEngine.hh`, `api/TimingIDBAdapter.hh`, `api/Power.hh`, `STAAdapter`, `ista-engine`, or `power`.
 - Liberty parser/data types that still use historical `ista` namespace names may be consumed only as raw Liberty data sources; they must not imply iSTA timing-engine initialization or full-design timing behavior.
 - Module code should operate on CTS types, not external-tool types.

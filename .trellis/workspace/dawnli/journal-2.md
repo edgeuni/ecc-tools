@@ -1148,6 +1148,77 @@ Merged latest main into cts_refactor, resolved conflicts by keeping current iCTS
 
 - None - task complete
 
+---
+
+## 2026-06-11: 对齐商业工具 CTS 性能 — 阶段1根因调研（vga_lcd）
+
+**Date**: 2026-06-11
+**Task**: 06-11-align-commercial-cts（planning，父任务）
+**Branch**: `cts_refactor`
+
+### Summary
+
+以 vga_lcd 为基准完成 ECC vs Innovus CTS 拓扑差异深度调研。裁决了两个假设：H1 wirelength unit 失真成立（且发现更深层的 R/1000 单位 bug）；H2 NDR 缺失方向成立但当前 eval 体系下两家 clock net 均由 NanoRoute 默认规则布线，NDR 主要通过模型保真起作用。
+
+### Key Findings
+
+1. **R1 [P0] wire 电阻 1000x 低估**：`WrapperRc.cc:159,293`、`FastStaChar.cc:134` 将 ohm 值再除 `kMilliOhmPerOhm`；LEF 0.914 Ω/um → 模型 0.000914。所有线长相关时序代价坍缩，FastSTA 内部 skew 0.053 vs eval 0.118。
+2. **R2 [P0] 表征截断**：unit 38.98um 自动推导，13 个覆盖需求被 cap 到 3 bin（ceil 量化），长段 DP 组合插额外 buffer。
+3. **R3 [P1] 深度搜索失效**：`monotone_pruned_by_bottom_most_buffered_level threshold=10` 一刀切，11/10/9 深度 0 评估（run 报告 cts.log 直接证据）。
+4. **R4 [P0建模] per-level 均一 vs per-branch 物理**：L3 层 std=125um/max=467um；eval 同 sink 路径 ECC 9级0.651 vs Innovus 7级0.472，每级 +8~29ps 累积 95ps skew。
+5. **R5/R6**：iCTS 零 NDR 支持、C 无耦合、单层 RC；无 insertion-delay-reduction 阶段、优化器被错误模型骗成 no_op。
+
+### Artifacts
+
+- `prd.md`（父任务验收口径 + 子任务方向 P0-A/B, P1-C/D/E, P2-F/G）
+- `research/vga-lcd-topology-gap-root-cause.md`（完整证据链）
+- `research/level-spread-data.md` + `level_spread.py`（每层离散度分析）
+
+### Status
+
+[OK] 阶段 1 调研完成，待评审后派生子任务
+
+### Next Steps
+
+- 评审子任务方向，优先 P0-A（R 单位 bug 修复）+ P0-B（表征覆盖）
+
+---
+
+## 2026-06-12: P0-A wire 电阻 1000x 单位 bug 修复完成
+
+**Date**: 2026-06-12
+**Task**: 06-12-fix-wire-res-unit（已完成）
+**Branch**: `cts_refactor`
+
+### Summary
+
+移除 4 处把 Wrapper 欧姆返回值再除 1000 的错误换算（WrapperRc.cc x2、FastStaChar.cc、FastStaParasitics.cc），新增 icts_test_database_io 单位契约测试（含 >0.1 Ω/um 回归哨兵，红→绿已实证），spec 增补 Physical Units Contract 节。
+
+### Key Results (vga_lcd A/B, 同 HEAD 双二进制)
+
+unit_resistance 914 uOhm→mOhm/um；FastSTA initial skew 0.0533→0.0576；拓扑决策几乎不变（buffer 5744→5745，WL 不变）——R1 是模型保真前提而非 vga_lcd 拓扑差距决定因素。新发现：max_length=300 未在 trunk/htree 实施（472um 裸段仍合法）；优化器仍 no_op（固定 target 0.08 太松）→ 均转后续任务。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a9e8d7503` | fix(iCTS): correct 1000x wire resistance underestimation in RC queries |
+
+### Testing
+
+- [OK] icts_test_database_io 4/4（哨兵红→绿实证）
+- [OK] 全量 iCTS ctest 16/16
+- [OK] clang-format 干净（trellis-check PASS）
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- P0-B 表征线长覆盖修复（06-12-char-wirelength-coverage）开工
+
+---
 
 ## Session 79: Fix GCC11 all target clean build
 
