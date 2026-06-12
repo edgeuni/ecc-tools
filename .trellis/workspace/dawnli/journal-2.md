@@ -1331,6 +1331,43 @@ QoR 三档完全一致（skew 0.0562）→ 默认 6 为成本拐点：direct bin
 
 ---
 
+## 2026-06-13: P1-E delay-margin 有界选型完成,级数 10→8
+
+**Date**: 2026-06-13
+**Task**: 06-11-latency-align（已完成）
+**Branch**: `cts_refactor`
+
+### Summary
+
+新配置 `selection_delay_margin`（默认 0.07,0=完全回退旧中位）把三处 delay-power Pareto 中位选型（trunk `SelectBestSegmentEntry`、per-depth `SelectBestHTreeChar`、全局决定点 `SelectBestGlobalEntry`）统一替换为「(1+margin)×front-min delay 界内取 min-power」（共享 header-only 模板 `SelectionPolicy.hh`）。margin 经内部 Config 字段（默认 0=legacy）从 icts::Config 在 flow 装配点接入,fixture 路径零分叉。可观测性:HTree Global Selection 表 + trunk selection policy/margin/buf_count 字段。spec 钉 bounded-selection 契约。结构性合并（root/trunk、cluster/末级）经研究+数据判定不立项（research/structure-levels.md Q2/Q3、O3）。
+
+### Key Results (vga_lcd, 内部口径, margin 扫描 {0,0.05,0.07,0.08,0.1,0.2,0.5})
+
+**级数 10→8**（trunk 2→0:0-buffer 直驱条目在 strict 过滤中本就幸存,旧中位策略系统性放弃,margin>0 即胜出——P1-C 移交的级数 ≤8 条款达成）。默认 0.07=拐点:internal max arrival 0.5564→0.4486（**-19.4%**,外推 eval≈0.503≤0.52 目标）、skew 0.0294→**0.0279**（改善）、面积 +2.48%（0.05 要 +5.01% 同等延迟）、char power +2.4%（≤3% 上限）、WL +0%。htree 端 min-delay 仍 5 buffered levels=可行域下限（顶部 fanout 翻倍 ≤2 连续跳层+底部 split ≤max_fanout²）;全 margin 全局赢家 depth 9（split 代价盲视不影响 depth 决策）;root master BUFX20 饱和（R3 结构改造挂起待 eval 残差）。注意:最长 clock net 434.5→506.7um（trunk 直驱整段,cap/slew 合法;max_length=300 不实施为 P0-A 已记录存量缺陷）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `64f90307c` | feat(iCTS): replace pareto-median selection with delay-bounded min-power policy |
+
+### Testing
+
+- [OK] SelectionPolicyTest 6/6（新,挂 icts_test_flow_synthesis_htree）+ ConfigTest 4 用例
+- [OK] 全量 iCTS ctest 17/17;margin=0 与基线逐位一致（Gate-1）;无键默认 run 与显式 0.07 数值一致
+- [OK] trellis-check PASS（自修 SelectionPolicy.hh 2 处 clang-tidy,修后二进制复跑确定性指标逐位一致）
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 父任务 06-11-align-commercial-cts 全部 5 子任务完成,统一 eval 重跑（Innovus route+STA）回填 P1-D/P1-E 的 eval 口径条款
+- 候选后续:多设计 margin 标定、max_length 实施、split 代价入选型、root 段结构改造（均待 eval 残差定位）
+
+---
+
 ## Session 79: Fix GCC11 all target clean build
 
 **Date**: 2026-06-13

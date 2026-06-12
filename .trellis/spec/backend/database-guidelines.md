@@ -110,6 +110,8 @@ struct ClockDistributionInput {
 - `skew_bound` is a ceiling, not the effective optimization target. The per-clock effective skew target is `min(max(0.0, skew_bound), skew_period_fraction × clock_period_ns)`, falling back to `skew_bound` when the clock period is unknown or `skew_period_fraction` is 0 (added in task 06-11-per-branch-skew-model).
 - Optimization or evaluation code that needs a skew target must resolve it per clock through `clock_sizing_optimization::ResolveClockTargetSkewNs(config, clock)`; do not read `config.get_skew_bound()` directly as a stop condition, which silently bypasses period-derived tightening.
 - `icts_test_flow_optimization` pins the resolution semantics; extend it when the rule gains new terms.
+- Topology/segment selection over a delay-power Pareto front must route through `htree::SelectDelayBoundedIndex` (`selection_delay_margin`: pick min power within `(1 + margin) × front-min delay`; 0 = legacy Pareto median — added in task 06-11-latency-align). Do not hand-roll median or min-delay picks at new selection points. Internal `HTree::Config` / `SourceTrunkSegment::Config` default the margin to 0 (legacy); only flow assembly points wire it from `icts::Config`, so fixtures that bypass `icts::Config` stay on legacy behavior.
+- `icts_test_flow_synthesis_htree` (SelectionPolicyTest) pins the bounded-selection semantics.
 
 ### Scalable Query Paths
 
