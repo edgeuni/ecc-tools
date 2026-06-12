@@ -42,8 +42,6 @@
 #include "tcl_register_ircx.h"
 #include "tcl_register_pdn.h"
 #include "tcl_register_report.h"
-#include "tcl_register_sta.h"
-#include "tcl_register_vec.h"
 #include "tcl_register_notification.h"
 #include "tcl_register_workspace.h"
 
@@ -89,20 +87,13 @@ int registerCommands()
   /// RCX
   registerCmdRCX();
 
-  /// STA
-  registerCmdSTA();
-
   /// ZH
   registerCmdZH();
 
   registerCmdReport();
 
-  registerCmdFeature();
-
   registerCmdEval();
 
-  registerCmdVectorization();
-  
   registerCmdNotification();
 
 #ifdef CONTEST

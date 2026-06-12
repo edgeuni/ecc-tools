@@ -38,13 +38,13 @@
 #include "FlatSet.hh"
 #include "LibParserCpp.hh"
 #include "Vector.hh"
-#include "include/Config.hh"
-#include "include/Type.hh"
+#include "Config.hh"
+#include "Type.hh"
 #include "log/Log.hh"
 #include "string/Str.hh"
 #include "string/StrMap.hh"
 
-namespace ista {
+namespace idb {
 
 class LibType;
 class LibCell;
@@ -1176,7 +1176,7 @@ class LibCell : public LibObject
  *
  */
 #define FOREACH_CELL_PORT(cell, port)                                                               \
-  for (std::vector<std::unique_ptr<ista::LibPort>>::iterator iter = cell->get_cell_ports().begin(); \
+  for (std::vector<std::unique_ptr<idb::LibPort>>::iterator iter = cell->get_cell_ports().begin(); \
        (iter != cell->get_cell_ports().end()) ? port = (iter++->get()), true : false;)
 
 /**
@@ -1216,7 +1216,7 @@ class LibCell : public LibObject
  * }
  */
 #define FOREACH_POWER_ARC_SET(cell, power_arc_set)                                                              \
-  for (std::vector<std::unique_ptr<ista::LibPowerArcSet>>::iterator iter = cell->get_cell_power_arcs().begin(); \
+  for (std::vector<std::unique_ptr<idb::LibPowerArcSet>>::iterator iter = cell->get_cell_power_arcs().begin(); \
        iter != cell->get_cell_power_arcs().end() ? power_arc_set = iter++->get(), true : false;)
 
 /**
@@ -1297,8 +1297,11 @@ class LibLutTableTemplate : public LibObject
   const char* get_template_name() { return _template_name.c_str(); }
 
   void set_template_variable1(const char* template_variable1) override {
-    DLOG_FATAL_IF(!_str2var.contains(template_variable1))
-        << "not contain the template variable " << template_variable1;
+    if(!_str2var.contains(template_variable1)){
+      std::cout << "not contain the template variable " <<std::endl;
+    }
+    // DLOG_FATAL_IF(!_str2var.contains(template_variable1))
+    //     << "not contain the template variable " << template_variable1;
     _template_variable1 = _str2var.at(template_variable1);
   }
 
@@ -1855,4 +1858,4 @@ class Lib
   FORBIDDEN_COPY(Lib);
 };
 
-}  // namespace ista
+}  // namespace idb

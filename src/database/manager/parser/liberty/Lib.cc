@@ -35,10 +35,10 @@
 #include <utility>
 
 #include "json/json.hpp"
-#include "solver/Interpolation.hh"
+#include "Interpolation.hh"
 #include "string/StrMap.hh"
 
-namespace ista {
+namespace idb {
 
 namespace {
 
@@ -2136,4 +2136,4 @@ LibertyReader Lib::loadLibertyWithCppParser(const char* file_name)
   return liberty_reader;
 }
 
-}  // namespace ista
+}  // namespace idb

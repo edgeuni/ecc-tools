@@ -35,7 +35,7 @@
 
 #include "json/json.hpp"
 
-namespace ista {
+namespace idb {
 
 namespace {
 
@@ -906,4 +906,4 @@ void LibLibrary::printLibertyLibraryJson(const char* json_file_name)
   }
 }
 
-}  // namespace ista
+}  // namespace idb
