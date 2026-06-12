@@ -32,11 +32,13 @@
 
 ## Acceptance Criteria
 
-- [ ] vga_lcd eval latency_avg：0.6245 ns → **≤0.52 ns**；latency_max ≤0.56 ns。
-- [ ] 每路径 buffer 级数（`clock_path_max_buffer`）≤8。
-- [ ] eval skew_max 不劣于当期基线（与 P1-D 联合验收时 ≤0.09 ns）。
-- [ ] buffer 总数/面积不增超 5%，clock power 不增超 3%。
-- [ ] 单测覆盖层级合并与 latency-aware 选型路径。
+> 勘误（2026-06-13，design.md §1 基线再校准）：eval 口径条款按用户决定推迟到全部任务完成后统一重跑；内部口径与机理证据见 `research/validation-vga-lcd.md`。R1 落地两项为 (d) 选型 latency 约束 + (a) trunk 免 buffer 直驱（经选型自然达成）；(b) 末级/cluster 合并经数据判定不立项（depth-9 全维占优）；(c) 由同一机制承载且 htree 端已到可行域下限。
+
+- [ ] ⏸ vga_lcd eval latency_avg ≤0.52 / latency_max ≤0.56——**待统一 eval 重跑**。内部 max arrival 0.5564→0.4486（-19.4%），按基线 eval/internal 比例外推 ≈0.503 ns ≤0.52（外推非实测）。
+- [x] 每路径 buffer 级数（`clock_path_max_buffer`）≤8：**10→8**（cts.v 实测 4226 条链全部 8 级；trunk 2→0 免 buffer 直驱）。
+- [x] skew 不劣于当期基线：internal 0.0294→**0.0279**（改善）；eval 口径（≤0.09）待统一重跑。
+- [x] buffer 总数/面积不增超 5%：6025→6023（-2），面积 **+2.48%**；clock power 不增超 3%：选中 char power **+2.4%**（内部代理，eval 待重跑）。
+- [x] 单测覆盖 latency-aware 选型路径：SelectionPolicyTest 6/6 + ConfigTest 4 用例，全量 iCTS ctest 17/17；层级合并路径未落地（经 O3 数据判定不立项，见勘误）。
 
 ## 约束
 
