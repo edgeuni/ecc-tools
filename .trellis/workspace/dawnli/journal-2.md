@@ -1147,3 +1147,36 @@ Merged latest main into cts_refactor, resolved conflicts by keeping current iCTS
 ### Next Steps
 
 - None - task complete
+
+
+## Session 79: Fix GCC11 all target clean build
+
+**Date**: 2026-06-13
+**Task**: Fix GCC11 all target clean build
+**Branch**: `cts_refactor`
+
+### Summary
+
+Removed stale iSTA/vectorization link dependencies from active CMake targets, replaced obsolete global iSTA CMake include with target-local dependencies, and verified clean GCC 11 all/ecc_bin builds.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ea68ca2ea` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
