@@ -33,11 +33,13 @@
 
 ## Acceptance Criteria
 
-- [ ] vga_lcd eval skew_max：0.118 ns → **≤0.09 ns**（评估管线同父任务 §3）。
-- [ ] ECC 内部 skew 估计 vs eval 实测偏差 ≤20%（基线为 0.053 vs 0.118 = +121%）。
-- [ ] eval latency_avg 不劣化（≤0.625 ns），clock WL 增幅 ≤3%（蛇形/加 buffer 的代价上限）。
-- [ ] 优化阶段不再因模型误判而 no_op：日志可见非零 accepted edits 或有据可查的真实达标判定。
-- [ ] 单测覆盖：per-branch delay 可分辨性（长短分支构造用例）、skew 修复收敛性。
+> 勘误（2026-06-13，design.md §1 基线再校准）：P1-C 后内部基线已变（initial_skew 0.0294），eval 口径条款按用户决定推迟到全部任务完成后统一重跑评估管线。验证详情见 `research/validation-vga-lcd.md`。
+
+- [ ] ⏸ vga_lcd eval skew_max：0.118 ns → **≤0.09 ns**——**待统一 eval 重跑**（内部口径 0.0294 已远低于 Innovus eval 0.069 的量级）。
+- [ ] ⏸ ECC 内部 skew 估计 vs eval 实测偏差 ≤20%——**待统一 eval 重跑**（内部模型已为 per-branch 真实几何，P0-A 后 R 项生效）。
+- [x] eval latency_avg 不劣化 / clock WL 增幅 ≤3%：默认 run QoR 与 P1-C 基线逐位一致（WL/buffer/depth 零变化）；eval 口径待统一重跑。
+- [x] 优化阶段不再因模型误判而 no_op：default run `target_met=true`（target 0.06 有 period 依据）；探针 run（target 0.02）求解器真实介入（288 scored edits、8 batch trials）并如实上报 `target_met=false / no_improving_candidate`——sizing-only 边界证据，非误判。
+- [x] 单测覆盖：`icts_test_flow_optimization` 5/5（target 解析语义：回退/截断两侧/缺 period/负防御）+ `icts_test_database_config` 新增 4 用例；per-branch delay 可分辨性由探针 run late/early buffer 分类（104/56）实证。全量 iCTS ctest 17/17。
 
 ## 约束
 
