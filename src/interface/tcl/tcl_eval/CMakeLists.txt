@@ -1,6 +1,7 @@
 include_directories(
     ${CMAKE_SOURCE_DIR}/src/evaluation/src/module/eval_io
     ${CMAKE_SOURCE_DIR}/src/evaluation/src/module/timing
+    ${CMAKE_SOURCE_DIR}/src/evaluation/src/util
 )
 
 AUX_SOURCE_DIRECTORY(./ TCL_EVAL_SRC)
@@ -20,7 +21,6 @@ target_link_libraries(tcl_eval
         eval_io
         idm
         idb
-        eval_util_general_ops
 )
 
 target_include_directories(tcl_eval
