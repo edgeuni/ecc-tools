@@ -105,6 +105,12 @@ struct ClockDistributionInput {
 };
 ```
 
+### Config Semantics Contracts
+
+- `skew_bound` is a ceiling, not the effective optimization target. The per-clock effective skew target is `min(max(0.0, skew_bound), skew_period_fraction × clock_period_ns)`, falling back to `skew_bound` when the clock period is unknown or `skew_period_fraction` is 0 (added in task 06-11-per-branch-skew-model).
+- Optimization or evaluation code that needs a skew target must resolve it per clock through `clock_sizing_optimization::ResolveClockTargetSkewNs(config, clock)`; do not read `config.get_skew_bound()` directly as a stop condition, which silently bypasses period-derived tightening.
+- `icts_test_flow_optimization` pins the resolution semantics; extend it when the rule gains new terms.
+
 ### Scalable Query Paths
 
 - Name-based `Design` lookups such as `findInst`, `findNet`, and full-name `findPin` must use maintained indexes as the authoritative query path. Do not add vector-scan fallback logic to these hot lookups; it hides indexing bugs and turns report/evaluation paths into O(N) or worse behavior on million-instance designs.

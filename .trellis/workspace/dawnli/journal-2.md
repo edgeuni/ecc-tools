@@ -1294,6 +1294,43 @@ QoR 三档完全一致（skew 0.0562）→ 默认 6 为成本拐点：direct bin
 
 ---
 
+## 2026-06-13: P1-D 自适应 skew target 与优化器通路验证完成
+
+**Date**: 2026-06-13
+**Task**: 06-11-per-branch-skew-model（已完成）
+**Branch**: `cts_refactor`
+
+### Summary
+
+新配置 `skew_period_fraction`（默认 0.006，0=关闭）实现 per-clock 自适应 skew target `min(skew_bound, fraction×period)`，`ResolveClockTargetSkewNs` helper 统一解析（spec 钉契约：禁止直接读 skew_bound 当停止条件）。报告新增 Setup 三行（bound/fraction/rule）与 per-clock Clock Target 表（period/target/derivation）。R1（per-branch FastSTA）以 P1-C 证据 + 探针 late/early 分类（104/56）确认成立，无代码。
+
+### Key Results (vga_lcd, 内部口径)
+
+默认 run：target 0.08→0.06（period 推导，对标 Innovus 0.061），QoR 与 P1-C 基线逐位一致（skew 0.0294/buffer 6025/WL 101792.444），target_met=true 为真实达标。探针 run（fraction=0.002→target 0.02）：优化器真实求解（288 scored edits、8 batch trials 全拒）→ **sizing-only 边界实证**：均一级数+同 master 下剩余 29.4ps 来自 per-branch 线长离散，插入/蛇形挂起待统一 eval。R4 tolerance 扫描 {0.02, 0.1, 10}：**保留默认 0.1**（tol=10 skew +34.7% 仅省 WL 0.02%；tol=0.02 双输且 Pareto 收窄 649→444）——balanceTopology 挪点在 depth-9 下仍有正收益，设计预期被数据否定。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ebbb14462` | feat(iCTS): derive per-clock skew target from clock period |
+
+### Testing
+
+- [OK] icts_test_flow_optimization 5/5（新目标，helper 语义）+ ConfigTest 新增 4 用例
+- [OK] 全量 iCTS ctest 17/17（原 16 + 新 1）
+- [OK] trellis-check PASS（clang-format 干净、check.py 触及文件 0 发现）
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- P1-E latency 对齐（trunk/root/cluster 冗余级合并，级数 ≤8 + latency_avg ≤0.52 目标）
+- 全部任务完成后统一 eval 重跑（Innovus route+STA），P1-D eval 口径条款在彼时回填
+
+---
+
 ## Session 79: Fix GCC11 all target clean build
 
 **Date**: 2026-06-13
