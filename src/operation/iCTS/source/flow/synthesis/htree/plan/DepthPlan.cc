@@ -27,7 +27,6 @@
 #include <limits>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -74,6 +73,8 @@ auto RecordTopologyDepthCandidateBuild(unsigned depth, bool used_explicit_target
       .candidate_frontier_entry_count = evaluation.candidate_frontier_entries.size(),
       .feasible_solution_count = evaluation.feasible_solution_count,
       .feasible_frontier_entry_count = evaluation.feasible_frontier_entries.size(),
+      .split_group_count = evaluation.split_group_count,
+      .split_extra_buffer_count = evaluation.split_extra_buffer_count,
       .used_boundary_relaxation = evaluation.used_boundary_relaxation,
       .selected_power_w = evaluation.best_char.has_value() ? evaluation.best_char->get_power() : 0.0,
       .selected_delay_ns = evaluation.best_char.has_value() ? evaluation.best_char->get_delay() : 0.0,
@@ -131,6 +132,8 @@ auto SearchTopologyDepthCandidates(const Tree& topology, const std::vector<HTree
                               exploration.output.global_candidate_pool);
   }
   exploration.summary.root_driver_compensation_stats = compensation_pass.get_stats();
+  exploration.summary.first_monotone_hard_fail_reason
+      = exploration.output.sink_load_region_legality_context.first_monotone_hard_fail_reason;
 
   return exploration;
 }

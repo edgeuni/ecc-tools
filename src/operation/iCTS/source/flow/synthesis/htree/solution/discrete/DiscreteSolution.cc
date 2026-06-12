@@ -192,7 +192,7 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
   selected_summary.selected = true;
   selected_summary.selected_power_w = selected_ref->entry->get_power();
   selected_summary.selected_delay_ns = selected_ref->entry->get_delay();
-  htree::EmitDepthCandidateSummary(reporter, exploration.summary.depth_summaries);
+  htree::EmitDepthCandidateSummary(reporter, exploration.summary.depth_summaries, exploration.summary.first_monotone_hard_fail_reason);
   htree::SinkLoadRegionLegalitySummary selected_sink_load_region_legality;
   {
     auto selected_legality_stage

@@ -603,6 +603,8 @@ auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const S
     }
     result.candidate_frontier_entries = std::move(candidate_sink_load_region_filter.output.entries);
     result.feasible_frontier_entries = std::move(feasible_sink_load_region_filter.output.entries);
+    result.split_group_count = feasible_sink_load_region_filter.summary.max_split_group_count;
+    result.split_extra_buffer_count = feasible_sink_load_region_filter.summary.max_split_extra_buffer_count;
     if (result.candidate_frontier_entries.empty() && !candidate_sink_load_region_filter.summary.first_failure_reason.empty()) {
       result.failure_reason = candidate_sink_load_region_filter.summary.first_failure_reason;
     }
@@ -627,6 +629,8 @@ auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const S
       filter_stage.finished({{"feasible_frontier_entries", std::to_string(feasible_sink_load_region_filter.output.entries.size())}});
     }
     result.feasible_frontier_entries = std::move(feasible_sink_load_region_filter.output.entries);
+    result.split_group_count = feasible_sink_load_region_filter.summary.max_split_group_count;
+    result.split_extra_buffer_count = feasible_sink_load_region_filter.summary.max_split_extra_buffer_count;
     if (result.feasible_frontier_entries.empty() && !feasible_sink_load_region_filter.summary.first_failure_reason.empty()) {
       result.failure_reason = feasible_sink_load_region_filter.summary.first_failure_reason;
     }

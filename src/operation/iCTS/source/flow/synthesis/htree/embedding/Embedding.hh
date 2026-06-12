@@ -42,6 +42,6 @@ auto InterpolateManhattanPoint(const Point<int>& source, const Point<int>& sink,
 auto ValidateRootDriverSizing(icts::Design& design, Wrapper& wrapper, const HTree::Build& result, const std::string& cell_master) -> bool;
 auto ApplyRootDriverSizing(icts::Design& design, Wrapper& wrapper, htree::DiagnosticBuild& result, const std::string& cell_master) -> bool;
 auto BuildEmbedding(icts::Design& design, Wrapper& wrapper, htree::DiagnosticBuild& result,
-                    const BufferPatternLibrary& segment_pattern_library) -> void;
+                    const BufferPatternLibrary& segment_pattern_library, const HTree::Config& config) -> void;
 
 }  // namespace icts::htree

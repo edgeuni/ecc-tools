@@ -38,10 +38,22 @@ struct EmbeddingState
   std::size_t edge_buffer_counter = 0U;
   std::size_t net_counter = 0U;
   std::string object_name_prefix;
+  // Split remediation for over-fanout terminal load groups (see
+  // SplitSinkLoadRegionGroup); zero max_fanout or an empty master disables it.
+  std::size_t max_fanout = 0U;
+  std::string split_buffer_master;
+  std::size_t split_buffer_counter = 0U;
+  std::size_t split_sub_buffer_count = 0U;
 
   auto nextBufferName() -> std::string
   {
     const auto suffix = "htree_edge_buf_" + std::to_string(edge_buffer_counter++);
+    return object_name_prefix.empty() ? "cts_" + suffix : object_name_prefix + "_" + suffix;
+  }
+
+  auto nextSplitBufferName() -> std::string
+  {
+    const auto suffix = "htree_split_buf_" + std::to_string(split_buffer_counter++);
     return object_name_prefix.empty() ? "cts_" + suffix : object_name_prefix + "_" + suffix;
   }
 

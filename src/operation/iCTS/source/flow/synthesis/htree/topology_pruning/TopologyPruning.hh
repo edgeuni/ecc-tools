@@ -61,6 +61,8 @@ struct CandidateBuildEvaluation
   std::vector<HTreeTopologyChar> candidate_frontier_entries;
   std::size_t feasible_solution_count = 0U;
   std::vector<HTreeTopologyChar> feasible_frontier_entries;
+  std::size_t split_group_count = 0U;
+  std::size_t split_extra_buffer_count = 0U;
   std::optional<HTreeTopologyChar> best_char = std::nullopt;
   bool used_boundary_relaxation = false;
   std::optional<double> boundary_relaxation_score = std::nullopt;

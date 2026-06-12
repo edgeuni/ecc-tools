@@ -97,6 +97,9 @@ struct Diagnostics
   std::optional<double> boundary_relaxation_score = std::nullopt;
   std::string boundary_relaxation_reason;
   std::size_t pruned_leaf_single_load_buffers = 0U;
+  // Split remediation for over-fanout sink-load boundary groups.
+  std::string split_buffer_cell_master;
+  std::size_t embedded_split_sub_buffer_count = 0U;
   bool analytical_mode_enabled = false;
   bool analytical_mode_selected = false;
   std::string analytical_failure_reason;

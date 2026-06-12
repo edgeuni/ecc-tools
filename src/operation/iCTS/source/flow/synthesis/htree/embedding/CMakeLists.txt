@@ -5,6 +5,7 @@ target_link_libraries(
   PUBLIC
   icts_source_database_io
   PRIVATE
+  icts_source_flow_synthesis_htree_region
   icts_source_flow_synthesis_htree_segment_pruning
   icts_source_database_design
   icts_source_database_spatial

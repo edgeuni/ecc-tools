@@ -63,6 +63,8 @@ struct DepthSummary
   std::size_t candidate_frontier_entry_count = 0U;
   std::size_t feasible_solution_count = 0U;
   std::size_t feasible_frontier_entry_count = 0U;
+  std::size_t split_group_count = 0U;
+  std::size_t split_extra_buffer_count = 0U;
   bool used_boundary_relaxation = false;
   double selected_power_w = 0.0;
   double selected_delay_ns = 0.0;
@@ -79,6 +81,7 @@ struct DepthSearchOutput
 struct DepthSearchSummary
 {
   std::vector<DepthSummary> depth_summaries;
+  std::string first_monotone_hard_fail_reason;
   RootDriverCompensationStats root_driver_compensation_stats;
 };
 
@@ -112,6 +115,7 @@ auto SearchTopologyDepthCandidates(const Tree& topology, const std::vector<HTree
                                    const RootDriverCompensationInput& compensation_input,
                                    const SinkLoadRegionLegalityInput& sink_load_region_input, SchemaWriter& reporter,
                                    const HTreeFanoutPruningConfig& fanout_config) -> DepthSearchBuild;
-auto EmitDepthCandidateSummary(SchemaWriter& reporter, const std::vector<DepthSummary>& depth_summaries) -> void;
+auto EmitDepthCandidateSummary(SchemaWriter& reporter, const std::vector<DepthSummary>& depth_summaries,
+                               const std::string& first_monotone_hard_fail_reason = {}) -> void;
 
 }  // namespace icts::htree

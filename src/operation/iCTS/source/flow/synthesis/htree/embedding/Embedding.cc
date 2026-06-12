@@ -54,6 +54,7 @@
 #include "synthesis/htree/diagnostic/HTreeDiagnostic.hh"
 #include "synthesis/htree/embedding/BufferPortTable.hh"
 #include "synthesis/htree/embedding/EmbeddingState.hh"
+#include "synthesis/htree/region/SinkLoadRegion.hh"
 #include "synthesis/htree/segment_pruning/SegmentPatternLibrary.hh"
 
 namespace icts::htree {
@@ -340,6 +341,40 @@ auto PruneLeafSingleLoadBuffers(HTree::Build& result) -> std::size_t
   return pruned_count;
 }
 
+// Realizes the single-stage split remediation for an over-fanout terminal load
+// group: one sub-buffer per subgroup at its centroid, so the upstream net only
+// drives the sub-buffer input pins. Mirrors the legality-side
+// SplitSinkLoadRegionGroup decision (same deterministic rule and inputs).
+auto MaterializeSplitSubBuffers(EmbeddingState& context, const std::vector<Pin*>& terminal_loads, int topology_level) -> std::vector<Pin*>
+{
+  if (context.max_fanout == 0U || terminal_loads.size() <= context.max_fanout || context.split_buffer_master.empty()) {
+    return terminal_loads;
+  }
+
+  const auto split_plan = SplitSinkLoadRegionGroup(terminal_loads, context.max_fanout);
+  if (!split_plan.feasible) {
+    LOG_WARNING << "HTree: terminal load group of " << terminal_loads.size() << " exceeds max fanout " << context.max_fanout
+                << " and cannot be split; keeping the over-fanout net.";
+    return terminal_loads;
+  }
+
+  const auto* ports = context.port_table->get(context.split_buffer_master);
+  LOG_FATAL_IF(ports == nullptr) << "HTree: unresolved ports for split buffer master " << context.split_buffer_master;
+
+  std::vector<Pin*> upstream_loads;
+  upstream_loads.reserve(split_plan.subgroups.size());
+  for (std::size_t subgroup_index = 0; subgroup_index < split_plan.subgroups.size(); ++subgroup_index) {
+    auto created_buffer = CreateBufferInstance(*context.result, context.nextSplitBufferName(), context.split_buffer_master,
+                                               split_plan.centers.at(subgroup_index), ports->first, ports->second);
+    RecordInsertedInstLevel(*context.result, created_buffer.first == nullptr ? nullptr : created_buffer.first->get_inst(), topology_level,
+                            subgroup_index);
+    CreateNet(*context.result, context.nextNetName(), created_buffer.second, split_plan.subgroups.at(subgroup_index), topology_level);
+    upstream_loads.push_back(created_buffer.first);
+    ++context.split_sub_buffer_count;
+  }
+  return upstream_loads;
+}
+
 auto BuildSegmentObjectsAndGetEntryLoads(EmbeddingState& context, const TreeNode& parent_node, const TreeNode& child_node,
                                          const BufferingPattern& segment_pattern, const std::vector<Pin*>& child_entry_loads,
                                          int topology_level) -> std::vector<Pin*>
@@ -383,7 +418,8 @@ auto BuildSegmentObjectsAndGetEntryLoads(EmbeddingState& context, const TreeNode
               std::vector<Pin*>{segment_buffers.at(buffer_index + 1U).first}, topology_level);
   }
 
-  CreateNet(*context.result, context.nextNetName(), segment_buffers.back().second, terminal_loads, topology_level);
+  const auto net_terminal_loads = MaterializeSplitSubBuffers(context, terminal_loads, topology_level);
+  CreateNet(*context.result, context.nextNetName(), segment_buffers.back().second, net_terminal_loads, topology_level);
   return std::vector<Pin*>{segment_buffers.front().first};
 }
 
@@ -470,8 +506,8 @@ auto ApplyRootDriverSizing(Design& design, Wrapper& wrapper, htree::DiagnosticBu
   return true;
 }
 
-auto BuildEmbedding(Design& design, Wrapper& wrapper, htree::DiagnosticBuild& result, const BufferPatternLibrary& segment_pattern_library)
-    -> void
+auto BuildEmbedding(Design& design, Wrapper& wrapper, htree::DiagnosticBuild& result, const BufferPatternLibrary& segment_pattern_library,
+                    const HTree::Config& config) -> void
 {
   (void) design;
   if (!result.output.best_pattern.has_value()) {
@@ -510,6 +546,8 @@ auto BuildEmbedding(Design& design, Wrapper& wrapper, htree::DiagnosticBuild& re
       .result = &result,
       .port_table = &port_table,
       .object_name_prefix = result.diagnostics.object_name_prefix,
+      .max_fanout = config.max_fanout,
+      .split_buffer_master = result.diagnostics.split_buffer_cell_master,
   };
 
   std::unordered_map<std::size_t, std::vector<Pin*>> entry_loads_by_node;
@@ -562,8 +600,10 @@ auto BuildEmbedding(Design& design, Wrapper& wrapper, htree::DiagnosticBuild& re
   const auto root_it = entry_loads_by_node.find(result.output.topology.get_root());
   auto root_entry_loads = (root_it != entry_loads_by_node.end()) ? root_it->second : root_node->get_loads();
   LOG_FATAL_IF(root_entry_loads.empty()) << "HTree: root entry loads are empty during embedding construction.";
+  root_entry_loads = MaterializeSplitSubBuffers(context, root_entry_loads, 0);
   ConnectNet(result.output.root_net, result.output.root_output_pin, root_entry_loads);
   result.diagnostics.pruned_leaf_single_load_buffers = PruneLeafSingleLoadBuffers(result);
+  result.diagnostics.embedded_split_sub_buffer_count = context.split_sub_buffer_count;
 }
 
 }  // namespace icts::htree

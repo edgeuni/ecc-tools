@@ -108,6 +108,8 @@ struct SinkLoadRegionLegalitySummary
   std::optional<unsigned> required_leaf_load_cap_covering_idx = std::nullopt;
   int bottom_most_buffered_level = -1;
   PatternId segment_pattern_id = PatternId::segment(0);
+  std::size_t split_group_count = 0U;
+  std::size_t split_extra_buffer_count = 0U;
 };
 
 struct SinkLoadRegionLegalityInput
@@ -117,6 +119,8 @@ struct SinkLoadRegionLegalityInput
   bool has_max_cap = false;
   double max_cap_pf = std::numeric_limits<double>::infinity();
   ClockRouteSegmentRc clock_route_segment_rc;
+  // Smallest characterization buffer; drives split remediation cost estimates.
+  double split_buffer_input_cap_pf = 0.0;
 };
 
 struct SinkLoadRegionLegalityContext
@@ -124,6 +128,7 @@ struct SinkLoadRegionLegalityContext
   std::unordered_map<SinkLoadRegionLegalitySignature, SinkLoadRegionLegalitySummary, SinkLoadRegionLegalitySignatureHash>
       result_by_signature;
   int max_monotone_failed_level = std::numeric_limits<int>::min();
+  std::string first_monotone_hard_fail_reason;
   UniformValueLattice cap_lattice;
   SinkLoadRegionLegalityInput input;
 };
@@ -136,6 +141,8 @@ struct SinkLoadRegionEntryFilterOutput
 struct SinkLoadRegionEntryFilterSummary
 {
   std::string first_failure_reason;
+  std::size_t max_split_group_count = 0U;
+  std::size_t max_split_extra_buffer_count = 0U;
 };
 
 struct SinkLoadRegionEntryFilterBuild
@@ -143,6 +150,22 @@ struct SinkLoadRegionEntryFilterBuild
   SinkLoadRegionEntryFilterOutput output;
   SinkLoadRegionEntryFilterSummary summary;
 };
+
+// Single-stage split remediation for a boundary group that exceeds max_fanout:
+// the group is bisected geometrically (median cut on the wider span axis,
+// canonical load order) until every subgroup fits max_fanout. Each subgroup is
+// driven by one local sub-buffer at its centroid, so the upstream net fans out
+// to subgroup count pins. Feasible only while subgroup count <= max_fanout,
+// i.e. group size <= max_fanout^2; deeper local splitting degenerates into a
+// deeper tree and stays a hard failure.
+struct SinkLoadRegionSplitPlan
+{
+  bool feasible = false;
+  std::vector<std::vector<Pin*>> subgroups;
+  std::vector<Point<int>> centers;
+};
+
+auto SplitSinkLoadRegionGroup(const std::vector<Pin*>& loads, std::size_t max_fanout) -> SinkLoadRegionSplitPlan;
 
 auto ResolveSinkLoadRegionLegality(const Tree& topology, PatternId topology_pattern_id, const TopologyPatternLibrary& topology_library,
                                    const BufferPatternLibrary& segment_pattern_library, SinkLoadRegionLegalityContext& legality_context)

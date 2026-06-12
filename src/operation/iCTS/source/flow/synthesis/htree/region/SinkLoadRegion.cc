@@ -45,6 +45,7 @@
 #include "HTreeTopologyPattern.hh"
 #include "Log.hh"
 #include "PatternId.hh"
+#include "Pin.hh"
 #include "Point.hh"
 #include "TopologyConfig.hh"
 #include "Tree.hh"
@@ -288,7 +289,9 @@ auto EvaluateSinkLoadRegionLegality(const Tree& topology, const SinkLoadRegionLe
 
   const auto electrical_config = BuildLeafElectricalConfig(legality_context.input, collection.groups);
   const std::size_t max_fanout = legality_context.input.max_fanout;
-  for (const auto& group : collection.groups) {
+  std::vector<SinkLoadRegionSplitPlan> group_split_plans(collection.groups.size());
+  for (std::size_t group_index = 0; group_index < collection.groups.size(); ++group_index) {
+    const auto& group = collection.groups.at(group_index);
     const auto* loads = group.loads;
     if (loads == nullptr || loads->empty()) {
       result.violation = SinkLoadRegionViolation::kEmptyLoadGroup;
@@ -296,12 +299,17 @@ auto EvaluateSinkLoadRegionLegality(const Tree& topology, const SinkLoadRegionLe
       return result;
     }
     if (max_fanout > 0U && loads->size() > max_fanout) {
-      std::ostringstream detail;
-      detail << "fanout_violation load_count=" << loads->size() << ", max_fanout=" << max_fanout;
-      result.violation = SinkLoadRegionViolation::kFanout;
-      result.monotone_hard_fail = true;
-      result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, detail.str());
-      return result;
+      auto split_plan = SplitSinkLoadRegionGroup(*loads, max_fanout);
+      if (!split_plan.feasible) {
+        std::ostringstream detail;
+        detail << "fanout_violation load_count=" << loads->size() << ", max_fanout=" << max_fanout << ", split=infeasible";
+        result.violation = SinkLoadRegionViolation::kFanout;
+        result.monotone_hard_fail = true;
+        result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, detail.str());
+        return result;
+      }
+      group_split_plans.at(group_index) = std::move(split_plan);
+      continue;
     }
 
     const auto lower_bound = Clustering::evaluateClusterElectrical(*loads, group.anchor, electrical_config, false);
@@ -331,39 +339,85 @@ auto EvaluateSinkLoadRegionLegality(const Tree& topology, const SinkLoadRegionLe
 
   std::vector<double> total_caps_pf;
   total_caps_pf.reserve(collection.groups.size());
-  for (const auto& group : collection.groups) {
+  std::size_t split_group_count = 0U;
+  std::size_t split_extra_buffer_count = 0U;
+  const auto& route_segment_rc = legality_context.input.clock_route_segment_rc;
+  for (std::size_t group_index = 0; group_index < collection.groups.size(); ++group_index) {
+    const auto& group = collection.groups.at(group_index);
     const auto* loads = group.loads;
     LOG_FATAL_IF(loads == nullptr || loads->empty()) << "HTree: sink-load-region boundary group lost its load set.";
 
-    const auto exact = Clustering::evaluateClusterElectrical(*loads, group.anchor, electrical_config, true);
-    if (!exact.legal) {
-      if (exact.violation == ClusterElectricalViolation::kRoutingFailed) {
-        result.violation = SinkLoadRegionViolation::kRoutingFailed;
-        result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, "routing_failed");
-      } else if (exact.violation == ClusterElectricalViolation::kCapacitance) {
-        std::ostringstream detail;
-        detail << "cap_violation total_cap_pf=" << exact.summary.total_cap_pf;
-        if (legality_context.input.has_max_cap) {
-          detail << ", max_cap_pf=" << legality_context.input.max_cap_pf;
+    const auto& split_plan = group_split_plans.at(group_index);
+    if (!split_plan.feasible) {
+      const auto exact = Clustering::evaluateClusterElectrical(*loads, group.anchor, electrical_config, true);
+      if (!exact.legal) {
+        if (exact.violation == ClusterElectricalViolation::kRoutingFailed) {
+          result.violation = SinkLoadRegionViolation::kRoutingFailed;
+          result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, "routing_failed");
+        } else if (exact.violation == ClusterElectricalViolation::kCapacitance) {
+          std::ostringstream detail;
+          detail << "cap_violation total_cap_pf=" << exact.summary.total_cap_pf;
+          if (legality_context.input.has_max_cap) {
+            detail << ", max_cap_pf=" << legality_context.input.max_cap_pf;
+          }
+          result.violation = SinkLoadRegionViolation::kCapacitance;
+          result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, detail.str());
+        } else if (exact.violation == ClusterElectricalViolation::kFanout) {
+          std::ostringstream detail;
+          detail << "fanout_violation load_count=" << loads->size() << ", max_fanout=" << max_fanout;
+          result.violation = SinkLoadRegionViolation::kFanout;
+          result.monotone_hard_fail = true;
+          result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, detail.str());
+        } else {
+          result.violation = SinkLoadRegionViolation::kEmptyLoadGroup;
+          result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, "exact_evaluation_failed");
         }
-        result.violation = SinkLoadRegionViolation::kCapacitance;
-        result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, detail.str());
-      } else if (exact.violation == ClusterElectricalViolation::kFanout) {
-        std::ostringstream detail;
-        detail << "fanout_violation load_count=" << loads->size() << ", max_fanout=" << max_fanout;
-        result.violation = SinkLoadRegionViolation::kFanout;
-        result.monotone_hard_fail = true;
-        result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, detail.str());
-      } else {
-        result.violation = SinkLoadRegionViolation::kEmptyLoadGroup;
-        result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, "exact_evaluation_failed");
+        return result;
       }
-      return result;
+      total_caps_pf.push_back(exact.summary.total_cap_pf);
+      continue;
     }
 
-    total_caps_pf.push_back(exact.summary.total_cap_pf);
+    // Split-remediated group: every subgroup must be exact-legal from its own
+    // sub-buffer site, and the upstream buffer now drives the sub-buffer pins.
+    for (std::size_t subgroup_index = 0; subgroup_index < split_plan.subgroups.size(); ++subgroup_index) {
+      const auto exact = Clustering::evaluateClusterElectrical(split_plan.subgroups.at(subgroup_index),
+                                                               split_plan.centers.at(subgroup_index), electrical_config, true);
+      if (!exact.legal) {
+        std::ostringstream detail;
+        detail << "split_subgroup_violation subgroup=" << subgroup_index
+               << ", load_count=" << split_plan.subgroups.at(subgroup_index).size() << ", total_cap_pf=" << exact.summary.total_cap_pf;
+        result.violation = exact.violation == ClusterElectricalViolation::kRoutingFailed ? SinkLoadRegionViolation::kRoutingFailed
+                                                                                         : SinkLoadRegionViolation::kCapacitance;
+        result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, detail.str());
+        return result;
+      }
+    }
+
+    double upstream_cap_pf
+        = static_cast<double>(split_plan.subgroups.size()) * std::max(0.0, legality_context.input.split_buffer_input_cap_pf);
+    if (route_segment_rc.dbu_per_um > 0) {
+      for (const auto& center : split_plan.centers) {
+        const auto distance_dbu = std::llabs(static_cast<long long>(center.get_x()) - static_cast<long long>(group.anchor.get_x()))
+                                  + std::llabs(static_cast<long long>(center.get_y()) - static_cast<long long>(group.anchor.get_y()));
+        upstream_cap_pf += static_cast<double>(distance_dbu) / static_cast<double>(route_segment_rc.dbu_per_um)
+                           * route_segment_rc.capacitance_per_um_pf;
+      }
+    }
+    if (legality_context.input.has_max_cap && upstream_cap_pf > legality_context.input.max_cap_pf) {
+      std::ostringstream detail;
+      detail << "split_upstream_cap_violation total_cap_pf=" << upstream_cap_pf << ", max_cap_pf=" << legality_context.input.max_cap_pf;
+      result.violation = SinkLoadRegionViolation::kCapacitance;
+      result.failure_reason = BuildSinkLoadRegionFeasibilityReason(group.node_id, group.anchor, detail.str());
+      return result;
+    }
+    total_caps_pf.push_back(upstream_cap_pf);
+    ++split_group_count;
+    split_extra_buffer_count += split_plan.subgroups.size();
   }
 
+  result.split_group_count = split_group_count;
+  result.split_extra_buffer_count = split_extra_buffer_count;
   result.cap_distribution = BuildCapDistributionStats(total_caps_pf);
   result.required_leaf_load_cap_pf = result.cap_distribution.cap_max_pf;
   result.required_leaf_load_cap_covering_idx = CoveringBoundaryIndex(result.required_leaf_load_cap_pf, legality_context.cap_lattice);
@@ -373,6 +427,96 @@ auto EvaluateSinkLoadRegionLegality(const Tree& topology, const SinkLoadRegionLe
 }
 
 }  // namespace
+
+auto SplitSinkLoadRegionGroup(const std::vector<Pin*>& loads, std::size_t max_fanout) -> SinkLoadRegionSplitPlan
+{
+  SinkLoadRegionSplitPlan plan;
+  if (max_fanout == 0U || loads.size() <= max_fanout || loads.size() > max_fanout * max_fanout) {
+    return plan;
+  }
+
+  std::vector<Pin*> ordered_loads;
+  ordered_loads.reserve(loads.size());
+  for (auto* pin : loads) {
+    if (pin != nullptr) {
+      ordered_loads.push_back(pin);
+    }
+  }
+  if (ordered_loads.size() <= max_fanout) {
+    return plan;
+  }
+
+  // Canonical order keeps legality evaluation and embedding materialization on
+  // identical subgroups without plumbing verdicts between the two phases.
+  const auto canonical_less = [](const Pin* lhs, const Pin* rhs) -> bool {
+    const auto& lhs_location = lhs->get_location();
+    const auto& rhs_location = rhs->get_location();
+    if (lhs_location.get_x() != rhs_location.get_x()) {
+      return lhs_location.get_x() < rhs_location.get_x();
+    }
+    if (lhs_location.get_y() != rhs_location.get_y()) {
+      return lhs_location.get_y() < rhs_location.get_y();
+    }
+    return lhs->get_name() < rhs->get_name();
+  };
+  std::ranges::sort(ordered_loads, canonical_less);
+
+  std::vector<std::vector<Pin*>> pending;
+  pending.push_back(std::move(ordered_loads));
+  while (!pending.empty()) {
+    auto group = std::move(pending.back());
+    pending.pop_back();
+    if (group.size() <= max_fanout) {
+      plan.subgroups.push_back(std::move(group));
+      continue;
+    }
+
+    int min_x = std::numeric_limits<int>::max();
+    int max_x = std::numeric_limits<int>::min();
+    int min_y = std::numeric_limits<int>::max();
+    int max_y = std::numeric_limits<int>::min();
+    for (const auto* pin : group) {
+      const auto& location = pin->get_location();
+      min_x = std::min(min_x, location.get_x());
+      max_x = std::max(max_x, location.get_x());
+      min_y = std::min(min_y, location.get_y());
+      max_y = std::max(max_y, location.get_y());
+    }
+    const bool split_on_x = (static_cast<long long>(max_x) - min_x) >= (static_cast<long long>(max_y) - min_y);
+    std::ranges::sort(group, [split_on_x, &canonical_less](const Pin* lhs, const Pin* rhs) -> bool {
+      const auto lhs_axis = split_on_x ? lhs->get_location().get_x() : lhs->get_location().get_y();
+      const auto rhs_axis = split_on_x ? rhs->get_location().get_x() : rhs->get_location().get_y();
+      if (lhs_axis != rhs_axis) {
+        return lhs_axis < rhs_axis;
+      }
+      return canonical_less(lhs, rhs);
+    });
+
+    const auto split_point = static_cast<std::ptrdiff_t>(group.size() / 2U);
+    pending.emplace_back(group.begin(), group.begin() + split_point);
+    pending.emplace_back(group.begin() + split_point, group.end());
+  }
+
+  if (plan.subgroups.size() > max_fanout) {
+    plan.subgroups.clear();
+    return plan;
+  }
+
+  plan.centers.reserve(plan.subgroups.size());
+  for (const auto& subgroup : plan.subgroups) {
+    long long sum_x = 0;
+    long long sum_y = 0;
+    for (const auto* pin : subgroup) {
+      sum_x += pin->get_location().get_x();
+      sum_y += pin->get_location().get_y();
+    }
+    const auto count = static_cast<double>(subgroup.size());
+    plan.centers.emplace_back(static_cast<int>(std::llround(static_cast<double>(sum_x) / count)),
+                              static_cast<int>(std::llround(static_cast<double>(sum_y) / count)));
+  }
+  plan.feasible = true;
+  return plan;
+}
 
 auto ResolveSinkLoadRegionLegality(const Tree& topology, PatternId topology_pattern_id, const TopologyPatternLibrary& topology_library,
                                    const BufferPatternLibrary& segment_pattern_library, SinkLoadRegionLegalityContext& legality_context)
@@ -398,8 +542,12 @@ auto ResolveSinkLoadRegionLegality(const Tree& topology, PatternId topology_patt
   }
 
   auto evaluated = EvaluateSinkLoadRegionLegality(topology, signature, segment_pattern_library, legality_context);
-  if (!evaluated.legal && evaluated.monotone_hard_fail) {
-    legality_context.max_monotone_failed_level = std::max(legality_context.max_monotone_failed_level, signature.bottom_most_buffered_level);
+  if (!evaluated.legal && evaluated.monotone_hard_fail
+      && signature.bottom_most_buffered_level > legality_context.max_monotone_failed_level) {
+    legality_context.max_monotone_failed_level = signature.bottom_most_buffered_level;
+    legality_context.first_monotone_hard_fail_reason = evaluated.failure_reason;
+    LOG_WARNING << "HTree: sink-load-region monotone threshold raised to bottom-most buffered level "
+                << signature.bottom_most_buffered_level << " by hard violation: " << evaluated.failure_reason;
   }
   return legality_context.result_by_signature.emplace(signature, std::move(evaluated)).first->second;
 }
@@ -419,6 +567,8 @@ auto FilterSinkLoadRegionLegalEntries(const std::vector<HTreeTopologyChar>& entr
       }
       continue;
     }
+    result.summary.max_split_group_count = std::max(result.summary.max_split_group_count, legality.split_group_count);
+    result.summary.max_split_extra_buffer_count = std::max(result.summary.max_split_extra_buffer_count, legality.split_extra_buffer_count);
     result.output.entries.push_back(entry);
   }
   return result;

@@ -137,7 +137,7 @@ auto FinalizeSelectedHTreeSolution(HTreeSynthesisState& state, SchemaWriter::Sta
                                                    {"selection_engine", selection_engine},
                                                },
                                                DetailStageReportOptions());
-    BuildEmbedding(design, wrapper, result, segment_pattern_library);
+    BuildEmbedding(design, wrapper, result, segment_pattern_library, config);
     result.summary.success = result.summary.failure_reason.empty() && result.output.best_char.has_value()
                              && result.output.best_pattern.has_value() && result.output.root_output_pin != nullptr
                              && result.output.root_net != nullptr;
@@ -152,6 +152,7 @@ auto FinalizeSelectedHTreeSolution(HTreeSynthesisState& state, SchemaWriter::Sta
           {"inserted_insts", std::to_string(result.output.inserted_insts.size())},
           {"inserted_nets", std::to_string(result.output.inserted_nets.size())},
           {"pruned_leaf_single_load_buffers", std::to_string(result.diagnostics.pruned_leaf_single_load_buffers)},
+          {"split_sub_buffers", std::to_string(result.diagnostics.embedded_split_sub_buffer_count)},
       });
     } else {
       embedding_stage.failed(
