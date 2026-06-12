@@ -15,7 +15,7 @@ add_subdirectory(py_instance)
 add_subdirectory(py_ipdn)
 add_subdirectory(py_irt)
 add_subdirectory(py_ircx)
-add_subdirectory(py_ista)
+# add_subdirectory(py_ista)
 add_subdirectory(py_izh)
 add_subdirectory(py_report)
 add_subdirectory(py_feature)
@@ -42,7 +42,7 @@ target_link_libraries(ecc_py
         py_ipdn
         py_irt
         py_ircx
-        py_ista
+        # py_ista
         py_izh
         py_report
         py_feature

@@ -58,7 +58,6 @@ target_link_libraries(eval_util_init_ista
         idm
         ivec_api
         irt_interface
-        ista-engine
         salt
         ivec_layout_db
 )
