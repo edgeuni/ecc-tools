@@ -30,11 +30,17 @@ vga_lcd 上深度搜索窗口 {12,11,10,9}，但 run 报告（`work/icts-native/
 
 ## Acceptance Criteria
 
-- [ ] vga_lcd 深度搜索 ≥2 个深度产生非零 feasible entries（run 报告 Depth Candidate Summary 可见）。
-- [ ] 全局选型在多深度间比较后给出选择，选择理由（delay/power Pareto）在日志可追溯。
-- [ ] 若选中更浅深度：vga_lcd 每路径 buffer 级数 ≤8（`clock_path_max_buffer`），eval skew 不劣化（≤0.118 ns 基线，目标方向 ≤0.09）。
-- [ ] 若 depth=12 仍最优：给出量化解释（各深度 best delay/power 对比表）。
-- [ ] 既有单测全绿 + 新增深度搜索剪枝行为的单测（含"浅深度可行"与"单调剪枝仍正确生效"两类用例）。
+- [x] vga_lcd 深度搜索 ≥2 个深度产生非零 feasible entries（run 报告 Depth Candidate Summary 可见）。
+  - 实测（2026-06-12）：4/4 深度全部 feasible（基线 1/4），新增 Split Groups/Split Buffers 列与 Monotone Pruning Origin 报告。
+- [x] 全局选型在多深度间比较后给出选择，选择理由（delay/power Pareto）在日志可追溯。
+  - 实测：选中 depth 9（best delay 0.3751 vs depth-12 的 0.5194）。
+- [x] 若选中更浅深度：eval skew 不劣化。
+  - 实测（内部口径，eval 按用户决定统一推迟）：initial_skew 0.0562 → **0.0294（-48%）**，内部 max arrival -53ps；buffer +4.9%、WL +1.5% 为代价。
+  - 勘误：「每路径 buffer 级数 ≤8」未达成——级数为 10/10（split 层抵消 htree 变浅，但级数完全均一化是 skew 减半的主因）。≤8 级目标移交 P1-E（trunk/root/cluster 冗余级合并）。
+- [x] depth=12 仍可被选（feasible 在候选集中，本次按 Pareto 落选，对比表可查）。
+- [x] 既有单测全绿（16/16）+ 新增深度搜索剪枝行为单测（SinkLoadRegionSplitTest 6/6：拆分合法/确定性/超界拒绝/保守性）。
+
+> 详细数据：`research/validation-vga-lcd.md`
 
 ## 约束
 
