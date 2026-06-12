@@ -28,7 +28,6 @@
 #include <optional>
 #include <ostream>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "IdbLayer.h"
@@ -43,8 +42,6 @@
 
 namespace icts {
 namespace {
-
-constexpr double kMilliOhmPerOhm = 1000.0;
 
 struct WireRcProbe
 {
@@ -156,7 +153,7 @@ auto queryWireRcProbe(const Wrapper& wrapper, int routing_layer, std::optional<d
   }
 
   probe.queried = true;
-  probe.resistance_per_um_ohm = wrapper.queryWireResistance(routing_layer, probe.query_length_um, wire_width_um) / kMilliOhmPerOhm;
+  probe.resistance_per_um_ohm = wrapper.queryWireResistance(routing_layer, probe.query_length_um, wire_width_um);
   probe.capacitance_per_um_pf = wrapper.queryWireCapacitance(routing_layer, probe.query_length_um, wire_width_um);
 
   if (!std::isfinite(probe.resistance_per_um_ohm) || !std::isfinite(probe.capacitance_per_um_pf)) {
@@ -290,7 +287,7 @@ auto Wrapper::queryConfiguredClockRouteSegmentRc(const Config& config) const -> 
   const auto wire_width_um = resolveWireWidth(config);
   return ClockRouteSegmentRc{
       .dbu_per_um = dbu_per_um,
-      .resistance_per_um_ohm = queryRequiredWireResistance(routing_layer, 1.0, wire_width_um) / kMilliOhmPerOhm,
+      .resistance_per_um_ohm = queryRequiredWireResistance(routing_layer, 1.0, wire_width_um),
       .capacitance_per_um_pf = queryRequiredWireCapacitance(routing_layer, 1.0, wire_width_um),
   };
 }

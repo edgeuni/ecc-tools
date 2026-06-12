@@ -49,8 +49,6 @@
 namespace icts {
 namespace {
 
-constexpr double kMilliOhmPerOhm = 1000.0;
-
 auto resolveDbuPerUm(const FastStaCharTopologySpec& spec) -> int
 {
   if (spec.dbu_per_um.has_value()) {
@@ -131,7 +129,7 @@ auto makeLinearParasitic(const FastStaClockContext& context, const FastStaNet& n
   LOG_FATAL_IF(context.wrapper == nullptr) << "FastStaChar: Wrapper is unavailable.";
   const auto wire_cap_pf = context.wrapper->queryRequiredWireCapacitance(context.routing_layer, wirelength_um, context.wire_width_um);
   const auto wire_resistance_ohm
-      = context.wrapper->queryRequiredWireResistance(context.routing_layer, wirelength_um, context.wire_width_um) / kMilliOhmPerOhm;
+      = context.wrapper->queryRequiredWireResistance(context.routing_layer, wirelength_um, context.wire_width_um);
   FastStaNetParasitic parasitic;
   parasitic.rc_nodes.push_back(FastStaRcNode{
       .name = net.name + "@root",
