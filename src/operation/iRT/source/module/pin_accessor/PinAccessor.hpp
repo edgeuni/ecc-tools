@@ -89,7 +89,9 @@ class PinAccessor
   void buildAccessPoint(PABox& pa_box);
   void buildAccessResult(PABox& pa_box);
   void buildAccessPatch(PABox& pa_box);
-  void initPATaskList(PAModel& pa_model, PABox& pa_box);
+  void initPATaskList(PAModel& pa_model, PABox& pa_box,
+                      std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>*>>>& del_result_map,
+                      std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect*>>>& del_patch_map);
   void buildRouteViolation(PABox& pa_box);
   bool needRouting(PABox& pa_box);
   void buildBoxTrackAxis(PABox& pa_box);
@@ -152,12 +154,13 @@ class PinAccessor
   void updateAccessPoint(PABox& pa_box);
   void updateBestResult(PABox& pa_box);
   void updateTaskSchedule(PABox& pa_box, std::vector<PATask*>& routing_task_list);
-  void selectBestResult(PABox& pa_box);
-  void uploadBestResult(PABox& pa_box);
+  void uploadBestResult(PABox& pa_box, std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>*>>>& add_result_map,
+                        std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect*>>>& add_patch_map);
   void freePABox(PABox& pa_box);
   int32_t getRouteViolationNum(PAModel& pa_model);
   void uploadViolation(PAModel& pa_model, bool include_ap_via_only);
-  int32_t uploadRouteViolationList(std::set<Violation, CmpViolation>& route_violation_set, const std::vector<Violation>& route_violation_list);
+  int32_t uploadRouteViolationList(std::set<Violation, CmpViolation>& route_violation_set, const std::vector<Violation>& route_violation_list,
+                                   std::vector<Violation>* add_violation_list = nullptr);
   std::vector<Violation> getRouteViolationList(PAModel& pa_model, bool ap_via_only);
   void updateBestResult(PAModel& pa_model);
   bool stopIteration(PAModel& pa_model, std::vector<PAIterParam>& pa_iter_param_list);
@@ -166,6 +169,14 @@ class PinAccessor
   void uploadAccessPoint(PAModel& pa_model);
   void uploadAccessResult(PAModel& pa_model);
   void uploadAccessPatch(PAModel& pa_model);
+  void addCurrAccessPoint(PAModel& pa_model, int32_t net_idx, AccessPoint* access_point);
+  void delCurrAccessPoint(PAModel& pa_model, int32_t net_idx, AccessPoint* access_point);
+  void resetCurrAccessPoint(PAModel& pa_model);
+  void addCurrAccessResult(PAModel& pa_model, int32_t net_idx, int32_t pin_idx, Segment<LayerCoord>* segment);
+  void delCurrAccessResult(PAModel& pa_model, int32_t net_idx, int32_t pin_idx, Segment<LayerCoord>* segment);
+  void addCurrAccessPatch(PAModel& pa_model, int32_t net_idx, int32_t pin_idx, EXTLayerRect* patch);
+  void delCurrAccessPatch(PAModel& pa_model, int32_t net_idx, int32_t pin_idx, EXTLayerRect* patch);
+  void resetCurrResult(PAModel& pa_model);
 
 #if 1  // update env
   void updateFixedRectToGraph(PABox& pa_box, ChangeType change_type, int32_t net_idx, EXTLayerRect* fixed_rect, bool is_routing);

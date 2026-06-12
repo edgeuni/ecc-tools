@@ -64,10 +64,6 @@ std::vector<Violation> DRCEngine::getViolationList(DETask& de_task)
 {
   getViolationListByInterface(de_task);
   filterViolationList(de_task);
-  checkViolationList(de_task);
-  if (de_task.get_proc_type() == DEProcType::kGet) {
-    buildViolationList(de_task);
-  }
   return de_task.get_violation_list();
 }
 
@@ -137,13 +133,16 @@ void DRCEngine::getViolationListByInterface(DETask& de_task)
 
 void DRCEngine::filterViolationList(DETask& de_task)
 {
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+
   std::vector<Violation> new_violation_list;
   for (Violation& violation : de_task.get_violation_list()) {
     if (violation.get_violation_type() == ViolationType::kNone) {
       // 未知规则舍弃
       continue;
     }
-    if (skipViolation(de_task, violation)) {
+    std::vector<Violation> expanded_violation_list = getExpandedViolationList(de_task, violation);
+    if (expanded_violation_list.empty()) {
       // 跳过的类型舍弃
       continue;
     }
@@ -164,42 +163,23 @@ void DRCEngine::filterViolationList(DETask& de_task)
       // 自带的违例舍弃
       continue;
     }
-    new_violation_list.push_back(violation);
-  }
-  de_task.set_violation_list(new_violation_list);
-}
-
-void DRCEngine::checkViolationList(DETask& de_task)
-{
-  for (Violation& violation : de_task.get_violation_list()) {
     if (!violation.get_is_routing()) {
       RTLOG.error(Loc::current(), "The violations in the cut layer!");
     }
-  }
-}
-
-void DRCEngine::buildViolationList(DETask& de_task)
-{
-  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-
-  std::vector<Violation> new_violation_list;
-  for (Violation& violation : de_task.get_violation_list()) {
-    for (Violation new_violation : getExpandedViolationList(de_task, violation)) {
-      EXTLayerRect& violation_shape = new_violation.get_violation_shape();
-      violation_shape.set_grid_rect(RTUTIL.getClosedGCellGridRect(violation_shape.get_real_rect(), gcell_axis));
-      new_violation_list.push_back(new_violation);
+    if (de_task.get_proc_type() == DEProcType::kGet) {
+      for (Violation& new_violation : expanded_violation_list) {
+        EXTLayerRect& violation_shape = new_violation.get_violation_shape();
+        violation_shape.set_grid_rect(RTUTIL.getClosedGCellGridRect(violation_shape.get_real_rect(), gcell_axis));
+        new_violation_list.push_back(new_violation);
+      }
+    } else {
+      new_violation_list.push_back(violation);
     }
   }
   de_task.set_violation_list(new_violation_list);
 }
 
 #if 1  // aux
-
-bool DRCEngine::skipViolation(DETask& de_task, Violation& violation)
-{
-  std::vector<Violation> expanded_violation_list = getExpandedViolationList(de_task, violation);
-  return expanded_violation_list.empty();
-}
 
 std::vector<Violation> DRCEngine::getExpandedViolationList(DETask& de_task, Violation& violation)
 {

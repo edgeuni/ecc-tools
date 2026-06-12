@@ -42,6 +42,8 @@ class PABox
   bool get_initial_routing() const { return _initial_routing; }
   bool get_hard() const { return _hard; }
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
+  std::vector<std::pair<EXTLayerRect*, bool>>& get_env_shape_list() { return _env_shape_list; }
+  std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>>& get_net_pin_shape_map() { return _net_pin_shape_map; }
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>>& get_net_access_point_map() { return _net_access_point_map; }
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& get_net_pin_access_result_map() { return _net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_task_access_result_map() { return _net_task_access_result_map; }
@@ -160,6 +162,9 @@ class PABox
   bool _initial_routing = true;
   bool _hard = false;
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
+  // 缓存fix/pin_shape避免drc check重复从gcell构建
+  std::vector<std::pair<EXTLayerRect*, bool>> _env_shape_list;
+  std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>> _net_pin_shape_map;
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> _net_access_point_map;
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> _net_pin_access_result_map;
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_task_access_result_map;
