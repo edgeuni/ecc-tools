@@ -1220,6 +1220,43 @@ unit_resistance 914 uOhm→mOhm/um；FastSTA initial skew 0.0533→0.0576；拓�
 
 ---
 
+## 2026-06-12: P0-B 表征线长覆盖修复完成
+
+**Date**: 2026-06-12
+**Task**: 06-12-char-wirelength-coverage（已完成）
+**Branch**: `cts_refactor`
+
+### Summary
+
+auto 模式直接表征上限与 legacy wirelength_iterations 解绑，新增 auto_direct_bins_cap（默认 6，2^bins pattern 成本上界）。设计期发现两个架构事实并勘误 PRD：pattern 枚举 2^slots（slots=length_idx）使"全覆盖"不可行；SegmentPruning 组合 join 不必然插中间 buffer（真实代价=bucket 量化误差累积+组合开销）。
+
+### Key Results (vga_lcd, cap 扫描 6/7/8)
+
+QoR 三档完全一致（skew 0.0562）→ 默认 6 为成本拐点：direct bins 3→6、CharBuilder 0.02→2.2s、SourceTrunk 合成 35.3→16.1s（-54%）、端到端 67.5→37.1s（-45%）、initial_skew 57.6→56.2ps。runtime_config 显式模式行为零变化（单测钉死）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `111ac5d6d` | perf(iCTS): bound auto-grid direct characterization by auto_direct_bins_cap |
+
+### Testing
+
+- [OK] WirelengthGridTest 7/7 新用例
+- [OK] 全量 iCTS ctest 16/16
+- [OK] trellis-check PASS（1 处 clang-format 已修）
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- P1 组（htree-depth-unlock / per-branch-skew-model / latency-align）基于新基线开展
+- 建议先统一跑一次 eval 管线重基线（P0-A+P0-B 合并效果的 Innovus route+STA 实测）
+
+---
+
 ## Session 79: Fix GCC11 all target clean build
 
 **Date**: 2026-06-13
