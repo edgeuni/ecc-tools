@@ -1257,6 +1257,43 @@ QoR 三档完全一致（skew 0.0562）→ 默认 6 为成本拐点：direct bin
 
 ---
 
+## 2026-06-12: P1-C 深度搜索解锁完成
+
+**Date**: 2026-06-12
+**Task**: 06-11-htree-depth-unlock（已完成）
+**Branch**: `cts_refactor`
+
+### Summary
+
+边界组 split 补救替代一票否决：单个 5-load 稠密组（实证 node_912, level-11）曾经由单调阈值灭掉全部浅深度候选。SplitSinkLoadRegionGroup（确定性中位二分，合法性/嵌入共享）+ 监控（Split 列、Monotone Origin 报告）。R1 结论：单调剪枝逻辑本身正确，过约束在区域语义层（无局部补救）。
+
+### Key Results (vga_lcd, 内部口径)
+
+深度候选 1/4 → 4/4 可行，选中 depth 9；initial_skew 0.0562→0.0294（-48%）、max arrival -53ps、级数均一 10/10（原 9~10）；代价 buffer +4.9%（1114 split sub-buffers）、WL +1.5%。DEF 实测全部 clock net fanout ≤4。勘误：级数 ≤8 未达成（移交 P1-E）。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2258e1cd5` | feat(iCTS): unlock H-tree depth search with boundary-group split remediation |
+
+### Testing
+
+- [OK] SinkLoadRegionSplitTest 6/6
+- [OK] 全量 iCTS ctest 16/16；clang-format 干净
+- [OK] trellis-check（格式修复已并入；一致性/单调性审查主会话补全）
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- P1-D per-branch 时序建模与 skew 修复（自适应 skew target + 优化器激活）
+- P1-E latency 对齐（trunk/root/cluster 冗余级合并，级数 ≤8 目标在此）
+
+---
+
 ## Session 79: Fix GCC11 all target clean build
 
 **Date**: 2026-06-13
