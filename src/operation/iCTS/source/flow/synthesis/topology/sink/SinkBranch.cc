@@ -122,6 +122,7 @@ auto BuildSinkHtreeConfig(const Config& config) -> HTree::Config
       .force_branch_buffer = config.is_force_branch_buffer(),
       .depth_explore_window = std::max(1U, config.get_htree_depth_explore_window()),
       .topology_tolerance = config.get_htree_topology_tolerance(),
+      .selection_delay_margin = config.get_selection_delay_margin(),
       .max_fanout = config.get_max_fanout(),
       .has_max_cap = config.has_max_cap(),
       .max_cap_pf = config.has_max_cap() ? config.get_max_cap() : 0.0,

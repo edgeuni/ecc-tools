@@ -45,7 +45,7 @@
 namespace icts {
 namespace {
 
-constexpr std::array<std::string_view, 22> kSupportedConfigKeys = {
+constexpr std::array<std::string_view, 23> kSupportedConfigKeys = {
     "skew_bound",
     "skew_period_fraction",
     "max_buf_tran",
@@ -66,6 +66,7 @@ constexpr std::array<std::string_view, 22> kSupportedConfigKeys = {
     "force_branch_buffer",
     "htree_depth_explore_window",
     "htree_topology_tolerance",
+    "selection_delay_margin",
     "enable_analytical_htree",
     "enable_sink_clustering",
 };
@@ -429,6 +430,9 @@ auto Config::parse(const std::string& json_file) -> bool
   if (!ApplyDoubleIfPresent(json, "htree_topology_tolerance", *this, &Config::set_htree_topology_tolerance, json_file)) {
     return false;
   }
+  if (!ApplyDoubleIfPresent(json, "selection_delay_margin", *this, &Config::set_selection_delay_margin, json_file)) {
+    return false;
+  }
   if (!ApplyBoolIfPresent(json, "enable_analytical_htree", is_enable_analytical_htree(), *this, &Config::set_enable_analytical_htree,
                           json_file)) {
     return false;
@@ -482,6 +486,8 @@ auto Config::buildRuntimeConfigRows() const -> logformat::TableRows
        "flow-level H-tree explores up to this many descending depth candidates from the deepest topology"},
       {"htree_topology_tolerance", logformat::FormatPercent(get_htree_topology_tolerance()),
        "per-level H-tree topology segment length deviation allowed around the baseline"},
+      {"selection_delay_margin", logformat::FormatPercent(get_selection_delay_margin()),
+       "delay-bounded selection: pick min power within (1+margin) x front-min delay; 0 = legacy pareto median"},
       {"enable_analytical_htree", logformat::FormatBool(is_enable_analytical_htree()),
        is_enable_analytical_htree() ? "experimental analytical H-tree candidate selection is enabled"
                                     : "native discrete H-tree search is used"},

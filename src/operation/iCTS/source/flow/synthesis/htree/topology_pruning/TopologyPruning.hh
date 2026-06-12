@@ -74,6 +74,8 @@ struct HTreeFanoutPruningConfig
 {
   std::size_t max_fanout = 0U;
   bool allow_boundary_relaxation = false;
+  // Selection picks min power within (1 + margin) x front-min delay; 0 keeps the legacy Pareto median.
+  double selection_delay_margin = 0.0;
 };
 
 struct CandidateCharRef
@@ -98,6 +100,13 @@ struct CandidateCharRefFilterBuild
   CandidateCharRefFilterSummary summary;
 };
 
+struct GlobalSelectionDetail
+{
+  std::string policy;  // "pareto_median" or "delay_bounded"
+  std::size_t front_size = 0U;
+  double front_min_delay_ns = 0.0;
+};
+
 auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const SegmentFrontierCatalog& segment_frontier_catalog,
                             const BufferPatternLibrary& segment_pattern_library, const BoundaryConstraints& boundary_constraints,
                             const Tree& topology, SinkLoadRegionLegalityContext& sink_load_region_legality_context, std::size_t leaf_count,
@@ -112,7 +121,8 @@ auto ReduceCandidateBuildEvaluationForGlobalSelection(CandidateBuildEvaluation& 
                                                       SinkLoadRegionLegalityContext& legality_context, bool retain_relaxed_candidates)
     -> void;
 auto BuildPerDepthDelayPowerParetoRefs(const std::vector<CandidateCharRef>& entries) -> std::vector<CandidateCharRef>;
-auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries) -> std::optional<CandidateCharRef>;
+auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries, double selection_delay_margin = 0.0,
+                           GlobalSelectionDetail* selection_detail = nullptr) -> std::optional<CandidateCharRef>;
 auto CalcBoundaryRelaxationScore(const HTreeTopologyChar& entry, const BoundaryConstraints& boundary_constraints, unsigned slew_steps)
     -> double;
 

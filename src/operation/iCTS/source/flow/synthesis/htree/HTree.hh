@@ -89,6 +89,8 @@ class HTree
     std::optional<unsigned> target_depth = std::nullopt;
     unsigned depth_explore_window = 1U;
     double topology_tolerance = 0.0;
+    // Selection picks min power within (1 + margin) x front-min delay; 0 keeps the legacy Pareto median.
+    double selection_delay_margin = 0.0;
     std::size_t max_fanout = 0U;
     bool has_max_cap = false;
     double max_cap_pf = 0.0;

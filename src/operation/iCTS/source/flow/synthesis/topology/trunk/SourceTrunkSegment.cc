@@ -57,6 +57,7 @@
 #include "synthesis/htree/segment_pruning/SegmentFrontierCatalog.hh"
 #include "synthesis/htree/segment_pruning/SegmentPatternLibrary.hh"
 #include "synthesis/htree/segment_pruning/SegmentPruning.hh"
+#include "synthesis/htree/topology_pruning/SelectionPolicy.hh"
 
 namespace icts {
 namespace {
@@ -232,7 +233,7 @@ auto BuildDelayPowerParetoFront(const std::vector<SegmentChar>& entries) -> std:
   return pareto_front;
 }
 
-auto SelectBestSegmentEntry(const std::vector<SegmentChar>& entries) -> std::optional<SegmentChar>
+auto SelectBestSegmentEntry(const std::vector<SegmentChar>& entries, double selection_delay_margin) -> std::optional<SegmentChar>
 {
   if (entries.empty()) {
     return std::nullopt;
@@ -241,8 +242,13 @@ auto SelectBestSegmentEntry(const std::vector<SegmentChar>& entries) -> std::opt
   if (pareto_front.empty()) {
     return std::nullopt;
   }
-  const std::size_t median_index = (pareto_front.size() - 1U) / 2U;
-  return pareto_front.at(median_index);
+  const auto selected_index = htree::SelectDelayBoundedIndex(
+      pareto_front, selection_delay_margin, [](const SegmentChar& entry) -> double { return entry.get_delay(); },
+      [](const SegmentChar& entry) -> double { return entry.get_power(); });
+  if (!selected_index.has_value()) {
+    return std::nullopt;
+  }
+  return pareto_front.at(*selected_index);
 }
 
 auto FilterSegmentEntries(const std::vector<SegmentChar>& entries, unsigned required_load_cap_idx, unsigned source_drive_cap_idx,
@@ -536,23 +542,28 @@ auto SourceTrunkSegment::build(const Input& input, const Config& config) -> Buil
     auto strict_entries = FilterSegmentEntries(*all_frontier_entries, result.summary.required_load_cap_idx,
                                                result.summary.source_drive_cap_idx, result.summary.min_input_slew_idx);
     result.summary.strict_candidate_count = strict_entries.size();
-    result.output.best_char = SelectBestSegmentEntry(strict_entries);
+    result.output.best_char = SelectBestSegmentEntry(strict_entries, config.selection_delay_margin);
     if (!result.output.best_char.has_value() && result.summary.min_input_slew_idx.has_value()) {
       auto relaxed_entries = FilterSegmentEntries(*all_frontier_entries, result.summary.required_load_cap_idx,
                                                   result.summary.source_drive_cap_idx, std::nullopt);
       result.summary.relaxed_candidate_count = relaxed_entries.size();
-      result.output.best_char = SelectBestSegmentEntry(relaxed_entries);
+      result.output.best_char = SelectBestSegmentEntry(relaxed_entries, config.selection_delay_margin);
       if (result.output.best_char.has_value()) {
         result.summary.used_boundary_relaxation = true;
         result.summary.boundary_relaxation_reason = "dropped_soft_input_slew_boundary";
       }
     }
     if (result.output.best_char.has_value()) {
+      const auto* selected_pattern_for_report = pattern_library.find(result.output.best_char->get_pattern_id());
       selection_stage.finished({
           {"strict_candidates", std::to_string(result.summary.strict_candidate_count)},
           {"relaxed_candidates", std::to_string(result.summary.relaxed_candidate_count)},
           {"used_boundary_relaxation", result.summary.used_boundary_relaxation ? "true" : "false"},
           {"selected_pattern_id", std::to_string(result.output.best_char->get_pattern_id().pack())},
+          {"policy", config.selection_delay_margin > 0.0 ? "delay_bounded" : "pareto_median"},
+          {"margin", std::to_string(config.selection_delay_margin)},
+          {"selected_buffer_count",
+           selected_pattern_for_report == nullptr ? "unknown" : std::to_string(selected_pattern_for_report->get_buffer_positions().size())},
       });
     } else {
       selection_stage.failed({{"reason", "no_hard_boundary_legal_segment_candidate"}});

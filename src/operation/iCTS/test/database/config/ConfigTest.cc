@@ -62,6 +62,7 @@ TEST(ConfigTest, MissingOptionalValuesUseDefaults)
   EXPECT_EQ(config.get_max_fanout(), 32U);
   EXPECT_DOUBLE_EQ(config.get_skew_bound(), 0.04);
   EXPECT_DOUBLE_EQ(config.get_skew_period_fraction(), 0.006);
+  EXPECT_DOUBLE_EQ(config.get_selection_delay_margin(), 0.07);
   EXPECT_TRUE(config.get_warnings().empty());
   EXPECT_TRUE(config.get_last_error().empty());
 }
@@ -102,6 +103,44 @@ TEST(ConfigTest, SkewPeriodFractionInvalidValueFails)
 
   EXPECT_FALSE(config.init(config_path.string()));
   EXPECT_NE(config.get_last_error().find("invalid numeric value for key \"skew_period_fraction\""), std::string::npos);
+}
+
+TEST(ConfigTest, SelectionDelayMarginParsesWithoutInvalidKeyWarning)
+{
+  const auto config_path = writeConfigFile("selection_delay_margin.json", R"json({
+    "selection_delay_margin": "0.05"
+  })json");
+  icts::Config config;
+
+  EXPECT_TRUE(config.init(config_path.string()));
+  EXPECT_DOUBLE_EQ(config.get_selection_delay_margin(), 0.05);
+  EXPECT_TRUE(config.get_warnings().empty());
+  EXPECT_TRUE(config.get_last_error().empty());
+}
+
+TEST(ConfigTest, SelectionDelayMarginClampsNegativeToZero)
+{
+  icts::Config config;
+  config.set_selection_delay_margin(-0.5);
+  EXPECT_DOUBLE_EQ(config.get_selection_delay_margin(), 0.0);
+
+  const auto config_path = writeConfigFile("selection_delay_margin_negative.json", R"json({
+    "selection_delay_margin": "-0.1"
+  })json");
+  EXPECT_TRUE(config.init(config_path.string()));
+  EXPECT_DOUBLE_EQ(config.get_selection_delay_margin(), 0.0);
+  EXPECT_TRUE(config.get_last_error().empty());
+}
+
+TEST(ConfigTest, SelectionDelayMarginInvalidValueFails)
+{
+  const auto config_path = writeConfigFile("selection_delay_margin_invalid.json", R"json({
+    "selection_delay_margin": "not_a_number"
+  })json");
+  icts::Config config;
+
+  EXPECT_FALSE(config.init(config_path.string()));
+  EXPECT_NE(config.get_last_error().find("invalid numeric value for key \"selection_delay_margin\""), std::string::npos);
 }
 
 TEST(ConfigTest, UnknownAndDeprecatedKeysWarnAndDoNotFail)

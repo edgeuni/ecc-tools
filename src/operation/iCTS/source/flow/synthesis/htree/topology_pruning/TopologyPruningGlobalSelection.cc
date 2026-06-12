@@ -38,6 +38,7 @@
 #include "PatternId.hh"
 #include "synthesis/htree/constraint/Constraint.hh"
 #include "synthesis/htree/region/SinkLoadRegion.hh"
+#include "synthesis/htree/topology_pruning/SelectionPolicy.hh"
 #include "synthesis/htree/topology_pruning/TopologyPruning.hh"
 
 namespace icts {
@@ -174,7 +175,8 @@ auto BuildPerDepthDelayPowerParetoRefs(const std::vector<CandidateCharRef>& entr
   return pareto_entries;
 }
 
-auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries) -> std::optional<CandidateCharRef>
+auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries, double selection_delay_margin,
+                           GlobalSelectionDetail* selection_detail) -> std::optional<CandidateCharRef>
 {
   if (entries.empty()) {
     return std::nullopt;
@@ -185,8 +187,23 @@ auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries) -> std:
     return std::nullopt;
   }
 
-  const std::size_t median_index = (pareto_front.size() - 1U) / 2U;
-  return pareto_front.at(median_index);
+  if (selection_detail != nullptr) {
+    selection_detail->policy = selection_delay_margin > 0.0 ? "delay_bounded" : "pareto_median";
+    selection_detail->front_size = pareto_front.size();
+    double front_min_delay = pareto_front.front().entry->get_delay();
+    for (const auto& entry_ref : pareto_front) {
+      front_min_delay = std::min(front_min_delay, entry_ref.entry->get_delay());
+    }
+    selection_detail->front_min_delay_ns = front_min_delay;
+  }
+
+  const auto selected_index = SelectDelayBoundedIndex(
+      pareto_front, selection_delay_margin, [](const CandidateCharRef& entry_ref) -> double { return entry_ref.entry->get_delay(); },
+      [](const CandidateCharRef& entry_ref) -> double { return entry_ref.entry->get_power(); });
+  if (!selected_index.has_value()) {
+    return std::nullopt;
+  }
+  return pareto_front.at(*selected_index);
 }
 
 auto FilterGlobalEntriesBySinkLoadRegionCoverage(const std::vector<CandidateCharRef>& entries,

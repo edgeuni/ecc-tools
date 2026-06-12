@@ -50,6 +50,7 @@
 #include "synthesis/htree/region/SinkLoadRegion.hh"
 #include "synthesis/htree/segment_pruning/SegmentFrontierCatalog.hh"
 #include "synthesis/htree/segment_pruning/SegmentPatternLibrary.hh"
+#include "synthesis/htree/topology_pruning/SelectionPolicy.hh"
 
 namespace icts::htree {
 namespace {
@@ -493,7 +494,7 @@ auto CompactPatternSearchToFrontier(PatternSearchBuild& result, std::vector<HTre
   result.topology_pattern_library = std::move(compact_library);
 }
 
-auto SelectBestHTreeChar(const std::vector<HTreeTopologyChar>& entries) -> std::optional<HTreeTopologyChar>
+auto SelectBestHTreeChar(const std::vector<HTreeTopologyChar>& entries, double selection_delay_margin) -> std::optional<HTreeTopologyChar>
 {
   if (entries.empty()) {
     return std::nullopt;
@@ -509,8 +510,13 @@ auto SelectBestHTreeChar(const std::vector<HTreeTopologyChar>& entries) -> std::
     return PreferPowerMedianOrder(*lhs, *rhs);
   });
 
-  const std::size_t median_index = (pareto_front.size() - 1U) / 2U;
-  return *pareto_front.at(median_index);
+  const auto selected_index = SelectDelayBoundedIndex(
+      pareto_front, selection_delay_margin, [](const HTreeTopologyChar* entry) -> double { return entry->get_delay(); },
+      [](const HTreeTopologyChar* entry) -> double { return entry->get_power(); });
+  if (!selected_index.has_value()) {
+    return std::nullopt;
+  }
+  return *pareto_front.at(*selected_index);
 }
 
 auto BuildLocalDelayPowerPareto(const std::vector<HTreeTopologyChar>& entries) -> std::vector<HTreeTopologyChar>
@@ -636,9 +642,9 @@ auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const S
     }
   }
   if (!result.feasible_frontier_entries.empty()) {
-    result.best_char = SelectBestHTreeChar(result.feasible_frontier_entries);
+    result.best_char = SelectBestHTreeChar(result.feasible_frontier_entries, fanout_config.selection_delay_margin);
   } else if (has_boundary_constraints && fanout_config.allow_boundary_relaxation) {
-    result.best_char = SelectBestHTreeChar(result.candidate_frontier_entries);
+    result.best_char = SelectBestHTreeChar(result.candidate_frontier_entries, fanout_config.selection_delay_margin);
     if (result.best_char.has_value()) {
       result.used_boundary_relaxation = true;
       result.boundary_relaxation_reason = "no_strict_boundary_feasible_solution";

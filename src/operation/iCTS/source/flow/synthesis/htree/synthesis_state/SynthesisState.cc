@@ -203,6 +203,7 @@ auto AssembleHTreeSynthesisState(const HTree::Input& input, const HTree::Config&
   state.fanout_pruning_config = HTreeFanoutPruningConfig{
       .max_fanout = config.max_fanout,
       .allow_boundary_relaxation = config.allow_boundary_relaxation,
+      .selection_delay_margin = config.selection_delay_margin,
   };
   state.sink_load_region_input = SinkLoadRegionLegalityInput{
       .wrapper = input.wrapper,
