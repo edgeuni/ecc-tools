@@ -56,10 +56,8 @@ target_link_libraries(eval_util_init_ista
     PRIVATE
         ieda_feature
         idm
-        ivec_api
         irt_interface
         salt
-        ivec_layout_db
 )
 
 target_include_directories(eval_util_init_ista

@@ -21,7 +21,6 @@ target_link_libraries(tool_manager
         tool_api_ifp
         tool_api_ipdn
         tool_api_irt
-        ivec_db
 )
 
 target_link_libraries(tool_manager PUBLIC idm)

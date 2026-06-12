@@ -29,7 +29,6 @@ target_link_libraries(ieda_tcl
         flow 
         tool_manager
         tcl 
-        shell-cmd 
         tcl_workspace
         tcl_config
         tcl_idb
