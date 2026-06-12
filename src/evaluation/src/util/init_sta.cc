@@ -125,19 +125,19 @@ void InitSTA::saveTimingPowerBenchmark()
 //   auto all_clocks = STA_INST->getClockList();
 //   for (auto* clock : all_clocks) {
 //     double clock_period = clock->getPeriodNs();
-//     double slack = STA_INST->getWNS(clock->get_clock_name(), ista::AnalysisMode::kMax);
+//     double slack = STA_INST->getWNS(clock->get_clock_name(), idb::AnalysisMode::kMax);
 
 //     // freq is period inverse.
 //     double freq_MHz = 1000 / (clock_period - slack);
 
-//     double TNS = STA_INST->getTNS(clock->get_clock_name(), ista::AnalysisMode::kMax);
+//     double TNS = STA_INST->getTNS(clock->get_clock_name(), idb::AnalysisMode::kMax);
 //     clock_freq_map[clock->get_clock_name()] = std::make_pair(freq_MHz, TNS);
 //   }
 
 //   std::vector<std::pair<std::string, double>> end_vertex_to_path_delay;
 //   unsigned top_n_path = 100;
 //   // get top100 path delay
-//   auto top_n_seq_path_vec = STA_INST->getTopNWorstSeqPaths(ista::AnalysisMode::kMax, top_n_path);
+//   auto top_n_seq_path_vec = STA_INST->getTopNWorstSeqPaths(idb::AnalysisMode::kMax, top_n_path);
 //   LOG_INFO << "seq path num: " << top_n_seq_path_vec.size();
 //   for (auto* seq_path : top_n_seq_path_vec) {
 //     double path_delay = seq_path->getArriveTimeNs();
@@ -697,8 +697,8 @@ double InitSTA::getEarlySlack(const std::string& pin_name) const
 {
   double early_slack = 0;
 
-//   auto rise_value = STA_INST->getSlack(pin_name.c_str(), ista::AnalysisMode::kMin, ista::TransType::kRise);
-//   auto fall_value = STA_INST->getSlack(pin_name.c_str(), ista::AnalysisMode::kMin, ista::TransType::kFall);
+//   auto rise_value = STA_INST->getSlack(pin_name.c_str(), idb::AnalysisMode::kMin, ista::TransType::kRise);
+//   auto fall_value = STA_INST->getSlack(pin_name.c_str(), idb::AnalysisMode::kMin, ista::TransType::kFall);
 
 //   if (rise_value == std::nullopt || fall_value == std::nullopt) {
 //     return DBL_MAX;
@@ -713,8 +713,8 @@ double InitSTA::getLateSlack(const std::string& pin_name) const
 {
   double late_slack = 0;
 
-//   auto rise_value = STA_INST->getSlack(pin_name.c_str(), ista::AnalysisMode::kMax, ista::TransType::kRise);
-//   auto fall_value = STA_INST->getSlack(pin_name.c_str(), ista::AnalysisMode::kMax, ista::TransType::kFall);
+//   auto rise_value = STA_INST->getSlack(pin_name.c_str(), idb::AnalysisMode::kMax, ista::TransType::kRise);
+//   auto fall_value = STA_INST->getSlack(pin_name.c_str(), idb::AnalysisMode::kMax, ista::TransType::kFall);
 
 //   if (rise_value == std::nullopt || fall_value == std::nullopt) {
 //     return DBL_MAX;
@@ -729,8 +729,8 @@ double InitSTA::getArrivalEarlyTime(const std::string& pin_name) const
 {
   double arrival_early_time = 0;
 
-//   auto rise_value = STA_INST->getAT(pin_name.c_str(), ista::AnalysisMode::kMin, ista::TransType::kRise);
-//   auto fall_value = STA_INST->getAT(pin_name.c_str(), ista::AnalysisMode::kMin, ista::TransType::kFall);
+//   auto rise_value = STA_INST->getAT(pin_name.c_str(), idb::AnalysisMode::kMin, ista::TransType::kRise);
+//   auto fall_value = STA_INST->getAT(pin_name.c_str(), idb::AnalysisMode::kMin, ista::TransType::kFall);
 
 //   if (rise_value == std::nullopt || fall_value == std::nullopt) {
 //     return DBL_MIN;
@@ -745,8 +745,8 @@ double InitSTA::getArrivalLateTime(const std::string& pin_name) const
 {
   double arrival_late_time = 0;
 
-//   auto rise_value = STA_INST->getAT(pin_name.c_str(), ista::AnalysisMode::kMax, ista::TransType::kRise);
-//   auto fall_value = STA_INST->getAT(pin_name.c_str(), ista::AnalysisMode::kMax, ista::TransType::kFall);
+//   auto rise_value = STA_INST->getAT(pin_name.c_str(), idb::AnalysisMode::kMax, ista::TransType::kRise);
+//   auto fall_value = STA_INST->getAT(pin_name.c_str(), idb::AnalysisMode::kMax, ista::TransType::kFall);
 
 //   if (rise_value == std::nullopt || fall_value == std::nullopt) {
 //     return DBL_MIN;
@@ -761,8 +761,8 @@ double InitSTA::getRequiredEarlyTime(const std::string& pin_name) const
 {
   double required_early_time = 0;
 
-//   auto rise_value = STA_INST->getRT(pin_name.c_str(), ista::AnalysisMode::kMin, ista::TransType::kRise);
-//   auto fall_value = STA_INST->getRT(pin_name.c_str(), ista::AnalysisMode::kMin, ista::TransType::kFall);
+//   auto rise_value = STA_INST->getRT(pin_name.c_str(), idb::AnalysisMode::kMin, ista::TransType::kRise);
+//   auto fall_value = STA_INST->getRT(pin_name.c_str(), idb::AnalysisMode::kMin, ista::TransType::kFall);
 
 //   if (rise_value == std::nullopt || fall_value == std::nullopt) {
 //     return DBL_MAX;
@@ -777,8 +777,8 @@ double InitSTA::getRequiredLateTime(const std::string& pin_name) const
 {
   double required_late_time = 0;
 
-//   auto rise_value = STA_INST->getRT(pin_name.c_str(), ista::AnalysisMode::kMax, ista::TransType::kRise);
-//   auto fall_value = STA_INST->getRT(pin_name.c_str(), ista::AnalysisMode::kMax, ista::TransType::kFall);
+//   auto rise_value = STA_INST->getRT(pin_name.c_str(), idb::AnalysisMode::kMax, ista::TransType::kRise);
+//   auto fall_value = STA_INST->getRT(pin_name.c_str(), idb::AnalysisMode::kMax, ista::TransType::kFall);
 
 //   if (rise_value == std::nullopt || fall_value == std::nullopt) {
 //     return DBL_MAX;
@@ -789,13 +789,13 @@ double InitSTA::getRequiredLateTime(const std::string& pin_name) const
   return required_late_time;
 }
 
-double InitSTA::reportWNS(const char* clock_name, ista::AnalysisMode mode)
+double InitSTA::reportWNS(const char* clock_name, idb::AnalysisMode mode)
 {
 //   return STA_INST->getWNS(clock_name, mode);
 return 0.0;
 }
 
-double InitSTA::reportTNS(const char* clock_name, ista::AnalysisMode mode)
+double InitSTA::reportTNS(const char* clock_name, idb::AnalysisMode mode)
 {
 //   return STA_INST->getTNS(clock_name, mode);
 return 0.0;
@@ -845,7 +845,7 @@ double InitSTA::getNetSlew(const std::string& net_name) const
 //   double driver_slew = 0.0;
 //   auto* driver = rc_net->get_net()->getDriver();
 //   if (driver && driver->isPin()) {
-//     driver_slew = STA_INST->getSlew(driver->getFullName().c_str(), ista::AnalysisMode::kMax, ista::TransType::kRise);
+//     driver_slew = STA_INST->getSlew(driver->getFullName().c_str(), idb::AnalysisMode::kMax, ista::TransType::kRise);
 //   }
 //   // get driver slew for net slew.
 //   auto loads = ista_net->getLoads();
@@ -853,7 +853,7 @@ double InitSTA::getNetSlew(const std::string& net_name) const
 //   double sum_load_slew = 0.0;
 //   for (auto* load : loads) {
 //     std::string load_name = load->getFullName();
-//     sum_load_slew += rc_net->slew(load_name.c_str(), driver_slew, ista::AnalysisMode::kMax, ista::TransType::kRise).value_or(0.0);
+//     sum_load_slew += rc_net->slew(load_name.c_str(), driver_slew, idb::AnalysisMode::kMax, ista::TransType::kRise).value_or(0.0);
 //   }
 //   double net_avg_slew = (sum_load_slew / loads.size()) - driver_slew;
 //   return net_avg_slew;
@@ -871,13 +871,13 @@ std::map<std::string, double> InitSTA::getAllNodesSlew(const std::string& net_na
 //   double driver_slew = 0.0;
 //   auto* driver = rc_net->get_net()->getDriver();
 //   if (driver && driver->isPin()) {
-//     driver_slew = STA_INST->getSlew(driver->getFullName().c_str(), ista::AnalysisMode::kMax, ista::TransType::kRise);
+//     driver_slew = STA_INST->getSlew(driver->getFullName().c_str(), idb::AnalysisMode::kMax, ista::TransType::kRise);
 //   }
 
 //   std::map<std::string, double> all_node_slews;
 
 //   if (rc_net->rct()) {
-//     all_node_slews = rc_net->getAllNodeSlew(driver_slew, ista::AnalysisMode::kMax, ista::TransType::kRise);
+//     all_node_slews = rc_net->getAllNodeSlew(driver_slew, idb::AnalysisMode::kMax, ista::TransType::kRise);
 //   }
 
 //   return all_node_slews;
@@ -1207,13 +1207,13 @@ TimingWireGraph InitSTA::getTimingWireGraph()
 
 //         auto wire_topo = rc_net->getWireTopo(snk_node_name.c_str());
 
-//         auto vertex_slew = the_arc->get_src()->getSlewNs(ista::AnalysisMode::kMax, TransType::kRise);
+//         auto vertex_slew = the_arc->get_src()->getSlewNs(idb::AnalysisMode::kMax, TransType::kRise);
 //         auto max_rise_all_nodes_slew = rc_tree->getAllNodeSlew(vertex_slew.value_or(0.0), AnalysisMode::kMax, TransType::kRise);
-//         vertex_slew = the_arc->get_src()->getSlewNs(ista::AnalysisMode::kMax, TransType::kFall);
+//         vertex_slew = the_arc->get_src()->getSlewNs(idb::AnalysisMode::kMax, TransType::kFall);
 //         auto max_fall_all_nodes_slew = rc_tree->getAllNodeSlew(vertex_slew.value_or(0.0), AnalysisMode::kMax, TransType::kFall);
-//         vertex_slew = the_arc->get_src()->getSlewNs(ista::AnalysisMode::kMin, TransType::kRise);
+//         vertex_slew = the_arc->get_src()->getSlewNs(idb::AnalysisMode::kMin, TransType::kRise);
 //         auto min_rise_all_nodes_slew = rc_tree->getAllNodeSlew(vertex_slew.value_or(0.0), AnalysisMode::kMin, TransType::kRise);
-//         vertex_slew = the_arc->get_src()->getSlewNs(ista::AnalysisMode::kMin, TransType::kFall);
+//         vertex_slew = the_arc->get_src()->getSlewNs(idb::AnalysisMode::kMin, TransType::kFall);
 //         auto min_fall_all_nodes_slew = rc_tree->getAllNodeSlew(vertex_slew.value_or(0.0), AnalysisMode::kMin, TransType::kFall);
 
 //         for (auto* wire_edge : wire_topo | std::views::reverse) {
@@ -1705,7 +1705,7 @@ bool InitSTA::isClockNet(const std::string& net_name) const
 std::map<int, double> InitSTA::patchTimingMap(std::map<int, std::pair<std::pair<int, int>, std::pair<int, int>>>& patch)
 {
 //   std::map<int, double> patch_timing_map;
-//   auto inst_timing_map = STA_INST->get_ista()->displayTimingMap(ista::AnalysisMode::kMax);
+//   auto inst_timing_map = STA_INST->get_ista()->displayTimingMap(idb::AnalysisMode::kMax);
 //   if (inst_timing_map.empty()) {
 //     LOG_ERROR << "No instance timing map found.";
 //     return patch_timing_map;
