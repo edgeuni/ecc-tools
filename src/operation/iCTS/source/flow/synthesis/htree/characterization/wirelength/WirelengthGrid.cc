@@ -43,6 +43,13 @@
 namespace icts::htree {
 namespace {
 
+// Bounds direct characterization on auto-derived grids: pattern enumeration
+// grows as 2^bins per characterized length (slots track the length index), so
+// covering every requested length directly is not affordable for long bins.
+// vga_lcd sweep (task 06-12-char-wirelength-coverage): cap 6/7/8 produce
+// identical QoR while build cost grows ~3x per +1 bin; 6 is the knee.
+constexpr unsigned kDefaultAutoDirectBinsCap = 6U;
+
 auto MakeCoveringLengthIndex(double length_um, double length_step_um) -> unsigned
 {
   return UniformValueLattice(length_step_um, std::numeric_limits<unsigned>::max()).coveringIndex(length_um);
@@ -148,6 +155,7 @@ auto ResolveCharacterizationGridPlan(const Config& config, const std::vector<dou
     char_config.wirelength_unit_um = config.get_wirelength_unit_um();
   }
   char_config.wirelength_iterations = config.get_wirelength_iterations();
+  char_config.auto_direct_bins_cap = config.get_auto_direct_bins_cap();
   return ResolveCharacterizationGridPlan(char_config, requested_lengths_um);
 }
 
@@ -189,7 +197,11 @@ auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const st
 
   plan.wirelength_unit_um = effective_unit_um;
   plan.required_covering_iterations = std::max(1U, static_cast<unsigned>(std::ceil(max_requested_length_um / effective_unit_um)));
-  plan.wirelength_iterations = std::min(plan.configured_wirelength_iterations, plan.required_covering_iterations);
+  // The legacy wirelength_iterations knob pairs with an explicitly configured
+  // unit; on an auto-derived grid it carries no covering intent, so direct
+  // characterization is bounded by auto_direct_bins_cap instead.
+  plan.auto_direct_bins_cap = std::max(1U, config.auto_direct_bins_cap.value_or(kDefaultAutoDirectBinsCap));
+  plan.wirelength_iterations = std::min(plan.required_covering_iterations, plan.auto_direct_bins_cap);
   return plan;
 }
 

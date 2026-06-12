@@ -68,6 +68,10 @@ struct CharBuilderConfig
   std::optional<unsigned> wirelength_iterations = std::nullopt;
   std::optional<std::vector<unsigned>> wirelength_indices = std::nullopt;
   bool allow_auto_wirelength_unit = false;
+  // Direct-char bin cap for auto-derived grids; bounds pattern enumeration at
+  // 2^cap topologies per characterized length. Plan-resolution input only; the
+  // materialized wirelength_iterations/indices carry it into the cache key.
+  std::optional<unsigned> auto_direct_bins_cap = std::nullopt;
   std::optional<double> max_slew_ns = std::nullopt;
   std::optional<double> max_cap_pf = std::nullopt;
   std::optional<double> char_buf_redundancy_pct = std::nullopt;

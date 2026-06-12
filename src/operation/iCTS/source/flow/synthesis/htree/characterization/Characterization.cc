@@ -134,6 +134,8 @@ auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const Cha
     grid_plan_rows.insert(grid_plan_rows.begin() + 1,
                           {"resolved_wirelength_unit", logformat::FormatWithUnit(char_grid_plan.wirelength_unit_um, "um"),
                            "effective unit for the adapted characterization grid"});
+    grid_plan_rows.push_back({"auto_direct_bins_cap", std::to_string(char_grid_plan.auto_direct_bins_cap),
+                              "direct-char bound for the auto-derived grid (2^cap pattern enumeration)"});
   }
   reporter.emitSection("### H-Tree Characterization");
   reporter.emitKeyValueTableTo("HTree Build Scope", MakeContextFields(input.log_context, input.object_name_prefix), ReportSink::kBoth);

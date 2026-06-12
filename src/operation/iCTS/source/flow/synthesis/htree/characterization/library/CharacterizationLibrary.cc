@@ -143,6 +143,7 @@ auto CharacterizationLibrary::buildRuntimeConfig(const Config& config) -> CharBu
     char_config.wirelength_unit_um = config.get_wirelength_unit_um();
   }
   char_config.wirelength_iterations = config.get_wirelength_iterations();
+  char_config.auto_direct_bins_cap = config.get_auto_direct_bins_cap();
   char_config.slew_steps = config.get_slew_steps();
   char_config.cap_steps = config.get_cap_steps();
   char_config.char_buf_redundancy_pct = config.get_char_buf_redundancy_pct();

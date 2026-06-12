@@ -45,7 +45,7 @@
 namespace icts {
 namespace {
 
-constexpr std::array<std::string_view, 20> kSupportedConfigKeys = {
+constexpr std::array<std::string_view, 21> kSupportedConfigKeys = {
     "skew_bound",
     "max_buf_tran",
     "root_input_slew",
@@ -54,6 +54,7 @@ constexpr std::array<std::string_view, 20> kSupportedConfigKeys = {
     "max_length",
     "wirelength_unit_um",
     "wirelength_iterations",
+    "auto_direct_bins_cap",
     "slew_steps",
     "cap_steps",
     "wire_width",
@@ -393,6 +394,9 @@ auto Config::parse(const std::string& json_file) -> bool
   if (!ApplyUnsignedIfPresent(json, "wirelength_iterations", *this, &Config::set_wirelength_iterations, json_file)) {
     return false;
   }
+  if (!ApplyUnsignedIfPresent(json, "auto_direct_bins_cap", *this, &Config::set_auto_direct_bins_cap, json_file)) {
+    return false;
+  }
   if (!ApplyUnsignedIfPresent(json, "slew_steps", *this, &Config::set_slew_steps, json_file)) {
     return false;
   }
@@ -452,6 +456,7 @@ auto Config::buildRuntimeConfigRows() const -> logformat::TableRows
       {"wirelength_unit", has_wirelength_unit ? logformat::FormatWithUnit(get_wirelength_unit_um(), "um") : "unconfigured",
        has_wirelength_unit ? "active characterization lattice unit" : "must be supplied by a caller-owned characterization plan"},
       {"wirelength_iterations", std::to_string(get_wirelength_iterations()), "characterization length bins"},
+      {"auto_direct_bins_cap", std::to_string(get_auto_direct_bins_cap()), "direct-char bin cap when the wirelength grid is auto-derived"},
       {"slew_steps", std::to_string(get_slew_steps()), "characterization slew bins"},
       {"cap_steps", std::to_string(get_cap_steps()), "characterization load-cap bins"},
       {"wire_width", has_wire_width ? logformat::FormatWithUnit(get_wire_width(), "um") : "library_default",

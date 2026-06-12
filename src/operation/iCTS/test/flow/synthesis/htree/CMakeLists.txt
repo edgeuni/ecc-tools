@@ -5,6 +5,7 @@ icts_add_test_executable(
   PUBLIC_RUNTIME
   SOURCES
     ${ICTS_TEST}/flow/synthesis/htree/HTreeTest.cc
+    ${ICTS_TEST}/flow/synthesis/htree/WirelengthGridTest.cc
   LIBS
     icts_test_common_data_pin_factory
 )

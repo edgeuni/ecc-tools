@@ -50,6 +50,7 @@ struct CharacterizationGridPlan
   double wirelength_unit_um = 0.0;
   unsigned wirelength_iterations = 0U;
   unsigned configured_wirelength_iterations = 0U;
+  unsigned auto_direct_bins_cap = 0U;
   unsigned required_covering_iterations = 0U;
   unsigned unique_level_bins = 0U;
   double configured_wirelength_unit_um = 0.0;
