@@ -1399,3 +1399,36 @@ Removed stale iSTA/vectorization link dependencies from active CMake targets, re
 ### Next Steps
 
 - None - task complete
+
+
+## Session 80: CTS commercial alignment cleanup
+
+**Date**: 2026-06-15
+**Task**: CTS commercial alignment cleanup
+**Branch**: `cts_refactor`
+
+### Summary
+
+Aligned CTS timing RC, wirelength grid, H-tree topology, sink split, and adaptive selection; created final diff cleanup task, verified targeted tests and full iCTS ecc_dev check, then archived the cleanup task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6f85baed3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
