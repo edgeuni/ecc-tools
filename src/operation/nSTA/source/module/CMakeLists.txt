@@ -1,6 +1,6 @@
-add_library(nsta_module INTERFACE)
+add_library(ista_module INTERFACE)
 
-target_include_directories(nsta_module
+target_include_directories(ista_module
     INTERFACE
-    ${NSTA_MODULE}
+    ${ISTA_MODULE}
 )

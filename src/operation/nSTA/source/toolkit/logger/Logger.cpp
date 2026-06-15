@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #include "Logger.hpp"
 
-namespace nsta {
+namespace ista {
 
 // public
 
@@ -47,4 +47,4 @@ void Logger::destroyInst()
 
 Logger* Logger::_log_instance = nullptr;
 
-}  // namespace nsta
+}  // namespace ista

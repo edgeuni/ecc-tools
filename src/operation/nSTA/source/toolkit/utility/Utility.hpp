@@ -20,9 +20,9 @@
 #include <sstream>
 #include <string>
 
-namespace nsta {
+namespace ista {
 
-#define STAUTIL (nsta::Utility::getInst())
+#define STAUTIL (ista::Utility::getInst())
 
 class Utility
 {
@@ -72,4 +72,4 @@ class Utility
   }
 };
 
-}  // namespace nsta
+}  // namespace ista

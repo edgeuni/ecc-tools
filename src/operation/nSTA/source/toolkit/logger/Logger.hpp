@@ -31,11 +31,11 @@
 
 #include "LogLevel.hpp"
 
-namespace nsta {
+namespace ista {
 
 using Loc = std::experimental::source_location;
 
-#define STALOG (nsta::Logger::getInst())
+#define STALOG (ista::Logger::getInst())
 
 class Logger
 {
@@ -205,4 +205,4 @@ class Logger
   }
 };
 
-}  // namespace nsta
+}  // namespace ista

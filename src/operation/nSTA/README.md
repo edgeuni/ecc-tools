@@ -1,11 +1,11 @@
-# nSTA
+# iSTA
 
-`nSTA` follows the operation-tool layout used by hand-written `iRT`.
+`iSTA` follows the operation-tool layout used by hand-written `iRT`.
 
 Current skeleton:
 
 ```text
-src/operation/nSTA/
+src/operation/iSTA/
   interface/
   source/
     data_manager/
@@ -17,6 +17,6 @@ src/operation/nSTA/
   test/
 ```
 
-Keep command and external API boundaries in `interface/`. Keep shared nSTA
+Keep command and external API boundaries in `interface/`. Keep shared iSTA
 state in `source/data_manager/`. Add concrete algorithm stages under
 `source/module/<stage>/` only when the stage design is known.

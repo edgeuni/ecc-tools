@@ -1,5 +1,5 @@
 message(STATUS "")
-message(STATUS "############## nSTA: START CMAKE ##############")
+message(STATUS "############## iSTA: START CMAKE ##############")
 
 ############################ cmake flag ############################
 
@@ -7,36 +7,36 @@ set(CMAKE_CXX_STANDARD 20)
 
 ############################ debug interface ############################
 
-# set(DEBUG_NSTA_INTERFACE ON)
+# set(DEBUG_ISTA_INTERFACE ON)
 
 ############################ debug source data_manager ############################
 
-# set(DEBUG_NSTA_DATA_MANAGER ON)
+# set(DEBUG_ISTA_DATA_MANAGER ON)
 
 ############################ debug source module ############################
 
-# Add DEBUG_NSTA_<MODULE> flags here when concrete nSTA modules are introduced.
+# Add DEBUG_ISTA_<MODULE> flags here when concrete iSTA modules are introduced.
 
 ############################ debug source toolkit ############################
 
-# set(DEBUG_NSTA_LOGGER ON)
-# set(DEBUG_NSTA_MONITOR ON)
-# set(DEBUG_NSTA_UTILITY ON)
+# set(DEBUG_ISTA_LOGGER ON)
+# set(DEBUG_ISTA_MONITOR ON)
+# set(DEBUG_ISTA_UTILITY ON)
 
 ############################ setting path ############################
 
-set(HOME_NSTA ${HOME_OPERATION}/nSTA)
+set(HOME_ISTA ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(NSTA_INTERFACE ${HOME_NSTA}/interface)
-set(NSTA_SOURCE ${HOME_NSTA}/source)
-set(NSTA_TEST ${HOME_NSTA}/test)
+set(ISTA_INTERFACE ${HOME_ISTA}/interface)
+set(ISTA_SOURCE ${HOME_ISTA}/source)
+set(ISTA_TEST ${HOME_ISTA}/test)
 
 ############################ cmake subdirectory ############################
 
-add_subdirectory(${NSTA_INTERFACE})
-add_subdirectory(${NSTA_SOURCE})
-add_subdirectory(${NSTA_TEST})
+add_subdirectory(${ISTA_INTERFACE})
+add_subdirectory(${ISTA_SOURCE})
+add_subdirectory(${ISTA_TEST})
 
 ########################################################
 
-message(STATUS "############## nSTA: END CMAKE ##############\n")
+message(STATUS "############## iSTA: END CMAKE ##############\n")

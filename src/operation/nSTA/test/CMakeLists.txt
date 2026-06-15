@@ -1,1 +1,1 @@
-# Add nSTA test subdirectories here when concrete tests are introduced.
+# Add iSTA test subdirectories here when concrete tests are introduced.

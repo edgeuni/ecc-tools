@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #include "STAInterface.hpp"
 
-namespace nsta {
+namespace ista {
 
 // public
 
@@ -38,7 +38,7 @@ void STAInterface::destroyInst()
 
 #if 1  // 外部调用STA的API
 
-#if 1  // nSTA
+#if 1  // iSTA
 
 void STAInterface::initSTA()
 {
@@ -60,4 +60,4 @@ void STAInterface::destroySTA()
 
 STAInterface* STAInterface::_sta_interface_instance = nullptr;
 
-}  // namespace nsta
+}  // namespace ista

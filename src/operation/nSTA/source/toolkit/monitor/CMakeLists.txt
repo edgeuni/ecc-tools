@@ -1,22 +1,22 @@
-if(DEBUG_NSTA_MONITOR)
-    message(STATUS "nSTA: DEBUG_NSTA_MONITOR")
+if(DEBUG_ISTA_MONITOR)
+    message(STATUS "iSTA: DEBUG_ISTA_MONITOR")
     set(CMAKE_BUILD_TYPE "Debug")
 else()
-    message(STATUS "nSTA: RELEASE_NSTA_MONITOR")
+    message(STATUS "iSTA: RELEASE_ISTA_MONITOR")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-add_library(nsta_monitor
-    ${NSTA_TOOLKIT}/monitor/Monitor.cpp
+add_library(ista_monitor
+    ${ISTA_TOOLKIT}/monitor/Monitor.cpp
 )
 
-target_link_libraries(nsta_monitor
+target_link_libraries(ista_monitor
     PUBLIC
-    nsta_logger
-    nsta_utility
+    ista_logger
+    ista_utility
 )
 
-target_include_directories(nsta_monitor
+target_include_directories(ista_monitor
     PUBLIC
-    ${NSTA_TOOLKIT}/monitor
+    ${ISTA_TOOLKIT}/monitor
 )

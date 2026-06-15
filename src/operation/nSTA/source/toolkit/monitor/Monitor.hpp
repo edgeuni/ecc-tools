@@ -18,7 +18,7 @@
 
 #include <string>
 
-namespace nsta {
+namespace ista {
 
 class Monitor
 {
@@ -43,4 +43,4 @@ class Monitor
   double getCurrUsageMemory();
 };
 
-}  // namespace nsta
+}  // namespace ista

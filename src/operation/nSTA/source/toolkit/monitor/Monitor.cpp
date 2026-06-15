@@ -22,7 +22,7 @@
 #include "Logger.hpp"
 #include "Utility.hpp"
 
-namespace nsta {
+namespace ista {
 
 // public
 
@@ -90,4 +90,4 @@ double Monitor::getCurrUsageMemory()
   return static_cast<double>(usage.ru_maxrss) / 1000.0;
 }
 
-}  // namespace nsta
+}  // namespace ista

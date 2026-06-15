@@ -1,21 +1,21 @@
-if(DEBUG_NSTA_INTERFACE)
-    message(STATUS "nSTA: DEBUG_NSTA_INTERFACE")
+if(DEBUG_ISTA_INTERFACE)
+    message(STATUS "iSTA: DEBUG_ISTA_INTERFACE")
     set(CMAKE_BUILD_TYPE "Debug")
 else()
-    message(STATUS "nSTA: RELEASE_NSTA_INTERFACE")
+    message(STATUS "iSTA: RELEASE_ISTA_INTERFACE")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-add_library(nsta_interface
-    ${NSTA_INTERFACE}/STAInterface.cpp
+add_library(ista_interface
+    ${ISTA_INTERFACE}/STAInterface.cpp
 )
 
-target_link_libraries(nsta_interface
+target_link_libraries(ista_interface
     PRIVATE
-    nsta_source
+    ista_source
 )
 
-target_include_directories(nsta_interface
+target_include_directories(ista_interface
     PUBLIC
-    ${NSTA_INTERFACE}
+    ${ISTA_INTERFACE}
 )

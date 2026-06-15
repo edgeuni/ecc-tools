@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #include "Utility.hpp"
 
-namespace nsta {
+namespace ista {
 
 // public
 
@@ -61,4 +61,4 @@ std::string Utility::formatByTwoDecimalPlaces(double value)
 
 Utility* Utility::_util_instance = nullptr;
 
-}  // namespace nsta
+}  // namespace ista

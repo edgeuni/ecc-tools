@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-namespace nsta {
+namespace ista {
 
 enum class LogLevel
 {
@@ -26,4 +26,4 @@ enum class LogLevel
   kError
 };
 
-}  // namespace nsta
+}  // namespace ista

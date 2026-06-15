@@ -16,9 +16,9 @@
 // ***************************************************************************************
 #pragma once
 
-namespace nsta {
+namespace ista {
 
-#define STAI (nsta::STAInterface::getInst())
+#define STAI (ista::STAInterface::getInst())
 
 class STAInterface
 {
@@ -28,7 +28,7 @@ class STAInterface
 
 #if 1  // 外部调用STA的API
 
-#if 1  // nSTA
+#if 1  // iSTA
   void initSTA();
   void runSTA();
   void destroySTA();
@@ -47,4 +47,4 @@ class STAInterface
   STAInterface& operator=(STAInterface&& other) = delete;
 };
 
-}  // namespace nsta
+}  // namespace ista
