@@ -357,6 +357,7 @@ auto TrySolveAnalyticalHTree(const Tree& topology, const std::vector<HTree::Leve
   htree::SinkLoadRegionLegalityContext sink_load_region_legality_context{
       .result_by_signature = {},
       .max_monotone_failed_level = std::numeric_limits<int>::min(),
+      .first_monotone_hard_fail_reason = {},
       .cap_lattice = char_builder.get_cap_lattice(),
       .input = sink_load_region_input,
   };

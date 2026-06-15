@@ -151,7 +151,7 @@ auto ResolveDepthCandidates(unsigned max_depth, const HTree::Config& config) -> 
   }
 
   const unsigned requested_window = config.depth_explore_window;
-  const unsigned resolved_window = std::max(1U, std::min(requested_window, max_depth));
+  const unsigned resolved_window = requested_window == 0U ? max_depth : std::min(requested_window, max_depth);
 
   std::vector<unsigned> candidates;
   candidates.reserve(resolved_window);

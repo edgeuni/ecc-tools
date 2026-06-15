@@ -335,18 +335,9 @@ auto InjectRouteTrees(const Design& design, FastSTA& fast_sta, FastStaClockId cl
   return true;
 }
 
-auto ResolveClockTargetSkewNs(const Config& config, const Clock* clock) -> double
+auto ResolveClockTargetSkewNs(const Config& config) -> double
 {
-  const double skew_bound_ns = std::max(0.0, config.get_skew_bound());
-  const double skew_period_fraction = config.get_skew_period_fraction();
-  if (skew_period_fraction <= 0.0 || clock == nullptr) {
-    return skew_bound_ns;
-  }
-  const double clock_period_ns = clock->get_clock_period_ns();
-  if (clock_period_ns <= 0.0) {
-    return skew_bound_ns;
-  }
-  return std::min(skew_bound_ns, skew_period_fraction * clock_period_ns);
+  return std::max(0.0, config.get_skew_bound());
 }
 
 }  // namespace icts::clock_sizing_optimization

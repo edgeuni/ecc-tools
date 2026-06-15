@@ -139,11 +139,104 @@ auto DetailStageReportOptions() -> StageReportOptions
   return StageReportOptions{.context_sink = ReportSink::kDetail, .summary_sink = ReportSink::kDetail};
 }
 
+auto ResolveRequestedBranchingFactor(const TopologyGenConfig& config) -> std::size_t
+{
+  if (config.branching_factor > 0U) {
+    return std::max<std::size_t>(2U, config.branching_factor);
+  }
+  return TopologyGen::resolveBranchingFactor(config.partition_config.max_leaf_load_count);
+}
+
+struct ChildPartitionFrame
+{
+  std::vector<Pin*> loads;
+  std::size_t first_child = 0U;
+  std::size_t child_count = 0U;
+  std::size_t leaf_need_per_child = 0U;
+};
+
+auto CalcClusterCenter(const std::vector<Pin*>& loads) -> Point<int>
+{
+  if (loads.empty()) {
+    return Point<int>(0, 0);
+  }
+  const auto center = geometry::CalcCenter(loads, [](Pin* pin) -> auto { return pin->get_location(); });
+  return Point<int>(static_cast<int>(std::lround(center.get_x())), static_cast<int>(std::lround(center.get_y())));
+}
+
+auto BuildKWayChildPartitions(const std::vector<Pin*>& loads, std::size_t child_count, std::size_t leaf_need_per_child,
+                              const BiPartitionConfig& config) -> ClusterOutput
+{
+  ClusterOutput output;
+  if (child_count == 0U) {
+    return output;
+  }
+
+  output.clusters.resize(child_count);
+  std::vector<ChildPartitionFrame> stack;
+  stack.push_back(ChildPartitionFrame{
+      .loads = loads,
+      .first_child = 0U,
+      .child_count = child_count,
+      .leaf_need_per_child = leaf_need_per_child,
+  });
+
+  while (!stack.empty()) {
+    auto frame = std::move(stack.back());
+    stack.pop_back();
+    if (frame.child_count <= 1U || frame.loads.size() <= 1U) {
+      output.clusters.at(frame.first_child) = std::move(frame.loads);
+      continue;
+    }
+
+    const std::size_t left_child_count = frame.child_count / 2U;
+    const std::size_t right_child_count = frame.child_count - left_child_count;
+    const std::size_t min_leaf_need = std::max<std::size_t>(1U, std::min(left_child_count, right_child_count) * frame.leaf_need_per_child);
+    const std::size_t max_leaf_need = std::max(left_child_count, right_child_count) * frame.leaf_need_per_child;
+    auto partition_config = config;
+    partition_config.max_cluster_size = ResolveMaxNodeLoadCount(max_leaf_need, config);
+    auto split = Clustering::biPartition(frame.loads, min_leaf_need, partition_config);
+    if (split.clusters.size() < 2U) {
+      output.clusters.at(frame.first_child) = std::move(frame.loads);
+      continue;
+    }
+
+    stack.push_back(ChildPartitionFrame{
+        .loads = std::move(split.clusters.at(1)),
+        .first_child = frame.first_child + left_child_count,
+        .child_count = right_child_count,
+        .leaf_need_per_child = frame.leaf_need_per_child,
+    });
+    stack.push_back(ChildPartitionFrame{
+        .loads = std::move(split.clusters.at(0)),
+        .first_child = frame.first_child,
+        .child_count = left_child_count,
+        .leaf_need_per_child = frame.leaf_need_per_child,
+    });
+  }
+
+  output.centers.reserve(child_count);
+  for (const auto& cluster : output.clusters) {
+    output.centers.push_back(CalcClusterCenter(cluster));
+  }
+  return output;
+}
+
 }  // namespace
 
 auto TopologyGen::build(const std::vector<Pin*>& loads, const Input& input, const Config& config) -> Tree
 {
   return buildWithConfig(loads, input, config);
+}
+
+auto TopologyGen::resolveBranchingFactor(std::size_t max_leaf_load_count) -> std::size_t
+{
+  constexpr std::size_t binary_minimum = 2U;
+  constexpr std::size_t two_dimensional_quadrants = 4U;
+  if (max_leaf_load_count == 0U) {
+    return binary_minimum;
+  }
+  return std::clamp(max_leaf_load_count, binary_minimum, two_dimensional_quadrants);
 }
 
 auto TopologyGen::buildWithConfig(const std::vector<Pin*>& loads, const Input& input, const Config& config) -> Tree
@@ -163,11 +256,20 @@ auto TopologyGen::buildWithConfig(const std::vector<Pin*>& loads, const Input& i
     return tree;
   }
 
-  std::size_t leaf_count = calcLeafCount(loads.size());
-  const unsigned max_depth = calcMaxDepth(loads.size());
+  const std::size_t branching_factor = ResolveRequestedBranchingFactor(config);
+  std::size_t leaf_count = calcLeafCount(loads.size(), branching_factor);
+  const unsigned max_depth = calcMaxDepth(loads.size(), branching_factor);
+  unsigned height = max_depth;
   if (config.target_depth.has_value()) {
-    const unsigned resolved_depth = std::min(*config.target_depth, max_depth);
-    leaf_count = resolved_depth == 0U ? 1U : (std::size_t{1} << resolved_depth);
+    height = std::min(*config.target_depth, max_depth);
+    leaf_count = 1U;
+    for (unsigned level = 0U; level < height; ++level) {
+      if (leaf_count > std::numeric_limits<std::size_t>::max() / branching_factor) {
+        leaf_count = std::numeric_limits<std::size_t>::max();
+        break;
+      }
+      leaf_count *= branching_factor;
+    }
   }
   if (leaf_count == 0) {
     LOG_WARNING << "Topology generation skipped: leaf count is zero.";
@@ -188,16 +290,11 @@ auto TopologyGen::buildWithConfig(const std::vector<Pin*>& loads, const Input& i
   tree.get_node(root)->get_position()
       = input.fixed_root_location.value_or(geometry::CalcMedian(loads, [](Pin* pin) -> auto { return pin->get_location(); }));
 
-  int height = 0;
-  for (std::size_t count = leaf_count; count > 1; count >>= 1) {
-    ++height;
-  }
-
   if (build_stage.has_value()) {
     build_stage->markRunning("Embed coordinates and balance topology");
   }
-  buildFullTree(tree, BuildCursor{.node_id = root, .depth = 0}, height);
-  embedPositions(tree, root, loads, leaf_count, config.partition_config);
+  buildFullTree(tree, BuildCursor{.node_id = root, .depth = 0}, static_cast<int>(height), branching_factor);
+  embedPositions(tree, root, loads, leaf_count, config.partition_config, branching_factor);
   balanceTopology(tree, bounds.min_x, bounds.min_y, bounds.max_x, bounds.max_y, config.partition_config.htree_topology_tolerance);
   reportRootToLeafLengths(reporter, tree, input.dbu_per_um);
   if (reporter != nullptr) {
@@ -206,6 +303,7 @@ auto TopologyGen::buildWithConfig(const std::vector<Pin*>& loads, const Input& i
                           {"nodes", std::to_string(tree.get_size())},
                           {"depth", std::to_string(height)},
                           {"leaf_count", std::to_string(leaf_count)},
+                          {"branching_factor", std::to_string(branching_factor)},
                           {"root_policy", input.fixed_root_location.has_value() ? "fixed" : "median"},
                       });
   }
@@ -214,6 +312,7 @@ auto TopologyGen::buildWithConfig(const std::vector<Pin*>& loads, const Input& i
         {"nodes", std::to_string(tree.get_size())},
         {"depth", std::to_string(height)},
         {"leaf_count", std::to_string(leaf_count)},
+        {"branching_factor", std::to_string(branching_factor)},
         {"clock_name", input.clock_name},
         {"clock_net_name", input.clock_net_name},
         {"sink_domain", input.sink_domain},
@@ -348,29 +447,32 @@ auto TopologyGen::reportRootToLeafLengths(SchemaWriter* reporter, const Tree& tr
                     });
 }
 
-auto TopologyGen::calcMaxDepth(std::size_t load_count) -> unsigned
+auto TopologyGen::calcMaxDepth(std::size_t load_count, std::size_t branching_factor) -> unsigned
 {
   unsigned depth = 0U;
-  for (std::size_t leaf_count = calcLeafCount(load_count); leaf_count > 1U; leaf_count >>= 1U) {
+  branching_factor = std::max<std::size_t>(2U, branching_factor);
+  for (std::size_t leaf_count = calcLeafCount(load_count, branching_factor); leaf_count > 1U; leaf_count /= branching_factor) {
     ++depth;
   }
   return depth;
 }
 
-auto TopologyGen::calcLeafCount(std::size_t load_count) -> std::size_t
+auto TopologyGen::calcLeafCount(std::size_t load_count, std::size_t branching_factor) -> std::size_t
 {
   if (load_count == 0) {
     return 0;
   }
+  branching_factor = std::max<std::size_t>(2U, branching_factor);
   std::size_t leaf_count = 1;
-  while ((leaf_count << 1) <= load_count) {
-    leaf_count <<= 1;
+  while (leaf_count <= load_count / branching_factor) {
+    leaf_count *= branching_factor;
   }
   return leaf_count;
 }
 
-auto TopologyGen::buildFullTree(Tree& tree, const BuildCursor& cursor, int height) -> void
+auto TopologyGen::buildFullTree(Tree& tree, const BuildCursor& cursor, int height, std::size_t branching_factor) -> void
 {
+  branching_factor = std::max<std::size_t>(2U, branching_factor);
   std::vector<BuildCursor> build_stack;
   build_stack.push_back(cursor);
 
@@ -382,15 +484,15 @@ auto TopologyGen::buildFullTree(Tree& tree, const BuildCursor& cursor, int heigh
       continue;
     }
 
-    const auto left = tree.add_child(current.node_id, 0);
-    const auto right = tree.add_child(current.node_id, 1);
-    build_stack.push_back(BuildCursor{.node_id = right, .depth = current.depth + 1});
-    build_stack.push_back(BuildCursor{.node_id = left, .depth = current.depth + 1});
+    for (std::size_t child_index = 0U; child_index < branching_factor; ++child_index) {
+      const auto child = tree.add_child(current.node_id, child_index);
+      build_stack.push_back(BuildCursor{.node_id = child, .depth = current.depth + 1});
+    }
   }
 }
 
 auto TopologyGen::embedPositions(Tree& tree, std::size_t node, const std::vector<Pin*>& loads, std::size_t leaf_need,
-                                 const BiPartitionConfig& config) -> void
+                                 const BiPartitionConfig& config, std::size_t branching_factor) -> void
 {
   struct EmbedFrame
   {
@@ -421,33 +523,43 @@ auto TopologyGen::embedPositions(Tree& tree, std::size_t node, const std::vector
       continue;
     }
 
-    const std::size_t child_leaf_need = frame.node_leaf_need / 2;
-    auto partition_config = config;
-    partition_config.max_cluster_size = ResolveMaxNodeLoadCount(child_leaf_need, config);
-    auto result = Clustering::biPartition(frame.node_loads, child_leaf_need, partition_config);
-    if (result.clusters.size() < 2) {
-      continue;
-    }
-
     const auto& children = node_ptr->get_children();
-    if (children.size() < 2 || children.at(0) == std::numeric_limits<std::size_t>::max()
-        || children.at(1) == std::numeric_limits<std::size_t>::max()) {
+    if (children.empty()) {
+      continue;
+    }
+    const std::size_t child_count = std::min(children.size(), branching_factor);
+    if (child_count == 0U) {
       continue;
     }
 
-    auto* left = tree.get_node(children.at(0));
-    auto* right = tree.get_node(children.at(1));
-    if (left == nullptr || right == nullptr) {
+    const std::size_t child_leaf_need = std::max<std::size_t>(1U, frame.node_leaf_need / child_count);
+    auto result = BuildKWayChildPartitions(frame.node_loads, child_count, child_leaf_need, config);
+    if (result.clusters.empty()) {
       continue;
     }
 
-    if (result.centers.size() >= 2) {
-      left->get_position() = result.centers.at(0);
-      right->get_position() = result.centers.at(1);
+    for (std::size_t child_index = child_count; child_index > 0U; --child_index) {
+      const auto resolved_child_index = child_index - 1U;
+      if (children.at(resolved_child_index) == std::numeric_limits<std::size_t>::max()) {
+        continue;
+      }
+      auto* child = tree.get_node(children.at(resolved_child_index));
+      if (child == nullptr) {
+        continue;
+      }
+      if (resolved_child_index < result.centers.size()) {
+        child->get_position() = result.centers.at(resolved_child_index);
+      }
+      std::vector<Pin*> child_loads;
+      if (resolved_child_index < result.clusters.size()) {
+        child_loads = std::move(result.clusters.at(resolved_child_index));
+      }
+      embed_stack.push_back(EmbedFrame{
+          .node_id = children.at(resolved_child_index),
+          .node_loads = std::move(child_loads),
+          .node_leaf_need = child_leaf_need,
+      });
     }
-
-    embed_stack.push_back(EmbedFrame{.node_id = children.at(1), .node_loads = result.clusters.at(1), .node_leaf_need = child_leaf_need});
-    embed_stack.push_back(EmbedFrame{.node_id = children.at(0), .node_loads = result.clusters.at(0), .node_leaf_need = child_leaf_need});
   }
 }
 

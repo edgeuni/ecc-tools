@@ -120,6 +120,17 @@ class Wrapper
     double configured_max_sink_tran_ns = 0.0;
   };
 
+  struct WireCapacitanceProfile
+  {
+    double area_cap_pf = 0.0;
+    double edge_cap_pf = 0.0;
+    double ground_cap_pf = 0.0;
+    double coupling_cap_pf = 0.0;
+    double timing_coupling_factor = 0.0;
+    double total_cap_pf = 0.0;
+    double timing_effective_cap_pf = 0.0;
+  };
+
   auto queryDbUnit() const -> int32_t;
   auto is_design_ready() const -> bool { return _idb_design != nullptr; }
   auto is_layout_ready() const -> bool { return _idb != nullptr && _idb_layout != nullptr; }
@@ -128,6 +139,10 @@ class Wrapper
   auto queryRequiredWireResistance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const -> double;
   auto queryRequiredWireCapacitance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const
       -> double;
+  auto queryRequiredWireCapacitanceProfile(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const
+      -> WireCapacitanceProfile;
+  auto queryRequiredClockTimingWireCapacitanceProfile(int routing_layer, double length_um,
+                                                      std::optional<double> wire_width_um = std::nullopt) const -> WireCapacitanceProfile;
   auto queryConfiguredClockRouteSegmentRc(const Config& config) const -> ClockRouteSegmentRc;
   auto queryCellOutPinCapLimit(const std::string& cell_master) const -> double;
   auto queryCellOutPinCapTableAxisMax(const std::string& cell_master) const -> double;

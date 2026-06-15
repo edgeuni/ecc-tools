@@ -50,6 +50,7 @@ struct CandidateBuildEvaluation
 {
   unsigned depth = 0U;
   std::size_t leaf_count = 0U;
+  std::size_t topology_branching_factor = 2U;
   BoundaryConstraints boundary_constraints;
   std::vector<HTree::LevelPlan> levels;
   bool success = false;
@@ -63,6 +64,7 @@ struct CandidateBuildEvaluation
   std::vector<HTreeTopologyChar> feasible_frontier_entries;
   std::size_t split_group_count = 0U;
   std::size_t split_extra_buffer_count = 0U;
+  unsigned split_local_depth = 0U;
   std::optional<HTreeTopologyChar> best_char = std::nullopt;
   bool used_boundary_relaxation = false;
   std::optional<double> boundary_relaxation_score = std::nullopt;
@@ -73,15 +75,17 @@ struct CandidateBuildEvaluation
 struct HTreeFanoutPruningConfig
 {
   std::size_t max_fanout = 0U;
+  std::size_t topology_branching_factor = 2U;
   bool allow_boundary_relaxation = false;
-  // Selection picks min power within (1 + margin) x front-min delay; 0 keeps the legacy Pareto median.
-  double selection_delay_margin = 0.0;
 };
 
 struct CandidateCharRef
 {
   std::size_t candidate_index = 0U;
   const HTreeTopologyChar* entry = nullptr;
+  std::size_t split_group_count = 0U;
+  std::size_t split_extra_buffer_count = 0U;
+  unsigned split_local_depth = 0U;
 };
 
 struct CandidateCharRefFilterOutput
@@ -100,11 +104,12 @@ struct CandidateCharRefFilterBuild
   CandidateCharRefFilterSummary summary;
 };
 
-struct GlobalSelectionDetail
+struct GlobalSelectionDecision
 {
-  std::string policy;  // "pareto_median" or "delay_bounded"
+  std::string policy;  // "pareto_median" or adaptive policy detail.
   std::size_t front_size = 0U;
   double front_min_delay_ns = 0.0;
+  std::string adaptive_reason;
 };
 
 auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const SegmentFrontierCatalog& segment_frontier_catalog,
@@ -121,8 +126,11 @@ auto ReduceCandidateBuildEvaluationForGlobalSelection(CandidateBuildEvaluation& 
                                                       SinkLoadRegionLegalityContext& legality_context, bool retain_relaxed_candidates)
     -> void;
 auto BuildPerDepthDelayPowerParetoRefs(const std::vector<CandidateCharRef>& entries) -> std::vector<CandidateCharRef>;
-auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries, double selection_delay_margin = 0.0,
-                           GlobalSelectionDetail* selection_detail = nullptr) -> std::optional<CandidateCharRef>;
+auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries, GlobalSelectionDecision* selection_decision = nullptr)
+    -> std::optional<CandidateCharRef>;
+auto SelectAdaptiveGlobalEntry(const std::vector<CandidateCharRef>& entries, const std::vector<CandidateBuildEvaluation>& evaluations,
+                               const BufferPatternLibrary& segment_pattern_library, GlobalSelectionDecision* selection_decision = nullptr)
+    -> std::optional<CandidateCharRef>;
 auto CalcBoundaryRelaxationScore(const HTreeTopologyChar& entry, const BoundaryConstraints& boundary_constraints, unsigned slew_steps)
     -> double;
 

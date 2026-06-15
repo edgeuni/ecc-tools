@@ -50,7 +50,6 @@
 #include "synthesis/htree/region/SinkLoadRegion.hh"
 #include "synthesis/htree/segment_pruning/SegmentFrontierCatalog.hh"
 #include "synthesis/htree/segment_pruning/SegmentPatternLibrary.hh"
-#include "synthesis/htree/topology_pruning/SelectionPolicy.hh"
 
 namespace icts::htree {
 namespace {
@@ -184,7 +183,7 @@ auto IsRootExposedFanoutLegal(const HTreeTopologyChar& entry, const TopologyPatt
                               const HTreeFanoutPruningConfig& fanout_config) -> bool
 {
   const auto source_load_count = topology_library.getCompositionState(entry.get_pattern_id()).source_exposed_load_count;
-  return IsBinarySourceFanoutLegal(source_load_count, fanout_config.max_fanout);
+  return IsSourceFanoutLegal(source_load_count, fanout_config.max_fanout, fanout_config.topology_branching_factor);
 }
 
 auto FilterRootFanoutLegalHTreeChars(const std::vector<HTreeTopologyChar>& entries, const TopologyPatternLibrary& topology_library,
@@ -228,7 +227,8 @@ auto ComposeHTreeFrontierEntries(const std::vector<HTreeTopologyChar>& upstream,
     return {{}, start_pattern_id};
   }
 
-  TopologyPatternLibraryCombiner combiner(topology_library, start_pattern_id, fanout_config.max_fanout);
+  TopologyPatternLibraryCombiner combiner(topology_library, start_pattern_id, fanout_config.max_fanout,
+                                          fanout_config.topology_branching_factor);
   std::unordered_map<unsigned, std::vector<std::size_t>> downstream_entries_by_key;
   downstream_entries_by_key.reserve(downstream.size());
   for (std::size_t index = 0U; index < downstream.size(); ++index) {
@@ -494,7 +494,7 @@ auto CompactPatternSearchToFrontier(PatternSearchBuild& result, std::vector<HTre
   result.topology_pattern_library = std::move(compact_library);
 }
 
-auto SelectBestHTreeChar(const std::vector<HTreeTopologyChar>& entries, double selection_delay_margin) -> std::optional<HTreeTopologyChar>
+auto SelectBestHTreeChar(const std::vector<HTreeTopologyChar>& entries) -> std::optional<HTreeTopologyChar>
 {
   if (entries.empty()) {
     return std::nullopt;
@@ -510,13 +510,7 @@ auto SelectBestHTreeChar(const std::vector<HTreeTopologyChar>& entries, double s
     return PreferPowerMedianOrder(*lhs, *rhs);
   });
 
-  const auto selected_index = SelectDelayBoundedIndex(
-      pareto_front, selection_delay_margin, [](const HTreeTopologyChar* entry) -> double { return entry->get_delay(); },
-      [](const HTreeTopologyChar* entry) -> double { return entry->get_power(); });
-  if (!selected_index.has_value()) {
-    return std::nullopt;
-  }
-  return *pareto_front.at(*selected_index);
+  return *pareto_front.at((pareto_front.size() - 1U) / 2U);
 }
 
 auto BuildLocalDelayPowerPareto(const std::vector<HTreeTopologyChar>& entries) -> std::vector<HTreeTopologyChar>
@@ -565,6 +559,7 @@ auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const S
   CandidateBuildEvaluation result;
   result.depth = depth;
   result.leaf_count = leaf_count;
+  result.topology_branching_factor = std::max<std::size_t>(1U, fanout_config.topology_branching_factor);
   result.boundary_constraints = boundary_constraints;
   result.levels = levels;
   compensation_pass.beginCandidateBuild();
@@ -611,6 +606,7 @@ auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const S
     result.feasible_frontier_entries = std::move(feasible_sink_load_region_filter.output.entries);
     result.split_group_count = feasible_sink_load_region_filter.summary.max_split_group_count;
     result.split_extra_buffer_count = feasible_sink_load_region_filter.summary.max_split_extra_buffer_count;
+    result.split_local_depth = feasible_sink_load_region_filter.summary.max_split_local_depth;
     if (result.candidate_frontier_entries.empty() && !candidate_sink_load_region_filter.summary.first_failure_reason.empty()) {
       result.failure_reason = candidate_sink_load_region_filter.summary.first_failure_reason;
     }
@@ -637,14 +633,15 @@ auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const S
     result.feasible_frontier_entries = std::move(feasible_sink_load_region_filter.output.entries);
     result.split_group_count = feasible_sink_load_region_filter.summary.max_split_group_count;
     result.split_extra_buffer_count = feasible_sink_load_region_filter.summary.max_split_extra_buffer_count;
+    result.split_local_depth = feasible_sink_load_region_filter.summary.max_split_local_depth;
     if (result.feasible_frontier_entries.empty() && !feasible_sink_load_region_filter.summary.first_failure_reason.empty()) {
       result.failure_reason = feasible_sink_load_region_filter.summary.first_failure_reason;
     }
   }
   if (!result.feasible_frontier_entries.empty()) {
-    result.best_char = SelectBestHTreeChar(result.feasible_frontier_entries, fanout_config.selection_delay_margin);
+    result.best_char = SelectBestHTreeChar(result.feasible_frontier_entries);
   } else if (has_boundary_constraints && fanout_config.allow_boundary_relaxation) {
-    result.best_char = SelectBestHTreeChar(result.candidate_frontier_entries, fanout_config.selection_delay_margin);
+    result.best_char = SelectBestHTreeChar(result.candidate_frontier_entries);
     if (result.best_char.has_value()) {
       result.used_boundary_relaxation = true;
       result.boundary_relaxation_reason = "no_strict_boundary_feasible_solution";

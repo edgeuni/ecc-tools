@@ -108,7 +108,8 @@ auto propagateBufferOutput(FastStaClockContext& context, FastStaNodeId output_no
   }
 
   const auto& liberty_cell = liberty_iter->second;
-  net.driver_dmp = FastStaDmpCeff::calcDriverTiming(liberty_cell, net.parasitic.pi, FastStaTransition::kRise, input_node.timing.slew_ns);
+  net.driver_dmp
+      = FastStaDmpCeff::calcDriverTiming(liberty_cell, net.parasitic.driver_pi, FastStaTransition::kRise, input_node.timing.slew_ns);
   output_node.timing = FastStaTimingPoint{
       .arrival_ns = input_node.timing.arrival_ns + net.driver_dmp.gate_delay_ns,
       .slew_ns = net.driver_dmp.driver_slew_ns > 0.0 ? net.driver_dmp.driver_slew_ns : input_node.timing.slew_ns,

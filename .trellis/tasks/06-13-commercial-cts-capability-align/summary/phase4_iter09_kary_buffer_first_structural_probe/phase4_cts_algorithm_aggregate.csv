@@ -1,0 +1,30 @@
+group,metric,field,unit,count,mean,median,min,max,rmse
+numeric,latency avg delta,latency_avg_delta_ns,ns,23,0.0619565,0.0535,0.0155,0.181,0.0714703
+numeric,skew max delta,skew_max_delta_ns,ns,23,0.0178696,0.016,-0.021,0.053,0.0254806
+numeric,ECC max depth minus Innovus,tree_max_depth_delta,level,23,1.30435,1,1,3,1.41421
+numeric,HTree selected depth minus Innovus max depth,htree_selected_depth_minus_innovus_max_depth,level,23,-1.95652,-2,-4,-1,2.09554
+numeric,ECC report depth minus selected HTree depth,ecc_report_depth_minus_htree_selected_depth,level,23,3.26087,3,2,6,3.38154
+numeric,trunk wire ratio,trunk_wire_length_ratio,x,23,1.64151,1.6277,1.42081,1.86345,1.64543
+numeric,leaf wire ratio,leaf_wire_length_ratio,x,23,0.924568,0.888243,0.773361,1.47853,0.933935
+numeric,clock total cap ratio,clock_total_cap_ratio,x,23,1.06837,1.0613,1.00462,1.19328,1.06937
+numeric,cluster compression ratio,cluster_compression_ratio,loads/cluster,23,3.94872,3.98889,3.57143,4,3.94986
+numeric,cluster count minus minimum legal,cluster_count_minus_min_legal,count,23,0.130435,0,0,1,0.361158
+numeric,cluster leaf mean distance,cluster_leaf_mean_distance,um,23,8.87,8.51,6.43,18.28,9.1786
+numeric,cluster leaf max distance,cluster_leaf_max_distance,um,23,27.1639,25.56,8.56,70.11,30.9604
+numeric,HTree load cap range/mean,htree_load_cap_range_to_mean,x,23,1.01846,0.739583,0,4.17857,1.37464
+numeric,hard fail load count,first_hard_fail_load_count,loads,0,,,,,
+numeric,hard fail over max_fanout^2,first_hard_fail_loads_over_two_level,loads,0,,,,,
+numeric,source segment selected buffer count,source_segment_selected_buffer_count,count,23,0,0,0,0,0
+numeric,selected depth split buffers,selected_depth_row_split_buffers,count,23,147.435,15,0,1238,342.824
+count,hard fail present,missing,cases,23,,,,,
+count,hard fail exceeds max_fanout^2,no_or_missing,cases,23,,,,,
+count,source segment has buffer,false,cases,23,,,,,
+count,global selection policy,adaptive_physical_shape_median,cases,15,,,,,
+count,global selection policy,adaptive_physical_front_midpoint,cases,8,,,,,
+count,global adaptive reason,timing_candidate_adds_physical_depth_or_buffer_count,cases,15,,,,,
+count,global adaptive reason,same_shape_use_delay_midpoint_power,cases,8,,,,,
+correlation,latency delta vs selected HTree depth delta,latency_avg_delta_ns:htree_selected_depth_minus_innovus_max_depth,r/r2,23,0.132582,0.0175779,,,
+correlation,latency delta vs trunk wire ratio,latency_avg_delta_ns:trunk_wire_length_ratio,r/r2,23,-0.00705711,4.98028e-05,,,
+correlation,latency delta vs cluster leaf mean distance,latency_avg_delta_ns:cluster_leaf_mean_distance,r/r2,23,0.120855,0.014606,,,
+correlation,skew delta vs timing stage spread delta,skew_max_delta_ns:timing_clock_stage_spread_delta,r/r2,23,0.680077,0.462505,,,
+correlation,skew delta vs cluster leaf max distance,skew_max_delta_ns:cluster_leaf_max_distance,r/r2,23,0.496991,0.247,,,

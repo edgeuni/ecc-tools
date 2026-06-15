@@ -47,6 +47,12 @@
 namespace icts {
 namespace {
 
+struct PiReductionResult
+{
+  double total_cap_pf = 0.0;
+  FastStaPiModel pi;
+};
+
 auto buildAdjacency(const FastStaNetParasitic& parasitic) -> std::vector<std::vector<std::pair<FastStaRcNodeId, double>>>
 {
   std::vector<std::vector<std::pair<FastStaRcNodeId, double>>> adjacency(parasitic.rc_nodes.size());
@@ -78,12 +84,17 @@ auto manhattanDistanceDbu(const FastStaPoint& lhs, const FastStaPoint& rhs) -> i
   return distance > static_cast<int64_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max() : static_cast<int>(distance);
 }
 
-auto queryWireResistanceOhm(const FastStaClockContext& context, int wire_distance_dbu) -> double
+auto wireLengthUm(const FastStaClockContext& context, int wire_distance_dbu) -> double
 {
   LOG_FATAL_IF(context.dbu_per_um <= 0) << "FastStaParasitics: DBU-per-micron is invalid.";
-  LOG_FATAL_IF(context.routing_layer <= 0) << "FastStaParasitics: routing layer is invalid.";
   const auto dbu_per_um = context.dbu_per_um;
-  const auto wirelength_um = static_cast<double>(std::max(wire_distance_dbu, 0)) / static_cast<double>(dbu_per_um);
+  return static_cast<double>(std::max(wire_distance_dbu, 0)) / static_cast<double>(dbu_per_um);
+}
+
+auto queryWireResistanceOhm(const FastStaClockContext& context, int wire_distance_dbu) -> double
+{
+  LOG_FATAL_IF(context.routing_layer <= 0) << "FastStaParasitics: routing layer is invalid.";
+  const auto wirelength_um = wireLengthUm(context, wire_distance_dbu);
   if (wirelength_um <= 0.0) {
     return 0.0;
   }
@@ -91,17 +102,76 @@ auto queryWireResistanceOhm(const FastStaClockContext& context, int wire_distanc
   return context.wrapper->queryRequiredWireResistance(context.routing_layer, wirelength_um, context.wire_width_um);
 }
 
-auto queryWireCapacitancePf(const FastStaClockContext& context, int wire_distance_dbu) -> double
+auto queryWireCapacitanceProfile(const FastStaClockContext& context, int wire_distance_dbu) -> Wrapper::WireCapacitanceProfile
 {
-  LOG_FATAL_IF(context.dbu_per_um <= 0) << "FastStaParasitics: DBU-per-micron is invalid.";
   LOG_FATAL_IF(context.routing_layer <= 0) << "FastStaParasitics: routing layer is invalid.";
-  const auto dbu_per_um = context.dbu_per_um;
-  const auto wirelength_um = static_cast<double>(std::max(wire_distance_dbu, 0)) / static_cast<double>(dbu_per_um);
+  const auto wirelength_um = wireLengthUm(context, wire_distance_dbu);
   if (wirelength_um <= 0.0) {
-    return 0.0;
+    return {};
   }
   LOG_FATAL_IF(context.wrapper == nullptr) << "FastStaParasitics: Wrapper is unavailable.";
-  return context.wrapper->queryRequiredWireCapacitance(context.routing_layer, wirelength_um, context.wire_width_um);
+  return context.wrapper->queryRequiredClockTimingWireCapacitanceProfile(context.routing_layer, wirelength_um, context.wire_width_um);
+}
+
+auto updateGroundCouplingTotals(FastStaNetParasitic& parasitic) -> void
+{
+  auto ground_cap_pf = 0.0;
+  auto coupling_cap_pf = 0.0;
+  auto weighted_factor_sum = 0.0;
+  for (const auto& edge : parasitic.rc_edges) {
+    const auto edge_ground_cap_pf = std::max(0.0, edge.ground_capacitance_pf);
+    const auto edge_coupling_cap_pf = std::max(0.0, edge.coupling_capacitance_pf);
+    ground_cap_pf += edge_ground_cap_pf;
+    coupling_cap_pf += edge_coupling_cap_pf;
+    weighted_factor_sum += edge_coupling_cap_pf * std::max(0.0, edge.timing_coupling_factor);
+  }
+
+  parasitic.ground_cap_pf = ground_cap_pf;
+  parasitic.coupling_cap_pf = coupling_cap_pf;
+  parasitic.timing_coupling_factor = coupling_cap_pf > 0.0 ? weighted_factor_sum / coupling_cap_pf : 0.0;
+}
+
+auto resetNetParasitic(FastStaNetParasitic& parasitic) -> void
+{
+  parasitic.rc_nodes.clear();
+  parasitic.rc_edges.clear();
+  parasitic.rc_node_id_by_name.clear();
+  parasitic.root_rc_node_id = kInvalidFastStaRcNodeId;
+  parasitic.pi = FastStaPiModel{};
+  parasitic.driver_pi = FastStaPiModel{};
+  parasitic.ground_cap_pf = 0.0;
+  parasitic.coupling_cap_pf = 0.0;
+  parasitic.timing_coupling_factor = 0.0;
+  parasitic.total_cap_pf = 0.0;
+  parasitic.driver_total_cap_pf = 0.0;
+  parasitic.valid = false;
+}
+
+auto appendRcEdgeWithCapacitanceProfile(FastStaClockContext& context, FastStaNetParasitic& parasitic, FastStaRcNodeId from_id,
+                                        FastStaRcNodeId to_id, int distance_dbu) -> void
+{
+  const auto resistance_ohm = queryWireResistanceOhm(context, distance_dbu);
+  const auto capacitance_profile = queryWireCapacitanceProfile(context, distance_dbu);
+  const auto capacitance_pf = capacitance_profile.total_cap_pf;
+  const auto driver_capacitance_pf = capacitance_profile.timing_effective_cap_pf;
+  parasitic.rc_edges.push_back(FastStaRcEdge{
+      .from = from_id,
+      .to = to_id,
+      .resistance_ohm = resistance_ohm,
+      .ground_capacitance_pf = capacitance_profile.ground_cap_pf,
+      .coupling_capacitance_pf = capacitance_profile.coupling_cap_pf,
+      .capacitance_pf = capacitance_pf,
+      .timing_coupling_factor = capacitance_profile.timing_coupling_factor,
+      .driver_capacitance_pf = driver_capacitance_pf,
+  });
+  parasitic.rc_nodes.at(from_id).ground_cap_pf += capacitance_profile.ground_cap_pf / 2.0;
+  parasitic.rc_nodes.at(to_id).ground_cap_pf += capacitance_profile.ground_cap_pf / 2.0;
+  parasitic.rc_nodes.at(from_id).coupling_cap_pf += capacitance_profile.coupling_cap_pf / 2.0;
+  parasitic.rc_nodes.at(to_id).coupling_cap_pf += capacitance_profile.coupling_cap_pf / 2.0;
+  parasitic.rc_nodes.at(from_id).wire_cap_pf += capacitance_pf / 2.0;
+  parasitic.rc_nodes.at(to_id).wire_cap_pf += capacitance_pf / 2.0;
+  parasitic.rc_nodes.at(from_id).driver_wire_cap_pf += driver_capacitance_pf / 2.0;
+  parasitic.rc_nodes.at(to_id).driver_wire_cap_pf += driver_capacitance_pf / 2.0;
 }
 
 auto appendRcNode(FastStaClockContext& context, FastStaNet& net, const FastStaPoint& point) -> FastStaRcNodeId
@@ -138,6 +208,8 @@ auto updateNetLoad(FastStaClockContext& context, FastStaNet& net) -> void
     auto load_cap_pf = 0.0;
     std::unordered_set<FastStaNodeId> rc_terminal_nodes;
     for (auto& rc_node : parasitic.rc_nodes) {
+      rc_node.ground_cap_pf = std::max(0.0, rc_node.ground_cap_pf);
+      rc_node.coupling_cap_pf = std::max(0.0, rc_node.coupling_cap_pf);
       rc_node.wire_cap_pf = std::max(0.0, rc_node.wire_cap_pf);
       rc_node.pin_cap_pf = 0.0;
       if (rc_node.terminal_node_id != kInvalidFastStaNodeId && rc_node.terminal_node_id < context.nodes.size()) {
@@ -145,6 +217,7 @@ auto updateNetLoad(FastStaClockContext& context, FastStaNet& net) -> void
         rc_terminal_nodes.insert(rc_node.terminal_node_id);
       }
       rc_node.cap_pf = rc_node.wire_cap_pf + rc_node.pin_cap_pf;
+      rc_node.driver_cap_pf = std::max(0.0, rc_node.driver_wire_cap_pf) + rc_node.pin_cap_pf;
       load_cap_pf += rc_node.cap_pf;
     }
     for (const auto load_node_id : net.load_node_ids) {
@@ -153,6 +226,7 @@ auto updateNetLoad(FastStaClockContext& context, FastStaNet& net) -> void
       }
     }
     parasitic.total_cap_pf = load_cap_pf;
+    updateGroundCouplingTotals(parasitic);
     net.load_cap_pf = load_cap_pf;
     return;
   }
@@ -196,13 +270,7 @@ auto FastStaParasitics::buildNetParasiticFromSegments(FastStaClockContext& conte
   }
   auto& net = context.nets.at(net_id);
   auto& parasitic = net.parasitic;
-  parasitic.rc_nodes.clear();
-  parasitic.rc_edges.clear();
-  parasitic.rc_node_id_by_name.clear();
-  parasitic.root_rc_node_id = kInvalidFastStaRcNodeId;
-  parasitic.pi = FastStaPiModel{};
-  parasitic.total_cap_pf = 0.0;
-  parasitic.valid = false;
+  resetNetParasitic(parasitic);
 
   if (segments.empty()) {
     return false;
@@ -215,15 +283,7 @@ auto FastStaParasitics::buildNetParasiticFromSegments(FastStaClockContext& conte
       continue;
     }
     const auto distance_dbu = manhattanDistanceDbu(segment.begin, segment.end);
-    const auto resistance_ohm = queryWireResistanceOhm(context, distance_dbu);
-    const auto capacitance_pf = queryWireCapacitancePf(context, distance_dbu);
-    parasitic.rc_edges.push_back(FastStaRcEdge{
-        .from = from_id,
-        .to = to_id,
-        .resistance_ohm = resistance_ohm,
-    });
-    parasitic.rc_nodes.at(from_id).wire_cap_pf += capacitance_pf / 2.0;
-    parasitic.rc_nodes.at(to_id).wire_cap_pf += capacitance_pf / 2.0;
+    appendRcEdgeWithCapacitanceProfile(context, parasitic, from_id, to_id, distance_dbu);
   }
 
   if (parasitic.rc_nodes.empty() || parasitic.rc_edges.empty()) {
@@ -242,6 +302,7 @@ auto FastStaParasitics::buildNetParasiticFromSegments(FastStaClockContext& conte
   if (parasitic.root_rc_node_id == kInvalidFastStaRcNodeId) {
     parasitic.root_rc_node_id = 0U;
   }
+  updateGroundCouplingTotals(parasitic);
   return true;
 }
 
@@ -260,13 +321,7 @@ auto FastStaParasitics::buildNetParasiticFromRouteTree(FastStaClockContext& cont
   }
 
   auto& parasitic = fast_net.parasitic;
-  parasitic.rc_nodes.clear();
-  parasitic.rc_edges.clear();
-  parasitic.rc_node_id_by_name.clear();
-  parasitic.root_rc_node_id = kInvalidFastStaRcNodeId;
-  parasitic.pi = FastStaPiModel{};
-  parasitic.total_cap_pf = 0.0;
-  parasitic.valid = false;
+  resetNetParasitic(parasitic);
 
   std::vector<FastStaRcNodeId> rc_node_by_route_node(route_tree.node_count(), kInvalidFastStaRcNodeId);
   for (const auto& route_node : route_tree.get_nodes()) {
@@ -303,15 +358,7 @@ auto FastStaParasitics::buildNetParasiticFromRouteTree(FastStaClockContext& cont
     }
 
     const auto distance_dbu = routedEdgeDistanceDbu(route_edge);
-    const auto resistance_ohm = queryWireResistanceOhm(context, distance_dbu);
-    const auto capacitance_pf = queryWireCapacitancePf(context, distance_dbu);
-    parasitic.rc_edges.push_back(FastStaRcEdge{
-        .from = from_id,
-        .to = to_id,
-        .resistance_ohm = resistance_ohm,
-    });
-    parasitic.rc_nodes.at(from_id).wire_cap_pf += capacitance_pf / 2.0;
-    parasitic.rc_nodes.at(to_id).wire_cap_pf += capacitance_pf / 2.0;
+    appendRcEdgeWithCapacitanceProfile(context, parasitic, from_id, to_id, distance_dbu);
   }
 
   const auto root_route_node_id = route_tree.get_root();
@@ -319,6 +366,7 @@ auto FastStaParasitics::buildNetParasiticFromRouteTree(FastStaClockContext& cont
     return false;
   }
   parasitic.root_rc_node_id = rc_node_by_route_node.at(root_route_node_id);
+  updateGroundCouplingTotals(parasitic);
   updateNetLoad(context, fast_net);
   return true;
 }
@@ -332,30 +380,39 @@ auto FastStaParasitics::reduceToPiElmore(FastStaClockContext& context, FastStaNe
   auto& parasitic = net.parasitic;
   if (parasitic.pre_reduced_pi_elmore) {
     auto total_cap_pf = 0.0;
+    auto driver_total_cap_pf = 0.0;
     for (auto& rc_node : parasitic.rc_nodes) {
       if (rc_node.terminal_node_id != kInvalidFastStaNodeId && rc_node.terminal_node_id < context.nodes.size()) {
         rc_node.pin_cap_pf = std::max(0.0, context.nodes.at(rc_node.terminal_node_id).input_cap_pf);
       }
       rc_node.cap_pf = std::max(0.0, rc_node.wire_cap_pf + rc_node.pin_cap_pf);
+      rc_node.driver_cap_pf = std::max(0.0, rc_node.driver_wire_cap_pf) + rc_node.pin_cap_pf;
       total_cap_pf += rc_node.cap_pf;
+      driver_total_cap_pf += rc_node.driver_cap_pf;
     }
     parasitic.total_cap_pf = total_cap_pf;
+    parasitic.driver_total_cap_pf = driver_total_cap_pf;
+    parasitic.driver_pi = parasitic.pi;
+    updateGroundCouplingTotals(parasitic);
     net.load_cap_pf = total_cap_pf;
     parasitic.valid = true;
     return true;
   }
   if (parasitic.rc_nodes.empty() || parasitic.root_rc_node_id >= parasitic.rc_nodes.size()) {
+    parasitic.ground_cap_pf = 0.0;
+    parasitic.coupling_cap_pf = 0.0;
+    parasitic.timing_coupling_factor = 0.0;
     parasitic.total_cap_pf = net.load_cap_pf;
     parasitic.pi.near_cap_pf = net.load_cap_pf;
     parasitic.pi.resistance_ohm = 0.0;
     parasitic.pi.far_cap_pf = 0.0;
+    parasitic.driver_total_cap_pf = net.load_cap_pf;
+    parasitic.driver_pi = parasitic.pi;
     parasitic.valid = true;
     return true;
   }
 
   const auto adjacency = buildAdjacency(parasitic);
-  std::unordered_set<FastStaRcNodeId> visited;
-  visited.reserve(parasitic.rc_nodes.size());
 
   struct MomentState
   {
@@ -365,49 +422,69 @@ auto FastStaParasitics::reduceToPiElmore(FastStaClockContext& context, FastStaNe
     double downstream_cap = 0.0;
   };
 
-  std::function<MomentState(FastStaRcNodeId, FastStaRcNodeId)> reduce_moments
-      = [&](FastStaRcNodeId node_id, FastStaRcNodeId parent_id) -> MomentState {
-    visited.insert(node_id);
-    auto& node = parasitic.rc_nodes.at(node_id);
-    MomentState state{
-        .y1 = std::max(0.0, node.cap_pf),
-        .y2 = 0.0,
-        .y3 = 0.0,
-        .downstream_cap = std::max(0.0, node.cap_pf),
+  auto reduce_pi_model = [&](bool use_driver_cap) -> PiReductionResult {
+    std::unordered_set<FastStaRcNodeId> visited;
+    visited.reserve(parasitic.rc_nodes.size());
+    std::function<MomentState(FastStaRcNodeId, FastStaRcNodeId)> reduce_moments
+        = [&](FastStaRcNodeId node_id, FastStaRcNodeId parent_id) -> MomentState {
+      visited.insert(node_id);
+      auto& node = parasitic.rc_nodes.at(node_id);
+      const auto node_cap_pf = std::max(0.0, use_driver_cap ? node.driver_cap_pf : node.cap_pf);
+      MomentState state{
+          .y1 = node_cap_pf,
+          .y2 = 0.0,
+          .y3 = 0.0,
+          .downstream_cap = node_cap_pf,
+      };
+
+      for (const auto& [child_id, resistance_ohm] : adjacency.at(node_id)) {
+        if (child_id == parent_id || visited.contains(child_id)) {
+          continue;
+        }
+        auto child_state = reduce_moments(child_id, node_id);
+        state.y1 += child_state.y1;
+        state.y2 += child_state.y2 - resistance_ohm * child_state.y1 * child_state.y1;
+        state.y3 += child_state.y3 - 2.0 * resistance_ohm * child_state.y1 * child_state.y2
+                    + resistance_ohm * resistance_ohm * child_state.y1 * child_state.y1 * child_state.y1;
+        state.downstream_cap += child_state.downstream_cap;
+      }
+
+      if (use_driver_cap) {
+        node.driver_downstream_cap_pf = state.downstream_cap;
+      } else {
+        node.downstream_cap_pf = state.downstream_cap;
+      }
+      return state;
     };
 
-    for (const auto& [child_id, resistance_ohm] : adjacency.at(node_id)) {
-      if (child_id == parent_id || visited.contains(child_id)) {
-        continue;
-      }
-      auto child_state = reduce_moments(child_id, node_id);
-      state.y1 += child_state.y1;
-      state.y2 += child_state.y2 - resistance_ohm * child_state.y1 * child_state.y1;
-      state.y3 += child_state.y3 - 2.0 * resistance_ohm * child_state.y1 * child_state.y2
-                  + resistance_ohm * resistance_ohm * child_state.y1 * child_state.y1 * child_state.y1;
-      state.downstream_cap += child_state.downstream_cap;
+    const auto root_state = reduce_moments(parasitic.root_rc_node_id, kInvalidFastStaRcNodeId);
+    PiReductionResult result{.total_cap_pf = std::max(0.0, root_state.y1), .pi = {}};
+    if (std::abs(root_state.y2) <= 1e-18 || std::abs(root_state.y3) <= 1e-18) {
+      result.pi.near_cap_pf = result.total_cap_pf;
+      result.pi.far_cap_pf = 0.0;
+      result.pi.resistance_ohm = 0.0;
+      return result;
     }
 
-    node.downstream_cap_pf = state.downstream_cap;
-    return state;
-  };
-
-  const auto root_state = reduce_moments(parasitic.root_rc_node_id, kInvalidFastStaRcNodeId);
-  parasitic.total_cap_pf = std::max(0.0, root_state.y1);
-  if (std::abs(root_state.y2) <= 1e-18 || std::abs(root_state.y3) <= 1e-18) {
-    parasitic.pi.near_cap_pf = parasitic.total_cap_pf;
-    parasitic.pi.far_cap_pf = 0.0;
-    parasitic.pi.resistance_ohm = 0.0;
-  } else {
     const auto c1 = root_state.y2 * root_state.y2 / root_state.y3;
     const auto c2 = root_state.y1 - c1;
     const auto rpi = -root_state.y3 * root_state.y3 / (root_state.y2 * root_state.y2 * root_state.y2);
-    parasitic.pi.near_cap_pf = std::isfinite(c2) ? std::max(0.0, c2) : parasitic.total_cap_pf;
-    parasitic.pi.far_cap_pf = std::isfinite(c1) ? std::max(0.0, c1) : 0.0;
-    parasitic.pi.resistance_ohm = std::isfinite(rpi) ? std::max(0.0, rpi) : 0.0;
-  }
+    result.pi.near_cap_pf = std::isfinite(c2) ? std::max(0.0, c2) : result.total_cap_pf;
+    result.pi.far_cap_pf = std::isfinite(c1) ? std::max(0.0, c1) : 0.0;
+    result.pi.resistance_ohm = std::isfinite(rpi) ? std::max(0.0, rpi) : 0.0;
+    return result;
+  };
 
-  visited.clear();
+  const auto physical_result = reduce_pi_model(false);
+  parasitic.total_cap_pf = physical_result.total_cap_pf;
+  parasitic.pi = physical_result.pi;
+
+  const auto driver_result = reduce_pi_model(true);
+  parasitic.driver_total_cap_pf = driver_result.total_cap_pf;
+  parasitic.driver_pi = driver_result.pi;
+
+  std::unordered_set<FastStaRcNodeId> visited;
+  visited.reserve(parasitic.rc_nodes.size());
   std::function<void(FastStaRcNodeId, FastStaRcNodeId, double)> update_elmore
       = [&](FastStaRcNodeId node_id, FastStaRcNodeId parent_id, double elmore_delay_ns) -> void {
     visited.insert(node_id);
@@ -422,6 +499,7 @@ auto FastStaParasitics::reduceToPiElmore(FastStaClockContext& context, FastStaNe
     }
   };
   update_elmore(parasitic.root_rc_node_id, kInvalidFastStaRcNodeId, 0.0);
+  updateGroundCouplingTotals(parasitic);
   net.load_cap_pf = parasitic.total_cap_pf;
   parasitic.valid = true;
   return true;

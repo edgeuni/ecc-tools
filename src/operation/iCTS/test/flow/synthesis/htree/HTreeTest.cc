@@ -45,6 +45,7 @@
 #include "flow/synthesis/htree/HTreeBuildObservation.hh"
 #include "flow/synthesis/htree/constraint/Constraint.hh"
 #include "flow/synthesis/htree/diagnostic/HTreeDiagnostic.hh"
+#include "flow/synthesis/htree/plan/Plan.hh"
 #include "flow/synthesis/htree/segment_pruning/SegmentPruning.hh"
 #include "flow/synthesis/htree/topology_pruning/TopologyPruning.hh"
 #include "synthesis/htree/segment_pruning/SegmentFrontierCatalog.hh"
@@ -73,6 +74,20 @@ auto MakeTopologyChar(unsigned pattern_id, double delay, double power) -> icts::
 auto MakeSegmentChar(unsigned pattern_id, double delay, double power) -> icts::SegmentChar
 {
   return icts::SegmentChar(icts::CharCore(1U, 1U, 1U, 1U, delay, power, icts::PatternId::segment(pattern_id), 0.0), 1U);
+}
+
+auto MakeBufferedBoundaryState() -> icts::MonotonicBoundaryState
+{
+  return icts::MonotonicBoundaryState{
+      .source = icts::BoundaryBufferState{.has_buffer = true, .strength_rank = 1U},
+      .sink = icts::BoundaryBufferState{.has_buffer = true, .strength_rank = 1U},
+  };
+}
+
+auto AddSingleLevelTopologyPattern(icts::htree::TopologyPatternLibrary& topology_pattern_library, icts::PatternId segment_pattern_id)
+    -> void
+{
+  topology_pattern_library.addSeed(icts::PatternId::topology(0U), segment_pattern_id, icts::PatternCompositionState{});
 }
 
 struct SegmentFrontierTestData
@@ -342,6 +357,138 @@ TEST(HTreeTest, PerDepthParetoCompressionKeepsDepthGroupsIndependent)
   }
   std::ranges::sort(kept_pattern_ids);
   EXPECT_EQ(kept_pattern_ids, (std::vector<unsigned>{1U, 3U}));
+}
+
+TEST(HTreeTest, AutoDepthCandidateResolutionExploresFullRange)
+{
+  const auto depth_candidates = icts::htree::ResolveDepthCandidates(4U, icts::HTree::Config{.depth_explore_window = 0U});
+
+  EXPECT_EQ(depth_candidates, (std::vector<unsigned>{4U, 3U, 2U, 1U}));
+}
+
+TEST(HTreeTest, ExplicitDepthCandidateWindowRemainsBounded)
+{
+  const auto depth_candidates = icts::htree::ResolveDepthCandidates(4U, icts::HTree::Config{.depth_explore_window = 2U});
+
+  EXPECT_EQ(depth_candidates, (std::vector<unsigned>{4U, 3U}));
+}
+
+TEST(HTreeTest, AdaptiveGlobalSelectionChoosesTimingShapeWhenItIsNoMoreComplex)
+{
+  icts::htree::BufferPatternLibrary segment_pattern_library(icts_test::runtime::CurrentRuntime().wrapper);
+  segment_pattern_library.add(icts::BufferingPattern(1U, icts::PatternId::segment(0U), {}, {}, false));
+  segment_pattern_library.add(
+      icts::BufferingPattern(1U, icts::PatternId::segment(1U), {0.5}, {"BUF_X1"}, false, MakeBufferedBoundaryState()));
+
+  std::vector<icts::htree::CandidateBuildEvaluation> evaluations(3);
+  evaluations.at(0).depth = 5U;
+  evaluations.at(1).depth = 4U;
+  evaluations.at(2).depth = 2U;
+  AddSingleLevelTopologyPattern(evaluations.at(0).topology_pattern_library, icts::PatternId::segment(1U));
+  AddSingleLevelTopologyPattern(evaluations.at(1).topology_pattern_library, icts::PatternId::segment(1U));
+  AddSingleLevelTopologyPattern(evaluations.at(2).topology_pattern_library, icts::PatternId::segment(0U));
+
+  std::vector<icts::HTreeTopologyChar> entries;
+  entries.push_back(MakeTopologyChar(0U, 10.0, 1.0));
+  entries.push_back(MakeTopologyChar(0U, 7.0, 2.0));
+  entries.push_back(MakeTopologyChar(0U, 5.0, 3.0));
+
+  const std::vector<icts::htree::CandidateCharRef> refs{
+      icts::htree::CandidateCharRef{.candidate_index = 0U, .entry = &entries.at(0)},
+      icts::htree::CandidateCharRef{.candidate_index = 1U, .entry = &entries.at(1)},
+      icts::htree::CandidateCharRef{.candidate_index = 2U, .entry = &entries.at(2)},
+  };
+  icts::htree::GlobalSelectionDecision detail;
+
+  const auto selected_ref = icts::htree::SelectAdaptiveGlobalEntry(refs, evaluations, segment_pattern_library, &detail);
+
+  if (!selected_ref.has_value()) {
+    FAIL() << "Adaptive global selection returned no candidate.";
+    return;
+  }
+  EXPECT_EQ(selected_ref->candidate_index, 2U);
+  EXPECT_EQ(detail.policy, "adaptive_physical_shape_timing");
+  EXPECT_EQ(detail.adaptive_reason, "timing_candidate_reduces_physical_depth_or_buffer_count");
+  EXPECT_EQ(detail.front_size, 3U);
+  EXPECT_DOUBLE_EQ(detail.front_min_delay_ns, 5.0);
+}
+
+TEST(HTreeTest, AdaptiveGlobalSelectionKeepsMedianWhenTimingShapeAddsComplexity)
+{
+  icts::htree::BufferPatternLibrary segment_pattern_library(icts_test::runtime::CurrentRuntime().wrapper);
+  segment_pattern_library.add(icts::BufferingPattern(1U, icts::PatternId::segment(0U), {}, {}, false));
+  segment_pattern_library.add(
+      icts::BufferingPattern(1U, icts::PatternId::segment(1U), {0.5}, {"BUF_X1"}, false, MakeBufferedBoundaryState()));
+
+  std::vector<icts::htree::CandidateBuildEvaluation> evaluations(3);
+  evaluations.at(0).depth = 1U;
+  evaluations.at(1).depth = 2U;
+  evaluations.at(2).depth = 4U;
+  AddSingleLevelTopologyPattern(evaluations.at(0).topology_pattern_library, icts::PatternId::segment(0U));
+  AddSingleLevelTopologyPattern(evaluations.at(1).topology_pattern_library, icts::PatternId::segment(0U));
+  AddSingleLevelTopologyPattern(evaluations.at(2).topology_pattern_library, icts::PatternId::segment(1U));
+
+  std::vector<icts::HTreeTopologyChar> entries;
+  entries.push_back(MakeTopologyChar(0U, 10.0, 1.0));
+  entries.push_back(MakeTopologyChar(0U, 7.0, 2.0));
+  entries.push_back(MakeTopologyChar(0U, 5.0, 3.0));
+
+  const std::vector<icts::htree::CandidateCharRef> refs{
+      icts::htree::CandidateCharRef{.candidate_index = 0U, .entry = &entries.at(0)},
+      icts::htree::CandidateCharRef{.candidate_index = 1U, .entry = &entries.at(1)},
+      icts::htree::CandidateCharRef{.candidate_index = 2U, .entry = &entries.at(2)},
+  };
+  icts::htree::GlobalSelectionDecision detail;
+
+  const auto selected_ref = icts::htree::SelectAdaptiveGlobalEntry(refs, evaluations, segment_pattern_library, &detail);
+
+  if (!selected_ref.has_value()) {
+    FAIL() << "Adaptive global selection returned no candidate.";
+    return;
+  }
+  EXPECT_EQ(selected_ref->candidate_index, 1U);
+  EXPECT_EQ(detail.policy, "adaptive_physical_shape_median");
+  EXPECT_EQ(detail.adaptive_reason, "timing_candidate_adds_physical_depth_or_buffer_count");
+  EXPECT_EQ(detail.front_size, 3U);
+  EXPECT_DOUBLE_EQ(detail.front_min_delay_ns, 5.0);
+}
+
+TEST(HTreeTest, AdaptiveGlobalSelectionKeepsMedianWhenTimingAddsSplitBuffers)
+{
+  icts::htree::BufferPatternLibrary segment_pattern_library(icts_test::runtime::CurrentRuntime().wrapper);
+  segment_pattern_library.add(icts::BufferingPattern(1U, icts::PatternId::segment(0U), {}, {}, false));
+
+  std::vector<icts::htree::CandidateBuildEvaluation> evaluations(3);
+  evaluations.at(0).depth = 2U;
+  evaluations.at(1).depth = 2U;
+  evaluations.at(2).depth = 2U;
+  AddSingleLevelTopologyPattern(evaluations.at(0).topology_pattern_library, icts::PatternId::segment(0U));
+  AddSingleLevelTopologyPattern(evaluations.at(1).topology_pattern_library, icts::PatternId::segment(0U));
+  AddSingleLevelTopologyPattern(evaluations.at(2).topology_pattern_library, icts::PatternId::segment(0U));
+
+  std::vector<icts::HTreeTopologyChar> entries;
+  entries.push_back(MakeTopologyChar(0U, 10.0, 1.0));
+  entries.push_back(MakeTopologyChar(0U, 7.0, 2.0));
+  entries.push_back(MakeTopologyChar(0U, 5.0, 3.0));
+
+  const std::vector<icts::htree::CandidateCharRef> refs{
+      icts::htree::CandidateCharRef{.candidate_index = 0U, .entry = &entries.at(0), .split_extra_buffer_count = 0U},
+      icts::htree::CandidateCharRef{.candidate_index = 1U, .entry = &entries.at(1), .split_extra_buffer_count = 10U},
+      icts::htree::CandidateCharRef{.candidate_index = 2U, .entry = &entries.at(2), .split_extra_buffer_count = 100U},
+  };
+  icts::htree::GlobalSelectionDecision detail;
+
+  const auto selected_ref = icts::htree::SelectAdaptiveGlobalEntry(refs, evaluations, segment_pattern_library, &detail);
+
+  if (!selected_ref.has_value()) {
+    FAIL() << "Adaptive global selection returned no candidate.";
+    return;
+  }
+  EXPECT_EQ(selected_ref->candidate_index, 1U);
+  EXPECT_EQ(detail.policy, "adaptive_physical_shape_median");
+  EXPECT_EQ(detail.adaptive_reason, "timing_candidate_adds_physical_depth_or_buffer_count");
+  EXPECT_EQ(detail.front_size, 3U);
+  EXPECT_DOUBLE_EQ(detail.front_min_delay_ns, 5.0);
 }
 
 }  // namespace

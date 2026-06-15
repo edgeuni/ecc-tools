@@ -126,24 +126,6 @@ auto buildFastStaEnvironment(const OptimizationInput& input) -> FastStaEnvironme
   };
 }
 
-auto buildTargetSkewDerivation(const Config& config, const Clock& clock, double target_skew_ns) -> std::string
-{
-  const double skew_period_fraction = config.get_skew_period_fraction();
-  if (skew_period_fraction <= 0.0) {
-    return "fallback_skew_bound(fraction disabled)";
-  }
-  const double clock_period_ns = clock.get_clock_period_ns();
-  if (clock_period_ns <= 0.0) {
-    return "fallback_skew_bound(no period)";
-  }
-  const double skew_bound_ns = std::max(0.0, config.get_skew_bound());
-  if (skew_period_fraction * clock_period_ns < skew_bound_ns) {
-    return "period_derived: " + logformat::FormatFixed(skew_period_fraction, 4) + " x " + oi::FormatNs(clock_period_ns) + " = "
-           + oi::FormatNs(target_skew_ns);
-  }
-  return "skew_bound_cap";
-}
-
 }  // namespace
 
 auto Optimization::run(const OptimizationInput& input) -> OptimizationSummary
@@ -202,9 +184,7 @@ auto Optimization::run(const OptimizationInput& input) -> OptimizationSummary
   EmitKeyValueTable(reporter, "CTS Optimization Setup",
                     {{"timing_source", "cts_fast_sta_incremental"},
                      {"skew_bound", oi::FormatNs(config.get_skew_bound())},
-                     {"skew_period_fraction", logformat::FormatFixed(config.get_skew_period_fraction(), 4)},
-                     {"target_skew_rule",
-                      "min(skew_bound, skew_period_fraction x clock_period); fallback skew_bound when period unknown or fraction disabled"},
+                     {"target_skew_rule", "skew_bound"},
                      {"candidate_master_count", std::to_string(master_infos.size())}});
   EmitKeyValueTable(reporter, "CTS Optimization Global Profile",
                     {{"build_route_tree_cache", oi::FormatSeconds(route_tree_cache_runtime_s)},
@@ -216,13 +196,13 @@ auto Optimization::run(const OptimizationInput& input) -> OptimizationSummary
     if (clock == nullptr) {
       continue;
     }
-    const double target_skew_ns = oi::ResolveClockTargetSkewNs(config, clock);
+    const double target_skew_ns = oi::ResolveClockTargetSkewNs(config);
     const double clock_period_ns = clock->get_clock_period_ns();
     EmitKeyValueTable(reporter, "CTS Optimization Clock Target",
                       {{"clock", clock->get_clock_name()},
                        {"clock_period", clock_period_ns > 0.0 ? oi::FormatNs(clock_period_ns) : "unknown"},
                        {"target_skew", oi::FormatNs(target_skew_ns)},
-                       {"derivation", buildTargetSkewDerivation(config, *clock, target_skew_ns)}});
+                       {"derivation", "skew_bound"}});
     const auto clock_start = std::chrono::steady_clock::now();
     oi::ClockSizingRuntimeProfile outer_profile;
     outer_profile.build_route_tree_cache_s = route_tree_cache_runtime_s;

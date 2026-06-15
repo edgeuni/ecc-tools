@@ -65,8 +65,6 @@ class SourceTrunkSegment
   struct Config
   {
     std::optional<double> min_input_slew_ns = std::nullopt;
-    // Selection picks min power within (1 + margin) x front-min delay; 0 keeps the legacy Pareto median.
-    double selection_delay_margin = 0.0;
   };
 
   struct Output

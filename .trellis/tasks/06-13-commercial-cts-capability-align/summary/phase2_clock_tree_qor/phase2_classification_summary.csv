@@ -1,0 +1,11 @@
+group,name,count
+latency_classification,ecc_latency_late,21
+latency_classification,latency_near_innovus,2
+skew_classification,ecc_skew_worse,18
+skew_classification,skew_near_innovus,3
+skew_classification,ecc_skew_better,2
+repair_recommendation,tree_level_candidate_scoring_or_topology_depth_balance,23
+repair_recommendation,source_trunk_buffering_or_sizing,21
+repair_recommendation,rc_drv_aware_selection,20
+repair_recommendation,buffer_distribution_not_count_repair,2
+repair_recommendation,branch_buffering_or_sizing,1

@@ -95,10 +95,18 @@ auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const Cha
     -> CharacterizationSummary
 {
   auto requested_lengths_um = CollectRequestedLevelLengthsUm(topology, dbu_per_um);
-  AppendPositiveLengths(requested_lengths_um, input.additional_characterization_lengths_um);
+  std::vector<double> coverage_lengths_um;
+  AppendPositiveLengths(coverage_lengths_um, input.additional_characterization_lengths_um);
   LOG_FATAL_IF(input.reporter == nullptr) << "HTree characterization requires an explicit reporter.";
   auto& reporter = *input.reporter;
-  const auto char_grid_plan = ResolveCharacterizationGridPlan(base_char_config, requested_lengths_um);
+  const auto char_grid_plan = ResolveCharacterizationGridPlan(base_char_config, requested_lengths_um, coverage_lengths_um);
+  std::vector<unsigned> direct_length_indices;
+  if (char_grid_plan.adapted) {
+    direct_length_indices = ResolveDirectCharacterizationLengthIndices(requested_lengths_um, char_grid_plan);
+    if (config.enable_analytical_solver) {
+      AppendUniqueLengthIndex(direct_length_indices, 1U);
+    }
+  }
   std::string grid_source = ToCharGridSourceName(CharGridSource::kNone);
   if (char_grid_plan.adapted) {
     grid_source = ToCharGridSourceName(char_grid_plan.source);
@@ -115,18 +123,15 @@ auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const Cha
   } else if (char_grid_plan.configured_grid_collapsed) {
     decision_flag_values.emplace_back("collapsed_bins");
   }
-  if (char_grid_plan.adapted && char_grid_plan.wirelength_iterations < char_grid_plan.required_covering_iterations) {
-    decision_flag_values.emplace_back("direct_bins_capped");
-  }
   const std::string decision_flags = decision_flag_values.empty() ? std::string{"none"} : logformat::JoinStrings(decision_flag_values, "+");
   logformat::TableRows grid_plan_rows = {
       {"source", grid_source, char_grid_plan.adapted ? "auto-derived from topology level lengths" : "use runtime-configured grid"},
       {"requested_level_lengths", std::to_string(char_grid_plan.requested_level_lengths),
-       "average parent-child segment length per topology level plus caller-supplied source-to-root lengths"},
+       "average parent-child segment length per topology level"},
       {"required_covering_iterations", std::to_string(char_grid_plan.required_covering_iterations),
-       char_grid_plan.adapted ? "cover all topology level lengths under the resolved CharBuilder unit" : "0 (disabled)"},
-      {"direct_characterization_bins", std::to_string(char_grid_plan.wirelength_iterations),
-       char_grid_plan.adapted ? "direct-char bins after runtime cap" : "0 (disabled)"},
+       char_grid_plan.adapted ? "cover topology level lengths and caller-supplied source-to-root lengths" : "0 (disabled)"},
+      {"direct_characterization_bins", std::to_string(direct_length_indices.size()),
+       char_grid_plan.adapted ? "sparse direct-char bins covering topology level lengths" : "0 (disabled)"},
       {"distinct_level_bins", std::to_string(char_grid_plan.unique_level_bins), "aligned-length bins under resolved setup"},
       {"decision_flags", decision_flags, "auto-derivation/adaptation trigger flags"},
   };
@@ -134,8 +139,6 @@ auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const Cha
     grid_plan_rows.insert(grid_plan_rows.begin() + 1,
                           {"resolved_wirelength_unit", logformat::FormatWithUnit(char_grid_plan.wirelength_unit_um, "um"),
                            "effective unit for the adapted characterization grid"});
-    grid_plan_rows.push_back({"auto_direct_bins_cap", std::to_string(char_grid_plan.auto_direct_bins_cap),
-                              "direct-char bound for the auto-derived grid (2^cap pattern enumeration)"});
   }
   reporter.emitSection("### H-Tree Characterization");
   reporter.emitKeyValueTableTo("HTree Build Scope", MakeContextFields(input.log_context, input.object_name_prefix), ReportSink::kBoth);
@@ -145,10 +148,6 @@ auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const Cha
   if (char_grid_plan.adapted) {
     char_config.wirelength_unit_um = char_grid_plan.wirelength_unit_um;
     char_config.wirelength_iterations = char_grid_plan.wirelength_iterations;
-    auto direct_length_indices = ResolveDirectCharacterizationLengthIndices(requested_lengths_um, char_grid_plan);
-    if (config.enable_analytical_solver) {
-      AppendUniqueLengthIndex(direct_length_indices, 1U);
-    }
     if (!direct_length_indices.empty()) {
       char_config.wirelength_indices = std::move(direct_length_indices);
     }

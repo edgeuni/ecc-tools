@@ -152,6 +152,9 @@ auto buildClusteringConfigFromPolicy(Wrapper& wrapper, const SinkTreeLoadPrepara
     -> ClusterConfig
 {
   auto clustering_config = FastClustering::buildElectricalBaseConfig(policy.max_fanout, policy.max_cap_pf);
+  // Cluster buffers are materialized at the geometric center below, so the
+  // clustering legality/proxy root must use the same physical point.
+  clustering_config.root_policy = ClusterRootPolicy::kCenter;
   clustering_config.clock_route_segment_rc = policy.clock_route_segment_rc;
   clustering_config.sink_pin_cap_pf_by_pin = collectSinkPinCapPfByPin(wrapper, root_loads);
   return clustering_config;

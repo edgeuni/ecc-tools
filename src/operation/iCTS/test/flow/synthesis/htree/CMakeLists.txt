@@ -5,7 +5,6 @@ icts_add_test_executable(
   PUBLIC_RUNTIME
   SOURCES
     ${ICTS_TEST}/flow/synthesis/htree/HTreeTest.cc
-    ${ICTS_TEST}/flow/synthesis/htree/SelectionPolicyTest.cc
     ${ICTS_TEST}/flow/synthesis/htree/SinkLoadRegionSplitTest.cc
     ${ICTS_TEST}/flow/synthesis/htree/WirelengthGridTest.cc
   LIBS

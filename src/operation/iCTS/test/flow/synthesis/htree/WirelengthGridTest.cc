@@ -19,10 +19,9 @@
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-06-12
  * @brief Unit tests for the H-tree characterization grid plan: auto-derived
- *        grids bound direct characterization by auto_direct_bins_cap (not the
- *        legacy wirelength_iterations knob), runtime-configured grids stay
- *        untouched, and direct length indices switch between dense and sparse
- *        coverage (task 06-12-char-wirelength-coverage).
+ *        grids fit requested topology level lengths directly (not the legacy
+ *        wirelength_iterations knob), coverage-only source lengths extend the
+ *        lattice range, and runtime-configured grids stay untouched.
  */
 
 #include <gtest/gtest.h>
@@ -44,7 +43,7 @@ auto makeVgaLikeRequests() -> std::vector<double>
   return {6.0, 8.0, 10.0, 12.0, 20.0, 30.0, 40.0, 60.0, 90.0, 140.0, 144.0, 300.0, 506.74};
 }
 
-TEST(WirelengthGridTest, AutoModeIgnoresLegacyIterationsAndAppliesDefaultCap)
+TEST(WirelengthGridTest, AutoModeIgnoresLegacyIterationsAndCoversRequestedLengths)
 {
   icts::CharBuilder::Config config;
   config.wirelength_iterations = 3U;  // legacy template knob must not cap the auto grid
@@ -54,11 +53,10 @@ TEST(WirelengthGridTest, AutoModeIgnoresLegacyIterationsAndAppliesDefaultCap)
   EXPECT_EQ(plan.source, icts::htree::CharGridSource::kAutoDerived);
   EXPECT_NEAR(plan.wirelength_unit_um, 506.74 / 13.0, (506.74 / 13.0) * kRelTol);
   EXPECT_EQ(plan.required_covering_iterations, 13U);
-  EXPECT_EQ(plan.auto_direct_bins_cap, 6U);
-  EXPECT_EQ(plan.wirelength_iterations, 6U);
+  EXPECT_EQ(plan.wirelength_iterations, 13U);
 }
 
-TEST(WirelengthGridTest, AutoModeCoversFullyBelowCap)
+TEST(WirelengthGridTest, AutoModeCoversRequestedRange)
 {
   icts::CharBuilder::Config config;
   config.wirelength_iterations = 3U;
@@ -68,22 +66,6 @@ TEST(WirelengthGridTest, AutoModeCoversFullyBelowCap)
   ASSERT_TRUE(plan.adapted);
   EXPECT_EQ(plan.required_covering_iterations, 4U);
   EXPECT_EQ(plan.wirelength_iterations, 4U);
-}
-
-TEST(WirelengthGridTest, AutoModeHonorsConfiguredCapAndFloorsAtOne)
-{
-  icts::CharBuilder::Config config;
-  config.auto_direct_bins_cap = 4U;
-  auto plan = icts::htree::ResolveCharacterizationGridPlan(config, makeVgaLikeRequests());
-  ASSERT_TRUE(plan.adapted);
-  EXPECT_EQ(plan.auto_direct_bins_cap, 4U);
-  EXPECT_EQ(plan.wirelength_iterations, 4U);
-
-  config.auto_direct_bins_cap = 0U;  // degenerate config clamps to one direct bin
-  plan = icts::htree::ResolveCharacterizationGridPlan(config, makeVgaLikeRequests());
-  ASSERT_TRUE(plan.adapted);
-  EXPECT_EQ(plan.auto_direct_bins_cap, 1U);
-  EXPECT_EQ(plan.wirelength_iterations, 1U);
 }
 
 TEST(WirelengthGridTest, RuntimeConfiguredGridStaysUntouched)
@@ -100,10 +82,9 @@ TEST(WirelengthGridTest, RuntimeConfiguredGridStaysUntouched)
   // The plan does not override an explicitly configured grid: CharBuilder
   // keeps consuming the runtime unit + iterations directly.
   EXPECT_EQ(plan.wirelength_iterations, 0U);
-  EXPECT_EQ(plan.auto_direct_bins_cap, 0U);
 }
 
-TEST(WirelengthGridTest, CollapsedConfiguredGridAdaptsWithAutoCap)
+TEST(WirelengthGridTest, CollapsedConfiguredGridAdaptsWithAutoDerivedUnit)
 {
   icts::CharBuilder::Config config;
   config.wirelength_unit_um = 1000.0;  // collapses {20,40,60} into a single bin
@@ -117,20 +98,40 @@ TEST(WirelengthGridTest, CollapsedConfiguredGridAdaptsWithAutoCap)
   EXPECT_NEAR(plan.wirelength_unit_um, 20.0, 20.0 * kRelTol);
   EXPECT_EQ(plan.required_covering_iterations, 3U);
   EXPECT_EQ(plan.wirelength_iterations, 3U);
-  EXPECT_EQ(plan.auto_direct_bins_cap, 6U);
 }
 
-TEST(WirelengthGridTest, DenseDirectIndicesWhenRequiredExceedsCap)
+TEST(WirelengthGridTest, SparseDirectIndicesCoverRequestedBins)
 {
   icts::CharBuilder::Config config;
   const auto requests = makeVgaLikeRequests();
   const auto plan = icts::htree::ResolveCharacterizationGridPlan(config, requests);
   ASSERT_TRUE(plan.adapted);
-  ASSERT_EQ(plan.wirelength_iterations, 6U);
+  ASSERT_GT(plan.wirelength_iterations, 0U);
+  ASSERT_EQ(plan.wirelength_iterations, 13U);
 
   const auto indices = icts::htree::ResolveDirectCharacterizationLengthIndices(requests, plan);
-  const std::vector<unsigned> expected_dense = {1U, 2U, 3U, 4U, 5U, 6U};
-  EXPECT_EQ(indices, expected_dense);
+  const std::vector<unsigned> expected_sparse = {1U, 2U, 3U, 4U, 8U, 13U};
+  EXPECT_EQ(indices, expected_sparse);
+}
+
+TEST(WirelengthGridTest, CoverageOnlyLengthsExtendRangeWithoutDirectEnumeration)
+{
+  icts::CharBuilder::Config config;
+  config.wirelength_iterations = 3U;  // legacy template knob must not cap the auto grid
+
+  const std::vector<double> topology_lengths = {221.84, 121.807, 68.392, 35.611, 19.134, 10.783};
+  const std::vector<double> source_lengths = {506.74};
+  const auto plan = icts::htree::ResolveCharacterizationGridPlan(config, topology_lengths, source_lengths);
+  ASSERT_TRUE(plan.adapted);
+  EXPECT_EQ(plan.requested_level_lengths, topology_lengths.size());
+  EXPECT_NEAR(plan.wirelength_unit_um, 221.84 / 6.0, (221.84 / 6.0) * kRelTol);
+  EXPECT_EQ(plan.required_covering_iterations, 14U);
+  EXPECT_EQ(plan.wirelength_iterations, 14U);
+  EXPECT_EQ(plan.unique_level_bins, 4U);
+
+  const auto indices = icts::htree::ResolveDirectCharacterizationLengthIndices(topology_lengths, plan);
+  const std::vector<unsigned> expected_sparse = {1U, 2U, 4U, 6U};
+  EXPECT_EQ(indices, expected_sparse);
 }
 
 TEST(WirelengthGridTest, SparseDirectIndicesWhenFullyCovered)

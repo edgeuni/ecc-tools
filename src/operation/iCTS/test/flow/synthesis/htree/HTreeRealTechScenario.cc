@@ -195,7 +195,7 @@ auto MakeExplicitHTreeConfig(std::optional<bool> force_branch_buffer, std::optio
   return icts::HTree::Config{
       .force_branch_buffer = force_branch_buffer.value_or(runtime.config.is_force_branch_buffer()),
       .min_top_input_slew_ns = min_top_input_slew_ns,
-      .depth_explore_window = std::max(1U, runtime.config.get_htree_depth_explore_window()),
+      .depth_explore_window = 0U,
       .topology_tolerance = runtime.config.get_htree_topology_tolerance(),
       .max_fanout = runtime.config.get_max_fanout(),
       .has_max_cap = runtime.config.has_max_cap(),
@@ -281,8 +281,7 @@ auto AssertDepthCandidateCoverage(const icts::htree::DiagnosticBuild& result) ->
   const auto topology_levels = result.output.topology.levels();
   ASSERT_GT(topology_levels.size(), 1U);
   const auto max_depth = static_cast<unsigned>(topology_levels.size() - 1U);
-  EXPECT_EQ(observation.depth_candidate_count,
-            std::min<std::size_t>(icts_test::runtime::CurrentRuntime().config.get_htree_depth_explore_window(), max_depth));
+  EXPECT_EQ(observation.depth_candidate_count, max_depth);
 
   EXPECT_EQ(observation.selected_depth, result.summary.selected_depth.value_or(0U));
   EXPECT_EQ(observation.selected_depth, observation.selected_level_count);

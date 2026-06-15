@@ -1,7 +1,5 @@
 {
     "skew_bound": "0.08",
-    "skew_period_fraction": "0.006",
-    "selection_delay_margin": "0.07",
     "max_buf_tran": "0.5",
     "root_input_slew": "0.0",
     "max_sink_tran": "0.5",
@@ -9,7 +7,6 @@
     "max_fanout": "32",
     "max_length": "300",
     "wirelength_iterations": "3",
-    "auto_direct_bins_cap": "6",
     "slew_steps": "10",
     "cap_steps": "10",
     "routing_layer": [

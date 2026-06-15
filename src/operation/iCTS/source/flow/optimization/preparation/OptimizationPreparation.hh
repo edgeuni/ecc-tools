@@ -60,6 +60,6 @@ auto CollectClockSizingBuffers(const Design& design, const FastSTA& fast_sta, Fa
                                const std::vector<ClockSizingBufferMaster>& master_infos) -> std::vector<ClockSizingBuffer>;
 auto InjectRouteTrees(const Design& design, FastSTA& fast_sta, FastStaClockId clock_id, const Clock& clock,
                       const ClockSizingRouteTreeCache& route_tree_by_net) -> bool;
-auto ResolveClockTargetSkewNs(const Config& config, const Clock* clock) -> double;
+auto ResolveClockTargetSkewNs(const Config& config) -> double;
 
 }  // namespace icts::clock_sizing_optimization

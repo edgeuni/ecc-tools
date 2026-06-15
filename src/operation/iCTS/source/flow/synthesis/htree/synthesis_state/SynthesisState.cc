@@ -116,6 +116,7 @@ auto AssembleHTreeSynthesisState(const HTree::Input& input, const HTree::Config&
   BiPartitionConfig topology_config;
   topology_config.htree_topology_tolerance = std::max(0.0, config.topology_tolerance);
   topology_config.max_leaf_load_count = config.max_fanout;
+  const auto topology_branching_factor = TopologyGen::resolveBranchingFactor(topology_config.max_leaf_load_count);
   state.result.output.topology = TopologyGen::build(
       loads,
       TopologyGen::Input{
@@ -129,7 +130,7 @@ auto AssembleHTreeSynthesisState(const HTree::Input& input, const HTree::Config&
           .stage = input.log_context.stage,
           .reporter = &reporter,
       },
-      TopologyGen::Config{.partition_config = topology_config});
+      TopologyGen::Config{.partition_config = topology_config, .branching_factor = topology_branching_factor});
   const auto levels = state.result.output.topology.levels();
   if (levels.size() <= 1U) {
     LOG_WARNING << "HTree: topology has no H-tree levels after generation.";
@@ -202,8 +203,8 @@ auto AssembleHTreeSynthesisState(const HTree::Input& input, const HTree::Config&
   };
   state.fanout_pruning_config = HTreeFanoutPruningConfig{
       .max_fanout = config.max_fanout,
+      .topology_branching_factor = topology_branching_factor,
       .allow_boundary_relaxation = config.allow_boundary_relaxation,
-      .selection_delay_margin = config.selection_delay_margin,
   };
   state.sink_load_region_input = SinkLoadRegionLegalityInput{
       .wrapper = input.wrapper,

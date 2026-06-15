@@ -1,0 +1,8 @@
+field,phase1_mean,candidate_mean,candidate_minus_phase1_mean,abs_error_improved_cases,abs_error_worsened_cases
+latency_avg_delta_ns,0.0619565,0.0543913,-0.00756522,13,9
+skew_max_delta_ns,0.0178696,0.0185217,0.000652174,9,10
+trunk_wire_length_ratio,1.64151,1.61869,-0.0228278,13,9
+leaf_wire_length_ratio,0.924568,0.928144,0.00357587,9,13
+clock_total_cap_ratio,1.06837,1.06949,0.00111787,11,10
+buffer_count_delta,37.3913,23.6522,-13.7391,12,8
+htree_selected_depth_minus_innovus_max_depth,-0.0434783,-2.04348,-2.0,0,15

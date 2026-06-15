@@ -45,9 +45,8 @@
 namespace icts {
 namespace {
 
-constexpr std::array<std::string_view, 23> kSupportedConfigKeys = {
+constexpr std::array<std::string_view, 19> kSupportedConfigKeys = {
     "skew_bound",
-    "skew_period_fraction",
     "max_buf_tran",
     "root_input_slew",
     "max_sink_tran",
@@ -55,7 +54,6 @@ constexpr std::array<std::string_view, 23> kSupportedConfigKeys = {
     "max_length",
     "wirelength_unit_um",
     "wirelength_iterations",
-    "auto_direct_bins_cap",
     "slew_steps",
     "cap_steps",
     "wire_width",
@@ -64,16 +62,13 @@ constexpr std::array<std::string_view, 23> kSupportedConfigKeys = {
     "buffer_type",
     "char_buf_redundancy_pct",
     "force_branch_buffer",
-    "htree_depth_explore_window",
     "htree_topology_tolerance",
-    "selection_delay_margin",
     "enable_analytical_htree",
     "enable_sink_clustering",
 };
 
-constexpr std::array<std::string_view, 2> kDeprecatedConfigKeys = {
-    "use_netlist",
-    "net_list",
+constexpr std::array<std::string_view, 6> kDeprecatedConfigKeys = {
+    "use_netlist", "net_list", "skew_period_fraction", "auto_direct_bins_cap", "selection_delay_margin", "htree_depth_explore_window",
 };
 
 template <std::size_t N>
@@ -373,9 +368,6 @@ auto Config::parse(const std::string& json_file) -> bool
   if (!ApplyDoubleIfPresent(json, "skew_bound", *this, &Config::set_skew_bound, json_file)) {
     return false;
   }
-  if (!ApplyDoubleIfPresent(json, "skew_period_fraction", *this, &Config::set_skew_period_fraction, json_file)) {
-    return false;
-  }
   if (!ApplyDoubleIfPresent(json, "max_buf_tran", *this, &Config::set_max_buf_tran, json_file)) {
     return false;
   }
@@ -397,9 +389,6 @@ auto Config::parse(const std::string& json_file) -> bool
     return false;
   }
   if (!ApplyUnsignedIfPresent(json, "wirelength_iterations", *this, &Config::set_wirelength_iterations, json_file)) {
-    return false;
-  }
-  if (!ApplyUnsignedIfPresent(json, "auto_direct_bins_cap", *this, &Config::set_auto_direct_bins_cap, json_file)) {
     return false;
   }
   if (!ApplyUnsignedIfPresent(json, "slew_steps", *this, &Config::set_slew_steps, json_file)) {
@@ -424,13 +413,7 @@ auto Config::parse(const std::string& json_file) -> bool
   if (!ApplyBoolIfPresent(json, "force_branch_buffer", is_force_branch_buffer(), *this, &Config::set_force_branch_buffer, json_file)) {
     return false;
   }
-  if (!ApplyUnsignedIfPresent(json, "htree_depth_explore_window", *this, &Config::set_htree_depth_explore_window, json_file)) {
-    return false;
-  }
   if (!ApplyDoubleIfPresent(json, "htree_topology_tolerance", *this, &Config::set_htree_topology_tolerance, json_file)) {
-    return false;
-  }
-  if (!ApplyDoubleIfPresent(json, "selection_delay_margin", *this, &Config::set_selection_delay_margin, json_file)) {
     return false;
   }
   if (!ApplyBoolIfPresent(json, "enable_analytical_htree", is_enable_analytical_htree(), *this, &Config::set_enable_analytical_htree,
@@ -453,9 +436,6 @@ auto Config::buildRuntimeConfigRows() const -> logformat::TableRows
 
   return {
       {"skew_bound", logformat::FormatWithUnit(get_skew_bound(), "ns"), "clock skew target"},
-      {"skew_period_fraction", logformat::FormatPercent(get_skew_period_fraction()),
-       get_skew_period_fraction() > 0.0 ? "per-clock target = min(skew_bound, fraction x clock period)"
-                                        : "disabled; per-clock target falls back to skew_bound"},
       {"max_buf_tran", has_max_buf_tran() ? logformat::FormatWithUnit(get_max_buf_tran(), "ns") : "auto",
        has_max_buf_tran() ? "explicit runtime config" : "resolve from liberty slew limit/table-axis during characterization"},
       {"root_input_slew", logformat::FormatWithUnit(get_root_input_slew(), "ns"),
@@ -467,7 +447,6 @@ auto Config::buildRuntimeConfigRows() const -> logformat::TableRows
       {"wirelength_unit", has_wirelength_unit ? logformat::FormatWithUnit(get_wirelength_unit_um(), "um") : "unconfigured",
        has_wirelength_unit ? "active characterization lattice unit" : "must be supplied by a caller-owned characterization plan"},
       {"wirelength_iterations", std::to_string(get_wirelength_iterations()), "characterization length bins"},
-      {"auto_direct_bins_cap", std::to_string(get_auto_direct_bins_cap()), "direct-char bin cap when the wirelength grid is auto-derived"},
       {"slew_steps", std::to_string(get_slew_steps()), "characterization slew bins"},
       {"cap_steps", std::to_string(get_cap_steps()), "characterization load-cap bins"},
       {"wire_width", has_wire_width ? logformat::FormatWithUnit(get_wire_width(), "um") : "library_default",
@@ -482,12 +461,8 @@ auto Config::buildRuntimeConfigRows() const -> logformat::TableRows
        get_char_buf_redundancy_pct() > 0.0 ? "near-neighbor max-cap pruning threshold" : "disabled"},
       {"force_branch_buffer", logformat::FormatBool(is_force_branch_buffer()),
        is_force_branch_buffer() ? "require terminal-buffered segment frontiers on every H-tree level" : "disabled"},
-      {"htree_depth_explore_window", std::to_string(get_htree_depth_explore_window()),
-       "flow-level H-tree explores up to this many descending depth candidates from the deepest topology"},
       {"htree_topology_tolerance", logformat::FormatPercent(get_htree_topology_tolerance()),
        "per-level H-tree topology segment length deviation allowed around the baseline"},
-      {"selection_delay_margin", logformat::FormatPercent(get_selection_delay_margin()),
-       "delay-bounded selection: pick min power within (1+margin) x front-min delay; 0 = legacy pareto median"},
       {"enable_analytical_htree", logformat::FormatBool(is_enable_analytical_htree()),
        is_enable_analytical_htree() ? "experimental analytical H-tree candidate selection is enabled"
                                     : "native discrete H-tree search is used"},

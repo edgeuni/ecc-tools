@@ -93,7 +93,6 @@ auto CaptureConfigState() -> ConfigState
   state.buffer_types = icts_test::runtime::CurrentRuntime().config.get_buffer_types();
   state.char_buf_redundancy_pct = icts_test::runtime::CurrentRuntime().config.get_char_buf_redundancy_pct();
   state.force_branch_buffer = icts_test::runtime::CurrentRuntime().config.is_force_branch_buffer();
-  state.htree_depth_explore_window = icts_test::runtime::CurrentRuntime().config.get_htree_depth_explore_window();
   state.enable_sink_clustering = icts_test::runtime::CurrentRuntime().config.is_enable_sink_clustering();
   state.work_dir = icts_test::runtime::CurrentRuntime().config.get_work_dir();
   state.log_file = icts_test::runtime::CurrentRuntime().config.get_log_file();
@@ -125,7 +124,6 @@ auto ApplyConfigState(const ConfigState& state) -> void
   icts_test::runtime::CurrentRuntime().config.set_buffer_types(state.buffer_types);
   icts_test::runtime::CurrentRuntime().config.set_char_buf_redundancy_pct(state.char_buf_redundancy_pct);
   icts_test::runtime::CurrentRuntime().config.set_force_branch_buffer(state.force_branch_buffer);
-  icts_test::runtime::CurrentRuntime().config.set_htree_depth_explore_window(state.htree_depth_explore_window);
   icts_test::runtime::CurrentRuntime().config.set_enable_sink_clustering(state.enable_sink_clustering);
   icts_test::runtime::CurrentRuntime().config.set_work_dir(state.work_dir);
   icts_test::runtime::CurrentRuntime().config.set_log_file(state.log_file);

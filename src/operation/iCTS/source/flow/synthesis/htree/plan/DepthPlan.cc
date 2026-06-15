@@ -75,6 +75,7 @@ auto RecordTopologyDepthCandidateBuild(unsigned depth, bool used_explicit_target
       .feasible_frontier_entry_count = evaluation.feasible_frontier_entries.size(),
       .split_group_count = evaluation.split_group_count,
       .split_extra_buffer_count = evaluation.split_extra_buffer_count,
+      .split_local_depth = evaluation.split_local_depth,
       .used_boundary_relaxation = evaluation.used_boundary_relaxation,
       .selected_power_w = evaluation.best_char.has_value() ? evaluation.best_char->get_power() : 0.0,
       .selected_delay_ns = evaluation.best_char.has_value() ? evaluation.best_char->get_delay() : 0.0,
@@ -89,12 +90,18 @@ auto AppendGlobalCandidateRefs(std::size_t candidate_index, const CandidateBuild
     global_feasible_pool.push_back(CandidateCharRef{
         .candidate_index = candidate_index,
         .entry = &entry,
+        .split_group_count = evaluation.split_group_count,
+        .split_extra_buffer_count = evaluation.split_extra_buffer_count,
+        .split_local_depth = evaluation.split_local_depth,
     });
   }
   for (const auto& entry : evaluation.candidate_frontier_entries) {
     global_candidate_pool.push_back(CandidateCharRef{
         .candidate_index = candidate_index,
         .entry = &entry,
+        .split_group_count = evaluation.split_group_count,
+        .split_extra_buffer_count = evaluation.split_extra_buffer_count,
+        .split_local_depth = evaluation.split_local_depth,
     });
   }
 }
@@ -113,6 +120,7 @@ auto SearchTopologyDepthCandidates(const Tree& topology, const std::vector<HTree
   exploration.output.sink_load_region_legality_context = SinkLoadRegionLegalityContext{
       .result_by_signature = {},
       .max_monotone_failed_level = std::numeric_limits<int>::min(),
+      .first_monotone_hard_fail_reason = {},
       .cap_lattice = cap_lattice,
       .input = sink_load_region_input,
   };

@@ -65,6 +65,7 @@ struct DepthSummary
   std::size_t feasible_frontier_entry_count = 0U;
   std::size_t split_group_count = 0U;
   std::size_t split_extra_buffer_count = 0U;
+  unsigned split_local_depth = 0U;
   bool used_boundary_relaxation = false;
   double selected_power_w = 0.0;
   double selected_delay_ns = 0.0;

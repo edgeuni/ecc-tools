@@ -51,7 +51,6 @@ class Config
   auto reset() -> void
   {
     _skew_bound = 0.04;
-    _skew_period_fraction = 0.006;
     _max_buf_tran = 1.5;
     _root_input_slew = 0.0;
     _max_sink_tran = 1.5;
@@ -64,7 +63,6 @@ class Config
     // Active wirelength lattice controls used by characterization.
     _wirelength_unit_um = 0.0;
     _wirelength_iterations = 3;
-    _auto_direct_bins_cap = 6;
     _routing_layers.clear();
     _buffer_types.clear();
     _slew_steps = 15;
@@ -72,9 +70,7 @@ class Config
     _wire_width = 0.0;
     _char_buf_redundancy_pct = 0.0;
     _force_branch_buffer = false;
-    _htree_depth_explore_window = 4;
     _htree_topology_tolerance = 0.1;
-    _selection_delay_margin = 0.07;
     _enable_analytical_htree = false;
     _enable_sink_clustering = true;
     _work_dir = "./result/cts";
@@ -87,7 +83,6 @@ class Config
 
   // algorithm
   auto get_skew_bound() const -> double { return _skew_bound; }
-  auto get_skew_period_fraction() const -> double { return _skew_period_fraction; }
   auto get_max_buf_tran() const -> double { return _max_buf_tran; }
   auto get_root_input_slew() const -> double { return _root_input_slew; }
   auto get_max_sink_tran() const -> double { return _max_sink_tran; }
@@ -97,7 +92,6 @@ class Config
   auto get_max_length() const -> double { return _max_length; }
   auto get_wirelength_unit_um() const -> double { return _wirelength_unit_um; }
   auto get_wirelength_iterations() const -> unsigned { return _wirelength_iterations; }
-  auto get_auto_direct_bins_cap() const -> unsigned { return _auto_direct_bins_cap; }
   auto get_slew_steps() const -> unsigned { return _slew_steps; }
   auto get_cap_steps() const -> unsigned { return _cap_steps; }
   auto get_wire_width() const -> double { return _wire_width; }
@@ -106,9 +100,7 @@ class Config
   auto get_buffer_types() const -> const std::vector<std::string>& { return _buffer_types; }
   auto get_char_buf_redundancy_pct() const -> double { return _char_buf_redundancy_pct; }
   auto is_force_branch_buffer() const -> bool { return _force_branch_buffer; }
-  auto get_htree_depth_explore_window() const -> unsigned { return _htree_depth_explore_window; }
   auto get_htree_topology_tolerance() const -> double { return _htree_topology_tolerance; }
-  auto get_selection_delay_margin() const -> double { return _selection_delay_margin; }
   auto is_enable_analytical_htree() const -> bool { return _enable_analytical_htree; }
   auto is_enable_sink_clustering() const -> bool { return _enable_sink_clustering; }
 
@@ -123,7 +115,6 @@ class Config
 
   // algorithm
   auto set_skew_bound(double skew_bound) -> void { _skew_bound = skew_bound; }
-  auto set_skew_period_fraction(double skew_period_fraction) -> void { _skew_period_fraction = std::max(0.0, skew_period_fraction); }
   auto set_max_buf_tran(double max_buf_tran) -> void
   {
     _max_buf_tran = max_buf_tran;
@@ -139,7 +130,6 @@ class Config
   auto set_max_length(double max_length) -> void { _max_length = max_length; }
   auto set_wirelength_unit_um(double wirelength_unit_um) -> void { _wirelength_unit_um = wirelength_unit_um; }
   auto set_wirelength_iterations(unsigned wirelength_iterations) -> void { _wirelength_iterations = wirelength_iterations; }
-  auto set_auto_direct_bins_cap(unsigned auto_direct_bins_cap) -> void { _auto_direct_bins_cap = auto_direct_bins_cap; }
   auto set_slew_steps(unsigned steps) -> void { _slew_steps = steps; }
   auto set_cap_steps(unsigned steps) -> void { _cap_steps = steps; }
   auto set_wire_width(double wire_width) -> void { _wire_width = wire_width; }
@@ -148,9 +138,7 @@ class Config
   auto set_buffer_types(const std::vector<std::string>& types) -> void { _buffer_types = types; }
   auto set_char_buf_redundancy_pct(double pct) -> void { _char_buf_redundancy_pct = pct; }
   auto set_force_branch_buffer(bool force_branch_buffer) -> void { _force_branch_buffer = force_branch_buffer; }
-  auto set_htree_depth_explore_window(unsigned window) -> void { _htree_depth_explore_window = std::max(1U, window); }
   auto set_htree_topology_tolerance(double tolerance) -> void { _htree_topology_tolerance = std::max(0.0, tolerance); }
-  auto set_selection_delay_margin(double margin) -> void { _selection_delay_margin = std::max(0.0, margin); }
   auto set_enable_analytical_htree(bool enable_analytical_htree) -> void { _enable_analytical_htree = enable_analytical_htree; }
   auto set_enable_sink_clustering(bool enable_sink_clustering) -> void { _enable_sink_clustering = enable_sink_clustering; }
 
@@ -169,8 +157,6 @@ class Config
  private:
   // algorithm
   double _skew_bound = 0.0;
-  // Per-clock target = min(skew_bound, fraction x clock period); 0 disables period-derived tightening.
-  double _skew_period_fraction = 0.006;
   double _max_buf_tran = 0.0;
   double _root_input_slew = 0.0;
   double _max_sink_tran = 0.0;
@@ -180,7 +166,6 @@ class Config
   double _max_length = 0.0;             // Placeholder knob (not step-based slicing).
   double _wirelength_unit_um = 0.0;     // Active base unit for wirelength lattice.
   unsigned _wirelength_iterations = 3;  // Active iteration count for wirelength lattice.
-  unsigned _auto_direct_bins_cap = 6;   // Direct-char bin cap for the auto-derived grid (2^bins pattern bound).
   unsigned _slew_steps = 15;
   unsigned _cap_steps = 15;
   double _wire_width = 0.0;
@@ -189,10 +174,7 @@ class Config
   std::vector<std::string> _buffer_types;
   double _char_buf_redundancy_pct = 0.0;
   bool _force_branch_buffer = false;
-  unsigned _htree_depth_explore_window = 4;
   double _htree_topology_tolerance = 0.1;
-  // Selection picks min power within (1 + margin) x front-min delay; 0 keeps the legacy Pareto median.
-  double _selection_delay_margin = 0.07;
   bool _enable_analytical_htree = false;
   bool _enable_sink_clustering = true;
 

@@ -1,0 +1,8 @@
+{
+  "id": "06-14-cts-wirelength-unit-distortion",
+  "title": "CTS wirelength unit distortion analysis",
+  "status": "completed",
+  "created_at": "2026-06-14",
+  "scope": "diagnostic",
+  "parent_task": "06-13-commercial-cts-capability-align"
+}

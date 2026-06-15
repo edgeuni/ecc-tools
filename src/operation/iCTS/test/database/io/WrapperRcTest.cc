@@ -26,7 +26,8 @@
 
 #include <gtest/gtest.h>
 
-#include <vector>
+#include <memory>
+#include <optional>
 
 #include "IdbDesign.h"
 #include "IdbLayer.h"
@@ -56,15 +57,15 @@ auto expectedCapacitancePf(double length_um) -> double
   return (kCPerSqDistPf * length_um * kWidthUm) + (kEdgeCapPf * 2.0 * (length_um + kWidthUm));
 }
 
-class WrapperRcTest : public ::testing::Test
+class WrapperRcTestInterface : public ::testing::Test
 {
  protected:
   void SetUp() override
   {
-    _layout = new idb::IdbLayout();
-    auto* layout_units = new idb::IdbUnits();
+    _layout = std::make_unique<idb::IdbLayout>();
+    auto layout_units = std::make_unique<idb::IdbUnits>();
     layout_units->set_microns_dbu(kDbuPerUm);
-    _layout->set_units(layout_units);
+    _layout->set_units(layout_units.release());
 
     auto* layer = dynamic_cast<idb::IdbLayerRouting*>(_layout->get_layers()->set_layer("MET4", "ROUTING"));
     ASSERT_NE(layer, nullptr);
@@ -77,33 +78,23 @@ class WrapperRcTest : public ::testing::Test
     _layout->get_layers()->add_routing_layer(layer);
     ASSERT_EQ(_layout->get_layers()->get_routing_layers_number(), 1);
 
-    _design = new idb::IdbDesign(_layout);
-    auto* design_units = new idb::IdbUnits();
+    _design = std::make_unique<idb::IdbDesign>(_layout.get());
+    auto design_units = std::make_unique<idb::IdbUnits>();
     design_units->set_microns_dbu(kDbuPerUm);
-    _design->set_units(design_units);
+    _design->set_units(design_units.release());
 
-    _wrapper.set_idb_layout(_layout);
-    _wrapper.set_idb_design(_design);
+    _wrapper.set_idb_layout(_layout.get());
+    _wrapper.set_idb_design(_design.get());
   }
 
-  void TearDown() override
-  {
-    // Wrapper holds non-owning pointers; release the fixture-owned iDB objects.
-    // ~IdbDesign frees neither its units nor the layout; ~IdbLayout frees its
-    // own units and the registered layers.
-    if (_design != nullptr) {
-      delete _design->get_units();
-      delete _design;
-    }
-    delete _layout;
-  }
+  void TearDown() override { _layout.reset(); }
 
   icts::Wrapper _wrapper;
-  idb::IdbLayout* _layout = nullptr;
-  idb::IdbDesign* _design = nullptr;
+  std::unique_ptr<idb::IdbLayout> _layout;
+  std::unique_ptr<idb::IdbDesign> _design;
 };
 
-TEST_F(WrapperRcTest, RequiredWireResistanceReturnsOhmsFromLefSheetResistance)
+TEST_F(WrapperRcTestInterface, RequiredWireResistanceReturnsOhmsFromLefSheetResistance)
 {
   const double resistance_one_um = _wrapper.queryRequiredWireResistance(1, 1.0, std::nullopt);
   EXPECT_NEAR(resistance_one_um, kExpectedResistancePerUmOhm, kExpectedResistancePerUmOhm * kRelTol);
@@ -112,13 +103,13 @@ TEST_F(WrapperRcTest, RequiredWireResistanceReturnsOhmsFromLefSheetResistance)
   EXPECT_NEAR(resistance_ten_um, 10.0 * kExpectedResistancePerUmOhm, 10.0 * kExpectedResistancePerUmOhm * kRelTol);
 }
 
-TEST_F(WrapperRcTest, RequiredWireCapacitanceReturnsPlateAndFringePf)
+TEST_F(WrapperRcTestInterface, RequiredWireCapacitanceReturnsPlateAndFringePf)
 {
   const double capacitance_one_um = _wrapper.queryRequiredWireCapacitance(1, 1.0, std::nullopt);
   EXPECT_NEAR(capacitance_one_um, expectedCapacitancePf(1.0), expectedCapacitancePf(1.0) * kRelTol);
 }
 
-TEST_F(WrapperRcTest, ConfiguredClockRouteSegmentRcKeepsOhmScale)
+TEST_F(WrapperRcTestInterface, ConfiguredClockRouteSegmentRcKeepsOhmScale)
 {
   icts::Config config;
   config.set_routing_layers({1U});
@@ -133,7 +124,7 @@ TEST_F(WrapperRcTest, ConfiguredClockRouteSegmentRcKeepsOhmScale)
   EXPECT_GT(segment_rc.resistance_per_um_ohm, 0.1);
 }
 
-TEST_F(WrapperRcTest, ExplicitWireWidthOverridesLayerWidth)
+TEST_F(WrapperRcTestInterface, ExplicitWireWidthOverridesLayerWidth)
 {
   const double doubled_width_um = 2.0 * kWidthUm;
   const double resistance = _wrapper.queryRequiredWireResistance(1, 1.0, doubled_width_um);

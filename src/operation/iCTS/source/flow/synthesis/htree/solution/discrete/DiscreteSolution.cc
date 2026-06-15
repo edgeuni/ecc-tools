@@ -146,26 +146,26 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
   std::vector<htree::CandidateCharRef> per_depth_feasible_pareto_pool;
   std::optional<htree::CandidateCharRef> selected_feasible_ref;
   std::optional<htree::CandidateCharRef> selected_relaxed_ref;
-  htree::GlobalSelectionDetail feasible_selection_detail;
-  htree::GlobalSelectionDetail relaxed_selection_detail;
+  htree::GlobalSelectionDecision feasible_selection_decision;
+  htree::GlobalSelectionDecision relaxed_selection_decision;
   {
     auto selection_stage
         = reporter.beginStage("HTree", "Select global topology",
                               {
                                   {"covered_feasible_refs", std::to_string(covered_global_feasible_pool.output.entries.size())},
                                   {"covered_candidate_refs", std::to_string(covered_global_candidate_pool.output.entries.size())},
-                                  {"selection_delay_margin", std::to_string(config.selection_delay_margin)},
+                                  {"selection_policy", "adaptive_timing_first"},
                               },
                               htree::DetailStageReportOptions());
     per_depth_feasible_pareto_pool = htree::BuildPerDepthDelayPowerParetoRefs(covered_global_feasible_pool.output.entries);
-    selected_feasible_ref
-        = htree::SelectBestGlobalEntry(per_depth_feasible_pareto_pool, config.selection_delay_margin, &feasible_selection_detail);
+    selected_feasible_ref = htree::SelectAdaptiveGlobalEntry(per_depth_feasible_pareto_pool, exploration.output.candidate_evaluations,
+                                                             segment_pattern_library, &feasible_selection_decision);
     std::size_t per_depth_candidate_pareto_count = 0U;
     if (!selected_feasible_ref.has_value() && config.allow_boundary_relaxation) {
       const auto per_depth_candidate_pareto_pool = htree::BuildPerDepthDelayPowerParetoRefs(covered_global_candidate_pool.output.entries);
       per_depth_candidate_pareto_count = per_depth_candidate_pareto_pool.size();
-      selected_relaxed_ref
-          = htree::SelectBestGlobalEntry(per_depth_candidate_pareto_pool, config.selection_delay_margin, &relaxed_selection_detail);
+      selected_relaxed_ref = htree::SelectAdaptiveGlobalEntry(per_depth_candidate_pareto_pool, exploration.output.candidate_evaluations,
+                                                              segment_pattern_library, &relaxed_selection_decision);
     }
     std::string selected_from = "none";
     if (selected_feasible_ref.has_value()) {
@@ -200,8 +200,11 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
   selected_summary.selected = true;
   selected_summary.selected_power_w = selected_ref->entry->get_power();
   selected_summary.selected_delay_ns = selected_ref->entry->get_delay();
+  selected_summary.split_group_count = selected_ref->split_group_count;
+  selected_summary.split_extra_buffer_count = selected_ref->split_extra_buffer_count;
+  selected_summary.split_local_depth = selected_ref->split_local_depth;
   {
-    const auto& global_selection_detail = selected_feasible_ref.has_value() ? feasible_selection_detail : relaxed_selection_detail;
+    const auto& global_selection_decision = selected_feasible_ref.has_value() ? feasible_selection_decision : relaxed_selection_decision;
     std::size_t selected_buffered_levels = 0U;
     const auto selected_topology_pattern = selected_evaluation.topology_pattern_library.materialize(selected_ref->entry->get_pattern_id());
     for (const auto segment_pattern_id : selected_topology_pattern.get_level_segment_pattern_ids()) {
@@ -213,13 +216,15 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
     }
     reporter.emitKeyValueTableTo("HTree Global Selection",
                                  {
-                                     {"policy", global_selection_detail.policy},
-                                     {"selection_delay_margin", std::to_string(config.selection_delay_margin)},
-                                     {"front_size", std::to_string(global_selection_detail.front_size)},
-                                     {"front_min_delay_ns", std::to_string(global_selection_detail.front_min_delay_ns)},
+                                     {"policy", global_selection_decision.policy},
+                                     {"adaptive_reason", global_selection_decision.adaptive_reason},
+                                     {"front_size", std::to_string(global_selection_decision.front_size)},
+                                     {"front_min_delay_ns", std::to_string(global_selection_decision.front_min_delay_ns)},
                                      {"selected_delay_ns", std::to_string(selected_ref->entry->get_delay())},
                                      {"selected_power_w", std::to_string(selected_ref->entry->get_power())},
                                      {"selected_buffered_levels", std::to_string(selected_buffered_levels)},
+                                     {"selected_split_extra_buffer_count", std::to_string(selected_ref->split_extra_buffer_count)},
+                                     {"selected_split_local_depth", std::to_string(selected_ref->split_local_depth)},
                                      {"selected_depth", std::to_string(selected_evaluation.depth)},
                                  },
                                  ReportSink::kDefault);

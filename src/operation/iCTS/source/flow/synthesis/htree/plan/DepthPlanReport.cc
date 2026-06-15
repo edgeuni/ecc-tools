@@ -63,6 +63,7 @@ auto EmitDepthCandidateSummary(SchemaWriter& reporter, const std::vector<DepthSu
         std::to_string(summary.candidate_frontier_entry_count),
         std::to_string(summary.split_group_count),
         std::to_string(summary.split_extra_buffer_count),
+        std::to_string(summary.split_local_depth),
         summary.used_boundary_relaxation ? "true" : "false",
         summary.selected_delay_ns > 0.0 ? logformat::FormatWithUnit(summary.selected_delay_ns, "ns") : "n/a",
         summary.selected_power_w > 0.0 ? logformat::FormatPowerW(summary.selected_power_w) : "n/a",
@@ -72,7 +73,7 @@ auto EmitDepthCandidateSummary(SchemaWriter& reporter, const std::vector<DepthSu
 
   reporter.emitTableTo("HTree Depth Candidate Summary",
                        {"Depth", "Leaves", "Status", "Final Frontier", "Feasible Entries", "Candidate Entries", "Split Groups",
-                        "Split Buffers", "Boundary Relaxation", "Best Delay", "Best Power", "Failure"},
+                        "Split Buffers", "Split Local Depth", "Boundary Relaxation", "Best Delay", "Best Power", "Failure"},
                        rows, ReportSink::kBoth);
   if (!first_monotone_hard_fail_reason.empty()) {
     reporter.emitKeyValueTableTo("HTree Depth Monotone Pruning Origin", {{"first_monotone_hard_fail", first_monotone_hard_fail_reason}},

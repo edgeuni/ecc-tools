@@ -43,6 +43,8 @@ auto ResolveCharacterizationGridPlan(const Config& config, const Tree& topology,
 auto ResolveCharacterizationGridPlan(const Config& config, const std::vector<double>& requested_lengths_um) -> CharacterizationGridPlan;
 auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& requested_lengths_um)
     -> CharacterizationGridPlan;
+auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& direct_lengths_um,
+                                     const std::vector<double>& coverage_lengths_um) -> CharacterizationGridPlan;
 auto ResolveDirectCharacterizationLengthIndices(const Tree& topology, const CharacterizationGridPlan& char_grid_plan, int32_t dbu_per_um)
     -> std::vector<unsigned>;
 auto ResolveDirectCharacterizationLengthIndices(const std::vector<double>& requested_lengths_um,

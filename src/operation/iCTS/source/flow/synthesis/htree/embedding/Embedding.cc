@@ -341,10 +341,80 @@ auto PruneLeafSingleLoadBuffers(HTree::Build& result) -> std::size_t
   return pruned_count;
 }
 
-// Realizes the single-stage split remediation for an over-fanout terminal load
-// group: one sub-buffer per subgroup at its centroid, so the upstream net only
-// drives the sub-buffer input pins. Mirrors the legality-side
-// SplitSinkLoadRegionGroup decision (same deterministic rule and inputs).
+auto MaterializeSplitNode(EmbeddingState& context, const SinkLoadRegionSplitNode& node, int topology_level) -> Pin*
+{
+  const auto* ports = context.port_table->get(context.split_buffer_master);
+  LOG_FATAL_IF(ports == nullptr) << "HTree: unresolved ports for split buffer master " << context.split_buffer_master;
+
+  std::unordered_map<const SinkLoadRegionSplitNode*, std::pair<Pin*, Pin*>> node_buffers;
+  std::vector<const SinkLoadRegionSplitNode*> pending_nodes = {&node};
+  while (!pending_nodes.empty()) {
+    const auto* current_node = pending_nodes.back();
+    pending_nodes.pop_back();
+    LOG_FATAL_IF(current_node == nullptr) << "HTree: null split node during materialization.";
+
+    auto created_buffer = CreateBufferInstance(*context.result, context.nextSplitBufferName(), context.split_buffer_master,
+                                               current_node->center, ports->first, ports->second);
+    RecordInsertedInstLevel(*context.result, created_buffer.first == nullptr ? nullptr : created_buffer.first->get_inst(), topology_level,
+                            context.split_sub_buffer_count);
+    ++context.split_sub_buffer_count;
+    node_buffers.emplace(current_node, created_buffer);
+
+    for (std::size_t reverse_index = current_node->children.size(); reverse_index > 0U; --reverse_index) {
+      pending_nodes.push_back(&current_node->children.at(reverse_index - 1U));
+    }
+  }
+
+  struct PendingPostOrderNode
+  {
+    const SinkLoadRegionSplitNode* node = nullptr;
+    bool children_visited = false;
+  };
+
+  std::vector<const SinkLoadRegionSplitNode*> post_order_nodes;
+  pending_nodes.clear();
+  std::vector<PendingPostOrderNode> post_order_stack = {PendingPostOrderNode{.node = &node, .children_visited = false}};
+  while (!post_order_stack.empty()) {
+    const auto pending = post_order_stack.back();
+    post_order_stack.pop_back();
+    LOG_FATAL_IF(pending.node == nullptr) << "HTree: null split node during post-order materialization.";
+    if (pending.children_visited) {
+      post_order_nodes.push_back(pending.node);
+      continue;
+    }
+    post_order_stack.push_back(PendingPostOrderNode{.node = pending.node, .children_visited = true});
+    for (std::size_t reverse_index = pending.node->children.size(); reverse_index > 0U; --reverse_index) {
+      post_order_stack.push_back(PendingPostOrderNode{.node = &pending.node->children.at(reverse_index - 1U), .children_visited = false});
+    }
+  }
+
+  for (const auto* current_node : post_order_nodes) {
+    const auto buffer_it = node_buffers.find(current_node);
+    LOG_FATAL_IF(buffer_it == node_buffers.end()) << "HTree: split node buffer was not materialized.";
+    if (current_node->children.empty()) {
+      CreateNet(*context.result, context.nextNetName(), buffer_it->second.second, current_node->loads, topology_level);
+      continue;
+    }
+
+    std::vector<Pin*> child_inputs;
+    child_inputs.reserve(current_node->children.size());
+    for (const auto& child : current_node->children) {
+      const auto child_buffer_it = node_buffers.find(&child);
+      LOG_FATAL_IF(child_buffer_it == node_buffers.end()) << "HTree: split child buffer was not materialized.";
+      child_inputs.push_back(child_buffer_it->second.first);
+    }
+    CreateNet(*context.result, context.nextNetName(), buffer_it->second.second, child_inputs, topology_level);
+  }
+
+  const auto root_buffer_it = node_buffers.find(&node);
+  LOG_FATAL_IF(root_buffer_it == node_buffers.end()) << "HTree: root split buffer was not materialized.";
+  return root_buffer_it->second.first;
+}
+
+// Realizes local split remediation for an over-fanout terminal load group. The
+// returned pins are the first-level split-buffer inputs driven by the upstream
+// H-tree segment; each split buffer materializes its own legal local branch
+// when needed.
 auto MaterializeSplitSubBuffers(EmbeddingState& context, const std::vector<Pin*>& terminal_loads, int topology_level) -> std::vector<Pin*>
 {
   if (context.max_fanout == 0U || terminal_loads.size() <= context.max_fanout || context.split_buffer_master.empty()) {
@@ -358,19 +428,10 @@ auto MaterializeSplitSubBuffers(EmbeddingState& context, const std::vector<Pin*>
     return terminal_loads;
   }
 
-  const auto* ports = context.port_table->get(context.split_buffer_master);
-  LOG_FATAL_IF(ports == nullptr) << "HTree: unresolved ports for split buffer master " << context.split_buffer_master;
-
   std::vector<Pin*> upstream_loads;
-  upstream_loads.reserve(split_plan.subgroups.size());
-  for (std::size_t subgroup_index = 0; subgroup_index < split_plan.subgroups.size(); ++subgroup_index) {
-    auto created_buffer = CreateBufferInstance(*context.result, context.nextSplitBufferName(), context.split_buffer_master,
-                                               split_plan.centers.at(subgroup_index), ports->first, ports->second);
-    RecordInsertedInstLevel(*context.result, created_buffer.first == nullptr ? nullptr : created_buffer.first->get_inst(), topology_level,
-                            subgroup_index);
-    CreateNet(*context.result, context.nextNetName(), created_buffer.second, split_plan.subgroups.at(subgroup_index), topology_level);
-    upstream_loads.push_back(created_buffer.first);
-    ++context.split_sub_buffer_count;
+  upstream_loads.reserve(split_plan.children.size());
+  for (const auto& child : split_plan.children) {
+    upstream_loads.push_back(MaterializeSplitNode(context, child, topology_level));
   }
   return upstream_loads;
 }

@@ -54,10 +54,15 @@ struct FastStaPiModel
 struct FastStaRcNode
 {
   std::string name;
+  double ground_cap_pf = 0.0;
+  double coupling_cap_pf = 0.0;
   double wire_cap_pf = 0.0;
+  double driver_wire_cap_pf = 0.0;
   double pin_cap_pf = 0.0;
   double cap_pf = 0.0;
+  double driver_cap_pf = 0.0;
   double downstream_cap_pf = 0.0;
+  double driver_downstream_cap_pf = 0.0;
   double elmore_delay_ns = 0.0;
   FastStaNodeId terminal_node_id = kInvalidFastStaNodeId;
 };
@@ -67,6 +72,11 @@ struct FastStaRcEdge
   FastStaRcNodeId from = kInvalidFastStaRcNodeId;
   FastStaRcNodeId to = kInvalidFastStaRcNodeId;
   double resistance_ohm = 0.0;
+  double ground_capacitance_pf = 0.0;
+  double coupling_capacitance_pf = 0.0;
+  double capacitance_pf = 0.0;
+  double timing_coupling_factor = 0.0;
+  double driver_capacitance_pf = 0.0;
 };
 
 struct FastStaNetParasitic
@@ -76,7 +86,12 @@ struct FastStaNetParasitic
   std::unordered_map<std::string, FastStaRcNodeId> rc_node_id_by_name;
   FastStaRcNodeId root_rc_node_id = kInvalidFastStaRcNodeId;
   FastStaPiModel pi;
+  FastStaPiModel driver_pi;
+  double ground_cap_pf = 0.0;
+  double coupling_cap_pf = 0.0;
+  double timing_coupling_factor = 0.0;
   double total_cap_pf = 0.0;
+  double driver_total_cap_pf = 0.0;
   bool pre_reduced_pi_elmore = false;
   bool valid = false;
 };

@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <string>
@@ -204,22 +205,29 @@ struct PatternSearchBuild
   TopologyPatternLibrary topology_pattern_library;
 };
 
-inline auto IsBinarySourceFanoutLegal(std::size_t per_branch_load_count, std::size_t max_fanout) -> bool
+inline auto IsSourceFanoutLegal(std::size_t per_branch_load_count, std::size_t max_fanout, std::size_t branching_factor) -> bool
 {
   if (max_fanout == 0U) {
     return true;
   }
-  if (per_branch_load_count > std::numeric_limits<std::size_t>::max() / 2U) {
+  branching_factor = std::max<std::size_t>(1U, branching_factor);
+  if (per_branch_load_count > std::numeric_limits<std::size_t>::max() / branching_factor) {
     return false;
   }
-  return per_branch_load_count * 2U <= max_fanout;
+  return per_branch_load_count * branching_factor <= max_fanout;
+}
+
+inline auto IsBinarySourceFanoutLegal(std::size_t per_branch_load_count, std::size_t max_fanout) -> bool
+{
+  return IsSourceFanoutLegal(per_branch_load_count, max_fanout, 2U);
 }
 
 class TopologyPatternLibraryCombiner
 {
  public:
-  TopologyPatternLibraryCombiner(TopologyPatternLibrary& library, unsigned start_id, std::size_t max_fanout)
-      : _library(&library), _next_id(start_id), _max_fanout(max_fanout)
+  TopologyPatternLibraryCombiner(TopologyPatternLibrary& library, unsigned start_id, std::size_t max_fanout,
+                                 std::size_t branching_factor = 2U)
+      : _library(&library), _next_id(start_id), _max_fanout(max_fanout), _branching_factor(std::max<std::size_t>(1U, branching_factor))
   {
   }
 
@@ -261,24 +269,25 @@ class TopologyPatternLibraryCombiner
  private:
   auto isBranchFanoutLegal(const PatternCompositionState& downstream_state) const -> bool
   {
-    return IsBinarySourceFanoutLegal(downstream_state.source_exposed_load_count, _max_fanout);
+    return IsSourceFanoutLegal(downstream_state.source_exposed_load_count, _max_fanout, _branching_factor);
   }
 
-  static auto resolveMergedSourceLoadCount(const PatternCompositionState& upstream_state, const PatternCompositionState& downstream_state)
+  auto resolveMergedSourceLoadCount(const PatternCompositionState& upstream_state, const PatternCompositionState& downstream_state) const
       -> std::size_t
   {
     if (upstream_state.monotonic_boundary_state.source.has_buffer) {
       return 1U;
     }
-    if (downstream_state.source_exposed_load_count > std::numeric_limits<std::size_t>::max() / 2U) {
+    if (downstream_state.source_exposed_load_count > std::numeric_limits<std::size_t>::max() / _branching_factor) {
       return std::numeric_limits<std::size_t>::max();
     }
-    return downstream_state.source_exposed_load_count * 2U;
+    return downstream_state.source_exposed_load_count * _branching_factor;
   }
 
   TopologyPatternLibrary* _library = nullptr;
   mutable unsigned _next_id;
   std::size_t _max_fanout = 0U;
+  std::size_t _branching_factor = 2U;
 };
 
 }  // namespace icts::htree

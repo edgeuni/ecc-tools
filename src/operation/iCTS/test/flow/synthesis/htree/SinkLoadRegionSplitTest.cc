@@ -18,18 +18,13 @@
  * @file SinkLoadRegionSplitTest.cc
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-06-12
- * @brief Unit tests for the sink-load-region split remediation rule: a
- *        boundary group whose load count exceeds max_fanout is bisected into
- *        deterministic sub-fanout subgroups (one local sub-buffer each) so a
- *        single dense pocket no longer vetoes shallower H-tree depths
- *        (task 06-11-htree-depth-unlock).
+ * @brief Unit tests for sink-load-region local split remediation.
  */
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <memory>
-#include <random>
 #include <vector>
 
 #include "Pin.hh"
@@ -60,8 +55,70 @@ auto collectAllPins(const icts::htree::SinkLoadRegionSplitPlan& plan) -> std::ve
   for (const auto& subgroup : plan.subgroups) {
     all_pins.insert(all_pins.end(), subgroup.begin(), subgroup.end());
   }
-  std::sort(all_pins.begin(), all_pins.end());
+  std::ranges::sort(all_pins);
   return all_pins;
+}
+
+auto collectLeafGroups(const std::vector<icts::htree::SinkLoadRegionSplitNode>& nodes) -> std::vector<std::vector<icts::Pin*>>
+{
+  std::vector<std::vector<icts::Pin*>> leaves;
+  std::vector<const icts::htree::SinkLoadRegionSplitNode*> pending_nodes;
+  pending_nodes.reserve(nodes.size());
+  for (std::size_t reverse_index = nodes.size(); reverse_index > 0U; --reverse_index) {
+    pending_nodes.push_back(&nodes.at(reverse_index - 1U));
+  }
+  while (!pending_nodes.empty()) {
+    const auto* node = pending_nodes.back();
+    pending_nodes.pop_back();
+    if (node->children.empty()) {
+      leaves.push_back(node->loads);
+      continue;
+    }
+    for (std::size_t reverse_index = node->children.size(); reverse_index > 0U; --reverse_index) {
+      pending_nodes.push_back(&node->children.at(reverse_index - 1U));
+    }
+  }
+  return leaves;
+}
+
+auto countTreeNodes(const std::vector<icts::htree::SinkLoadRegionSplitNode>& nodes) -> std::size_t
+{
+  std::size_t count = 0U;
+  std::vector<const icts::htree::SinkLoadRegionSplitNode*> pending_nodes;
+  pending_nodes.reserve(nodes.size());
+  for (const auto& node : nodes) {
+    pending_nodes.push_back(&node);
+  }
+  while (!pending_nodes.empty()) {
+    const auto* node = pending_nodes.back();
+    pending_nodes.pop_back();
+    ++count;
+    for (const auto& child : node->children) {
+      pending_nodes.push_back(&child);
+    }
+  }
+  return count;
+}
+
+auto expectTreeFanoutLegal(const std::vector<icts::htree::SinkLoadRegionSplitNode>& nodes, std::size_t max_fanout) -> void
+{
+  std::vector<const icts::htree::SinkLoadRegionSplitNode*> pending_nodes;
+  pending_nodes.reserve(nodes.size());
+  for (const auto& node : nodes) {
+    pending_nodes.push_back(&node);
+  }
+  while (!pending_nodes.empty()) {
+    const auto* node = pending_nodes.back();
+    pending_nodes.pop_back();
+    EXPECT_LE(node->children.size(), max_fanout);
+    if (node->children.empty()) {
+      EXPECT_LE(node->loads.size(), max_fanout);
+    } else {
+      for (const auto& child : node->children) {
+        pending_nodes.push_back(&child);
+      }
+    }
+  }
 }
 
 TEST(SinkLoadRegionSplitTest, FiveLoadsSplitIntoTwoSubgroups)
@@ -79,12 +136,15 @@ TEST(SinkLoadRegionSplitTest, FiveLoadsSplitIntoTwoSubgroups)
   }
 
   auto original = loads;
-  std::sort(original.begin(), original.end());
+  std::ranges::sort(original);
   EXPECT_EQ(collectAllPins(plan), original);
 
   // Median cut on the x axis: lower half {0,10}, upper half {20,30,40}.
-  EXPECT_EQ(plan.centers.at(1).get_x(), 5);
-  EXPECT_EQ(plan.centers.at(0).get_x(), 30);
+  EXPECT_EQ(plan.centers.at(0).get_x(), 5);
+  EXPECT_EQ(plan.centers.at(1).get_x(), 30);
+  EXPECT_EQ(plan.local_depth, 1U);
+  EXPECT_EQ(plan.buffer_count, 2U);
+  EXPECT_EQ(plan.leaf_group_count, 2U);
 }
 
 TEST(SinkLoadRegionSplitTest, NotApplicableWithinFanout)
@@ -95,27 +155,37 @@ TEST(SinkLoadRegionSplitTest, NotApplicableWithinFanout)
   EXPECT_FALSE(plan.feasible);
 }
 
-TEST(SinkLoadRegionSplitTest, InfeasibleBeyondSquare)
+TEST(SinkLoadRegionSplitTest, SeventeenLoadsUseTwoLocalLevels)
 {
   SplitPinFactory factory;
   std::vector<icts::Pin*> loads;
+  loads.reserve(17U);
   for (int index = 0; index < 17; ++index) {
     loads.push_back(factory.make(index, 0));
   }
   const auto plan = icts::htree::SplitSinkLoadRegionGroup(loads, 4U);
-  EXPECT_FALSE(plan.feasible);
+  ASSERT_TRUE(plan.feasible);
+  EXPECT_EQ(plan.children.size(), 4U);
+  EXPECT_EQ(plan.local_depth, 2U);
+  EXPECT_EQ(plan.leaf_group_count, 5U);
+  EXPECT_EQ(plan.buffer_count, 6U);
+  expectTreeFanoutLegal(plan.children, 4U);
 }
 
 TEST(SinkLoadRegionSplitTest, SixteenLoadsQuadSplit)
 {
   SplitPinFactory factory;
   std::vector<icts::Pin*> loads;
+  loads.reserve(16U);
   for (int index = 0; index < 16; ++index) {
     loads.push_back(factory.make(index * 5, (index % 2) * 3));
   }
   const auto plan = icts::htree::SplitSinkLoadRegionGroup(loads, 4U);
   ASSERT_TRUE(plan.feasible);
   EXPECT_EQ(plan.subgroups.size(), 4U);
+  EXPECT_EQ(plan.local_depth, 1U);
+  EXPECT_EQ(plan.buffer_count, 4U);
+  EXPECT_EQ(plan.leaf_group_count, 4U);
   for (const auto& subgroup : plan.subgroups) {
     EXPECT_EQ(subgroup.size(), 4U);
   }
@@ -125,6 +195,7 @@ TEST(SinkLoadRegionSplitTest, DeterministicAcrossInputOrder)
 {
   SplitPinFactory factory;
   std::vector<icts::Pin*> loads;
+  loads.reserve(7U);
   for (int index = 0; index < 7; ++index) {
     loads.push_back(factory.make(index * 11, 97 - index * 13));
   }
@@ -132,9 +203,9 @@ TEST(SinkLoadRegionSplitTest, DeterministicAcrossInputOrder)
   const auto reference_plan = icts::htree::SplitSinkLoadRegionGroup(loads, 4U);
   ASSERT_TRUE(reference_plan.feasible);
 
-  auto shuffled = loads;
-  std::mt19937 rng(7U);
-  std::shuffle(shuffled.begin(), shuffled.end(), rng);
+  const std::vector<icts::Pin*> shuffled = {
+      loads.at(3), loads.at(0), loads.at(6), loads.at(1), loads.at(5), loads.at(2), loads.at(4),
+  };
   const auto shuffled_plan = icts::htree::SplitSinkLoadRegionGroup(shuffled, 4U);
   ASSERT_TRUE(shuffled_plan.feasible);
 
@@ -146,18 +217,49 @@ TEST(SinkLoadRegionSplitTest, DeterministicAcrossInputOrder)
   }
 }
 
-TEST(SinkLoadRegionSplitTest, BisectionMayExceedSubgroupBudget)
+TEST(SinkLoadRegionSplitTest, ExactFanoutPowerUsesSingleLocalLevel)
 {
-  // 9 loads at fanout 3 fit 3x3 in theory, but median bisection yields four
-  // subgroups; the plan stays infeasible by design (conservative single-stage
-  // split, documented in the task design).
   SplitPinFactory factory;
   std::vector<icts::Pin*> loads;
+  loads.reserve(9U);
   for (int index = 0; index < 9; ++index) {
     loads.push_back(factory.make(index, index));
   }
   const auto plan = icts::htree::SplitSinkLoadRegionGroup(loads, 3U);
-  EXPECT_FALSE(plan.feasible);
+  ASSERT_TRUE(plan.feasible);
+  EXPECT_EQ(plan.children.size(), 3U);
+  EXPECT_EQ(plan.local_depth, 1U);
+  EXPECT_EQ(plan.buffer_count, 3U);
+  EXPECT_EQ(plan.leaf_group_count, 3U);
+  expectTreeFanoutLegal(plan.children, 3U);
+}
+
+TEST(SinkLoadRegionSplitTest, TwentyFiveLoadsUseRecursiveTree)
+{
+  SplitPinFactory factory;
+  std::vector<icts::Pin*> loads;
+  loads.reserve(25U);
+  for (int index = 0; index < 25; ++index) {
+    loads.push_back(factory.make(index * 3, (index % 5) * 7));
+  }
+  const auto plan = icts::htree::SplitSinkLoadRegionGroup(loads, 4U);
+  ASSERT_TRUE(plan.feasible);
+  EXPECT_EQ(plan.children.size(), 4U);
+  EXPECT_EQ(plan.local_depth, 2U);
+  EXPECT_EQ(plan.leaf_group_count, 8U);
+  EXPECT_EQ(plan.buffer_count, countTreeNodes(plan.children));
+  expectTreeFanoutLegal(plan.children, 4U);
+
+  auto leaves = collectLeafGroups(plan.children);
+  std::vector<icts::Pin*> collected;
+  collected.reserve(loads.size());
+  for (const auto& leaf : leaves) {
+    collected.insert(collected.end(), leaf.begin(), leaf.end());
+  }
+  std::ranges::sort(collected);
+  auto original = loads;
+  std::ranges::sort(original);
+  EXPECT_EQ(collected, original);
 }
 
 }  // namespace

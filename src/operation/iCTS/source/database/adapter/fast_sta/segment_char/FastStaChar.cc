@@ -127,21 +127,42 @@ auto makeLinearParasitic(const FastStaClockContext& context, const FastStaNet& n
                          FastStaNodeId load_node_id, double wirelength_um) -> FastStaNetParasitic
 {
   LOG_FATAL_IF(context.wrapper == nullptr) << "FastStaChar: Wrapper is unavailable.";
-  const auto wire_cap_pf = context.wrapper->queryRequiredWireCapacitance(context.routing_layer, wirelength_um, context.wire_width_um);
+  const auto wire_cap_profile
+      = context.wrapper->queryRequiredClockTimingWireCapacitanceProfile(context.routing_layer, wirelength_um, context.wire_width_um);
+  const auto wire_cap_pf = wire_cap_profile.total_cap_pf;
+  const auto driver_wire_cap_pf = wire_cap_profile.timing_effective_cap_pf;
   const auto wire_resistance_ohm
       = context.wrapper->queryRequiredWireResistance(context.routing_layer, wirelength_um, context.wire_width_um);
   FastStaNetParasitic parasitic;
   parasitic.rc_nodes.push_back(FastStaRcNode{
       .name = net.name + "@root",
+      .ground_cap_pf = wire_cap_profile.ground_cap_pf / 2.0,
+      .coupling_cap_pf = wire_cap_profile.coupling_cap_pf / 2.0,
       .wire_cap_pf = wire_cap_pf / 2.0,
+      .driver_wire_cap_pf = driver_wire_cap_pf / 2.0,
       .terminal_node_id = driver_node_id,
   });
   parasitic.rc_nodes.push_back(FastStaRcNode{
       .name = net.name + "@load",
+      .ground_cap_pf = wire_cap_profile.ground_cap_pf / 2.0,
+      .coupling_cap_pf = wire_cap_profile.coupling_cap_pf / 2.0,
       .wire_cap_pf = wire_cap_pf / 2.0,
+      .driver_wire_cap_pf = driver_wire_cap_pf / 2.0,
       .terminal_node_id = load_node_id,
   });
-  parasitic.rc_edges.push_back(FastStaRcEdge{.from = 0U, .to = 1U, .resistance_ohm = wire_resistance_ohm});
+  parasitic.rc_edges.push_back(FastStaRcEdge{
+      .from = 0U,
+      .to = 1U,
+      .resistance_ohm = wire_resistance_ohm,
+      .ground_capacitance_pf = wire_cap_profile.ground_cap_pf,
+      .coupling_capacitance_pf = wire_cap_profile.coupling_cap_pf,
+      .capacitance_pf = wire_cap_pf,
+      .timing_coupling_factor = wire_cap_profile.timing_coupling_factor,
+      .driver_capacitance_pf = driver_wire_cap_pf,
+  });
+  parasitic.ground_cap_pf = wire_cap_profile.ground_cap_pf;
+  parasitic.coupling_cap_pf = wire_cap_profile.coupling_cap_pf;
+  parasitic.timing_coupling_factor = wire_cap_profile.timing_coupling_factor;
   parasitic.rc_node_id_by_name = {{parasitic.rc_nodes.front().name, 0U}, {parasitic.rc_nodes.back().name, 1U}};
   parasitic.root_rc_node_id = 0U;
   return parasitic;

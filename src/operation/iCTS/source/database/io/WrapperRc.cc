@@ -43,6 +43,8 @@
 namespace icts {
 namespace {
 
+constexpr double kOppositeSwitchingCouplingFactor = 2.0;
+
 struct WireRcProbe
 {
   int routing_layer = 0;
@@ -126,6 +128,23 @@ auto resolveWidthUm(idb::IdbLayout* layout, idb::IdbLayerRouting* layer, std::op
   const auto dbu_per_um = layout->get_units()->get_micron_dbu();
   LOG_FATAL_IF(dbu_per_um <= 0) << "Wrapper: DBU-per-micron is invalid when resolving routing layer width.";
   return static_cast<double>(layer->get_width()) / static_cast<double>(dbu_per_um);
+}
+
+auto buildWireCapacitanceProfile(idb::IdbLayerRouting* layer, double length_um, double width_um) -> Wrapper::WireCapacitanceProfile
+{
+  const double area_cap_pf = layer->get_capacitance() * length_um * width_um;
+  const double edge_cap_pf = layer->get_edge_capacitance() * 2.0 * (length_um + width_um);
+  const double ground_cap_pf = area_cap_pf;
+  const double coupling_cap_pf = edge_cap_pf;
+  return Wrapper::WireCapacitanceProfile{
+      .area_cap_pf = area_cap_pf,
+      .edge_cap_pf = edge_cap_pf,
+      .ground_cap_pf = ground_cap_pf,
+      .coupling_cap_pf = coupling_cap_pf,
+      .timing_coupling_factor = kOppositeSwitchingCouplingFactor,
+      .total_cap_pf = ground_cap_pf + coupling_cap_pf,
+      .timing_effective_cap_pf = ground_cap_pf + kOppositeSwitchingCouplingFactor * coupling_cap_pf,
+  };
 }
 
 auto queryWireRcProbe(const Wrapper& wrapper, int routing_layer, std::optional<double> wire_width_um) -> WireRcProbe
@@ -260,7 +279,7 @@ auto Wrapper::queryWireCapacitance(int routing_layer, double length_um, std::opt
   }
   auto* layer = queryRoutingLayer(_idb_layout, routing_layer, "capacitance");
   const double width_um = resolveWidthUm(_idb_layout, layer, wire_width_um);
-  return (layer->get_capacitance() * length_um * width_um) + (layer->get_edge_capacitance() * 2.0 * (length_um + width_um));
+  return buildWireCapacitanceProfile(layer, length_um, width_um).total_cap_pf;
 }
 
 auto Wrapper::queryRequiredWireResistance(int routing_layer, double length_um, std::optional<double> wire_width_um) const -> double
@@ -276,7 +295,22 @@ auto Wrapper::queryRequiredWireCapacitance(int routing_layer, double length_um, 
   requireWireRcQuery("capacitance", routing_layer, length_um);
   auto* layer = queryRoutingLayer(_idb_layout, routing_layer, "capacitance");
   const double width_um = resolveWidthUm(_idb_layout, layer, wire_width_um);
-  return (layer->get_capacitance() * length_um * width_um) + (layer->get_edge_capacitance() * 2.0 * (length_um + width_um));
+  return buildWireCapacitanceProfile(layer, length_um, width_um).total_cap_pf;
+}
+
+auto Wrapper::queryRequiredWireCapacitanceProfile(int routing_layer, double length_um, std::optional<double> wire_width_um) const
+    -> WireCapacitanceProfile
+{
+  requireWireRcQuery("capacitance", routing_layer, length_um);
+  auto* layer = queryRoutingLayer(_idb_layout, routing_layer, "capacitance");
+  const double width_um = resolveWidthUm(_idb_layout, layer, wire_width_um);
+  return buildWireCapacitanceProfile(layer, length_um, width_um);
+}
+
+auto Wrapper::queryRequiredClockTimingWireCapacitanceProfile(int routing_layer, double length_um, std::optional<double> wire_width_um) const
+    -> WireCapacitanceProfile
+{
+  return queryRequiredWireCapacitanceProfile(routing_layer, length_um, wire_width_um);
 }
 
 auto Wrapper::queryConfiguredClockRouteSegmentRc(const Config& config) const -> ClockRouteSegmentRc

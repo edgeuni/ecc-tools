@@ -1,0 +1,9 @@
+metric,unit,case_count,geomean_ratio_ecc_to_innovus,mean_ratio_ecc_to_innovus,mean_delta,rmse_delta,phase1_vs_pre_improved_cases,phase1_vs_pre_worsened_cases,phase1_vs_pre_neutral_cases
+skew_max,ns,23,1.58908,1.79258,0.0178696,0.0254806,8,9,6
+latency_min,ns,23,1.37949,1.4027,0.0520435,0.0633297,1,16,6
+latency_max,ns,23,1.40802,1.42443,0.0712609,0.0816336,3,14,6
+latency_avg,ns,23,1.40284,1.4202,0.0619565,0.0714703,2,15,6
+buffer_count,count,23,1.07098,1.07217,37.3913,78.2099,2,4,17
+buffer_area_um2,um2,23,1.08466,1.08649,144.723,294.302,17,1,5
+clock_total_cap_pf,pF,23,1.06741,1.06837,0.200913,0.295744,13,5,5
+clock_power_mw,mW,23,1.08483,1.08572,0.098997,0.17143,17,1,5

@@ -84,7 +84,6 @@ auto BuildTopSegmentConfig(const Config& config) -> SourceTrunkSegment::Config
 {
   return SourceTrunkSegment::Config{
       .min_input_slew_ns = config.get_root_input_slew(),
-      .selection_delay_margin = config.get_selection_delay_margin(),
   };
 }
 
@@ -165,9 +164,8 @@ auto BuildTopHtreeConfig(const Config& config) -> HTree::Config
 {
   HTree::Config htree_config{
       .force_branch_buffer = config.is_force_branch_buffer(),
-      .depth_explore_window = std::max(1U, config.get_htree_depth_explore_window()),
+      .depth_explore_window = 0U,
       .topology_tolerance = config.get_htree_topology_tolerance(),
-      .selection_delay_margin = config.get_selection_delay_margin(),
       .max_fanout = config.get_max_fanout(),
       .has_max_cap = config.has_max_cap(),
       .max_cap_pf = config.has_max_cap() ? config.get_max_cap() : 0.0,

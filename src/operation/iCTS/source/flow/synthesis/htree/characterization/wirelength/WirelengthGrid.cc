@@ -29,7 +29,6 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
-#include <optional>
 #include <ostream>
 #include <ranges>
 #include <vector>
@@ -43,26 +42,205 @@
 namespace icts::htree {
 namespace {
 
-// Bounds direct characterization on auto-derived grids: pattern enumeration
-// grows as 2^bins per characterized length (slots track the length index), so
-// covering every requested length directly is not affordable for long bins.
-// vga_lcd sweep (task 06-12-char-wirelength-coverage): cap 6/7/8 produce
-// identical QoR while build cost grows ~3x per +1 bin; 6 is the knee.
-constexpr unsigned kDefaultAutoDirectBinsCap = 6U;
+struct GridUnitCandidateScore
+{
+  double unit_um = 0.0;
+  double total_overmodeled_length_um = 0.0;
+  double total_prefix_overmodeled_length_um = 0.0;
+  double mean_prefix_relative_error = 0.0;
+  double max_relative_error = 0.0;
+  unsigned unique_direct_bins = 0U;
+  unsigned max_direct_length_idx = 0U;
+  unsigned required_covering_iterations = 0U;
+  bool valid = false;
+};
 
 auto MakeCoveringLengthIndex(double length_um, double length_step_um) -> unsigned
 {
   return UniformValueLattice(length_step_um, std::numeric_limits<unsigned>::max()).coveringIndex(length_um);
 }
 
-auto MakeDenseLengthIndices(unsigned max_length_idx) -> std::vector<unsigned>
+auto AppendPositiveLengths(std::vector<double>& target, const std::vector<double>& values) -> void
 {
-  std::vector<unsigned> length_indices;
-  length_indices.reserve(max_length_idx);
-  for (unsigned length_idx = 1U; length_idx <= max_length_idx; ++length_idx) {
-    length_indices.push_back(length_idx);
+  for (const double value : values) {
+    if (value > 0.0) {
+      target.push_back(value);
+    }
   }
-  return length_indices;
+}
+
+auto BuildPositiveLengths(const std::vector<double>& values) -> std::vector<double>
+{
+  std::vector<double> result;
+  result.reserve(values.size());
+  AppendPositiveLengths(result, values);
+  return result;
+}
+
+auto MakeCombinedLengths(const std::vector<double>& lhs, const std::vector<double>& rhs) -> std::vector<double>
+{
+  std::vector<double> result;
+  result.reserve(lhs.size() + rhs.size());
+  AppendPositiveLengths(result, lhs);
+  AppendPositiveLengths(result, rhs);
+  return result;
+}
+
+auto MaxPositiveLength(const std::vector<double>& lengths_um) -> double
+{
+  if (lengths_um.empty()) {
+    return 0.0;
+  }
+  return *std::ranges::max_element(lengths_um);
+}
+
+auto ScoreGridUnitCandidate(const std::vector<double>& direct_lengths_um, const std::vector<double>& coverage_lengths_um, double unit_um,
+                            unsigned direct_length_idx_budget) -> GridUnitCandidateScore
+{
+  if (direct_lengths_um.empty() || unit_um <= 0.0 || direct_length_idx_budget == 0U) {
+    return {};
+  }
+
+  GridUnitCandidateScore score;
+  score.unit_um = unit_um;
+  score.valid = true;
+  std::vector<unsigned> direct_length_indices;
+  std::vector<double> overmodeled_lengths_um;
+  overmodeled_lengths_um.reserve(direct_lengths_um.size());
+  direct_length_indices.reserve(direct_lengths_um.size());
+  for (const double direct_length_um : direct_lengths_um) {
+    const unsigned length_idx = MakeCoveringLengthIndex(direct_length_um, unit_um);
+    if (length_idx == 0U || length_idx > direct_length_idx_budget) {
+      return {};
+    }
+    const double modeled_length_um = static_cast<double>(length_idx) * unit_um;
+    const double overmodeled_length_um = std::max(0.0, modeled_length_um - direct_length_um);
+    score.total_overmodeled_length_um += overmodeled_length_um;
+    if (direct_length_um > 0.0) {
+      score.max_relative_error = std::max(score.max_relative_error, overmodeled_length_um / direct_length_um);
+    }
+    score.max_direct_length_idx = std::max(score.max_direct_length_idx, length_idx);
+    overmodeled_lengths_um.push_back(overmodeled_length_um);
+    direct_length_indices.push_back(length_idx);
+  }
+
+  double prefix_requested_length_um = 0.0;
+  double prefix_overmodeled_length_um = 0.0;
+  // H-tree depth candidates consume prefixes of the full level list; scoring
+  // the prefix error keeps the grid aligned with both native and analytical
+  // candidate selection instead of optimizing only the final full-depth sum.
+  for (std::size_t length_index = 0; length_index < direct_lengths_um.size(); ++length_index) {
+    prefix_requested_length_um += direct_lengths_um.at(length_index);
+    prefix_overmodeled_length_um += overmodeled_lengths_um.at(length_index);
+    score.total_prefix_overmodeled_length_um += prefix_overmodeled_length_um;
+    if (prefix_requested_length_um > 0.0) {
+      score.mean_prefix_relative_error += prefix_overmodeled_length_um / prefix_requested_length_um;
+    }
+  }
+  score.mean_prefix_relative_error /= static_cast<double>(direct_lengths_um.size());
+
+  std::ranges::sort(direct_length_indices);
+  const auto unique_tail = std::ranges::unique(direct_length_indices);
+  direct_length_indices.erase(unique_tail.begin(), unique_tail.end());
+  score.unique_direct_bins = static_cast<unsigned>(direct_length_indices.size());
+
+  const double max_required_length_um = std::max(MaxPositiveLength(direct_lengths_um), MaxPositiveLength(coverage_lengths_um));
+  score.required_covering_iterations
+      = max_required_length_um > 0.0 ? std::max(1U, static_cast<unsigned>(std::ceil(max_required_length_um / unit_um))) : 0U;
+  return score;
+}
+
+auto IsBetterGridUnitCandidate(const GridUnitCandidateScore& candidate, const GridUnitCandidateScore& current_best) -> bool
+{
+  if (!candidate.valid) {
+    return false;
+  }
+  if (!current_best.valid) {
+    return true;
+  }
+
+  const double mean_prefix_relative_diff = candidate.mean_prefix_relative_error - current_best.mean_prefix_relative_error;
+  if (std::abs(mean_prefix_relative_diff) > kValueLatticeEpsilon) {
+    return mean_prefix_relative_diff < 0.0;
+  }
+  const double total_prefix_delta_diff = candidate.total_prefix_overmodeled_length_um - current_best.total_prefix_overmodeled_length_um;
+  if (std::abs(total_prefix_delta_diff) > kValueLatticeEpsilon) {
+    return total_prefix_delta_diff < 0.0;
+  }
+  const double total_delta_diff = candidate.total_overmodeled_length_um - current_best.total_overmodeled_length_um;
+  if (std::abs(total_delta_diff) > kValueLatticeEpsilon) {
+    return total_delta_diff < 0.0;
+  }
+  if (candidate.unique_direct_bins != current_best.unique_direct_bins) {
+    return candidate.unique_direct_bins > current_best.unique_direct_bins;
+  }
+
+  const double max_relative_diff = candidate.max_relative_error - current_best.max_relative_error;
+  if (std::abs(max_relative_diff) > kValueLatticeEpsilon) {
+    return max_relative_diff < 0.0;
+  }
+  if (candidate.max_direct_length_idx != current_best.max_direct_length_idx) {
+    return candidate.max_direct_length_idx < current_best.max_direct_length_idx;
+  }
+  if (candidate.required_covering_iterations != current_best.required_covering_iterations) {
+    return candidate.required_covering_iterations < current_best.required_covering_iterations;
+  }
+  return candidate.unit_um > current_best.unit_um;
+}
+
+auto AppendUniqueUnitCandidate(std::vector<double>& candidates, double unit_um) -> void
+{
+  if (unit_um <= 0.0) {
+    return;
+  }
+  for (const double existing_unit_um : candidates) {
+    if (std::abs(existing_unit_um - unit_um) <= kValueLatticeEpsilon) {
+      return;
+    }
+  }
+  candidates.push_back(unit_um);
+}
+
+auto ResolveAutoDerivedGridUnit(const std::vector<double>& direct_lengths_um, const std::vector<double>& coverage_lengths_um)
+    -> GridUnitCandidateScore
+{
+  if (direct_lengths_um.empty()) {
+    return {};
+  }
+
+  const auto direct_length_idx_budget = static_cast<unsigned>(direct_lengths_um.size());
+  const double max_direct_length_um = MaxPositiveLength(direct_lengths_um);
+  if (max_direct_length_um <= 0.0 || direct_length_idx_budget == 0U) {
+    return {};
+  }
+
+  std::vector<double> candidates;
+  candidates.reserve(direct_lengths_um.size() * direct_lengths_um.size() + 2U);
+  AppendUniqueUnitCandidate(candidates, max_direct_length_um / static_cast<double>(direct_length_idx_budget));
+
+  const auto all_lengths_um = MakeCombinedLengths(direct_lengths_um, coverage_lengths_um);
+  const double max_required_length_um = MaxPositiveLength(all_lengths_um);
+  if (!all_lengths_um.empty() && max_required_length_um > 0.0) {
+    AppendUniqueUnitCandidate(candidates, max_required_length_um / static_cast<double>(all_lengths_um.size()));
+  }
+
+  for (const double direct_length_um : direct_lengths_um) {
+    for (unsigned length_idx = 1U; length_idx <= direct_length_idx_budget; ++length_idx) {
+      const double unit_um = direct_length_um / static_cast<double>(length_idx);
+      if (MakeCoveringLengthIndex(max_direct_length_um, unit_um) <= direct_length_idx_budget) {
+        AppendUniqueUnitCandidate(candidates, unit_um);
+      }
+    }
+  }
+
+  GridUnitCandidateScore best_score;
+  for (const double unit_um : candidates) {
+    const auto candidate_score = ScoreGridUnitCandidate(direct_lengths_um, coverage_lengths_um, unit_um, direct_length_idx_budget);
+    if (IsBetterGridUnitCandidate(candidate_score, best_score)) {
+      best_score = candidate_score;
+    }
+  }
+  return best_score;
 }
 
 }  // namespace
@@ -155,18 +333,29 @@ auto ResolveCharacterizationGridPlan(const Config& config, const std::vector<dou
     char_config.wirelength_unit_um = config.get_wirelength_unit_um();
   }
   char_config.wirelength_iterations = config.get_wirelength_iterations();
-  char_config.auto_direct_bins_cap = config.get_auto_direct_bins_cap();
   return ResolveCharacterizationGridPlan(char_config, requested_lengths_um);
 }
 
 auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& requested_lengths_um)
     -> CharacterizationGridPlan
 {
+  return ResolveCharacterizationGridPlan(config, requested_lengths_um, {});
+}
+
+auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& direct_lengths_um,
+                                     const std::vector<double>& coverage_lengths_um) -> CharacterizationGridPlan
+{
   CharacterizationGridPlan plan;
-  if (requested_lengths_um.empty()) {
+  auto direct_positive_lengths_um = BuildPositiveLengths(direct_lengths_um);
+  auto coverage_positive_lengths_um = BuildPositiveLengths(coverage_lengths_um);
+  if (direct_positive_lengths_um.empty() && !coverage_positive_lengths_um.empty()) {
+    direct_positive_lengths_um = coverage_positive_lengths_um;
+    coverage_positive_lengths_um.clear();
+  }
+  if (direct_positive_lengths_um.empty()) {
     return plan;
   }
-  plan.requested_level_lengths = static_cast<unsigned>(requested_lengths_um.size());
+  plan.requested_level_lengths = static_cast<unsigned>(direct_positive_lengths_um.size());
 
   const double configured_unit_um = config.wirelength_unit_um.value_or(0.0);
   plan.configured_wirelength_iterations = std::max(1U, config.wirelength_iterations.value_or(1U));
@@ -175,20 +364,19 @@ auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const st
 
   double effective_unit_um = configured_unit_um;
   if (effective_unit_um > 0.0) {
-    plan.unique_level_bins = CountUniqueAlignedLengthBins(requested_lengths_um, effective_unit_um);
+    plan.unique_level_bins = CountUniqueAlignedLengthBins(direct_positive_lengths_um, effective_unit_um);
     plan.source = CharGridSource::kRuntimeConfig;
   }
 
-  const double max_requested_length_um = *std::ranges::max_element(requested_lengths_um);
-  const double auto_derived_unit_um = max_requested_length_um / static_cast<double>(requested_lengths_um.size());
-  const bool grid_collapsed = configured_unit_um > 0.0 && requested_lengths_um.size() > 1U && plan.unique_level_bins <= 1U;
+  const bool grid_collapsed = configured_unit_um > 0.0 && direct_positive_lengths_um.size() > 1U && plan.unique_level_bins <= 1U;
   plan.configured_grid_collapsed = grid_collapsed;
   if (plan.configured_wirelength_missing || grid_collapsed) {
-    effective_unit_um = auto_derived_unit_um;
+    const auto auto_grid_score = ResolveAutoDerivedGridUnit(direct_positive_lengths_um, coverage_positive_lengths_um);
+    effective_unit_um = auto_grid_score.unit_um;
     plan.adapted = effective_unit_um > 0.0;
     plan.source = plan.adapted ? CharGridSource::kAutoDerived : CharGridSource::kNone;
     plan.auto_derived_wirelength_unit_um = effective_unit_um;
-    plan.unique_level_bins = CountUniqueAlignedLengthBins(requested_lengths_um, effective_unit_um);
+    plan.unique_level_bins = CountUniqueAlignedLengthBins(direct_positive_lengths_um, effective_unit_um);
   }
 
   if (!plan.adapted || effective_unit_um <= 0.0) {
@@ -196,12 +384,10 @@ auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const st
   }
 
   plan.wirelength_unit_um = effective_unit_um;
-  plan.required_covering_iterations = std::max(1U, static_cast<unsigned>(std::ceil(max_requested_length_um / effective_unit_um)));
-  // The legacy wirelength_iterations knob pairs with an explicitly configured
-  // unit; on an auto-derived grid it carries no covering intent, so direct
-  // characterization is bounded by auto_direct_bins_cap instead.
-  plan.auto_direct_bins_cap = std::max(1U, config.auto_direct_bins_cap.value_or(kDefaultAutoDirectBinsCap));
-  plan.wirelength_iterations = std::min(plan.required_covering_iterations, plan.auto_direct_bins_cap);
+  const double max_required_length_um
+      = std::max(MaxPositiveLength(direct_positive_lengths_um), MaxPositiveLength(coverage_positive_lengths_um));
+  plan.required_covering_iterations = std::max(1U, static_cast<unsigned>(std::ceil(max_required_length_um / effective_unit_um)));
+  plan.wirelength_iterations = plan.required_covering_iterations;
   return plan;
 }
 
@@ -221,10 +407,6 @@ auto ResolveDirectCharacterizationLengthIndices(const std::vector<double>& reque
 {
   if (!char_grid_plan.adapted || char_grid_plan.wirelength_iterations == 0U) {
     return {};
-  }
-
-  if (char_grid_plan.required_covering_iterations > char_grid_plan.wirelength_iterations) {
-    return MakeDenseLengthIndices(char_grid_plan.wirelength_iterations);
   }
 
   std::vector<unsigned> required_length_indices;

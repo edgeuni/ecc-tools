@@ -150,6 +150,21 @@ TEST(TopologyGenDepthTest, ExplicitTargetDepthBuildsRequestedLeafCount)
   EXPECT_EQ(covered_loads.size(), loads.size());
 }
 
+TEST(TopologyGenDepthTest, FourWayTargetDepthBuildsRequestedTreeHeight)
+{
+  const auto storage = BuildLoads();
+  const auto loads = BorrowLoads(storage);
+
+  auto config = icts::TopologyGen::Config{};
+  config.target_depth = 1U;
+  config.branching_factor = 4U;
+  const auto tree = icts::TopologyGen::build(loads, icts::TopologyGen::Input{}, config);
+  const auto levels = tree.levels();
+
+  ASSERT_EQ(levels.size(), 2U);
+  EXPECT_EQ(levels.back().size(), 4U);
+}
+
 TEST(TopologyGenDepthTest, ExplicitTargetDepthClampsToMaxDepth)
 {
   const auto storage = BuildLoads();

@@ -58,12 +58,21 @@ auto ResolveSelectedRootDriverCellMaster(const std::vector<HTree::LevelPlan>& le
 
 namespace {
 
-auto ResolveTopologyLevelMultiplicity(std::size_t level_index) -> std::size_t
+auto ResolveBinaryTopologyLevelMultiplicity(std::size_t level_index) -> std::size_t
 {
   if (level_index >= static_cast<std::size_t>(std::numeric_limits<std::size_t>::digits - 1)) {
     return std::numeric_limits<std::size_t>::max();
   }
   return std::size_t{1U} << level_index;
+}
+
+auto ResolveTopologyLevelMultiplicity(const HTree::Build& result, std::size_t level_index) -> std::size_t
+{
+  const auto topology_levels = result.output.topology.levels();
+  if (level_index < topology_levels.size()) {
+    return topology_levels.at(level_index).size();
+  }
+  return ResolveBinaryTopologyLevelMultiplicity(level_index);
 }
 
 auto SaturatingMultiply(std::size_t lhs, std::size_t rhs) -> std::size_t
@@ -103,7 +112,7 @@ auto ApplySelectedPatternToLevelPlans(Wrapper& wrapper, HTree::Build& result, co
     LOG_FATAL_IF(segment_pattern == nullptr) << "HTree: selected segment pattern metadata is missing.";
 
     const auto& cell_masters = segment_pattern->get_cell_masters();
-    const auto level_multiplicity = ResolveTopologyLevelMultiplicity(level_index);
+    const auto level_multiplicity = ResolveTopologyLevelMultiplicity(result, level_index);
     level.selected_has_any_buffer = !cell_masters.empty();
     level.selected_leaf_buffer_cell_master = cell_masters.empty() ? "" : cell_masters.back();
     level.selected_has_terminal_branch_buffer = segment_pattern->hasTerminalBranchBuffer();

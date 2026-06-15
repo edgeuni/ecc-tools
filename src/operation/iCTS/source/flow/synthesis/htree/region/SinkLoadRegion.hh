@@ -110,6 +110,7 @@ struct SinkLoadRegionLegalitySummary
   PatternId segment_pattern_id = PatternId::segment(0);
   std::size_t split_group_count = 0U;
   std::size_t split_extra_buffer_count = 0U;
+  unsigned split_local_depth = 0U;
 };
 
 struct SinkLoadRegionLegalityInput
@@ -143,6 +144,7 @@ struct SinkLoadRegionEntryFilterSummary
   std::string first_failure_reason;
   std::size_t max_split_group_count = 0U;
   std::size_t max_split_extra_buffer_count = 0U;
+  unsigned max_split_local_depth = 0U;
 };
 
 struct SinkLoadRegionEntryFilterBuild
@@ -151,16 +153,27 @@ struct SinkLoadRegionEntryFilterBuild
   SinkLoadRegionEntryFilterSummary summary;
 };
 
-// Single-stage split remediation for a boundary group that exceeds max_fanout:
-// the group is bisected geometrically (median cut on the wider span axis,
-// canonical load order) until every subgroup fits max_fanout. Each subgroup is
-// driven by one local sub-buffer at its centroid, so the upstream net fans out
-// to subgroup count pins. Feasible only while subgroup count <= max_fanout,
-// i.e. group size <= max_fanout^2; deeper local splitting degenerates into a
-// deeper tree and stays a hard failure.
+// Local split remediation for a boundary group that exceeds max_fanout. The
+// boundary driver fans out to up to max_fanout local buffers; each local buffer
+// either drives a legal sink subgroup or another compact local split. This
+// models a legal local branch tree without changing the global H-tree
+// fanout/cap contract.
+struct SinkLoadRegionSplitNode
+{
+  std::vector<Pin*> loads;
+  Point<int> center;
+  std::vector<SinkLoadRegionSplitNode> children;
+};
+
 struct SinkLoadRegionSplitPlan
 {
   bool feasible = false;
+  unsigned local_depth = 0U;
+  std::size_t buffer_count = 0U;
+  std::size_t leaf_group_count = 0U;
+  std::vector<SinkLoadRegionSplitNode> children;
+  // First-level child groups retained for existing diagnostics and tests. The
+  // split tree above is the source of truth for materialization.
   std::vector<std::vector<Pin*>> subgroups;
   std::vector<Point<int>> centers;
 };

@@ -170,7 +170,7 @@ auto LogSynthesisSummary(SchemaWriter& reporter, const htree::DiagnosticBuild& r
   } else if (result.summary.used_boundary_relaxation) {
     selection_policy = "global_boundary_relaxation";
   } else {
-    selection_policy = "global_frontier_pareto_power_median";
+    selection_policy = "global_frontier_physical_complexity";
   }
 
   std::string selection_policy_detail;
@@ -183,7 +183,8 @@ auto LogSynthesisSummary(SchemaWriter& reporter, const htree::DiagnosticBuild& r
         = "the affine MILP solves minimum-delay and minimum-power anchors, then selects the normalized delay/power tradeoff solution";
   } else {
     selection_policy_detail
-        = "the global feasible post-compensation frontier pool is Pareto filtered and the lower power-ordered median entry is selected";
+        = "the global feasible post-compensation frontier pool is Pareto filtered using delay, power, physical depth, and final buffer "
+          "pressure; selection balances timing against physical complexity";
   }
 
   reporter.emitSection("### H-Tree Selection");
