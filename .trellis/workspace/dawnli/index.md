@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 80
-- **Last Active**: 2026-06-15
+- **Total Sessions**: 81
+- **Last Active**: 2026-06-16
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1434 | Active |
+| `journal-2.md` | ~1468 | Active |
 | `journal-1.md` | ~1991 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 81 | 2026-06-16 | Fix small-clock CTS HTree failure | `f22f5cfea`, `1b7b66286` | `cts_refactor` |
 | 80 | 2026-06-15 | CTS commercial alignment cleanup | `6f85baed3` | `cts_refactor` |
 | 79 | 2026-06-13 | Fix GCC11 all target clean build | `ea68ca2ea` | `cts_refactor` |
 | 78 | 2026-06-08 | Merge main into cts_refactor | `9e2195e31` | `cts_refactor` |

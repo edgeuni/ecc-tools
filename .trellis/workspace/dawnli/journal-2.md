@@ -1432,3 +1432,37 @@ Aligned CTS timing RC, wirelength grid, H-tree topology, sink split, and adaptiv
 ### Next Steps
 
 - None - task complete
+
+
+## Session 81: Fix small-clock CTS HTree failure
+
+**Date**: 2026-06-16
+**Task**: Fix small-clock CTS HTree failure
+**Branch**: `cts_refactor`
+
+### Summary
+
+Fixed depth-0 downstream HTree handling for small clustered clock trees, verified ascon and s1488 local CTS repros, and archived the Trellis task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f22f5cfea` | (see git log) |
+| `1b7b66286` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
