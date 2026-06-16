@@ -71,10 +71,14 @@ DetailedRouter* DetailedRouter::_dr_instance = nullptr;
 
 DRModel DetailedRouter::initDRModel()
 {
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
   std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
 
   DRModel dr_model;
   dr_model.set_dr_net_list(convertToDRNetList(net_list));
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return dr_model;
 }
 
@@ -102,6 +106,9 @@ DRNet DetailedRouter::convertToDRNet(Net& net)
 
 void DetailedRouter::routeDRModel(DRModel& dr_model)
 {
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
   int32_t cost_unit = RTDM.getOnlyPitch();
   double prefer_wire_unit = 1;
   double non_prefer_wire_unit = 2.5 * prefer_wire_unit;
@@ -158,6 +165,8 @@ void DetailedRouter::routeDRModel(DRModel& dr_model)
     }
   }
   selectBestResult(dr_model);
+
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 void DetailedRouter::initRoutingState(DRModel& dr_model)
@@ -185,6 +194,9 @@ void DetailedRouter::setDRIterParam(DRModel& dr_model, int32_t iter, DRIterParam
 
 void DetailedRouter::initDRBoxMap(DRModel& dr_model)
 {
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
   DRIterParam& dr_iter_param = dr_model.get_dr_iter_param();
 
@@ -252,6 +264,8 @@ void DetailedRouter::initDRBoxMap(DRModel& dr_model)
       dr_box.set_initial_routing(dr_model.get_initial_routing());
     }
   }
+
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 void DetailedRouter::resetRoutingState(DRModel& dr_model)
@@ -261,6 +275,9 @@ void DetailedRouter::resetRoutingState(DRModel& dr_model)
 
 void DetailedRouter::buildBoxSchedule(DRModel& dr_model)
 {
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
   GridMap<DRBox>& dr_box_map = dr_model.get_dr_box_map();
   int32_t schedule_interval = dr_model.get_dr_iter_param().get_schedule_interval();
 
@@ -279,6 +296,8 @@ void DetailedRouter::buildBoxSchedule(DRModel& dr_model)
     }
   }
   dr_model.set_dr_box_id_list_list(dr_box_id_list_list);
+
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 void DetailedRouter::splitNetResult(DRModel& dr_model)
@@ -2530,6 +2549,9 @@ void DetailedRouter::uploadFinalPatch(DRBox& dr_box)
 
 void DetailedRouter::uploadBestResult(DRModel& dr_model)
 {
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
   Die& die = RTDM.getDatabase().get_die();
 
   for (auto& [net_idx, segment_set] : RTDM.getNetDetailedResultMap(die)) {
@@ -2559,6 +2581,8 @@ void DetailedRouter::uploadBestResult(DRModel& dr_model)
   for (Violation violation : dr_model.get_best_route_violation_list()) {
     RTDM.updateViolationToGCellMap(ChangeType::kAdd, new Violation(violation));
   }
+
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 #if 1  // update env
@@ -2630,11 +2654,18 @@ void DetailedRouter::addRouteViolationToGraph(DRBox& dr_box, Violation& violatio
         continue;
       }
       for (Segment<LayerCoord>& segment : segment_list) {
-        if (!RTUTIL.isOverlap(searched_rect, segment)) {
-          continue;
+        bool is_overlap = false;
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
+          if (searched_rect.get_layer_idx() == net_shape.get_layer_idx() && RTUTIL.isClosedOverlap(searched_rect, net_shape.get_rect())) {
+            is_overlap = true;
+            break;
+          }
         }
-        overlap_segment_list.push_back(segment);
-        found_net_set.insert(net_idx);
+        if (is_overlap) {
+          overlap_segment_list.push_back(segment);
+          found_net_set.insert(net_idx);
+          // break;
+        }
       }
     }
     if (found_net_set.size() == target_net_set.size()) {

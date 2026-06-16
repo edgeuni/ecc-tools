@@ -149,11 +149,13 @@ class PinAccessor
   void resetSinglePatchTask(PABox& pa_box);
   void updateRouteViolationList(PABox& pa_box);
   std::vector<Violation> getRouteViolationList(PABox& pa_box, bool ap_via_only);
+  int32_t getViolationWeight(ViolationType violation_type);
+  int32_t getViolationScore(const std::vector<Violation>& violation_list);
   LayerCoord getAccessCoord(PATask* pa_task, std::vector<Segment<LayerCoord>>& segment_list);
   bool isAPViaSegment(const Segment<LayerCoord>& segment, const LayerCoord& access_coord);
   void updateAccessPoint(PABox& pa_box);
   void updateBestResult(PABox& pa_box);
-  void updateTaskSchedule(PABox& pa_box, std::vector<PATask*>& routing_task_list);
+  void updateTaskSchedule(PABox& pa_box, std::vector<PATask*>& routing_task_list, int routing_rounds);
   void uploadBestResult(PABox& pa_box, std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>*>>>& add_result_map,
                         std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect*>>>& add_patch_map);
   void freePABox(PABox& pa_box);
@@ -162,7 +164,7 @@ class PinAccessor
   int32_t uploadRouteViolationList(std::set<Violation, CmpViolation>& route_violation_set, const std::vector<Violation>& route_violation_list,
                                    std::vector<Violation>* add_violation_list = nullptr);
   std::vector<Violation> getRouteViolationList(PAModel& pa_model, bool ap_via_only);
-  void updateBestResult(PAModel& pa_model);
+  void updateBestResult(PAModel& pa_model, bool force_update = false);
   bool stopIteration(PAModel& pa_model, std::vector<PAIterParam>& pa_iter_param_list);
   void selectBestResult(PAModel& pa_model);
   void uploadBestResult(PAModel& pa_model);
