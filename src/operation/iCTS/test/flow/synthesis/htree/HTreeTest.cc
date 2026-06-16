@@ -152,6 +152,20 @@ auto MakeBareHTreeInput(icts::Net& root_net) -> icts::HTree::Input
   return input;
 }
 
+auto MakeRuntimeHTreeInput(icts::Net& root_net) -> icts::HTree::Input
+{
+  auto& runtime = icts_test::runtime::CurrentRuntime();
+  auto input = MakeBareHTreeInput(root_net);
+  input.design = &runtime.design;
+  input.wrapper = &runtime.wrapper;
+  input.reporter = &runtime.reporter;
+  input.characterization_input.dbu_per_um = 1000;
+  input.characterization_input.wrapper = &runtime.wrapper;
+  input.characterization_input.fast_sta = &runtime.fast_sta;
+  input.characterization_input.reporter = &runtime.reporter;
+  return input;
+}
+
 TEST(HTreeTest, RequiredSegmentFrontiersBuildOnlyRequiredKinds)
 {
   const auto all_only = BuildSegmentFrontierTestData(icts::htree::SegmentFrontierKindSet::allOnly());
@@ -295,6 +309,42 @@ TEST(HTreeTest, SingleLoadBuildsTrivialTopology)
   ASSERT_EQ(root_net.get_loads().size(), 1U);
   EXPECT_EQ(root_net.get_loads().front(), load.get());
   EXPECT_EQ(load->get_net(), &root_net);
+}
+
+TEST(HTreeTest, DegenerateTopologyBuildsDirectRootLoads)
+{
+  icts::Pin root_driver("root_out", icts::PinType::kOut, icts::Point<int>(0, 0));
+  icts::Net root_net("root_net");
+  auto load0 = std::make_unique<icts::Pin>("load0", icts::PinType::kClock, icts::Point<int>(100, 200));
+  auto load1 = std::make_unique<icts::Pin>("load1", icts::PinType::kClock, icts::Point<int>(300, 500));
+  std::vector<icts::Pin*> loads{load0.get(), load1.get()};
+  ConnectRootNet(root_net, root_driver, loads);
+
+  const auto result = icts::htree::BuildWithDiagnostics(MakeRuntimeHTreeInput(root_net), icts::HTree::Config{
+                                                                                             .max_fanout = 4U,
+                                                                                         });
+  const auto observation = htree::ObserveHTreeBuild(result);
+
+  EXPECT_TRUE(result.summary.success);
+  EXPECT_TRUE(result.summary.failure_reason.empty());
+  EXPECT_EQ(result.output.topology.get_size(), 1U);
+  ASSERT_NE(result.output.topology.get_node(result.output.topology.get_root()), nullptr);
+  EXPECT_EQ(result.output.topology.get_node(result.output.topology.get_root())->get_loads(), loads);
+  EXPECT_TRUE(result.output.levels.empty());
+  EXPECT_FALSE(result.output.best_char.has_value());
+  EXPECT_FALSE(result.output.best_pattern.has_value());
+  EXPECT_TRUE(observation.has_selected_depth);
+  EXPECT_EQ(observation.selected_depth, 0U);
+  EXPECT_EQ(observation.selected_candidate_solution_count, 0U);
+  EXPECT_EQ(observation.selected_feasible_solution_count, 0U);
+  EXPECT_TRUE(result.output.inserted_insts.empty());
+  EXPECT_TRUE(result.output.inserted_nets.empty());
+  EXPECT_EQ(result.output.root_net, &root_net);
+  EXPECT_EQ(result.output.root_output_pin, &root_driver);
+  EXPECT_EQ(root_net.get_driver(), &root_driver);
+  EXPECT_EQ(root_net.get_loads(), loads);
+  EXPECT_EQ(load0->get_net(), &root_net);
+  EXPECT_EQ(load1->get_net(), &root_net);
 }
 
 TEST(HTreeTest, GlobalSelectionPreservesDelayPowerTieMultiplicity)

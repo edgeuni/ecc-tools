@@ -132,10 +132,26 @@ auto AssembleHTreeSynthesisState(const HTree::Input& input, const HTree::Config&
       },
       TopologyGen::Config{.partition_config = topology_config, .branching_factor = topology_branching_factor});
   const auto levels = state.result.output.topology.levels();
-  if (levels.size() <= 1U) {
-    LOG_WARNING << "HTree: topology has no H-tree levels after generation.";
-    state_build.failure_reason = "no_h_tree_levels";
-    build_stage.skip({{"reason", state_build.failure_reason}});
+  if (levels.empty()) {
+    LOG_WARNING << "HTree: topology generation produced no tree nodes.";
+    state_build.failure_reason = "empty_h_tree_topology";
+    build_stage.failed({{"reason", state_build.failure_reason}});
+    return state_build;
+  }
+  if (levels.size() == 1U) {
+    state.result.summary.selected_depth = 0U;
+    state.result.summary.success = true;
+    state.result.diagnostics.root_driver_sizing_enabled = config.enable_root_driver_sizing;
+    state.result.diagnostics.target_depth = config.target_depth;
+    state.result.diagnostics.depth_explore_window = 0U;
+    state.result.diagnostics.analytical_mode_enabled = config.enable_analytical_solver;
+    state_build.status = HTreeSynthesisStateStatus::kCompleted;
+    build_stage.finished({
+        {"reason", "direct_root_loads"},
+        {"selected_depth", "0"},
+        {"inserted_insts", "0"},
+        {"inserted_nets", "0"},
+    });
     return state_build;
   }
 
