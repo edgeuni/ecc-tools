@@ -409,6 +409,10 @@ bool acceptTrueLocalReroute(TGRouteMetrics& old_route_metrics, TGRouteMetrics& n
   if (!passRerouteShapeGuard(old_route_metrics, new_route_metrics)) {
     return false;
   }
+  if (new_local_metrics.overflow > old_local_metrics.overflow
+      && !RTUTIL.equalDoubleByError(new_local_metrics.overflow, old_local_metrics.overflow, RT_ERROR)) {
+    return false;
+  }
 
   bool overflow_task = old_route_metrics.overflow > RT_ERROR;
   bool high_usage_task = old_route_metrics.high_usage > RT_ERROR;
@@ -569,6 +573,8 @@ void TopologyGenerator::generate()
   buildOrientSupply(tg_model);
   // debugCheckTGModel(tg_model);
   generateTGModel(tg_model);
+  setTGIterParam(tg_model);
+  outputCongestionSnapshotCSV(tg_model, "_initial_pattern", 0);
   rerouteTGModel(tg_model);
   // debugPlotTGModel(tg_model, "after");
   updateSummary(tg_model);
@@ -1522,8 +1528,10 @@ void TopologyGenerator::rerouteTGModel(TGModel& tg_model)
 
     if (iter < tg_iter_param.get_max_iter_num()) {
       routeTGNetTaskListByPattern(tg_model);
+      outputCongestionSnapshotCSV(tg_model, RTUTIL.getString("_iter", iter, "_pattern"), iter);
     } else {
       routeTGNetTaskListByAStar(tg_model);
+      outputCongestionSnapshotCSV(tg_model, RTUTIL.getString("_iter", iter, "_astar"), iter);
     }
     RTLOG.info(Loc::current(), "Completed net-level reroute iteration ", iter, ", overflow ", tg_model.get_curr_overflow(), ", high_usage ",
                tg_model.get_curr_high_usage(), iter_monitor.getStatsInfo());
@@ -1532,6 +1540,9 @@ void TopologyGenerator::rerouteTGModel(TGModel& tg_model)
   updateCongestionRisk(tg_model);
   if (tg_model.get_metric_valid()) {
     tg_model.set_curr_congestion_risk(getCongestionRisk(tg_model));
+  }
+  if (tg_model.get_curr_overflow() <= RT_ERROR && tg_model.get_curr_high_usage() > RT_ERROR) {
+    routeTGSegmentTaskListByHighUsage(tg_model);
   }
   updateBestResult(tg_model);
   uploadBestResult(tg_model);
@@ -1575,6 +1586,79 @@ void TopologyGenerator::setTGIterParam(TGModel& tg_model)
   RTLOG.info(Loc::current(), "route_window_expand_ratio: ", tg_iter_param.get_route_window_expand_ratio());
   RTLOG.info(Loc::current(), "enable_full_die_fallback: ", tg_iter_param.get_enable_full_die_fallback());
   tg_model.set_tg_iter_param(tg_iter_param);
+}
+
+void TopologyGenerator::routeTGSegmentTaskListByHighUsage(TGModel& tg_model)
+{
+  constexpr int32_t kMaxCleanupIter = 2;
+  constexpr int32_t kMaxCleanupTaskNum = 10000;
+  constexpr double kHighUsageUnitScale = 3.0;
+
+  TGIterParam& tg_iter_param = tg_model.get_tg_iter_param();
+  double origin_high_usage_unit = tg_iter_param.get_high_usage_unit();
+  int32_t origin_route_window_base_expand = tg_iter_param.get_route_window_base_expand();
+  int32_t origin_route_window_max_expand_times = tg_iter_param.get_route_window_max_expand_times();
+  double origin_route_window_expand_ratio = tg_iter_param.get_route_window_expand_ratio();
+  bool origin_enable_full_die_fallback = tg_iter_param.get_enable_full_die_fallback();
+
+  tg_iter_param.set_high_usage_unit(kHighUsageUnitScale * tg_iter_param.get_overflow_unit());
+  tg_iter_param.set_route_window_base_expand(10);
+  tg_iter_param.set_route_window_max_expand_times(4);
+  tg_iter_param.set_route_window_expand_ratio(2.0);
+  tg_iter_param.set_enable_full_die_fallback(false);
+
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting high-usage segment cleanup...");
+  for (int32_t iter = 1; iter <= kMaxCleanupIter; iter++) {
+    Monitor iter_monitor;
+    double old_overflow = tg_model.get_curr_overflow();
+    double old_high_usage = tg_model.get_curr_high_usage();
+
+    std::vector<TGSegmentTask> tg_segment_task_list = initTGSegmentTaskList(tg_model, false, true, true);
+    if (static_cast<int32_t>(tg_segment_task_list.size()) > kMaxCleanupTaskNum) {
+      tg_segment_task_list.resize(kMaxCleanupTaskNum);
+    }
+    if (tg_segment_task_list.empty()) {
+      break;
+    }
+
+    int32_t routed_task_num = 0;
+    int32_t success_task_num = 0;
+    for (TGSegmentTask& tg_segment_task : tg_segment_task_list) {
+      if (tg_segment_task.get_high_usage() <= RT_ERROR) {
+        continue;
+      }
+      routed_task_num++;
+      if (routeTGSegmentTask(tg_model, tg_segment_task, true)) {
+        success_task_num++;
+      }
+    }
+
+    updateCongestionRisk(tg_model);
+    if (tg_model.get_metric_valid()) {
+      tg_model.set_curr_congestion_risk(getCongestionRisk(tg_model));
+    }
+    updateBestResult(tg_model);
+
+    RTLOG.info(Loc::current(), "Completed high-usage segment cleanup iteration ", iter, "/", kMaxCleanupIter, ", routed ", routed_task_num,
+               ", success ", success_task_num, ", overflow ", old_overflow, " -> ", tg_model.get_curr_overflow(), ", high_usage ",
+               old_high_usage, " -> ", tg_model.get_curr_high_usage(), iter_monitor.getStatsInfo());
+
+    if (success_task_num == 0 || tg_model.get_curr_high_usage() >= old_high_usage - RT_ERROR) {
+      break;
+    }
+    if (tg_model.get_curr_overflow() > RT_ERROR) {
+      RTLOG.warn(Loc::current(), "Stop high-usage cleanup because overflow became ", tg_model.get_curr_overflow());
+      break;
+    }
+  }
+
+  tg_iter_param.set_high_usage_unit(origin_high_usage_unit);
+  tg_iter_param.set_route_window_base_expand(origin_route_window_base_expand);
+  tg_iter_param.set_route_window_max_expand_times(origin_route_window_max_expand_times);
+  tg_iter_param.set_route_window_expand_ratio(origin_route_window_expand_ratio);
+  tg_iter_param.set_enable_full_die_fallback(origin_enable_full_die_fallback);
+  RTLOG.info(Loc::current(), "Completed high-usage segment cleanup", monitor.getStatsInfo());
 }
 
 void TopologyGenerator::rebuildDemandToGraph(TGModel& tg_model)
@@ -1733,10 +1817,12 @@ void TopologyGenerator::collectTGHotspotInfo(TGModel& tg_model, std::set<PlanarC
   }
 }
 
-std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_model)
+std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_model, bool include_overflow, bool include_high_usage,
+                                                                    bool high_usage_first)
 {
   std::vector<TGNet>& tg_net_list = tg_model.get_tg_net_list();
   int32_t max_task_num = tg_model.get_tg_iter_param().get_max_task_num();
+  double high_usage_ratio_threshold = tg_model.get_tg_iter_param().get_high_usage_ratio_threshold();
 
   std::set<PlanarCoord, CmpPlanarCoordByXASC> overflow_coord_set;
   std::set<int32_t> overflow_net_set;
@@ -1745,8 +1831,12 @@ std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_
   collectTGHotspotInfo(tg_model, overflow_coord_set, overflow_net_set, high_usage_coord_set, high_usage_net_set);
 
   std::set<int32_t> candidate_net_set;
-  candidate_net_set.insert(overflow_net_set.begin(), overflow_net_set.end());
-  candidate_net_set.insert(high_usage_net_set.begin(), high_usage_net_set.end());
+  if (include_overflow) {
+    candidate_net_set.insert(overflow_net_set.begin(), overflow_net_set.end());
+  }
+  if (include_high_usage) {
+    candidate_net_set.insert(high_usage_net_set.begin(), high_usage_net_set.end());
+  }
   std::set<int32_t> changed_candidate_net_set = tg_model.get_changed_net_set();
   candidate_net_set.insert(changed_candidate_net_set.begin(), changed_candidate_net_set.end());
   tg_model.get_changed_net_set().clear();
@@ -1769,8 +1859,10 @@ std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_
       double segment_high_usage = getSegmentHighUsage(tg_model, segment);
       double segment_max_usage_ratio = getSegmentMaxUsageRatio(tg_model, segment);
       bool changed_net = RTUTIL.exist(changed_candidate_net_set, net_idx);
-      bool cross_overflow = (RTUTIL.exist(overflow_net_set, net_idx) || changed_net) && isSegmentCrossOverflow(tg_model, segment, overflow_coord_set);
-      bool cross_high_usage = (RTUTIL.exist(high_usage_net_set, net_idx) || changed_net) && isSegmentCrossHighUsage(tg_model, segment, high_usage_coord_set);
+      bool cross_overflow = include_overflow && (RTUTIL.exist(overflow_net_set, net_idx) || changed_net)
+                            && isSegmentCrossOverflow(tg_model, segment, overflow_coord_set);
+      bool cross_high_usage = include_high_usage && (RTUTIL.exist(high_usage_net_set, net_idx) || changed_net)
+                              && isSegmentCrossHighUsage(tg_model, segment, high_usage_coord_set);
       if (!cross_overflow && !cross_high_usage) {
         continue;
       }
@@ -1794,6 +1886,26 @@ std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_
           }
         }
       }
+      std::map<PlanarCoord, double, CmpPlanarCoordByXASC> origin_high_usage_penalty_map;
+      if (cross_high_usage) {
+        PlanarCoord first_coord = segment->get_first().get_planar_coord();
+        PlanarCoord second_coord = segment->get_second().get_planar_coord();
+        int32_t first_x = first_coord.get_x();
+        int32_t second_x = second_coord.get_x();
+        int32_t first_y = first_coord.get_y();
+        int32_t second_y = second_coord.get_y();
+        RTUTIL.swapByASC(first_x, second_x);
+        RTUTIL.swapByASC(first_y, second_y);
+        for (int32_t x = first_x; x <= second_x; x++) {
+          for (int32_t y = first_y; y <= second_y; y++) {
+            PlanarCoord coord(x, y);
+            if (coord == first_coord || coord == second_coord || !RTUTIL.exist(high_usage_coord_set, coord)) {
+              continue;
+            }
+            origin_high_usage_penalty_map[coord] = tg_model.get_tg_node_map()[x][y].getHighUsage(high_usage_ratio_threshold);
+          }
+        }
+      }
       TGSegmentTask tg_segment_task;
       tg_segment_task.set_net_idx(net_idx);
       tg_segment_task.set_connect_type(tg_net_list[net_idx].get_connect_type());
@@ -1805,11 +1917,27 @@ std::vector<TGSegmentTask> TopologyGenerator::initTGSegmentTaskList(TGModel& tg_
       tg_segment_task.set_high_usage(segment_high_usage);
       tg_segment_task.set_max_usage_ratio(segment_max_usage_ratio);
       tg_segment_task.set_origin_overflow_penalty_map(origin_overflow_penalty_map);
+      tg_segment_task.set_origin_high_usage_penalty_map(origin_high_usage_penalty_map);
       tg_segment_task_list.push_back(tg_segment_task);
     }
   }
 
-  std::sort(tg_segment_task_list.begin(), tg_segment_task_list.end(), [](TGSegmentTask& a, TGSegmentTask& b) {
+  std::sort(tg_segment_task_list.begin(), tg_segment_task_list.end(), [high_usage_first](TGSegmentTask& a, TGSegmentTask& b) {
+    if (high_usage_first) {
+      if (!RTUTIL.equalDoubleByError(a.get_high_usage(), b.get_high_usage(), RT_ERROR)) {
+        return a.get_high_usage() > b.get_high_usage();
+      }
+      if (!RTUTIL.equalDoubleByError(a.get_max_usage_ratio(), b.get_max_usage_ratio(), RT_ERROR)) {
+        return a.get_max_usage_ratio() > b.get_max_usage_ratio();
+      }
+      if (!RTUTIL.equalDoubleByError(a.get_congestion_risk(), b.get_congestion_risk(), RT_ERROR)) {
+        return a.get_congestion_risk() > b.get_congestion_risk();
+      }
+      if (!RTUTIL.equalDoubleByError(a.get_wire_length(), b.get_wire_length(), RT_ERROR)) {
+        return a.get_wire_length() > b.get_wire_length();
+      }
+      return a.get_net_idx() < b.get_net_idx();
+    }
     if (!RTUTIL.equalDoubleByError(a.get_overflow(), b.get_overflow(), RT_ERROR)) {
       return a.get_overflow() > b.get_overflow();
     }
@@ -2557,6 +2685,11 @@ double TopologyGenerator::getNodeCost(TGModel& tg_model, TGSegmentTask& tg_segme
       node_cost += overflow_unit * kEscapePenaltyScale * std::pow(iter->second + 1, 4);
     }
   }
+  auto high_usage_iter = tg_segment_task.get_origin_high_usage_penalty_map().find(PlanarCoord(x, y));
+  if (high_usage_iter != tg_segment_task.get_origin_high_usage_penalty_map().end()) {
+    double normalized_high_usage = high_usage_iter->second / std::max(RT_ERROR, 1.0 - high_usage_ratio_threshold);
+    node_cost += high_usage_unit * std::pow(normalized_high_usage, 2);
+  }
   node_cost += congestion_risk_unit * curr_node->get_congestion_risk();
   node_cost_cache.cost_map[cache_x][cache_y][direction_idx] = node_cost;
   node_cost_cache.valid_map[cache_x][cache_y][direction_idx] = true;
@@ -3118,7 +3251,40 @@ void TopologyGenerator::outputOverflowCSV(TGModel& tg_model)
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void TopologyGenerator::outputCongestionCSV(TGModel& tg_model)
+void TopologyGenerator::outputCongestionSnapshotCSV(TGModel& tg_model, const std::string& suffix, int32_t iter)
+{
+  int32_t output_inter_result = RTDM.getConfig().output_inter_result;
+  if (!output_inter_result) {
+    return;
+  }
+
+  GridMap<double> saved_congestion_risk_map = tg_model.get_congestion_risk_map();
+  GridMap<TGNode>& tg_node_map = tg_model.get_tg_node_map();
+  GridMap<double> saved_node_congestion_risk_map;
+  saved_node_congestion_risk_map.init(tg_node_map.get_x_size(), tg_node_map.get_y_size(), 0.0);
+  for (int32_t x = 0; x < tg_node_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < tg_node_map.get_y_size(); y++) {
+      saved_node_congestion_risk_map[x][y] = tg_node_map[x][y].get_congestion_risk();
+    }
+  }
+  double saved_curr_congestion_risk = tg_model.get_curr_congestion_risk();
+
+  updateCongestionRisk(tg_model);
+  if (tg_model.get_metric_valid()) {
+    tg_model.set_curr_congestion_risk(getCongestionRisk(tg_model));
+  }
+  outputCongestionCSV(tg_model, suffix, iter);
+
+  tg_model.set_congestion_risk_map(saved_congestion_risk_map);
+  for (int32_t x = 0; x < tg_node_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < tg_node_map.get_y_size(); y++) {
+      tg_node_map[x][y].set_congestion_risk(saved_node_congestion_risk_map[x][y]);
+    }
+  }
+  tg_model.set_curr_congestion_risk(saved_curr_congestion_risk);
+}
+
+void TopologyGenerator::outputCongestionCSV(TGModel& tg_model, const std::string& suffix, int32_t iter)
 {
   std::string& tg_temp_directory_path = RTDM.getConfig().tg_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
@@ -3215,7 +3381,7 @@ void TopologyGenerator::outputCongestionCSV(TGModel& tg_model)
       return;
     }
     PlanarRect real_rect = RTUTIL.getRealRectByGCell(tg_node, gcell_axis);
-    RTUTIL.pushStream(csv_file, "TG,-1,-1,all,", tg_node.get_x(), ",", tg_node.get_y(), ",",
+    RTUTIL.pushStream(csv_file, "TG,", iter, ",-1,all,", tg_node.get_x(), ",", tg_node.get_y(), ",",
                       real_rect.get_ll_x() / 1.0 / micron_dbu, ",", real_rect.get_ll_y() / 1.0 / micron_dbu, ",",
                       real_rect.get_ur_x() / 1.0 / micron_dbu, ",", real_rect.get_ur_y() / 1.0 / micron_dbu, ",", resource, ",",
                       orient_name, ",", demand, ",", supply, ",", overflow, ",", usage_ratio, ",", tg_node.getDemand(), ",",
@@ -3224,11 +3390,11 @@ void TopologyGenerator::outputCongestionCSV(TGModel& tg_model)
                       joinNetSet(net_set), ",", joinNetSet(overflow_net_set), ",", joinNetSet(high_usage_net_set), "\n");
   };
 
-  std::ofstream* hotspot_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(tg_temp_directory_path, "congestion_hotspot_TG.csv"));
+  std::ofstream* hotspot_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(tg_temp_directory_path, "congestion_hotspot_TG", suffix, ".csv"));
   pushHeader(hotspot_csv_file);
   std::ofstream* full_csv_file = nullptr;
   if (output_full) {
-    full_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(tg_temp_directory_path, "congestion_full_TG.csv"));
+    full_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(tg_temp_directory_path, "congestion_full_TG", suffix, ".csv"));
     pushHeader(full_csv_file);
   }
   auto pushToFiles = [&](TGNode& tg_node, const std::string& resource, const std::string& orient_name, double demand, double supply,

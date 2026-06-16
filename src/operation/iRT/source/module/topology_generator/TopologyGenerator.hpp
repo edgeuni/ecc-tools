@@ -133,7 +133,9 @@ class TopologyGenerator
                             std::set<int32_t>& overflow_net_set,
                             std::set<PlanarCoord, CmpPlanarCoordByXASC>& high_usage_coord_set,
                             std::set<int32_t>& high_usage_net_set);
-  std::vector<TGSegmentTask> initTGSegmentTaskList(TGModel& tg_model);
+  std::vector<TGSegmentTask> initTGSegmentTaskList(TGModel& tg_model, bool include_overflow = true, bool include_high_usage = true,
+                                                   bool high_usage_first = false);
+  void routeTGSegmentTaskListByHighUsage(TGModel& tg_model);
   bool routeTGSegmentTask(TGModel& tg_model, TGSegmentTask& tg_segment_task, bool enable_true_local_accept);
   void routeTGNetTaskListByPattern(TGModel& tg_model);
   bool routeTGNetTaskByPattern(TGModel& tg_model, int32_t net_idx);
@@ -183,7 +185,8 @@ class TopologyGenerator
   void outputGuide(TGModel& tg_model);
   void outputNetCSV(TGModel& tg_model);
   void outputOverflowCSV(TGModel& tg_model);
-  void outputCongestionCSV(TGModel& tg_model);
+  void outputCongestionSnapshotCSV(TGModel& tg_model, const std::string& suffix, int32_t iter);
+  void outputCongestionCSV(TGModel& tg_model, const std::string& suffix = "", int32_t iter = -1);
   void outputJson(TGModel& tg_model);
   std::string outputNetJson(TGModel& tg_model);
   std::string outputOverflowJson(TGModel& tg_model);

@@ -45,6 +45,11 @@ class TGSegmentTask
   {
     return _origin_overflow_penalty_map;
   }
+  std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_high_usage_penalty_map() { return _origin_high_usage_penalty_map; }
+  const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_high_usage_penalty_map() const
+  {
+    return _origin_high_usage_penalty_map;
+  }
   // setter
   void set_net_idx(const int32_t net_idx) { _net_idx = net_idx; }
   void set_connect_type(const ConnectType connect_type) { _connect_type = connect_type; }
@@ -59,6 +64,10 @@ class TGSegmentTask
   void set_origin_overflow_penalty_map(const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& origin_overflow_penalty_map)
   {
     _origin_overflow_penalty_map = origin_overflow_penalty_map;
+  }
+  void set_origin_high_usage_penalty_map(const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& origin_high_usage_penalty_map)
+  {
+    _origin_high_usage_penalty_map = origin_high_usage_penalty_map;
   }
   // function
   void addRoutedTimes() { ++_routed_times; }
@@ -75,6 +84,7 @@ class TGSegmentTask
   double _max_usage_ratio = 0.0;
   double _wire_length = 0.0;
   std::map<PlanarCoord, double, CmpPlanarCoordByXASC> _origin_overflow_penalty_map;
+  std::map<PlanarCoord, double, CmpPlanarCoordByXASC> _origin_high_usage_penalty_map;
 };
 
 }  // namespace irt
