@@ -52,11 +52,8 @@ class DRCEngine
   void buildIgnoredViolationSet();
   void getViolationListByInterface(DETask& de_task);
   void filterViolationList(DETask& de_task);
-  void checkViolationList(DETask& de_task);
-  void buildViolationList(DETask& de_task);
 
 #if 1  // aux
-  bool skipViolation(DETask& de_task, Violation& violation);
   std::vector<Violation> getExpandedViolationList(DETask& de_task, Violation& violation);
   PlanarRect enlargeRect(PlanarRect& real_rect, int32_t required_size);
   std::vector<std::pair<int32_t, bool>> expandLayer(Violation& violation, std::vector<int32_t> offset_list);
