@@ -575,7 +575,13 @@ void TopologyGenerator::generate()
   generateTGModel(tg_model);
   setTGIterParam(tg_model);
   outputCongestionSnapshotCSV(tg_model, "_initial_pattern", 0);
-  rerouteTGModel(tg_model);
+  double curr_overflow = getOverflow(tg_model);
+  double curr_high_usage = getHighUsage(tg_model);
+  if (curr_overflow > RT_ERROR && curr_high_usage > RT_ERROR) {
+    rerouteTGModel(tg_model);
+  } else {
+    RTLOG.info(Loc::current(), "Skip rerouteTGModel because overflow ", curr_overflow, ", high_usage ", curr_high_usage);
+  }
   // debugPlotTGModel(tg_model, "after");
   updateSummary(tg_model);
   printSummary(tg_model);

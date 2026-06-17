@@ -28,7 +28,6 @@
 #include "RTInterface.hpp"
 #include "SpaceRouter.hpp"
 #include "SupplyAnalyzer.hpp"
-#include "GlobalSpatialRouter.hpp"
 #include "TopologyGenerator.hpp"
 #include "TrackAssigner.hpp"
 #include "ViolationReporter.hpp"
@@ -137,10 +136,6 @@ void RTInterface::runRT()
   SpaceRouter::initInst();
   RTSR.route();
   SpaceRouter::destroyInst();
-
-  // GlobalSpatialRouter::initInst();
-  // RTGSR.route();
-  // GlobalSpatialRouter::destroyInst();
 
   TrackAssigner::initInst();
   RTTA.assign();
