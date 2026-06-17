@@ -19,5 +19,5 @@
 
 namespace python_interface {
 bool CtsAutoRun(const std::string& cts_config, const std::string& cts_work_dir);
-void CtsReport(const std::string& path);
+bool CtsReport(const std::string& path);
 }  // namespace python_interface
