@@ -33,16 +33,19 @@ class DataManager
   void input(std::map<std::string, std::any>& config_map);
   void output();
 
+#if 1  // 清理Database
   void reset(Database& database);
   void clearGraph(Database& database);
   void clearTiming(Database& database);
+#endif
 
   Config& getConfig() { return _config; }
   Database& getDatabase() { return _database; }
 
  private:
-  static DataManager* _data_manager_instance;
+  static DataManager* _dm_instance;
 
+  // config & database
   Config _config;
   Database _database;
 

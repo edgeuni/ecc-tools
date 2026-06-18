@@ -13,8 +13,6 @@ add_library(ista_data_manager
 target_link_libraries(ista_data_manager
     PUBLIC
     ista_toolkit
-    PRIVATE
-    idm
 )
 
 target_include_directories(ista_data_manager

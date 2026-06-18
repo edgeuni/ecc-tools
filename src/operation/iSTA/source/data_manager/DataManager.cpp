@@ -27,24 +27,24 @@ namespace ista {
 
 void DataManager::initInst()
 {
-  if (_data_manager_instance == nullptr) {
-    _data_manager_instance = new DataManager();
+  if (_dm_instance == nullptr) {
+    _dm_instance = new DataManager();
   }
 }
 
 DataManager& DataManager::getInst()
 {
-  if (_data_manager_instance == nullptr) {
+  if (_dm_instance == nullptr) {
     STALOG.error(Loc::current(), "The instance not initialized!");
   }
-  return *_data_manager_instance;
+  return *_dm_instance;
 }
 
 void DataManager::destroyInst()
 {
-  if (_data_manager_instance != nullptr) {
-    delete _data_manager_instance;
-    _data_manager_instance = nullptr;
+  if (_dm_instance != nullptr) {
+    delete _dm_instance;
+    _dm_instance = nullptr;
   }
 }
 
@@ -72,6 +72,8 @@ void DataManager::output()
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
+#if 1  // 清理Database
+
 void DataManager::reset(Database& database)
 {
   database.get_design_name().clear();
@@ -97,9 +99,11 @@ void DataManager::clearTiming(Database& database)
   database.set_summary(Summary());
 }
 
+#endif
+
 // private
 
-DataManager* DataManager::_data_manager_instance = nullptr;
+DataManager* DataManager::_dm_instance = nullptr;
 
 #if 1  // build
 

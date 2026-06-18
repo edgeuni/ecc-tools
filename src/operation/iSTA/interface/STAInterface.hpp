@@ -37,7 +37,6 @@ enum class IdbConnectDirection : uint8_t;
 }  // namespace idb
 
 namespace ista {
-class Database;
 enum class PinDirection;
 class Net;
 }  // namespace ista
@@ -72,23 +71,23 @@ class STAInterface
 #if 1  // input
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
-  void wrapDatabase(idb::IdbDesign* idb_design, Database& database);
-  void wrapInstanceList(idb::IdbDesign* idb_design, Database& database);
-  void wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin, Database& database);
+  void wrapDatabase();
+  void wrapInstanceList();
+  void wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin);
   std::string wrapInstancePinName(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin) const;
   PinDirection wrapPinDirection(const idb::IdbConnectDirection& idb_direction) const;
   void wrapUniqueName(std::vector<std::string>& list, const std::string& value);
-  void wrapPortList(idb::IdbDesign* idb_design, Database& database);
-  void wrapPortPin(idb::IdbPin* idb_pin, Database& database);
+  void wrapPortList();
+  void wrapPortPin(idb::IdbPin* idb_pin);
   std::string wrapPinName(idb::IdbPin* idb_pin) const;
-  void wrapNetList(idb::IdbDesign* idb_design, Database& database);
-  void wrapNet(idb::IdbNet* idb_net, Database& database);
+  void wrapNetList();
+  void wrapNet(idb::IdbNet* idb_net);
   bool wrapSignalNet(idb::IdbConnectType connect_type);
-  void wrapNetPinList(idb::IdbNet* idb_net, Database& database, Net& net);
-  void wrapNetPinList(idb::IdbPins* io_pin_list, idb::IdbPins* instance_pin_list, Database& database, Net& net);
-  void wrapNetPin(idb::IdbPin* idb_pin, Database& database, Net& net);
-  void wrapSpecialNet(idb::IdbSpecialNet* idb_net, Database& database);
-  void wrapNetPinList(idb::IdbSpecialNet* idb_net, Database& database, Net& net);
+  void wrapNetPinList(idb::IdbNet* idb_net, Net& net);
+  void wrapNetPinList(idb::IdbPins* io_pin_list, idb::IdbPins* instance_pin_list, Net& net);
+  void wrapNetPin(idb::IdbPin* idb_pin, Net& net);
+  void wrapSpecialNet(idb::IdbSpecialNet* idb_net);
+  void wrapNetPinList(idb::IdbSpecialNet* idb_net, Net& net);
 #endif
 
 #if 1  // output
