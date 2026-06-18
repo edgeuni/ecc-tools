@@ -83,7 +83,7 @@ class Database
   void reset()
   {
     _design_name.clear();
-    _report_directory = "iSTA_result";
+    _report_directory.clear();
     _instance_map.clear();
     _pin_map.clear();
     _net_map.clear();
@@ -108,18 +108,15 @@ class Database
 
  private:
   std::string _design_name;
-  std::string _report_directory = "iSTA_result";
-
+  std::string _report_directory;
   std::unordered_map<std::string, Instance> _instance_map;
   std::unordered_map<std::string, Pin> _pin_map;
   std::unordered_map<std::string, Net> _net_map;
   std::vector<Arc> _arc_list;
-
   std::unordered_map<std::string, std::vector<std::size_t>> _outgoing_arc_list_map;
   std::unordered_map<std::string, std::vector<std::size_t>> _incoming_arc_list_map;
   std::vector<std::string> _startpoint_list;
   std::vector<std::string> _endpoint_list;
-
   std::unordered_map<std::string, TimingPoint> _timing_point_map;
   Summary _summary;
 };
