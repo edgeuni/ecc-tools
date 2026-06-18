@@ -16,6 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Config.hpp"
 #include "Database.hpp"
 
 namespace ista {
@@ -36,12 +37,15 @@ class DataManager
   void clearGraph(Database& database);
   void clearTiming(Database& database);
 
+  Config& getConfig() { return _config; }
+  const Config& getConfig() const { return _config; }
   Database& getDatabase() { return _database; }
   const Database& getDatabase() const { return _database; }
 
  private:
   static DataManager* _data_manager_instance;
 
+  Config _config;
   Database _database;
 
   DataManager() = default;
@@ -50,6 +54,20 @@ class DataManager
   ~DataManager() = default;
   DataManager& operator=(const DataManager& other) = delete;
   DataManager& operator=(DataManager&& other) = delete;
+
+#if 1  // build
+  void buildConfig(std::map<std::string, std::any>& config_map);
+  void buildDatabase();
+  void buildInstanceList(Database& database);
+  void buildUniqueName(std::vector<std::string>& list, const std::string& value);
+  void buildNetList(Database& database);
+  void buildNet(Database& database, const std::string& net_name, Net& net);
+  bool buildDriverPin(const Pin& pin);
+  bool buildOutputLikeDirection(PinDirection direction);
+  void buildSummary(Database& database);
+  void printConfig();
+  void printDatabase();
+#endif
 };
 
 }  // namespace ista
