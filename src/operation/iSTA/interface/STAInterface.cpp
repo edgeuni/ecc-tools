@@ -136,7 +136,7 @@ bool STAInterface::input(idb::IdbDesign* idb_design)
   }
 
   Database& database = STADM.getDatabase();
-  database.reset();
+  STADM.reset(database);
   wrapDatabase(idb_design, database);
 
   const Summary& summary = database.get_summary();

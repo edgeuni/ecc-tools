@@ -32,7 +32,9 @@ class DataManager
   void input(std::map<std::string, std::any>& config_map);
   void output();
 
-  void reset();
+  void reset(Database& database);
+  void clearGraph(Database& database);
+  void clearTiming(Database& database);
 
   Database& getDatabase() { return _database; }
   const Database& getDatabase() const { return _database; }

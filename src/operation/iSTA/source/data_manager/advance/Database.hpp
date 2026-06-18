@@ -80,31 +80,6 @@ class Database
   }
   void set_summary(const Summary& summary) { _summary = summary; }
   // function
-  void reset()
-  {
-    _design_name.clear();
-    _report_directory.clear();
-    _instance_map.clear();
-    _pin_map.clear();
-    _net_map.clear();
-    clearGraph();
-  }
-
-  void clearGraph()
-  {
-    _arc_list.clear();
-    _outgoing_arc_list_map.clear();
-    _incoming_arc_list_map.clear();
-    _startpoint_list.clear();
-    _endpoint_list.clear();
-    clearTiming();
-  }
-
-  void clearTiming()
-  {
-    _timing_point_map.clear();
-    _summary = Summary();
-  }
 
  private:
   std::string _design_name;

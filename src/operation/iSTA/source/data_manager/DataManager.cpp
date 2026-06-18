@@ -77,9 +77,30 @@ void DataManager::output()
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void DataManager::reset()
+void DataManager::reset(Database& database)
 {
-  _database.reset();
+  database.get_design_name().clear();
+  database.get_report_directory().clear();
+  database.get_instance_map().clear();
+  database.get_pin_map().clear();
+  database.get_net_map().clear();
+  clearGraph(database);
+}
+
+void DataManager::clearGraph(Database& database)
+{
+  database.get_arc_list().clear();
+  database.get_outgoing_arc_list_map().clear();
+  database.get_incoming_arc_list_map().clear();
+  database.get_startpoint_list().clear();
+  database.get_endpoint_list().clear();
+  clearTiming(database);
+}
+
+void DataManager::clearTiming(Database& database)
+{
+  database.get_timing_point_map().clear();
+  database.set_summary(Summary());
 }
 
 // private
