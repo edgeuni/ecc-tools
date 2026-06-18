@@ -44,6 +44,13 @@ bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::a
   if (!value.empty()) {
     config_map.insert(std::make_pair("-temp_directory_path", value));
   }
+  value = ieda::getJsonData(json, {"STA", "-thread_number"});
+  if (value.empty()) {
+    value = ieda::getJsonData(json, {"-thread_number"});
+  }
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-thread_number", std::stoi(value)));
+  }
   return true;
 }
 

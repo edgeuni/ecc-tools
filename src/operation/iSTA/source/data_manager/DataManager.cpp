@@ -246,6 +246,7 @@ void DataManager::printConfig()
   // **********        STA        ********** //
   STALOG.info(Loc::current(), "STA_CONFIG");
   STALOG.info(Loc::current(), "  temp_directory_path=", _config.temp_directory_path);
+  STALOG.info(Loc::current(), "  thread_number=", _config.thread_number);
   STALOG.info(Loc::current(), "  log_file_path=", _config.log_file_path);
   STALOG.info(Loc::current(), "  dm_temp_directory_path=", _config.dm_temp_directory_path);
   STALOG.info(Loc::current(), "  gb_temp_directory_path=", _config.gb_temp_directory_path);

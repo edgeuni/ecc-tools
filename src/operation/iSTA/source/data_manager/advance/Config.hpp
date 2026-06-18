@@ -28,6 +28,7 @@ class Config
   /////////////////////////////////////////////
   // **********        STA        ********** //
   std::string temp_directory_path;  // required
+  int32_t thread_number;            // optional
   /////////////////////////////////////////////
   // **********        STA        ********** //
   std::string log_file_path;  // building
