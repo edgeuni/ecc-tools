@@ -76,8 +76,9 @@ class Logger
   }
 
  private:
+  // self
   static Logger* _log_instance;
-
+  // config & database
   std::string _log_file_path;
   std::ofstream* _log_file = nullptr;
   std::vector<std::string> _temp_log_list;
@@ -89,7 +90,6 @@ class Logger
   Logger& operator=(const Logger& other) = delete;
   Logger& operator=(Logger&& other) = delete;
   // function
-
   template <typename T, typename... Args>
   void printLog(LogLevel log_level, Loc location, const T& value, const Args&... args)
   {

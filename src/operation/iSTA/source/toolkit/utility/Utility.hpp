@@ -78,6 +78,15 @@ class Utility
     }
   }
 
+  std::string getSpaceByTabNum(int32_t tab_num)
+  {
+    std::string all = "";
+    for (int32_t i = 0; i < tab_num; i++) {
+      all += "  ";
+    }
+    return all;
+  }
+
 #endif
 
  private:

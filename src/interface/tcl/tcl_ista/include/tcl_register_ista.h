@@ -24,6 +24,7 @@ namespace tcl {
 
 int registerCmdSTA()
 {
+  // sta
   registerTclCmd(TclInitSTA, "init_sta");
   registerTclCmd(TclRunSTA, "run_sta");
   registerTclCmd(TclDestroySTA, "destroy_sta");

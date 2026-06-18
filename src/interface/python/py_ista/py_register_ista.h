@@ -26,9 +26,9 @@ namespace py = pybind11;
 
 void register_ista(py::module& m)
 {
+  m.def("destroy_sta", destroySTA);
   m.def("init_sta", initSTA, py::arg("config") = "", py::arg("config_dict") = std::map<std::string, std::string>{});
   m.def("run_sta", runSTA);
-  m.def("destroy_sta", destroySTA);
 }
 
 }  // namespace python_interface

@@ -55,7 +55,6 @@ bool GraphBuilder::build()
   STALOG.info(Loc::current(), "Starting...");
 
   Database& database = STADM.getDatabase();
-  STADM.clearGraph(database);
 
   if (database.get_pin_map().empty()) {
     STALOG.warn(Loc::current(), "iSTA database has no pin, skip graph build.");

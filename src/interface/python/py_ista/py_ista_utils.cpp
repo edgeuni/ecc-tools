@@ -25,10 +25,6 @@ namespace python_interface {
 
 bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::any>& config_map)
 {
-  if (config.empty()) {
-    return true;
-  }
-
   auto config_file = std::ifstream(config);
   if (!config_file.is_open()) {
     return false;

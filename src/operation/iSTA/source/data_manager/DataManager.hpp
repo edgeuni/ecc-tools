@@ -33,12 +33,6 @@ class DataManager
   void input(std::map<std::string, std::any>& config_map);
   void output();
 
-#if 1  // 清理Database
-  void reset(Database& database);
-  void clearGraph(Database& database);
-  void clearTiming(Database& database);
-#endif
-
   Config& getConfig() { return _config; }
   Database& getDatabase() { return _database; }
 
@@ -60,12 +54,18 @@ class DataManager
   void buildConfig();
   void buildDatabase();
   void buildInstanceList(Database& database);
-  void buildUniqueName(std::vector<std::string>& list, const std::string& value);
+  void makeInstanceList(Database& database);
+  void makeUniqueName(std::vector<std::string>& list, const std::string& value);
+  void checkInstanceList(Database& database);
   void buildNetList(Database& database);
-  void buildNet(Database& database, const std::string& net_name, Net& net);
-  bool buildDriverPin(const Pin& pin);
-  bool buildOutputLikeDirection(PinDirection direction);
+  void makeNetList(Database& database);
+  void makeNet(Database& database, const std::string& net_name, Net& net);
+  bool isDriverPin(const Pin& pin);
+  bool isOutputLikeDirection(PinDirection direction);
+  void checkNetList(Database& database);
+  void checkNet(Database& database, const std::string& net_name, const Net& net);
   void buildSummary(Database& database);
+  void makeSummary(Database& database);
   void printConfig();
   void printDatabase();
 #endif
