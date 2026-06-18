@@ -19,6 +19,7 @@
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "STAInterface.hpp"
+#include "Utility.hpp"
 
 namespace ista {
 
@@ -74,7 +75,6 @@ void DataManager::output()
 void DataManager::reset(Database& database)
 {
   database.get_design_name().clear();
-  database.get_report_directory().clear();
   database.get_instance_map().clear();
   database.get_pin_map().clear();
   database.get_net_map().clear();
@@ -108,17 +108,32 @@ void DataManager::buildConfig(std::map<std::string, std::any>& config_map)
   _config = Config();
   _config.set_option_num(config_map.size());
 
-  const std::array<std::string, 4> report_directory_key_list = {"-report_directory", "-report_directory_path", "report_directory",
-                                                               "report_directory_path"};
-  for (const std::string& key : report_directory_key_list) {
-    auto report_directory_iter = config_map.find(key);
-    if (report_directory_iter != config_map.end() && report_directory_iter->second.type() == typeid(std::string)) {
-      _config.set_report_directory(std::any_cast<std::string>(report_directory_iter->second));
+  _config.set_temp_directory_path("./sta_temp_directory");
+  const std::array<std::string, 2> temp_directory_key_list = {"-temp_directory_path", "temp_directory_path"};
+  for (const std::string& key : temp_directory_key_list) {
+    auto temp_directory_iter = config_map.find(key);
+    if (temp_directory_iter != config_map.end() && temp_directory_iter->second.type() == typeid(std::string)) {
+      _config.set_temp_directory_path(std::any_cast<std::string>(temp_directory_iter->second));
       break;
     }
   }
 
-  _database.set_report_directory(_config.get_report_directory());
+  _config.set_temp_directory_path(std::filesystem::absolute(_config.get_temp_directory_path()));
+  _config.get_temp_directory_path() += "/";
+  _config.set_log_file_path(_config.get_temp_directory_path() + "sta.log");
+  _config.set_dm_temp_directory_path(_config.get_temp_directory_path() + "data_manager/");
+  _config.set_gb_temp_directory_path(_config.get_temp_directory_path() + "graph_builder/");
+  _config.set_gp_temp_directory_path(_config.get_temp_directory_path() + "graph_propagator/");
+  _config.set_ta_temp_directory_path(_config.get_temp_directory_path() + "timing_analyzer/");
+
+  STAUTIL.removeDir(_config.get_temp_directory_path());
+  STAUTIL.createDir(_config.get_temp_directory_path());
+  STAUTIL.createDirByFile(_config.get_log_file_path());
+  STAUTIL.createDir(_config.get_dm_temp_directory_path());
+  STAUTIL.createDir(_config.get_gb_temp_directory_path());
+  STAUTIL.createDir(_config.get_gp_temp_directory_path());
+  STAUTIL.createDir(_config.get_ta_temp_directory_path());
+  STALOG.openLogFileStream(_config.get_log_file_path());
 }
 
 void DataManager::buildDatabase()
@@ -230,7 +245,12 @@ void DataManager::printConfig()
 {
   STALOG.info(Loc::current(), "STA_CONFIG");
   STALOG.info(Loc::current(), "  option_num=", _config.get_option_num());
-  STALOG.info(Loc::current(), "  report_directory=", _config.get_report_directory());
+  STALOG.info(Loc::current(), "  temp_directory_path=", _config.get_temp_directory_path());
+  STALOG.info(Loc::current(), "  log_file_path=", _config.get_log_file_path());
+  STALOG.info(Loc::current(), "  dm_temp_directory_path=", _config.get_dm_temp_directory_path());
+  STALOG.info(Loc::current(), "  gb_temp_directory_path=", _config.get_gb_temp_directory_path());
+  STALOG.info(Loc::current(), "  gp_temp_directory_path=", _config.get_gp_temp_directory_path());
+  STALOG.info(Loc::current(), "  ta_temp_directory_path=", _config.get_ta_temp_directory_path());
 }
 
 void DataManager::printDatabase()

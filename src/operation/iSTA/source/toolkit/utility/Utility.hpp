@@ -16,6 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
 #include "STAHeader.hpp"
 
 namespace ista {
@@ -44,6 +45,29 @@ class Utility
 
   std::string formatSec(double seconds);
   std::string formatByTwoDecimalPlaces(double value);
+  void createDirByFile(std::string file_path)
+  {
+    std::filesystem::path parent_path = std::filesystem::path(file_path).parent_path();
+    if (!parent_path.empty()) {
+      createDir(parent_path.string());
+    }
+  }
+  void createDir(std::string dir_path)
+  {
+    if (!std::filesystem::exists(dir_path)) {
+      std::error_code system_error;
+      if (!std::filesystem::create_directories(dir_path, system_error)) {
+        STALOG.error(Loc::current(), "Failed to create directory '", dir_path, "', system_error:", system_error.message());
+      }
+    }
+  }
+  void removeDir(const std::string& dir_path)
+  {
+    std::error_code system_error;
+    if (std::filesystem::exists(dir_path, system_error) && !std::filesystem::remove_all(dir_path, system_error)) {
+      STALOG.error(Loc::current(), "Failed to remove directory '", dir_path, "'. Error: ", system_error.message());
+    }
+  }
 
 #endif
 

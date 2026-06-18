@@ -33,7 +33,6 @@ class Database
   ~Database() = default;
   // getter
   std::string& get_design_name() { return _design_name; }
-  std::string& get_report_directory() { return _report_directory; }
   std::unordered_map<std::string, Instance>& get_instance_map() { return _instance_map; }
   std::unordered_map<std::string, Pin>& get_pin_map() { return _pin_map; }
   std::unordered_map<std::string, Net>& get_net_map() { return _net_map; }
@@ -46,7 +45,6 @@ class Database
   Summary& get_summary() { return _summary; }
   // const getter
   const std::string& get_design_name() const { return _design_name; }
-  const std::string& get_report_directory() const { return _report_directory; }
   const std::unordered_map<std::string, Instance>& get_instance_map() const { return _instance_map; }
   const std::unordered_map<std::string, Pin>& get_pin_map() const { return _pin_map; }
   const std::unordered_map<std::string, Net>& get_net_map() const { return _net_map; }
@@ -59,7 +57,6 @@ class Database
   const Summary& get_summary() const { return _summary; }
   // setter
   void set_design_name(const std::string& design_name) { _design_name = design_name; }
-  void set_report_directory(const std::string& report_directory) { _report_directory = report_directory; }
   void set_instance_map(const std::unordered_map<std::string, Instance>& instance_map) { _instance_map = instance_map; }
   void set_pin_map(const std::unordered_map<std::string, Pin>& pin_map) { _pin_map = pin_map; }
   void set_net_map(const std::unordered_map<std::string, Net>& net_map) { _net_map = net_map; }
@@ -83,7 +80,6 @@ class Database
 
  private:
   std::string _design_name;
-  std::string _report_directory;
   std::unordered_map<std::string, Instance> _instance_map;
   std::unordered_map<std::string, Pin> _pin_map;
   std::unordered_map<std::string, Net> _net_map;
