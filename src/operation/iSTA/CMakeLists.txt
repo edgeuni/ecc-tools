@@ -5,6 +5,10 @@ message(STATUS "############## iSTA: START CMAKE ##############")
 
 set(CMAKE_CXX_STANDARD 20)
 
+# add_compile_options("-Wconversion")
+# add_compile_options("-fsanitize=address")
+# link_libraries("-fsanitize=address")
+
 ############################ debug interface ############################
 
 # set(DEBUG_ISTA_INTERFACE ON)
@@ -15,7 +19,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 ############################ debug source module ############################
 
-# Add DEBUG_ISTA_<MODULE> flags here when concrete iSTA modules are introduced.
+# set(DEBUG_ISTA_GRAPH_BUILDER ON)
+# set(DEBUG_ISTA_GRAPH_PROPAGATOR ON)
+# set(DEBUG_ISTA_TIMING_ANALYZER ON)
 
 ############################ debug source toolkit ############################
 
@@ -25,7 +31,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 ############################ setting path ############################
 
-set(HOME_ISTA ${CMAKE_CURRENT_SOURCE_DIR})
+set(HOME_ISTA ${HOME_OPERATION}/iSTA)
 
 set(ISTA_INTERFACE ${HOME_ISTA}/interface)
 set(ISTA_SOURCE ${HOME_ISTA}/source)

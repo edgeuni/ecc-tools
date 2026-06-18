@@ -9,6 +9,7 @@ target_link_libraries(ista_toolkit
     ista_logger
     ista_monitor
     ista_utility
+    ista_interface
 )
 
 target_include_directories(ista_toolkit

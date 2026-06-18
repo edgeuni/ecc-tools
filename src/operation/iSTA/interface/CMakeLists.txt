@@ -13,6 +13,9 @@ add_library(ista_interface
 target_link_libraries(ista_interface
     PRIVATE
     ista_source
+    ieda_feature
+    idm
+    notification
 )
 
 target_include_directories(ista_interface
