@@ -16,16 +16,33 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-#include <vector>
+#include "STAHeader.hpp"
 
 namespace ista {
 
-struct Instance
+class Instance
 {
-  std::string name;
-  std::string cell_name;
-  std::vector<std::string> pin_names;
+ public:
+  Instance() = default;
+  ~Instance() = default;
+  // getter
+  std::string& get_name() { return _name; }
+  std::string& get_cell_name() { return _cell_name; }
+  std::vector<std::string>& get_pin_name_list() { return _pin_name_list; }
+  // const getter
+  const std::string& get_name() const { return _name; }
+  const std::string& get_cell_name() const { return _cell_name; }
+  const std::vector<std::string>& get_pin_name_list() const { return _pin_name_list; }
+  // setter
+  void set_name(const std::string& name) { _name = name; }
+  void set_cell_name(const std::string& cell_name) { _cell_name = cell_name; }
+  void set_pin_name_list(const std::vector<std::string>& pin_name_list) { _pin_name_list = pin_name_list; }
+  // function
+
+ private:
+  std::string _name;
+  std::string _cell_name;
+  std::vector<std::string> _pin_name_list;
 };
 
 }  // namespace ista

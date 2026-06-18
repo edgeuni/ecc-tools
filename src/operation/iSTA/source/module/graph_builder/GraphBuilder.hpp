@@ -16,10 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-#include <vector>
-
-#include "TimingModel.hpp"
+#include "Database.hpp"
 
 namespace ista {
 
@@ -45,17 +42,17 @@ class GraphBuilder
   GraphBuilder& operator=(const GraphBuilder& other) = delete;
   GraphBuilder& operator=(GraphBuilder&& other) = delete;
   // function
-  void buildNetArcs(TimingModel& timing_model);
-  void addArc(TimingModel& timing_model, const std::string& source_pin, const std::string& sink_pin, ArcType type,
+  void buildNetArcs(Database& database);
+  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
               const std::string& owner_name, double delay);
-  double estimateNetDelay(const TimingModel& timing_model, const std::string& source_pin, const std::string& sink_pin) const;
-  void buildCellArcs(TimingModel& timing_model);
-  std::vector<std::string> collectInputPins(const TimingModel& timing_model, const Instance& instance) const;
+  double estimateNetDelay(const Database& database, const std::string& source_pin, const std::string& sink_pin) const;
+  void buildCellArcs(Database& database);
+  std::vector<std::string> collectInputPins(const Database& database, const Instance& instance) const;
   bool isInputLike(PinDirection direction) const;
-  std::vector<std::string> collectOutputPins(const TimingModel& timing_model, const Instance& instance) const;
+  std::vector<std::string> collectOutputPins(const Database& database, const Instance& instance) const;
   bool isOutputLike(PinDirection direction) const;
   double estimateCellDelay(const std::string& cell_name) const;
-  void buildEndpoints(TimingModel& timing_model);
+  void buildEndpoints(Database& database);
   void appendUnique(std::vector<std::string>& list, const std::string& value);
 };
 

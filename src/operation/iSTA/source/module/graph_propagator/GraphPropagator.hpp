@@ -16,10 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-#include <vector>
-
-#include "TimingModel.hpp"
+#include "Database.hpp"
 
 namespace ista {
 
@@ -45,10 +42,10 @@ class GraphPropagator
   GraphPropagator& operator=(const GraphPropagator& other) = delete;
   GraphPropagator& operator=(GraphPropagator&& other) = delete;
   // function
-  std::vector<std::string> propagateArrival(TimingModel& timing_model);
+  std::vector<std::string> propagateArrival(Database& database);
   bool isFinite(double value) const;
-  void propagateRequired(TimingModel& timing_model, const std::vector<std::string>& timing_order);
-  double resolveRequiredTime(const TimingModel& timing_model) const;
+  void propagateRequired(Database& database, const std::vector<std::string>& timing_order);
+  double resolveRequiredTime(const Database& database) const;
 };
 
 }  // namespace ista

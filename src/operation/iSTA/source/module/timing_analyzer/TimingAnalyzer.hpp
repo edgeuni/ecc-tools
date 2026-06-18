@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
+#include "STAHeader.hpp"
 
 namespace ista {
 

@@ -16,17 +16,37 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-#include <vector>
+#include "STAHeader.hpp"
 
 namespace ista {
 
-struct Net
+class Net
 {
-  std::string name;
-  std::string driver_pin;
-  std::vector<std::string> load_pins;
-  std::vector<std::string> pin_names;
+ public:
+  Net() = default;
+  ~Net() = default;
+  // getter
+  std::string& get_name() { return _name; }
+  std::string& get_driver_pin() { return _driver_pin; }
+  std::vector<std::string>& get_load_pin_list() { return _load_pin_list; }
+  std::vector<std::string>& get_pin_name_list() { return _pin_name_list; }
+  // const getter
+  const std::string& get_name() const { return _name; }
+  const std::string& get_driver_pin() const { return _driver_pin; }
+  const std::vector<std::string>& get_load_pin_list() const { return _load_pin_list; }
+  const std::vector<std::string>& get_pin_name_list() const { return _pin_name_list; }
+  // setter
+  void set_name(const std::string& name) { _name = name; }
+  void set_driver_pin(const std::string& driver_pin) { _driver_pin = driver_pin; }
+  void set_load_pin_list(const std::vector<std::string>& load_pin_list) { _load_pin_list = load_pin_list; }
+  void set_pin_name_list(const std::vector<std::string>& pin_name_list) { _pin_name_list = pin_name_list; }
+  // function
+
+ private:
+  std::string _name;
+  std::string _driver_pin;
+  std::vector<std::string> _load_pin_list;
+  std::vector<std::string> _pin_name_list;
 };
 
 }  // namespace ista

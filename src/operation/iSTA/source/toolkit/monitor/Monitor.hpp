@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
+#include "STAHeader.hpp"
 
 namespace ista {
 
@@ -25,6 +25,7 @@ class Monitor
  public:
   Monitor() { init(); }
   ~Monitor() = default;
+  // function
 
   std::string getStatsInfo();
   std::string getElapsedTime();
@@ -35,6 +36,7 @@ class Monitor
   double _init_elapsed_time = 0;
   double _init_cpu_time = 0;
   double _init_usage_memory = 0;
+  // function
 
   void init();
   void updateStats();

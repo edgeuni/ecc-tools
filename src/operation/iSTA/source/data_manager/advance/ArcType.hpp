@@ -20,6 +20,7 @@ namespace ista {
 
 enum class ArcType
 {
+  kNone,
   kCell,
   kNet
 };

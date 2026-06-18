@@ -16,11 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include <any>
-#include <map>
-#include <string>
-
-#include "TimingModel.hpp"
+#include "Database.hpp"
 
 namespace ista {
 
@@ -38,13 +34,13 @@ class DataManager
 
   void reset();
 
-  TimingModel& getTimingModel() { return _timing_model; }
-  const TimingModel& getTimingModel() const { return _timing_model; }
+  Database& getDatabase() { return _database; }
+  const Database& getDatabase() const { return _database; }
 
  private:
   static DataManager* _data_manager_instance;
 
-  TimingModel _timing_model;
+  Database _database;
 
   DataManager() = default;
   DataManager(const DataManager& other) = delete;

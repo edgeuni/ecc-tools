@@ -16,9 +16,6 @@
 // ***************************************************************************************
 #include "Monitor.hpp"
 
-#include <sys/resource.h>
-#include <sys/time.h>
-
 #include "Logger.hpp"
 #include "Utility.hpp"
 
@@ -77,8 +74,9 @@ double Monitor::getCurrCPUTime()
   if (0 != getrusage(RUSAGE_SELF, &usage)) {
     STALOG.error(Loc::current(), "Unable to get rusage!");
   }
-  return static_cast<double>(usage.ru_utime.tv_sec) + static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0 + static_cast<double>(usage.ru_stime.tv_sec)
-         + static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
+  const double user_time = static_cast<double>(usage.ru_utime.tv_sec) + static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0;
+  const double system_time = static_cast<double>(usage.ru_stime.tv_sec) + static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
+  return user_time + system_time;
 }
 
 double Monitor::getCurrUsageMemory()

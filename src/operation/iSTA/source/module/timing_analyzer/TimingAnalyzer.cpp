@@ -16,9 +16,6 @@
 // ***************************************************************************************
 #include "TimingAnalyzer.hpp"
 
-#include <cmath>
-#include <limits>
-
 #include "DataManager.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
@@ -57,44 +54,45 @@ bool TimingAnalyzer::build()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
-  TimingModel& timing_model = STADM.getTimingModel();
-  Summary& summary = timing_model.summary;
+  Database& database = STADM.getDatabase();
+  Summary& summary = database.get_summary();
 
-  summary.instance_num = timing_model.instances.size();
-  summary.port_num = 0;
-  for (const auto& [pin_name, pin] : timing_model.pins) {
-    if (pin.is_port) {
-      ++summary.port_num;
+  summary.set_instance_num(database.get_instance_map().size());
+  summary.set_port_num(0);
+  for (const auto& [pin_name, pin] : database.get_pin_map()) {
+    if (pin.get_is_port()) {
+      summary.set_port_num(summary.get_port_num() + 1);
     }
   }
-  summary.pin_num = timing_model.pins.size();
-  summary.net_num = timing_model.nets.size();
-  summary.arc_num = timing_model.arcs.size();
-  summary.startpoint_num = timing_model.startpoint_list.size();
-  summary.endpoint_num = timing_model.endpoint_list.size();
-  summary.worst_slack = std::numeric_limits<double>::infinity();
-  summary.worst_endpoint.clear();
+  summary.set_pin_num(database.get_pin_map().size());
+  summary.set_net_num(database.get_net_map().size());
+  summary.set_arc_num(database.get_arc_list().size());
+  summary.set_startpoint_num(database.get_startpoint_list().size());
+  summary.set_endpoint_num(database.get_endpoint_list().size());
+  summary.set_worst_slack(std::numeric_limits<double>::infinity());
+  summary.get_worst_endpoint().clear();
 
-  for (const std::string& endpoint : timing_model.endpoint_list) {
-    auto timing_iter = timing_model.timing_points.find(endpoint);
-    if (timing_iter == timing_model.timing_points.end()) {
+  for (const std::string& endpoint : database.get_endpoint_list()) {
+    auto timing_iter = database.get_timing_point_map().find(endpoint);
+    if (timing_iter == database.get_timing_point_map().end()) {
       continue;
     }
     const TimingPoint& timing_point = timing_iter->second;
-    if (!std::isfinite(timing_point.arrival) || !std::isfinite(timing_point.required)) {
+    if (!std::isfinite(timing_point.get_arrival()) || !std::isfinite(timing_point.get_required())) {
       continue;
     }
-    if (timing_point.slack < summary.worst_slack) {
-      summary.worst_slack = timing_point.slack;
-      summary.worst_endpoint = endpoint;
+    if (timing_point.get_slack() < summary.get_worst_slack()) {
+      summary.set_worst_slack(timing_point.get_slack());
+      summary.set_worst_endpoint(endpoint);
     }
   }
 
-  if (!std::isfinite(summary.worst_slack)) {
-    summary.worst_slack = 0.0;
+  if (!std::isfinite(summary.get_worst_slack())) {
+    summary.set_worst_slack(0.0);
   }
 
-  STALOG.info(Loc::current(), "Analyze iSTA timing: worst_slack=", summary.worst_slack, " endpoint=", summary.worst_endpoint);
+  STALOG.info(Loc::current(), "Analyze iSTA timing: worst_slack=", summary.get_worst_slack(),
+              " endpoint=", summary.get_worst_endpoint());
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return true;
 }

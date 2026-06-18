@@ -16,9 +16,6 @@
 // ***************************************************************************************
 #include "GraphBuilder.hpp"
 
-#include <algorithm>
-#include <cmath>
-
 #include "DataManager.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
@@ -57,20 +54,20 @@ bool GraphBuilder::build()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
-  TimingModel& timing_model = STADM.getTimingModel();
-  timing_model.clearGraph();
+  Database& database = STADM.getDatabase();
+  database.clearGraph();
 
-  if (timing_model.pins.empty()) {
-    STALOG.warn(Loc::current(), "iSTA timing model has no pin, skip graph build.");
+  if (database.get_pin_map().empty()) {
+    STALOG.warn(Loc::current(), "iSTA database has no pin, skip graph build.");
     return false;
   }
 
-  buildNetArcs(timing_model);
-  buildCellArcs(timing_model);
-  buildEndpoints(timing_model);
+  buildNetArcs(database);
+  buildCellArcs(database);
+  buildEndpoints(database);
 
-  STALOG.info(Loc::current(), "Build iSTA graph: pins=", timing_model.pins.size(), " arcs=", timing_model.arcs.size(),
-              " startpoints=", timing_model.startpoint_list.size(), " endpoints=", timing_model.endpoint_list.size());
+  STALOG.info(Loc::current(), "Build iSTA graph: pins=", database.get_pin_map().size(), " arcs=", database.get_arc_list().size(),
+              " startpoints=", database.get_startpoint_list().size(), " endpoints=", database.get_endpoint_list().size());
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return true;
 }
@@ -79,60 +76,62 @@ bool GraphBuilder::build()
 
 GraphBuilder* GraphBuilder::_gb_instance = nullptr;
 
-void GraphBuilder::buildNetArcs(TimingModel& timing_model)
+void GraphBuilder::buildNetArcs(Database& database)
 {
-  for (const auto& [net_name, net] : timing_model.nets) {
-    if (net.driver_pin.empty()) {
+  for (const auto& [net_name, net] : database.get_net_map()) {
+    if (net.get_driver_pin().empty()) {
       continue;
     }
-    for (const std::string& load_pin : net.load_pins) {
-      if (load_pin == net.driver_pin) {
+    for (const std::string& load_pin : net.get_load_pin_list()) {
+      if (load_pin == net.get_driver_pin()) {
         continue;
       }
-      addArc(timing_model, net.driver_pin, load_pin, ArcType::kNet, net_name,
-             estimateNetDelay(timing_model, net.driver_pin, load_pin));
+      addArc(database, net.get_driver_pin(), load_pin, ArcType::kNet, net_name,
+             estimateNetDelay(database, net.get_driver_pin(), load_pin));
     }
   }
 }
 
-void GraphBuilder::addArc(TimingModel& timing_model, const std::string& source_pin, const std::string& sink_pin, ArcType type,
+void GraphBuilder::addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
                           const std::string& owner_name, double delay)
 {
-  if (source_pin.empty() || sink_pin.empty() || timing_model.pins.count(source_pin) == 0 || timing_model.pins.count(sink_pin) == 0) {
+  if (source_pin.empty() || sink_pin.empty() || database.get_pin_map().count(source_pin) == 0
+      || database.get_pin_map().count(sink_pin) == 0) {
     return;
   }
 
   Arc arc;
-  arc.name = owner_name + ":" + source_pin + "->" + sink_pin;
-  arc.source_pin = source_pin;
-  arc.sink_pin = sink_pin;
-  arc.owner_name = owner_name;
-  arc.type = type;
-  arc.delay = delay;
+  arc.set_name(owner_name + ":" + source_pin + "->" + sink_pin);
+  arc.set_source_pin(source_pin);
+  arc.set_sink_pin(sink_pin);
+  arc.set_owner_name(owner_name);
+  arc.set_type(type);
+  arc.set_delay(delay);
 
-  timing_model.arcs.push_back(arc);
-  const std::size_t arc_idx = timing_model.arcs.size() - 1;
-  timing_model.outgoing_arc_list[source_pin].push_back(arc_idx);
-  timing_model.incoming_arc_list[sink_pin].push_back(arc_idx);
+  database.get_arc_list().push_back(arc);
+  const std::size_t arc_idx = database.get_arc_list().size() - 1;
+  database.get_outgoing_arc_list_map()[source_pin].push_back(arc_idx);
+  database.get_incoming_arc_list_map()[sink_pin].push_back(arc_idx);
 }
 
-double GraphBuilder::estimateNetDelay(const TimingModel& timing_model, const std::string& source_pin, const std::string& sink_pin) const
+double GraphBuilder::estimateNetDelay(const Database& database, const std::string& source_pin, const std::string& sink_pin) const
 {
-  auto source_iter = timing_model.pins.find(source_pin);
-  auto sink_iter = timing_model.pins.find(sink_pin);
-  if (source_iter == timing_model.pins.end() || sink_iter == timing_model.pins.end()) {
+  auto source_iter = database.get_pin_map().find(source_pin);
+  auto sink_iter = database.get_pin_map().find(sink_pin);
+  if (source_iter == database.get_pin_map().end() || sink_iter == database.get_pin_map().end()) {
     return 1.0;
   }
 
-  const double distance = std::abs(source_iter->second.x - sink_iter->second.x) + std::abs(source_iter->second.y - sink_iter->second.y);
+  const double distance = std::abs(source_iter->second.get_x() - sink_iter->second.get_x())
+                          + std::abs(source_iter->second.get_y() - sink_iter->second.get_y());
   return 1.0 + distance * 0.000001;
 }
 
-void GraphBuilder::buildCellArcs(TimingModel& timing_model)
+void GraphBuilder::buildCellArcs(Database& database)
 {
-  for (const auto& [instance_name, instance] : timing_model.instances) {
-    const std::vector<std::string> input_pin_list = collectInputPins(timing_model, instance);
-    const std::vector<std::string> output_pin_list = collectOutputPins(timing_model, instance);
+  for (const auto& [instance_name, instance] : database.get_instance_map()) {
+    const std::vector<std::string> input_pin_list = collectInputPins(database, instance);
+    const std::vector<std::string> output_pin_list = collectOutputPins(database, instance);
     if (input_pin_list.empty() || output_pin_list.empty()) {
       continue;
     }
@@ -141,18 +140,18 @@ void GraphBuilder::buildCellArcs(TimingModel& timing_model)
         if (input_pin == output_pin) {
           continue;
         }
-        addArc(timing_model, input_pin, output_pin, ArcType::kCell, instance_name, estimateCellDelay(instance.cell_name));
+        addArc(database, input_pin, output_pin, ArcType::kCell, instance_name, estimateCellDelay(instance.get_cell_name()));
       }
     }
   }
 }
 
-std::vector<std::string> GraphBuilder::collectInputPins(const TimingModel& timing_model, const Instance& instance) const
+std::vector<std::string> GraphBuilder::collectInputPins(const Database& database, const Instance& instance) const
 {
   std::vector<std::string> input_pin_list;
-  for (const std::string& pin_name : instance.pin_names) {
-    auto pin_iter = timing_model.pins.find(pin_name);
-    if (pin_iter != timing_model.pins.end() && isInputLike(pin_iter->second.direction)) {
+  for (const std::string& pin_name : instance.get_pin_name_list()) {
+    auto pin_iter = database.get_pin_map().find(pin_name);
+    if (pin_iter != database.get_pin_map().end() && isInputLike(pin_iter->second.get_direction())) {
       input_pin_list.push_back(pin_name);
     }
   }
@@ -164,12 +163,12 @@ bool GraphBuilder::isInputLike(PinDirection direction) const
   return direction == PinDirection::kInput || direction == PinDirection::kInout;
 }
 
-std::vector<std::string> GraphBuilder::collectOutputPins(const TimingModel& timing_model, const Instance& instance) const
+std::vector<std::string> GraphBuilder::collectOutputPins(const Database& database, const Instance& instance) const
 {
   std::vector<std::string> output_pin_list;
-  for (const std::string& pin_name : instance.pin_names) {
-    auto pin_iter = timing_model.pins.find(pin_name);
-    if (pin_iter != timing_model.pins.end() && isOutputLike(pin_iter->second.direction)) {
+  for (const std::string& pin_name : instance.get_pin_name_list()) {
+    auto pin_iter = database.get_pin_map().find(pin_name);
+    if (pin_iter != database.get_pin_map().end() && isOutputLike(pin_iter->second.get_direction())) {
       output_pin_list.push_back(pin_name);
     }
   }
@@ -186,19 +185,23 @@ double GraphBuilder::estimateCellDelay(const std::string& cell_name) const
   return cell_name.empty() ? 1.0 : 1.0;
 }
 
-void GraphBuilder::buildEndpoints(TimingModel& timing_model)
+void GraphBuilder::buildEndpoints(Database& database)
 {
-  for (const auto& [pin_name, pin] : timing_model.pins) {
-    timing_model.timing_points[pin_name] = TimingPoint();
+  for (const auto& [pin_name, pin] : database.get_pin_map()) {
+    database.get_timing_point_map()[pin_name] = TimingPoint();
 
-    const bool has_incoming = timing_model.incoming_arc_list.count(pin_name) > 0 && !timing_model.incoming_arc_list[pin_name].empty();
-    const bool has_outgoing = timing_model.outgoing_arc_list.count(pin_name) > 0 && !timing_model.outgoing_arc_list[pin_name].empty();
+    const bool has_incoming = database.get_incoming_arc_list_map().count(pin_name) > 0
+                              && !database.get_incoming_arc_list_map()[pin_name].empty();
+    const bool has_outgoing = database.get_outgoing_arc_list_map().count(pin_name) > 0
+                              && !database.get_outgoing_arc_list_map()[pin_name].empty();
 
-    if (!has_incoming || (pin.is_port && (pin.direction == PinDirection::kInput || pin.direction == PinDirection::kInout))) {
-      appendUnique(timing_model.startpoint_list, pin_name);
+    if (!has_incoming
+        || (pin.get_is_port() && (pin.get_direction() == PinDirection::kInput || pin.get_direction() == PinDirection::kInout))) {
+      appendUnique(database.get_startpoint_list(), pin_name);
     }
-    if (!has_outgoing || (pin.is_port && (pin.direction == PinDirection::kOutput || pin.direction == PinDirection::kInout))) {
-      appendUnique(timing_model.endpoint_list, pin_name);
+    if (!has_outgoing
+        || (pin.get_is_port() && (pin.get_direction() == PinDirection::kOutput || pin.get_direction() == PinDirection::kInout))) {
+      appendUnique(database.get_endpoint_list(), pin_name);
     }
   }
 }

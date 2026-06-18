@@ -37,7 +37,9 @@
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
+#include <cstddef>
 #include <experimental/source_location>
 #include <filesystem>
 #include <fstream>
@@ -45,6 +47,8 @@
 #include <iomanip>
 #include <iostream>
 #include <list>
+#include <limits>
+#include <map>
 #include <mutex>
 #include <ostream>
 #include <queue>
@@ -59,6 +63,7 @@
 #include <unordered_set>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "libfort/fort.hpp"
 

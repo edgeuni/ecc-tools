@@ -16,20 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include <algorithm>
-#include <cstdint>
-#include <cstdlib>
-#include <ctime>
-#include <experimental/source_location>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <thread>
-#include <vector>
-
 #include "LogLevel.hpp"
+#include "STAHeader.hpp"
 
 namespace ista {
 
@@ -43,6 +31,7 @@ class Logger
   static void initInst();
   static Logger& getInst();
   static void destroyInst();
+  // function
 
   void openLogFileStream(const std::string& log_file_path)
   {
@@ -99,6 +88,7 @@ class Logger
   ~Logger() { closeLogFileStream(); }
   Logger& operator=(const Logger& other) = delete;
   Logger& operator=(Logger&& other) = delete;
+  // function
 
   template <typename T, typename... Args>
   void printLog(LogLevel log_level, Loc location, const T& value, const Args&... args)
@@ -132,8 +122,8 @@ class Logger
       std::string::size_type pos = file_name.find_last_of('/') + 1;
       file_name = file_name.substr(pos, file_name.length() - pos);
     }
-    std::string prefix = getString("[STA ", getTimestamp(), " ", getCompressedBase62(std::stoul(getString(std::this_thread::get_id()))), " ", file_name,
-                                   " ");
+    const std::string thread_id = getCompressedBase62(std::stoul(getString(std::this_thread::get_id())));
+    std::string prefix = getString("[STA ", getTimestamp(), " ", thread_id, " ", file_name, " ");
     std::string suffix = getString(" ", location.function_name());
     std::string message = getString(value, args...);
 

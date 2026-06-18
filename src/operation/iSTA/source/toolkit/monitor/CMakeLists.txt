@@ -12,6 +12,7 @@ add_library(ista_monitor
 
 target_link_libraries(ista_monitor
     PUBLIC
+    ista_data_manager
     ista_logger
     ista_utility
 )

@@ -16,17 +16,34 @@
 // ***************************************************************************************
 #pragma once
 
-#include <limits>
-#include <string>
+#include "STAHeader.hpp"
 
 namespace ista {
 
-struct TimingPoint
+class TimingPoint
 {
-  double arrival = -std::numeric_limits<double>::infinity();
-  double required = std::numeric_limits<double>::infinity();
-  double slack = 0.0;
-  std::string predecessor;
+ public:
+  TimingPoint() = default;
+  ~TimingPoint() = default;
+  // getter
+  double get_arrival() const { return _arrival; }
+  double get_required() const { return _required; }
+  double get_slack() const { return _slack; }
+  std::string& get_predecessor() { return _predecessor; }
+  // const getter
+  const std::string& get_predecessor() const { return _predecessor; }
+  // setter
+  void set_arrival(const double arrival) { _arrival = arrival; }
+  void set_required(const double required) { _required = required; }
+  void set_slack(const double slack) { _slack = slack; }
+  void set_predecessor(const std::string& predecessor) { _predecessor = predecessor; }
+  // function
+
+ private:
+  double _arrival = -std::numeric_limits<double>::infinity();
+  double _required = std::numeric_limits<double>::infinity();
+  double _slack = 0.0;
+  std::string _predecessor;
 };
 
 }  // namespace ista

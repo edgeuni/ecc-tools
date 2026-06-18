@@ -56,7 +56,7 @@ void DataManager::input(std::map<std::string, std::any>& config_map)
   STALOG.info(Loc::current(), "Starting...");
 
   STALOG.info(Loc::current(), "Input iSTA config: option_num=", config_map.size());
-  if (!STAI.inputIDB(dmInst->get_idb_design())) {
+  if (!STAI.input(dmInst->get_idb_design())) {
     STALOG.warn(Loc::current(), "Input IDB to iSTA data manager failed.");
   }
 
@@ -68,17 +68,18 @@ void DataManager::output()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
-  const Summary& summary = _timing_model.summary;
-  STALOG.info(Loc::current(), "Output iSTA summary: design=", _timing_model.design_name, " instances=", summary.instance_num,
-              " ports=", summary.port_num, " pins=", summary.pin_num, " nets=", summary.net_num, " arcs=", summary.arc_num,
-              " worst_slack=", summary.worst_slack, " worst_endpoint=", summary.worst_endpoint);
+  const Summary& summary = _database.get_summary();
+  STALOG.info(Loc::current(), "Output iSTA summary: design=", _database.get_design_name(),
+              " instances=", summary.get_instance_num(), " ports=", summary.get_port_num(), " pins=", summary.get_pin_num(),
+              " nets=", summary.get_net_num(), " arcs=", summary.get_arc_num(), " worst_slack=", summary.get_worst_slack(),
+              " worst_endpoint=", summary.get_worst_endpoint());
 
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 void DataManager::reset()
 {
-  _timing_model.reset();
+  _database.reset();
 }
 
 // private

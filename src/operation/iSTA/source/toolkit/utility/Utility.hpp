@@ -16,9 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include <iomanip>
-#include <sstream>
-#include <string>
+#include "STAHeader.hpp"
 
 namespace ista {
 
@@ -30,6 +28,7 @@ class Utility
   static void initInst();
   static Utility& getInst();
   static void destroyInst();
+  // function
 
 #if 1  // std数据结构工具函数
 
@@ -57,6 +56,7 @@ class Utility
   ~Utility() = default;
   Utility& operator=(const Utility& other) = delete;
   Utility& operator=(Utility&& other) = delete;
+  // function
 
   template <typename Stream, typename T, typename... Args>
   void pushStream(Stream& stream, T t, const Args&... args)
