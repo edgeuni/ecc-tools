@@ -24,6 +24,7 @@
 #include "Database.hpp"
 #include "STAHeader.hpp"
 #include "TimingAnalyzer.hpp"
+#include "Utility.hpp"
 #include "idm.h"
 
 namespace ista {
@@ -50,7 +51,7 @@ void STAInterface::destroyInst()
 
 #if 1  // iSTA
 
-void STAInterface::initSTA()
+void STAInterface::initSTA(std::map<std::string, std::any> config_map)
 {
   Logger::initInst();
   // clang-format off
@@ -130,7 +131,8 @@ void STAInterface::destroySTA()
 
 void STAInterface::input(std::map<std::string, std::any>& config_map)
 {
-  (void) config_map;
+  wrapConfig(config_map);
+
   idb::IdbDesign* idb_design = dmInst->get_idb_design();
   if (idb_design == nullptr) {
     STALOG.warn(Loc::current(), "IDB design is null, skip iSTA input.");
@@ -142,6 +144,13 @@ void STAInterface::input(std::map<std::string, std::any>& config_map)
 
   STALOG.info(Loc::current(), "Input IDB to iSTA database: instances=", database.get_instance_map().size(),
               " pins=", database.get_pin_map().size(), " nets=", database.get_net_map().size());
+}
+
+void STAInterface::wrapConfig(std::map<std::string, std::any>& config_map)
+{
+  /////////////////////////////////////////////
+  STADM.getConfig().temp_directory_path = STAUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./sta_temp_directory");
+  /////////////////////////////////////////////
 }
 
 void STAInterface::wrapDatabase(idb::IdbDesign* idb_design, Database& database)
@@ -388,7 +397,7 @@ void STAInterface::wrapNetPinList(idb::IdbSpecialNet* idb_net, Database& databas
 
 void STAInterface::output()
 {
-  const Database& database = STADM.getDatabase();
+  Database& database = STADM.getDatabase();
   const Summary& summary = database.get_summary();
   STALOG.info(Loc::current(), "Output iSTA summary: design=", database.get_design_name(),
               " instances=", summary.get_instance_num(), " ports=", summary.get_port_num(), " pins=", summary.get_pin_num(),

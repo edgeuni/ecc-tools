@@ -16,6 +16,7 @@
 // ***************************************************************************************
 #include "STAInterface.hpp"
 #include "tcl_sta.h"
+#include "tcl_util.h"
 
 namespace tcl {
 
@@ -23,6 +24,10 @@ namespace tcl {
 
 TclInitSTA::TclInitSTA(const char* cmd_name) : TclCmd(cmd_name)
 {
+  // std::string temp_directory_path;  // required
+  _config_list.push_back(std::make_pair("-temp_directory_path", ValueType::kString));
+
+  TclUtil::addOption(this, _config_list);
 }
 
 unsigned TclInitSTA::exec()
@@ -30,7 +35,8 @@ unsigned TclInitSTA::exec()
   if (!check()) {
     return 0;
   }
-  STAI.initSTA();
+  std::map<std::string, std::any> config_map = TclUtil::getConfigMap(this, _config_list);
+  STAI.initSTA(config_map);
   return 1;
 }
 

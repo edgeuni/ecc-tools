@@ -14,37 +14,36 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "py_ista.h"
+#include <tcl_util.h>
 
-#include "STAInterface.hpp"
+#include <string>
+
+#include "json_parser.h"
+#include "py_ista.h"
 
 namespace python_interface {
 
-bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::any>& config_map);
-
-bool initSTA(std::string& config, std::map<std::string, std::string>& config_dict)
+bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::any>& config_map)
 {
-  (void) config_dict;
-  std::map<std::string, std::any> config_map;
+  if (config.empty()) {
+    return true;
+  }
 
-  bool pass = false;
-  pass = !pass ? initConfigMapByJSON(config, config_map) : pass;
-  if (!pass) {
+  auto config_file = std::ifstream(config);
+  if (!config_file.is_open()) {
     return false;
   }
-  STAI.initSTA(config_map);
-  return true;
-}
 
-bool runSTA()
-{
-  STAI.runSTA();
-  return true;
-}
+  nlohmann::json json;
+  config_file >> json;
 
-bool destroySTA()
-{
-  STAI.destroySTA();
+  std::string value = ieda::getJsonData(json, {"STA", "-temp_directory_path"});
+  if (value.empty()) {
+    value = ieda::getJsonData(json, {"-temp_directory_path"});
+  }
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-temp_directory_path", value));
+  }
   return true;
 }
 

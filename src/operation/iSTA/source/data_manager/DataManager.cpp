@@ -56,7 +56,7 @@ void DataManager::input(std::map<std::string, std::any>& config_map)
   STALOG.info(Loc::current(), "Starting...");
 
   STAI.input(config_map);
-  buildConfig(config_map);
+  buildConfig();
   buildDatabase();
   printConfig();
   printDatabase();
@@ -103,37 +103,36 @@ DataManager* DataManager::_data_manager_instance = nullptr;
 
 #if 1  // build
 
-void DataManager::buildConfig(std::map<std::string, std::any>& config_map)
+void DataManager::buildConfig()
 {
-  _config = Config();
-  _config.set_option_num(config_map.size());
-
-  _config.set_temp_directory_path("./sta_temp_directory");
-  const std::array<std::string, 2> temp_directory_key_list = {"-temp_directory_path", "temp_directory_path"};
-  for (const std::string& key : temp_directory_key_list) {
-    auto temp_directory_iter = config_map.find(key);
-    if (temp_directory_iter != config_map.end() && temp_directory_iter->second.type() == typeid(std::string)) {
-      _config.set_temp_directory_path(std::any_cast<std::string>(temp_directory_iter->second));
-      break;
-    }
-  }
-
-  _config.set_temp_directory_path(std::filesystem::absolute(_config.get_temp_directory_path()));
-  _config.get_temp_directory_path() += "/";
-  _config.set_log_file_path(_config.get_temp_directory_path() + "sta.log");
-  _config.set_dm_temp_directory_path(_config.get_temp_directory_path() + "data_manager/");
-  _config.set_gb_temp_directory_path(_config.get_temp_directory_path() + "graph_builder/");
-  _config.set_gp_temp_directory_path(_config.get_temp_directory_path() + "graph_propagator/");
-  _config.set_ta_temp_directory_path(_config.get_temp_directory_path() + "timing_analyzer/");
-
-  STAUTIL.removeDir(_config.get_temp_directory_path());
-  STAUTIL.createDir(_config.get_temp_directory_path());
-  STAUTIL.createDirByFile(_config.get_log_file_path());
-  STAUTIL.createDir(_config.get_dm_temp_directory_path());
-  STAUTIL.createDir(_config.get_gb_temp_directory_path());
-  STAUTIL.createDir(_config.get_gp_temp_directory_path());
-  STAUTIL.createDir(_config.get_ta_temp_directory_path());
-  STALOG.openLogFileStream(_config.get_log_file_path());
+  /////////////////////////////////////////////
+  // **********        STA        ********** //
+  _config.temp_directory_path = std::filesystem::absolute(_config.temp_directory_path);
+  _config.temp_directory_path += "/";
+  _config.log_file_path = _config.temp_directory_path + "sta.log";
+  // **********    DataManager    ********** //
+  _config.dm_temp_directory_path = _config.temp_directory_path + "data_manager/";
+  // **********   GraphBuilder    ********** //
+  _config.gb_temp_directory_path = _config.temp_directory_path + "graph_builder/";
+  // *********  GraphPropagator   ********* //
+  _config.gp_temp_directory_path = _config.temp_directory_path + "graph_propagator/";
+  // **********  TimingAnalyzer   ********** //
+  _config.ta_temp_directory_path = _config.temp_directory_path + "timing_analyzer/";
+  /////////////////////////////////////////////
+  // **********        STA        ********** //
+  STAUTIL.removeDir(_config.temp_directory_path);
+  STAUTIL.createDir(_config.temp_directory_path);
+  STAUTIL.createDirByFile(_config.log_file_path);
+  // **********    DataManager    ********** //
+  STAUTIL.createDir(_config.dm_temp_directory_path);
+  // **********   GraphBuilder    ********** //
+  STAUTIL.createDir(_config.gb_temp_directory_path);
+  // *********  GraphPropagator   ********* //
+  STAUTIL.createDir(_config.gp_temp_directory_path);
+  // **********  TimingAnalyzer   ********** //
+  STAUTIL.createDir(_config.ta_temp_directory_path);
+  /////////////////////////////////////////////
+  STALOG.openLogFileStream(_config.log_file_path);
 }
 
 void DataManager::buildDatabase()
@@ -243,14 +242,16 @@ void DataManager::buildSummary(Database& database)
 
 void DataManager::printConfig()
 {
+  /////////////////////////////////////////////
+  // **********        STA        ********** //
   STALOG.info(Loc::current(), "STA_CONFIG");
-  STALOG.info(Loc::current(), "  option_num=", _config.get_option_num());
-  STALOG.info(Loc::current(), "  temp_directory_path=", _config.get_temp_directory_path());
-  STALOG.info(Loc::current(), "  log_file_path=", _config.get_log_file_path());
-  STALOG.info(Loc::current(), "  dm_temp_directory_path=", _config.get_dm_temp_directory_path());
-  STALOG.info(Loc::current(), "  gb_temp_directory_path=", _config.get_gb_temp_directory_path());
-  STALOG.info(Loc::current(), "  gp_temp_directory_path=", _config.get_gp_temp_directory_path());
-  STALOG.info(Loc::current(), "  ta_temp_directory_path=", _config.get_ta_temp_directory_path());
+  STALOG.info(Loc::current(), "  temp_directory_path=", _config.temp_directory_path);
+  STALOG.info(Loc::current(), "  log_file_path=", _config.log_file_path);
+  STALOG.info(Loc::current(), "  dm_temp_directory_path=", _config.dm_temp_directory_path);
+  STALOG.info(Loc::current(), "  gb_temp_directory_path=", _config.gb_temp_directory_path);
+  STALOG.info(Loc::current(), "  gp_temp_directory_path=", _config.gp_temp_directory_path);
+  STALOG.info(Loc::current(), "  ta_temp_directory_path=", _config.ta_temp_directory_path);
+  /////////////////////////////////////////////
 }
 
 void DataManager::printDatabase()

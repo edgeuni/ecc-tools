@@ -4,11 +4,14 @@ add_library(py_ista ${PY_ISTA_SRC})
 
 target_link_libraries(py_ista
     PUBLIC
+        tool_manager
         ista_interface
+        tcl_util
         pybind11::pybind11
 )
 
 target_include_directories(py_ista
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${HOME_UTILITY}/json
 )

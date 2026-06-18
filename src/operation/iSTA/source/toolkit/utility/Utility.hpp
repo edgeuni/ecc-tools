@@ -45,6 +45,15 @@ class Utility
 
   std::string formatSec(double seconds);
   std::string formatByTwoDecimalPlaces(double value);
+  template <typename T>
+  T getConfigValue(std::map<std::string, std::any>& config_map, const std::string& config_name, const T& default_value)
+  {
+    if (config_map.find(config_name) != config_map.end()) {
+      return std::any_cast<T>(config_map[config_name]);
+    }
+    STALOG.warn(Loc::current(), "The config '", config_name, "' uses the default value!");
+    return default_value;
+  }
   void createDirByFile(std::string file_path)
   {
     std::filesystem::path parent_path = std::filesystem::path(file_path).parent_path();

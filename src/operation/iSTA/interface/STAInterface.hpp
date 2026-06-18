@@ -16,7 +16,12 @@
 // ***************************************************************************************
 #pragma once
 
-#include "STAHeader.hpp"
+#include <any>
+#include <cstdint>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
 
 #if 1  // 前向声明
 
@@ -53,7 +58,7 @@ class STAInterface
 #if 1  // 外部调用STA的API
 
 #if 1  // iSTA
-  void initSTA();
+  void initSTA(std::map<std::string, std::any> config_map);
   void runSTA();
   void destroySTA();
 #endif
@@ -66,6 +71,7 @@ class STAInterface
 
 #if 1  // input
   void input(std::map<std::string, std::any>& config_map);
+  void wrapConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase(idb::IdbDesign* idb_design, Database& database);
   void wrapInstanceList(idb::IdbDesign* idb_design, Database& database);
   void wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin, Database& database);
@@ -95,8 +101,6 @@ class STAInterface
 
  private:
   static STAInterface* _sta_interface_instance;
-
-  std::map<std::string, std::any> config_map;
 
   STAInterface() = default;
   STAInterface(const STAInterface& other) = delete;

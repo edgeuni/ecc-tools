@@ -31,6 +31,9 @@ class TclInitSTA : public TclCmd
   unsigned check() override { return 1; };
 
   unsigned exec() override;
+
+ private:
+  std::vector<std::pair<std::string, ValueType>> _config_list;
 };
 
 class TclRunSTA : public TclCmd
@@ -42,6 +45,9 @@ class TclRunSTA : public TclCmd
   unsigned check() override { return 1; };
 
   unsigned exec() override;
+
+ private:
+  std::vector<std::pair<std::string, ValueType>> _config_list;
 };
 
 class TclDestroySTA : public TclCmd
@@ -53,6 +59,9 @@ class TclDestroySTA : public TclCmd
   unsigned check() override { return 1; };
 
   unsigned exec() override;
+
+ private:
+  std::vector<std::pair<std::string, ValueType>> _config_list;
 };
 
 #endif
