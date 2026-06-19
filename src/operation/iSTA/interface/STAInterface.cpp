@@ -208,8 +208,10 @@ PinDirection STAInterface::wrapPinDirection(idb::IdbConnectDirection idb_directi
     case idb::IdbConnectDirection::kInOut:
       return PinDirection::kInout;
     default:
-      return PinDirection::kNone;
+      STALOG.error(Loc::current(), "Unrecognized type!");
+      break;
   }
+  return PinDirection::kNone;
 }
 
 void STAInterface::wrapPinCoordinate(Pin& pin, idb::IdbPin* idb_pin)

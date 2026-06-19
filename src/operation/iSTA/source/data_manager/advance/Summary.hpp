@@ -20,23 +20,35 @@
 
 namespace ista {
 
+class GBSummary
+{
+ public:
+  GBSummary() = default;
+  ~GBSummary() = default;
+};
+
+class GPSummary
+{
+ public:
+  GPSummary() = default;
+  ~GPSummary() = default;
+};
+
+class TASummary
+{
+ public:
+  TASummary() = default;
+  ~TASummary() = default;
+};
+
 class Summary
 {
  public:
   Summary() = default;
   ~Summary() = default;
-  std::size_t instance_num = 0;
-  std::size_t port_num = 0;
-  std::size_t pin_num = 0;
-  std::size_t net_num = 0;
-  std::size_t arc_num = 0;
-  std::size_t start_point_num = 0;
-  std::size_t end_point_num = 0;
-  std::size_t loop_vertex_num = 0;
-  double required_time = 0.0;
-  double worst_slack = 0.0;
-  std::string worst_end_point;
-  std::vector<std::string> timing_order;
+  GBSummary gb_summary;
+  GPSummary gp_summary;
+  TASummary ta_summary;
 };
 
 }  // namespace ista

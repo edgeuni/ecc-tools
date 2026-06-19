@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
+
 namespace ista {
 
 enum class PinDirection
@@ -24,6 +26,32 @@ enum class PinDirection
   kInput,
   kOutput,
   kInout
+};
+
+struct GetPinDirectionName
+{
+  std::string operator()(const PinDirection& pin_direction) const
+  {
+    std::string pin_direction_name;
+    switch (pin_direction) {
+      case PinDirection::kNone:
+        pin_direction_name = "none";
+        break;
+      case PinDirection::kInput:
+        pin_direction_name = "input";
+        break;
+      case PinDirection::kOutput:
+        pin_direction_name = "output";
+        break;
+      case PinDirection::kInout:
+        pin_direction_name = "inout";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return pin_direction_name;
+  }
 };
 
 }  // namespace ista

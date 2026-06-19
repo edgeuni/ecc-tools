@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
+
 namespace ista {
 
 enum class ArcType
@@ -23,6 +25,29 @@ enum class ArcType
   kNone,
   kCell,
   kNet
+};
+
+struct GetArcTypeName
+{
+  std::string operator()(const ArcType& arc_type) const
+  {
+    std::string arc_type_name;
+    switch (arc_type) {
+      case ArcType::kNone:
+        arc_type_name = "none";
+        break;
+      case ArcType::kCell:
+        arc_type_name = "cell";
+        break;
+      case ArcType::kNet:
+        arc_type_name = "net";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return arc_type_name;
+  }
 };
 
 }  // namespace ista

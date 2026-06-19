@@ -249,12 +249,6 @@ void DataManager::printDatabase()
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_pin_map().size());
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "net_num");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_net_map().size());
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "arc_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_arc_list().size());
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "start_point_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_start_point_list().size());
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "end_point_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_end_point_list().size());
   /////////////////////////////////////////////
 }
 
