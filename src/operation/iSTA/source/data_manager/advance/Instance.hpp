@@ -29,10 +29,6 @@ class Instance
   std::string& get_name() { return _name; }
   std::string& get_cell_name() { return _cell_name; }
   std::vector<std::string>& get_pin_name_list() { return _pin_name_list; }
-  // const getter
-  const std::string& get_name() const { return _name; }
-  const std::string& get_cell_name() const { return _cell_name; }
-  const std::vector<std::string>& get_pin_name_list() const { return _pin_name_list; }
   // setter
   void set_name(const std::string& name) { _name = name; }
   void set_cell_name(const std::string& cell_name) { _cell_name = cell_name; }

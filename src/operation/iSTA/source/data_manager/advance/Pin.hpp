@@ -35,11 +35,6 @@ class Pin
   double get_x() const { return _x; }
   double get_y() const { return _y; }
   bool get_is_port() const { return _is_port; }
-  // const getter
-  const std::string& get_name() const { return _name; }
-  const std::string& get_full_name() const { return _full_name; }
-  const std::string& get_instance_name() const { return _instance_name; }
-  const std::string& get_net_name() const { return _net_name; }
   // setter
   void set_name(const std::string& name) { _name = name; }
   void set_full_name(const std::string& full_name) { _full_name = full_name; }

@@ -54,13 +54,11 @@ void DataManager::input(std::map<std::string, std::any>& config_map)
 {
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
-
   STAI.input(config_map);
   buildConfig();
   buildDatabase();
   printConfig();
   printDatabase();
-
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -112,93 +110,61 @@ void DataManager::buildConfig()
 
 void DataManager::buildDatabase()
 {
-  buildInstanceList(_database);
-  buildNetList(_database);
-  buildSummary(_database);
+  buildInstanceList();
+  buildNetList();
+  buildSummary();
 }
 
-void DataManager::buildInstanceList(Database& database)
+void DataManager::buildInstanceList()
 {
-  makeInstanceList(database);
-  checkInstanceList(database);
+  makeInstanceList();
 }
 
-void DataManager::makeInstanceList(Database& database)
+void DataManager::makeInstanceList()
 {
-  for (auto& instance_pair : database.get_instance_map()) {
+  for (auto& instance_pair : _database.get_instance_map()) {
     instance_pair.second.get_pin_name_list().clear();
   }
 
-  for (const auto& [pin_name, pin] : database.get_pin_map()) {
+  for (auto& [pin_name, pin] : _database.get_pin_map()) {
     if (pin.get_instance_name().empty()) {
       continue;
     }
 
-    auto instance_iter = database.get_instance_map().find(pin.get_instance_name());
-    if (instance_iter != database.get_instance_map().end()) {
-      makeUniqueName(instance_iter->second.get_pin_name_list(), pin_name);
-    }
+    makeUniqueName(_database.get_instance_map()[pin.get_instance_name()].get_pin_name_list(), pin_name);
   }
 }
 
 void DataManager::makeUniqueName(std::vector<std::string>& list, const std::string& value)
 {
-  if (value.empty()) {
-    return;
-  }
   if (std::find(list.begin(), list.end(), value) == list.end()) {
     list.push_back(value);
   }
 }
 
-void DataManager::checkInstanceList(Database& database)
+void DataManager::buildNetList()
 {
-  for (const auto& [pin_name, pin] : database.get_pin_map()) {
-    if (pin.get_instance_name().empty()) {
-      continue;
-    }
-    if (database.get_instance_map().find(pin.get_instance_name()) == database.get_instance_map().end()) {
-      STALOG.error(Loc::current(), "The instance '", pin.get_instance_name(), "' of pin '", pin_name, "' is not found!");
-    }
-  }
-  for (const auto& [instance_name, instance] : database.get_instance_map()) {
-    for (const std::string& pin_name : instance.get_pin_name_list()) {
-      if (database.get_pin_map().find(pin_name) == database.get_pin_map().end()) {
-        STALOG.error(Loc::current(), "The pin '", pin_name, "' of instance '", instance_name, "' is not found!");
-      }
-    }
-  }
+  makeNetList();
 }
 
-void DataManager::buildNetList(Database& database)
+void DataManager::makeNetList()
 {
-  makeNetList(database);
-  checkNetList(database);
-}
-
-void DataManager::makeNetList(Database& database)
-{
-  for (auto& pin_pair : database.get_pin_map()) {
+  for (auto& pin_pair : _database.get_pin_map()) {
     pin_pair.second.get_net_name().clear();
   }
 
-  for (auto& [net_name, net] : database.get_net_map()) {
-    makeNet(database, net_name, net);
+  for (auto& [net_name, net] : _database.get_net_map()) {
+    makeNet(net_name, net);
   }
 }
 
-void DataManager::makeNet(Database& database, const std::string& net_name, Net& net)
+void DataManager::makeNet(const std::string& net_name, Net& net)
 {
   net.get_driver_pin().clear();
   net.get_load_pin_list().clear();
 
-  for (const std::string& pin_name : net.get_pin_name_list()) {
-    auto pin_iter = database.get_pin_map().find(pin_name);
-    if (pin_iter == database.get_pin_map().end()) {
-      continue;
-    }
-
-    Pin& pin = pin_iter->second;
+  for (std::string& pin_name : net.get_pin_name_list()) {
+    Pin& pin = _database.get_pin_map()[pin_name];
     pin.set_net_name(net_name);
     if (net.get_driver_pin().empty() && isDriverPin(pin)) {
       net.set_driver_pin(pin_name);
@@ -209,14 +175,14 @@ void DataManager::makeNet(Database& database, const std::string& net_name, Net& 
     net.set_driver_pin(net.get_pin_name_list().front());
   }
 
-  for (const std::string& pin_name : net.get_pin_name_list()) {
+  for (std::string& pin_name : net.get_pin_name_list()) {
     if (pin_name != net.get_driver_pin()) {
       makeUniqueName(net.get_load_pin_list(), pin_name);
     }
   }
 }
 
-bool DataManager::isDriverPin(const Pin& pin)
+bool DataManager::isDriverPin(Pin& pin)
 {
   if (pin.get_is_port()) {
     return pin.get_direction() == PinDirection::kInput || pin.get_direction() == PinDirection::kInout;
@@ -229,53 +195,22 @@ bool DataManager::isOutputLikeDirection(PinDirection direction)
   return direction == PinDirection::kOutput || direction == PinDirection::kInout;
 }
 
-void DataManager::checkNetList(Database& database)
+void DataManager::buildSummary()
 {
-  for (const auto& [net_name, net] : database.get_net_map()) {
-    checkNet(database, net_name, net);
-  }
+  makeSummary();
 }
 
-void DataManager::checkNet(Database& database, const std::string& net_name, const Net& net)
+void DataManager::makeSummary()
 {
-  if (!net.get_driver_pin().empty() && database.get_pin_map().find(net.get_driver_pin()) == database.get_pin_map().end()) {
-    STALOG.error(Loc::current(), "The driver pin '", net.get_driver_pin(), "' of net '", net_name, "' is not found!");
-  }
-  for (const std::string& pin_name : net.get_pin_name_list()) {
-    auto pin_iter = database.get_pin_map().find(pin_name);
-    if (pin_iter == database.get_pin_map().end()) {
-      STALOG.error(Loc::current(), "The pin '", pin_name, "' of net '", net_name, "' is not found!");
-    }
-    if (pin_iter->second.get_net_name() != net_name) {
-      STALOG.error(Loc::current(), "The net name of pin '", pin_name, "' is not '", net_name, "'!");
-    }
-  }
-  for (const std::string& pin_name : net.get_load_pin_list()) {
-    if (pin_name == net.get_driver_pin()) {
-      STALOG.error(Loc::current(), "The driver pin '", pin_name, "' of net '", net_name, "' appears in load pin list!");
-    }
-    if (database.get_pin_map().find(pin_name) == database.get_pin_map().end()) {
-      STALOG.error(Loc::current(), "The load pin '", pin_name, "' of net '", net_name, "' is not found!");
-    }
-  }
-}
-
-void DataManager::buildSummary(Database& database)
-{
-  makeSummary(database);
-}
-
-void DataManager::makeSummary(Database& database)
-{
-  Summary& summary = database.get_summary();
-  summary.set_instance_num(database.get_instance_map().size());
-  summary.set_pin_num(database.get_pin_map().size());
-  summary.set_net_num(database.get_net_map().size());
-  summary.set_arc_num(database.get_arc_list().size());
-  summary.set_startpoint_num(database.get_startpoint_list().size());
-  summary.set_endpoint_num(database.get_endpoint_list().size());
+  Summary& summary = _database.get_summary();
+  summary.set_instance_num(_database.get_instance_map().size());
+  summary.set_pin_num(_database.get_pin_map().size());
+  summary.set_net_num(_database.get_net_map().size());
+  summary.set_arc_num(_database.get_arc_list().size());
+  summary.set_startpoint_num(_database.get_startpoint_list().size());
+  summary.set_endpoint_num(_database.get_endpoint_list().size());
   summary.set_port_num(0);
-  for (const auto& pin_pair : database.get_pin_map()) {
+  for (auto& pin_pair : _database.get_pin_map()) {
     if (pin_pair.second.get_is_port()) {
       summary.set_port_num(summary.get_port_num() + 1);
     }
@@ -316,7 +251,7 @@ void DataManager::printConfig()
 
 void DataManager::printDatabase()
 {
-  const Summary& summary = _database.get_summary();
+  Summary& summary = _database.get_summary();
   /////////////////////////////////////////////
   // **********        STA        ********** //
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(0), "STA_DATABASE");

@@ -74,9 +74,8 @@ double Monitor::getCurrCPUTime()
   if (0 != getrusage(RUSAGE_SELF, &usage)) {
     STALOG.error(Loc::current(), "Unable to get rusage!");
   }
-  const double user_time = static_cast<double>(usage.ru_utime.tv_sec) + static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0;
-  const double system_time = static_cast<double>(usage.ru_stime.tv_sec) + static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
-  return user_time + system_time;
+  return static_cast<double>(usage.ru_utime.tv_sec) + static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0 + static_cast<double>(usage.ru_stime.tv_sec)
+         + static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
 }
 
 double Monitor::getCurrUsageMemory()

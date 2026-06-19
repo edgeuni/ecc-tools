@@ -38,9 +38,6 @@ class Summary
   double get_worst_slack() const { return _worst_slack; }
   std::string& get_worst_endpoint() { return _worst_endpoint; }
   std::vector<std::string>& get_timing_order() { return _timing_order; }
-  // const getter
-  const std::string& get_worst_endpoint() const { return _worst_endpoint; }
-  const std::vector<std::string>& get_timing_order() const { return _timing_order; }
   // setter
   void set_instance_num(const std::size_t instance_num) { _instance_num = instance_num; }
   void set_port_num(const std::size_t port_num) { _port_num = port_num; }

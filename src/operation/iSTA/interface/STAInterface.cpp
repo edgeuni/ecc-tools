@@ -159,62 +159,45 @@ void STAInterface::wrapDBInfo()
 void STAInterface::wrapInstanceList()
 {
   idb::IdbDesign* idb_design = dmInst->get_idb_design();
-  if (idb_design->get_instance_list() == nullptr) {
-    return;
-  }
-
-  Database& database = STADM.getDatabase();
   for (idb::IdbInstance* idb_instance : idb_design->get_instance_list()->get_instance_list()) {
-    if (idb_instance == nullptr) {
-      continue;
-    }
+    wrapInstance(idb_instance);
+    wrapInstancePinList(idb_instance);
+  }
+}
 
-    Instance instance;
-    instance.set_name(idb_instance->get_name());
-    if (idb_instance->get_cell_master() != nullptr) {
-      instance.set_cell_name(idb_instance->get_cell_master()->get_name());
-    }
-    database.get_instance_map()[instance.get_name()] = instance;
+void STAInterface::wrapInstance(idb::IdbInstance* idb_instance)
+{
+  Instance instance;
+  instance.set_name(idb_instance->get_name());
+  instance.set_cell_name(idb_instance->get_cell_master()->get_name());
+  STADM.getDatabase().get_instance_map()[instance.get_name()] = instance;
+}
 
-    if (idb_instance->get_pin_list() == nullptr) {
-      continue;
-    }
-    for (idb::IdbPin* idb_pin : idb_instance->get_pin_list()->get_pin_list()) {
-      wrapInstancePin(idb_instance, idb_pin);
-    }
+void STAInterface::wrapInstancePinList(idb::IdbInstance* idb_instance)
+{
+  for (idb::IdbPin* idb_pin : idb_instance->get_pin_list()->get_pin_list()) {
+    wrapInstancePin(idb_instance, idb_pin);
   }
 }
 
 void STAInterface::wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin)
 {
-  if (idb_instance == nullptr || idb_pin == nullptr || idb_pin->get_term() == nullptr) {
-    return;
-  }
-
   const std::string full_name = wrapInstancePinName(idb_instance, idb_pin);
   Pin pin;
   pin.set_name(idb_pin->get_term_name());
   pin.set_full_name(full_name);
   pin.set_instance_name(idb_instance->get_name());
   pin.set_direction(wrapPinDirection(idb_pin->get_term()->get_direction()));
-
-  if (auto* coordinate = idb_pin->get_average_coordinate(); coordinate != nullptr) {
-    pin.set_x(coordinate->get_x());
-    pin.set_y(coordinate->get_y());
-  }
-
+  wrapPinCoordinate(pin, idb_pin);
   STADM.getDatabase().get_pin_map()[full_name] = pin;
 }
 
-std::string STAInterface::wrapInstancePinName(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin) const
+std::string STAInterface::wrapInstancePinName(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin)
 {
-  if (idb_instance == nullptr || idb_pin == nullptr) {
-    return "";
-  }
   return idb_instance->get_name() + ":" + idb_pin->get_term_name();
 }
 
-PinDirection STAInterface::wrapPinDirection(const idb::IdbConnectDirection& idb_direction) const
+PinDirection STAInterface::wrapPinDirection(const idb::IdbConnectDirection& idb_direction)
 {
   switch (idb_direction) {
     case idb::IdbConnectDirection::kInput:
@@ -229,13 +212,16 @@ PinDirection STAInterface::wrapPinDirection(const idb::IdbConnectDirection& idb_
   }
 }
 
+void STAInterface::wrapPinCoordinate(Pin& pin, idb::IdbPin* idb_pin)
+{
+  auto* coordinate = idb_pin->get_average_coordinate();
+  pin.set_x(coordinate->get_x());
+  pin.set_y(coordinate->get_y());
+}
+
 void STAInterface::wrapPortList()
 {
   idb::IdbDesign* idb_design = dmInst->get_idb_design();
-  if (idb_design->get_io_pin_list() == nullptr) {
-    return;
-  }
-
   for (idb::IdbPin* idb_pin : idb_design->get_io_pin_list()->get_pin_list()) {
     wrapPortPin(idb_pin);
   }
@@ -243,30 +229,18 @@ void STAInterface::wrapPortList()
 
 void STAInterface::wrapPortPin(idb::IdbPin* idb_pin)
 {
-  if (idb_pin == nullptr || idb_pin->get_term() == nullptr) {
-    return;
-  }
-
   const std::string full_name = wrapPinName(idb_pin);
   Pin pin;
   pin.set_name(idb_pin->get_pin_name());
   pin.set_full_name(full_name);
   pin.set_direction(wrapPinDirection(idb_pin->get_term()->get_direction()));
   pin.set_is_port(true);
-
-  if (auto* coordinate = idb_pin->get_average_coordinate(); coordinate != nullptr) {
-    pin.set_x(coordinate->get_x());
-    pin.set_y(coordinate->get_y());
-  }
-
+  wrapPinCoordinate(pin, idb_pin);
   STADM.getDatabase().get_pin_map()[full_name] = pin;
 }
 
-std::string STAInterface::wrapPinName(idb::IdbPin* idb_pin) const
+std::string STAInterface::wrapPinName(idb::IdbPin* idb_pin)
 {
-  if (idb_pin == nullptr) {
-    return "";
-  }
   if (!idb_pin->get_pin_name().empty()) {
     return idb_pin->get_pin_name();
   }
@@ -276,31 +250,24 @@ std::string STAInterface::wrapPinName(idb::IdbPin* idb_pin) const
 void STAInterface::wrapNetList()
 {
   idb::IdbDesign* idb_design = dmInst->get_idb_design();
-  if (idb_design->get_net_list() != nullptr) {
-    for (idb::IdbNet* idb_net : idb_design->get_net_list()->get_net_list()) {
-      wrapNet(idb_net);
-    }
+  for (idb::IdbNet* idb_net : idb_design->get_net_list()->get_net_list()) {
+    wrapNet(idb_net);
   }
-
-  if (idb_design->get_special_net_list() != nullptr) {
-    for (idb::IdbSpecialNet* idb_net : idb_design->get_special_net_list()->get_net_list()) {
-      wrapSpecialNet(idb_net);
-    }
+  for (idb::IdbSpecialNet* idb_net : idb_design->get_special_net_list()->get_net_list()) {
+    wrapSpecialNet(idb_net);
   }
 }
 
 void STAInterface::wrapNet(idb::IdbNet* idb_net)
 {
-  if (idb_net == nullptr || !wrapSignalNet(idb_net->get_connect_type())) {
+  if (!wrapSignalNet(idb_net->get_connect_type())) {
     return;
   }
 
   Net net;
   net.set_name(idb_net->get_net_name());
   wrapNetPinList(idb_net, net);
-  if (!net.get_name().empty() && net.get_pin_name_list().size() >= 2) {
-    STADM.getDatabase().get_net_map()[net.get_name()] = net;
-  }
+  wrapNetToDatabase(net);
 }
 
 bool STAInterface::wrapSignalNet(idb::IdbConnectType connect_type)
@@ -317,64 +284,57 @@ void STAInterface::wrapNetPinList(idb::IdbNet* idb_net, Net& net)
 
 void STAInterface::wrapNetPinList(idb::IdbPins* io_pin_list, idb::IdbPins* instance_pin_list, Net& net)
 {
-  if (io_pin_list != nullptr) {
-    for (idb::IdbPin* idb_pin : io_pin_list->get_pin_list()) {
-      wrapNetPin(idb_pin, net);
-    }
+  for (idb::IdbPin* idb_pin : io_pin_list->get_pin_list()) {
+    wrapNetPin(idb_pin, net);
   }
-  if (instance_pin_list != nullptr) {
-    for (idb::IdbPin* idb_pin : instance_pin_list->get_pin_list()) {
-      wrapNetPin(idb_pin, net);
-    }
+  for (idb::IdbPin* idb_pin : instance_pin_list->get_pin_list()) {
+    wrapNetPin(idb_pin, net);
   }
 }
 
 void STAInterface::wrapNetPin(idb::IdbPin* idb_pin, Net& net)
 {
-  if (idb_pin == nullptr) {
-    return;
-  }
+  std::string pin_name = wrapNetPinName(idb_pin);
+  wrapNetPinNameList(net, pin_name);
+}
 
+std::string STAInterface::wrapNetPinName(idb::IdbPin* idb_pin)
+{
   std::string full_name;
   if (idb_pin->is_io_pin() || idb_pin->get_instance() == nullptr) {
     full_name = idb_pin->get_pin_name();
-    if (full_name.empty() && idb_pin->get_term() != nullptr) {
+    if (full_name.empty()) {
       full_name = idb_pin->get_term_name();
     }
-  } else if (idb_pin->get_instance() != nullptr) {
-    if (idb_pin->get_term() == nullptr) {
-      return;
-    }
+  } else {
     full_name = idb_pin->get_instance()->get_name() + ":" + idb_pin->get_term_name();
   }
-  if (full_name.empty()) {
-    return;
-  }
+  return full_name;
+}
 
-  auto& pin_map = STADM.getDatabase().get_pin_map();
-  auto pin_iter = pin_map.find(full_name);
-  if (pin_iter == pin_map.end()) {
-    return;
-  }
-
+void STAInterface::wrapNetPinNameList(Net& net, std::string& pin_name)
+{
   auto& pin_name_list = net.get_pin_name_list();
-  if (std::find(pin_name_list.begin(), pin_name_list.end(), full_name) == pin_name_list.end()) {
-    pin_name_list.push_back(full_name);
+  if (std::find(pin_name_list.begin(), pin_name_list.end(), pin_name) == pin_name_list.end()) {
+    pin_name_list.push_back(pin_name);
   }
+}
+
+void STAInterface::wrapNetToDatabase(Net& net)
+{
+  STADM.getDatabase().get_net_map()[net.get_name()] = net;
 }
 
 void STAInterface::wrapSpecialNet(idb::IdbSpecialNet* idb_net)
 {
-  if (idb_net == nullptr || !wrapSignalNet(idb_net->get_connect_type())) {
+  if (!wrapSignalNet(idb_net->get_connect_type())) {
     return;
   }
 
   Net net;
   net.set_name(idb_net->get_net_name());
   wrapNetPinList(idb_net, net);
-  if (!net.get_name().empty() && net.get_pin_name_list().size() >= 2) {
-    STADM.getDatabase().get_net_map()[net.get_name()] = net;
-  }
+  wrapNetToDatabase(net);
 }
 
 void STAInterface::wrapNetPinList(idb::IdbSpecialNet* idb_net, Net& net)

@@ -44,7 +44,6 @@ class Logger
     if (_log_file != nullptr) {
       _log_file->close();
       delete _log_file;
-      _log_file = nullptr;
     }
   }
 
@@ -122,8 +121,7 @@ class Logger
       std::string::size_type pos = file_name.find_last_of('/') + 1;
       file_name = file_name.substr(pos, file_name.length() - pos);
     }
-    const std::string thread_id = getCompressedBase62(std::stoul(getString(std::this_thread::get_id())));
-    std::string prefix = getString("[STA ", getTimestamp(), " ", thread_id, " ", file_name, " ");
+    std::string prefix = getString("[STA ", getTimestamp(), " ", getCompressedBase62(std::stoul(getString(std::this_thread::get_id()))), " ", file_name, " ");
     std::string suffix = getString(" ", location.function_name());
     std::string message = getString(value, args...);
 

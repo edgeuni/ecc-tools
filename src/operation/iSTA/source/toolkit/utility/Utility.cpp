@@ -43,20 +43,6 @@ void Utility::destroyInst()
   }
 }
 
-std::string Utility::formatSec(double seconds)
-{
-  return getString(formatByTwoDecimalPlaces(seconds), "s");
-}
-
-std::string Utility::formatByTwoDecimalPlaces(double value)
-{
-  std::stringstream oss;
-  oss << std::fixed << std::setprecision(2) << value;
-  std::string string = oss.str();
-  oss.clear();
-  return string;
-}
-
 // private
 
 Utility* Utility::_util_instance = nullptr;

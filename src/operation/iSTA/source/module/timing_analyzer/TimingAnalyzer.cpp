@@ -59,7 +59,7 @@ bool TimingAnalyzer::build()
 
   summary.set_instance_num(database.get_instance_map().size());
   summary.set_port_num(0);
-  for (const auto& [pin_name, pin] : database.get_pin_map()) {
+  for (auto& [pin_name, pin] : database.get_pin_map()) {
     if (pin.get_is_port()) {
       summary.set_port_num(summary.get_port_num() + 1);
     }
@@ -72,12 +72,12 @@ bool TimingAnalyzer::build()
   summary.set_worst_slack(std::numeric_limits<double>::infinity());
   summary.get_worst_endpoint().clear();
 
-  for (const std::string& endpoint : database.get_endpoint_list()) {
+  for (std::string& endpoint : database.get_endpoint_list()) {
     auto timing_iter = database.get_timing_point_map().find(endpoint);
     if (timing_iter == database.get_timing_point_map().end()) {
       continue;
     }
-    const TimingPoint& timing_point = timing_iter->second;
+    TimingPoint& timing_point = timing_iter->second;
     if (!std::isfinite(timing_point.get_arrival()) || !std::isfinite(timing_point.get_required())) {
       continue;
     }

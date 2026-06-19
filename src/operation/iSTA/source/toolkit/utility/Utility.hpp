@@ -43,8 +43,34 @@ class Utility
     return string;
   }
 
-  static std::string formatSec(double seconds);
-  static std::string formatByTwoDecimalPlaces(double value);
+  static std::string formatSec(double sec)
+  {
+    std::string sec_string;
+
+    int32_t integer_sec = static_cast<int32_t>(std::round(sec));
+    int32_t h = integer_sec / 3600;
+    int32_t m = (integer_sec % 3600) / 60;
+    int32_t s = (integer_sec % 3600) % 60;
+    char* buffer = new char[32];
+    sprintf(buffer, "%02d:%02d:%02d", h, m, s);
+    sec_string = buffer;
+    delete[] buffer;
+    buffer = nullptr;
+
+    return sec_string;
+  }
+  static std::string formatByTwoDecimalPlaces(double digit)
+  {
+    std::string digit_string;
+
+    char* buffer = new char[32];
+    sprintf(buffer, "%02.2f", digit);
+    digit_string = buffer;
+    delete[] buffer;
+    buffer = nullptr;
+
+    return digit_string;
+  }
   template <typename T>
   static T getConfigValue(std::map<std::string, std::any>& config_map, const std::string& config_name, const T& default_value)
   {

@@ -30,8 +30,6 @@ class TimingPoint
   double get_required() const { return _required; }
   double get_slack() const { return _slack; }
   std::string& get_predecessor() { return _predecessor; }
-  // const getter
-  const std::string& get_predecessor() const { return _predecessor; }
   // setter
   void set_arrival(const double arrival) { _arrival = arrival; }
   void set_required(const double required) { _required = required; }

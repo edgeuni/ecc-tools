@@ -53,19 +53,16 @@ class DataManager
 #if 1  // build
   void buildConfig();
   void buildDatabase();
-  void buildInstanceList(Database& database);
-  void makeInstanceList(Database& database);
+  void buildInstanceList();
+  void makeInstanceList();
   void makeUniqueName(std::vector<std::string>& list, const std::string& value);
-  void checkInstanceList(Database& database);
-  void buildNetList(Database& database);
-  void makeNetList(Database& database);
-  void makeNet(Database& database, const std::string& net_name, Net& net);
-  bool isDriverPin(const Pin& pin);
+  void buildNetList();
+  void makeNetList();
+  void makeNet(const std::string& net_name, Net& net);
+  bool isDriverPin(Pin& pin);
   bool isOutputLikeDirection(PinDirection direction);
-  void checkNetList(Database& database);
-  void checkNet(Database& database, const std::string& net_name, const Net& net);
-  void buildSummary(Database& database);
-  void makeSummary(Database& database);
+  void buildSummary();
+  void makeSummary();
   void printConfig();
   void printDatabase();
 #endif

@@ -77,11 +77,11 @@ GraphBuilder* GraphBuilder::_gb_instance = nullptr;
 
 void GraphBuilder::buildNetArcs(Database& database)
 {
-  for (const auto& [net_name, net] : database.get_net_map()) {
+  for (auto& [net_name, net] : database.get_net_map()) {
     if (net.get_driver_pin().empty()) {
       continue;
     }
-    for (const std::string& load_pin : net.get_load_pin_list()) {
+    for (std::string& load_pin : net.get_load_pin_list()) {
       if (load_pin == net.get_driver_pin()) {
         continue;
       }
@@ -113,7 +113,7 @@ void GraphBuilder::addArc(Database& database, const std::string& source_pin, con
   database.get_incoming_arc_list_map()[sink_pin].push_back(arc_idx);
 }
 
-double GraphBuilder::estimateNetDelay(const Database& database, const std::string& source_pin, const std::string& sink_pin) const
+double GraphBuilder::estimateNetDelay(Database& database, std::string& source_pin, std::string& sink_pin)
 {
   auto source_iter = database.get_pin_map().find(source_pin);
   auto sink_iter = database.get_pin_map().find(sink_pin);
@@ -128,14 +128,14 @@ double GraphBuilder::estimateNetDelay(const Database& database, const std::strin
 
 void GraphBuilder::buildCellArcs(Database& database)
 {
-  for (const auto& [instance_name, instance] : database.get_instance_map()) {
-    const std::vector<std::string> input_pin_list = collectInputPins(database, instance);
-    const std::vector<std::string> output_pin_list = collectOutputPins(database, instance);
+  for (auto& [instance_name, instance] : database.get_instance_map()) {
+    std::vector<std::string> input_pin_list = collectInputPins(database, instance);
+    std::vector<std::string> output_pin_list = collectOutputPins(database, instance);
     if (input_pin_list.empty() || output_pin_list.empty()) {
       continue;
     }
-    for (const std::string& input_pin : input_pin_list) {
-      for (const std::string& output_pin : output_pin_list) {
+    for (std::string& input_pin : input_pin_list) {
+      for (std::string& output_pin : output_pin_list) {
         if (input_pin == output_pin) {
           continue;
         }
@@ -145,10 +145,10 @@ void GraphBuilder::buildCellArcs(Database& database)
   }
 }
 
-std::vector<std::string> GraphBuilder::collectInputPins(const Database& database, const Instance& instance) const
+std::vector<std::string> GraphBuilder::collectInputPins(Database& database, Instance& instance)
 {
   std::vector<std::string> input_pin_list;
-  for (const std::string& pin_name : instance.get_pin_name_list()) {
+  for (std::string& pin_name : instance.get_pin_name_list()) {
     auto pin_iter = database.get_pin_map().find(pin_name);
     if (pin_iter != database.get_pin_map().end() && isInputLike(pin_iter->second.get_direction())) {
       input_pin_list.push_back(pin_name);
@@ -157,15 +157,15 @@ std::vector<std::string> GraphBuilder::collectInputPins(const Database& database
   return input_pin_list;
 }
 
-bool GraphBuilder::isInputLike(PinDirection direction) const
+bool GraphBuilder::isInputLike(PinDirection direction)
 {
   return direction == PinDirection::kInput || direction == PinDirection::kInout;
 }
 
-std::vector<std::string> GraphBuilder::collectOutputPins(const Database& database, const Instance& instance) const
+std::vector<std::string> GraphBuilder::collectOutputPins(Database& database, Instance& instance)
 {
   std::vector<std::string> output_pin_list;
-  for (const std::string& pin_name : instance.get_pin_name_list()) {
+  for (std::string& pin_name : instance.get_pin_name_list()) {
     auto pin_iter = database.get_pin_map().find(pin_name);
     if (pin_iter != database.get_pin_map().end() && isOutputLike(pin_iter->second.get_direction())) {
       output_pin_list.push_back(pin_name);
@@ -174,19 +174,19 @@ std::vector<std::string> GraphBuilder::collectOutputPins(const Database& databas
   return output_pin_list;
 }
 
-bool GraphBuilder::isOutputLike(PinDirection direction) const
+bool GraphBuilder::isOutputLike(PinDirection direction)
 {
   return direction == PinDirection::kOutput || direction == PinDirection::kInout;
 }
 
-double GraphBuilder::estimateCellDelay(const std::string& cell_name) const
+double GraphBuilder::estimateCellDelay(std::string& cell_name)
 {
   return cell_name.empty() ? 1.0 : 1.0;
 }
 
 void GraphBuilder::buildEndpoints(Database& database)
 {
-  for (const auto& [pin_name, pin] : database.get_pin_map()) {
+  for (auto& [pin_name, pin] : database.get_pin_map()) {
     database.get_timing_point_map()[pin_name] = TimingPoint();
 
     const bool has_incoming = database.get_incoming_arc_list_map().count(pin_name) > 0

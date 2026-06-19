@@ -33,11 +33,6 @@ class Arc
   std::string& get_owner_name() { return _owner_name; }
   ArcType get_type() const { return _type; }
   double get_delay() const { return _delay; }
-  // const getter
-  const std::string& get_name() const { return _name; }
-  const std::string& get_source_pin() const { return _source_pin; }
-  const std::string& get_sink_pin() const { return _sink_pin; }
-  const std::string& get_owner_name() const { return _owner_name; }
   // setter
   void set_name(const std::string& name) { _name = name; }
   void set_source_pin(const std::string& source_pin) { _source_pin = source_pin; }

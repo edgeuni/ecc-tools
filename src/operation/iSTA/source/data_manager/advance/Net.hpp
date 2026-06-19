@@ -30,11 +30,6 @@ class Net
   std::string& get_driver_pin() { return _driver_pin; }
   std::vector<std::string>& get_load_pin_list() { return _load_pin_list; }
   std::vector<std::string>& get_pin_name_list() { return _pin_name_list; }
-  // const getter
-  const std::string& get_name() const { return _name; }
-  const std::string& get_driver_pin() const { return _driver_pin; }
-  const std::vector<std::string>& get_load_pin_list() const { return _load_pin_list; }
-  const std::vector<std::string>& get_pin_name_list() const { return _pin_name_list; }
   // setter
   void set_name(const std::string& name) { _name = name; }
   void set_driver_pin(const std::string& driver_pin) { _driver_pin = driver_pin; }

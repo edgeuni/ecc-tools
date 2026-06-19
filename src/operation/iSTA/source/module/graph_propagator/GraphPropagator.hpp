@@ -43,9 +43,9 @@ class GraphPropagator
   GraphPropagator& operator=(GraphPropagator&& other) = delete;
   // function
   std::vector<std::string> propagateArrival(Database& database);
-  bool isFinite(double value) const;
-  void propagateRequired(Database& database, const std::vector<std::string>& timing_order);
-  double resolveRequiredTime(const Database& database) const;
+  bool isFinite(double value);
+  void propagateRequired(Database& database, std::vector<std::string>& timing_order);
+  double resolveRequiredTime(Database& database);
 };
 
 }  // namespace ista
