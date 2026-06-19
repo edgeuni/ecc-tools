@@ -145,18 +145,15 @@ void STAInterface::wrapConfig(std::map<std::string, std::any>& config_map)
 
 void STAInterface::wrapDatabase()
 {
-  idb::IdbDesign* idb_design = dmInst->get_idb_design();
-  if (idb_design == nullptr) {
-    STALOG.warn(Loc::current(), "IDB design is null, skip iSTA input.");
-    return;
-  }
-
-  Database& database = STADM.getDatabase();
-  database.set_design_name(idb_design->get_design_name());
-
+  wrapDBInfo();
   wrapInstanceList();
   wrapPortList();
   wrapNetList();
+}
+
+void STAInterface::wrapDBInfo()
+{
+  STADM.getDatabase().set_design_name(dmInst->get_idb_design()->get_design_name());
 }
 
 void STAInterface::wrapInstanceList()

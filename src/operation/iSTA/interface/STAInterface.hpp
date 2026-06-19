@@ -69,6 +69,7 @@ class STAInterface
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
+  void wrapDBInfo();
   void wrapInstanceList();
   void wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin);
   std::string wrapInstancePinName(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin) const;
