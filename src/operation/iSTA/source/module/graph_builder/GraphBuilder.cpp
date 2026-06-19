@@ -64,10 +64,10 @@ bool GraphBuilder::build()
 
   buildNetArcs(database);
   buildCellArcs(database);
-  buildEndpoints(database);
+  buildEndPoints(database);
 
   STALOG.info(Loc::current(), "Build iSTA graph: pins=", database.get_pin_map().size(), " arcs=", database.get_arc_list().size(),
-              " startpoints=", database.get_startpoint_list().size(), " endpoints=", database.get_endpoint_list().size());
+              " start_points=", database.get_start_point_list().size(), " end_points=", database.get_end_point_list().size());
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return true;
 }
@@ -185,7 +185,7 @@ double GraphBuilder::estimateCellDelay(std::string& cell_name)
   return cell_name.empty() ? 1.0 : 1.0;
 }
 
-void GraphBuilder::buildEndpoints(Database& database)
+void GraphBuilder::buildEndPoints(Database& database)
 {
   for (auto& [pin_name, pin] : database.get_pin_map()) {
     database.get_timing_point_map()[pin_name] = TimingPoint();
@@ -197,11 +197,11 @@ void GraphBuilder::buildEndpoints(Database& database)
 
     if (!has_incoming
         || (pin.get_is_port() && (pin.get_direction() == PinDirection::kInput || pin.get_direction() == PinDirection::kInout))) {
-      appendUnique(database.get_startpoint_list(), pin_name);
+      appendUnique(database.get_start_point_list(), pin_name);
     }
     if (!has_outgoing
         || (pin.get_is_port() && (pin.get_direction() == PinDirection::kOutput || pin.get_direction() == PinDirection::kInout))) {
-      appendUnique(database.get_endpoint_list(), pin_name);
+      appendUnique(database.get_end_point_list(), pin_name);
     }
   }
 }

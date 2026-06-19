@@ -67,13 +67,13 @@ bool TimingAnalyzer::build()
   summary.pin_num = database.get_pin_map().size();
   summary.net_num = database.get_net_map().size();
   summary.arc_num = database.get_arc_list().size();
-  summary.startpoint_num = database.get_startpoint_list().size();
-  summary.endpoint_num = database.get_endpoint_list().size();
+  summary.start_point_num = database.get_start_point_list().size();
+  summary.end_point_num = database.get_end_point_list().size();
   summary.worst_slack = std::numeric_limits<double>::infinity();
-  summary.worst_endpoint.clear();
+  summary.worst_end_point.clear();
 
-  for (std::string& endpoint : database.get_endpoint_list()) {
-    auto timing_iter = database.get_timing_point_map().find(endpoint);
+  for (std::string& end_point : database.get_end_point_list()) {
+    auto timing_iter = database.get_timing_point_map().find(end_point);
     if (timing_iter == database.get_timing_point_map().end()) {
       continue;
     }
@@ -83,7 +83,7 @@ bool TimingAnalyzer::build()
     }
     if (timing_point.get_slack() < summary.worst_slack) {
       summary.worst_slack = timing_point.get_slack();
-      summary.worst_endpoint = endpoint;
+      summary.worst_end_point = end_point;
     }
   }
 
@@ -91,7 +91,7 @@ bool TimingAnalyzer::build()
     summary.worst_slack = 0.0;
   }
 
-  STALOG.info(Loc::current(), "Analyze iSTA timing: worst_slack=", summary.worst_slack, " endpoint=", summary.worst_endpoint);
+  STALOG.info(Loc::current(), "Analyze iSTA timing: worst_slack=", summary.worst_slack, " end_point=", summary.worst_end_point);
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return true;
 }

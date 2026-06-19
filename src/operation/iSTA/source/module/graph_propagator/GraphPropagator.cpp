@@ -89,8 +89,8 @@ std::vector<std::string> GraphPropagator::propagateArrival(Database& database)
     indegree_map[pin_name] = database.get_incoming_arc_list_map()[pin_name].size();
   }
 
-  for (std::string& startpoint : database.get_startpoint_list()) {
-    auto timing_iter = database.get_timing_point_map().find(startpoint);
+  for (std::string& start_point : database.get_start_point_list()) {
+    auto timing_iter = database.get_timing_point_map().find(start_point);
     if (timing_iter != database.get_timing_point_map().end()) {
       timing_iter->second.set_arrival(0.0);
     }
@@ -146,8 +146,8 @@ void GraphPropagator::propagateRequired(Database& database, std::vector<std::str
   const double required_time = resolveRequiredTime(database);
   database.get_summary().required_time = required_time;
 
-  for (std::string& endpoint : database.get_endpoint_list()) {
-    auto timing_iter = database.get_timing_point_map().find(endpoint);
+  for (std::string& end_point : database.get_end_point_list()) {
+    auto timing_iter = database.get_timing_point_map().find(end_point);
     if (timing_iter != database.get_timing_point_map().end()) {
       timing_iter->second.set_required(required_time);
     }
@@ -175,8 +175,8 @@ void GraphPropagator::propagateRequired(Database& database, std::vector<std::str
 double GraphPropagator::resolveRequiredTime(Database& database)
 {
   double worst_arrival = 0.0;
-  for (std::string& endpoint : database.get_endpoint_list()) {
-    auto timing_iter = database.get_timing_point_map().find(endpoint);
+  for (std::string& end_point : database.get_end_point_list()) {
+    auto timing_iter = database.get_timing_point_map().find(end_point);
     if (timing_iter != database.get_timing_point_map().end() && isFinite(timing_iter->second.get_arrival())) {
       worst_arrival = std::max(worst_arrival, timing_iter->second.get_arrival());
     }

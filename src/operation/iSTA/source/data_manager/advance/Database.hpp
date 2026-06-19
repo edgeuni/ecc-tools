@@ -39,8 +39,8 @@ class Database
   std::vector<Arc>& get_arc_list() { return _arc_list; }
   std::map<std::string, std::vector<std::size_t>>& get_outgoing_arc_list_map() { return _outgoing_arc_list_map; }
   std::map<std::string, std::vector<std::size_t>>& get_incoming_arc_list_map() { return _incoming_arc_list_map; }
-  std::vector<std::string>& get_startpoint_list() { return _startpoint_list; }
-  std::vector<std::string>& get_endpoint_list() { return _endpoint_list; }
+  std::vector<std::string>& get_start_point_list() { return _start_point_list; }
+  std::vector<std::string>& get_end_point_list() { return _end_point_list; }
   std::map<std::string, TimingPoint>& get_timing_point_map() { return _timing_point_map; }
   Summary& get_summary() { return _summary; }
   // setter
@@ -55,8 +55,8 @@ class Database
   std::vector<Arc> _arc_list;
   std::map<std::string, std::vector<std::size_t>> _outgoing_arc_list_map;
   std::map<std::string, std::vector<std::size_t>> _incoming_arc_list_map;
-  std::vector<std::string> _startpoint_list;
-  std::vector<std::string> _endpoint_list;
+  std::vector<std::string> _start_point_list;
+  std::vector<std::string> _end_point_list;
   std::map<std::string, TimingPoint> _timing_point_map;
   Summary _summary;
 };

@@ -52,7 +52,7 @@ class GraphBuilder
   std::vector<std::string> collectOutputPins(Database& database, Instance& instance);
   bool isOutputLike(PinDirection direction);
   double estimateCellDelay(std::string& cell_name);
-  void buildEndpoints(Database& database);
+  void buildEndPoints(Database& database);
   void appendUnique(std::vector<std::string>& list, const std::string& value);
 };
 

@@ -30,12 +30,12 @@ class Summary
   std::size_t pin_num = 0;
   std::size_t net_num = 0;
   std::size_t arc_num = 0;
-  std::size_t startpoint_num = 0;
-  std::size_t endpoint_num = 0;
+  std::size_t start_point_num = 0;
+  std::size_t end_point_num = 0;
   std::size_t loop_vertex_num = 0;
   double required_time = 0.0;
   double worst_slack = 0.0;
-  std::string worst_endpoint;
+  std::string worst_end_point;
   std::vector<std::string> timing_order;
 };
 
