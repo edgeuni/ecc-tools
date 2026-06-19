@@ -34,7 +34,7 @@ class Utility
 #if 1  // std数据结构工具函数
 
   template <typename T, typename... Args>
-  std::string getString(T value, Args... args)
+  static std::string getString(T value, Args... args)
   {
     std::stringstream oss;
     pushStream(oss, value, args...);
@@ -43,10 +43,10 @@ class Utility
     return string;
   }
 
-  std::string formatSec(double seconds);
-  std::string formatByTwoDecimalPlaces(double value);
+  static std::string formatSec(double seconds);
+  static std::string formatByTwoDecimalPlaces(double value);
   template <typename T>
-  T getConfigValue(std::map<std::string, std::any>& config_map, const std::string& config_name, const T& default_value)
+  static T getConfigValue(std::map<std::string, std::any>& config_map, const std::string& config_name, const T& default_value)
   {
     if (config_map.find(config_name) != config_map.end()) {
       return std::any_cast<T>(config_map[config_name]);
@@ -54,14 +54,14 @@ class Utility
     STALOG.warn(Loc::current(), "The config '", config_name, "' uses the default value!");
     return default_value;
   }
-  void createDirByFile(std::string file_path)
+  static void createDirByFile(std::string file_path)
   {
     std::filesystem::path parent_path = std::filesystem::path(file_path).parent_path();
     if (!parent_path.empty()) {
       createDir(parent_path.string());
     }
   }
-  void createDir(std::string dir_path)
+  static void createDir(std::string dir_path)
   {
     if (!std::filesystem::exists(dir_path)) {
       std::error_code system_error;
@@ -70,7 +70,7 @@ class Utility
       }
     }
   }
-  void removeDir(const std::string& dir_path)
+  static void removeDir(const std::string& dir_path)
   {
     std::error_code system_error;
     if (std::filesystem::exists(dir_path, system_error) && !std::filesystem::remove_all(dir_path, system_error)) {
@@ -78,7 +78,7 @@ class Utility
     }
   }
 
-  std::string getSpaceByTabNum(int32_t tab_num)
+  static std::string getSpaceByTabNum(int32_t tab_num)
   {
     std::string all = "";
     for (int32_t i = 0; i < tab_num; i++) {
@@ -101,14 +101,14 @@ class Utility
   // function
 
   template <typename Stream, typename T, typename... Args>
-  void pushStream(Stream& stream, T t, const Args&... args)
+  static void pushStream(Stream& stream, T t, const Args&... args)
   {
     stream << t;
     pushStream(stream, args...);
   }
 
   template <typename Stream, typename T>
-  void pushStream(Stream& stream, T t)
+  static void pushStream(Stream& stream, T t)
   {
     stream << t;
   }

@@ -21,7 +21,6 @@
 #include "GraphPropagator.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
-#include "Database.hpp"
 #include "STAHeader.hpp"
 #include "TimingAnalyzer.hpp"
 #include "Utility.hpp"
@@ -133,10 +132,6 @@ void STAInterface::input(std::map<std::string, std::any>& config_map)
 {
   wrapConfig(config_map);
   wrapDatabase();
-
-  Database& database = STADM.getDatabase();
-  STALOG.info(Loc::current(), "Input IDB to iSTA database: instances=", database.get_instance_map().size(),
-              " pins=", database.get_pin_map().size(), " nets=", database.get_net_map().size());
 }
 
 void STAInterface::wrapConfig(std::map<std::string, std::any>& config_map)
@@ -234,16 +229,6 @@ PinDirection STAInterface::wrapPinDirection(const idb::IdbConnectDirection& idb_
       return PinDirection::kInout;
     default:
       return PinDirection::kNone;
-  }
-}
-
-void STAInterface::wrapUniqueName(std::vector<std::string>& list, const std::string& value)
-{
-  if (value.empty()) {
-    return;
-  }
-  if (std::find(list.begin(), list.end(), value) == list.end()) {
-    list.push_back(value);
   }
 }
 
@@ -375,7 +360,10 @@ void STAInterface::wrapNetPin(idb::IdbPin* idb_pin, Net& net)
     return;
   }
 
-  wrapUniqueName(net.get_pin_name_list(), full_name);
+  auto& pin_name_list = net.get_pin_name_list();
+  if (std::find(pin_name_list.begin(), pin_name_list.end(), full_name) == pin_name_list.end()) {
+    pin_name_list.push_back(full_name);
+  }
 }
 
 void STAInterface::wrapSpecialNet(idb::IdbSpecialNet* idb_net)
@@ -403,12 +391,6 @@ void STAInterface::wrapNetPinList(idb::IdbSpecialNet* idb_net, Net& net)
 
 void STAInterface::output()
 {
-  Database& database = STADM.getDatabase();
-  const Summary& summary = database.get_summary();
-  STALOG.info(Loc::current(), "Output iSTA summary: design=", database.get_design_name(),
-              " instances=", summary.get_instance_num(), " ports=", summary.get_port_num(), " pins=", summary.get_pin_num(),
-              " nets=", summary.get_net_num(), " arcs=", summary.get_arc_num(), " worst_slack=", summary.get_worst_slack(),
-              " worst_endpoint=", summary.get_worst_endpoint());
 }
 
 #endif

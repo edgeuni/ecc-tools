@@ -19,14 +19,12 @@
 #include <any>
 #include <cstdint>
 #include <map>
-#include <set>
 #include <string>
 #include <vector>
 
 #if 1  // 前向声明
 
 namespace idb {
-class IdbDesign;
 class IdbInstance;
 class IdbNet;
 class IdbPin;
@@ -46,7 +44,6 @@ class Net;
 namespace ista {
 
 #define STAI (ista::STAInterface::getInst())
-
 
 class STAInterface
 {
@@ -76,7 +73,6 @@ class STAInterface
   void wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin);
   std::string wrapInstancePinName(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin) const;
   PinDirection wrapPinDirection(const idb::IdbConnectDirection& idb_direction) const;
-  void wrapUniqueName(std::vector<std::string>& list, const std::string& value);
   void wrapPortList();
   void wrapPortPin(idb::IdbPin* idb_pin);
   std::string wrapPinName(idb::IdbPin* idb_pin) const;
