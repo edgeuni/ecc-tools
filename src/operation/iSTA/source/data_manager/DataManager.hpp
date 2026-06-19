@@ -61,8 +61,6 @@ class DataManager
   void makeNet(const std::string& net_name, Net& net);
   bool isDriverPin(Pin& pin);
   bool isOutputLikeDirection(PinDirection direction);
-  void buildSummary();
-  void makeSummary();
   void printConfig();
   void printDatabase();
 #endif

@@ -112,7 +112,6 @@ void DataManager::buildDatabase()
 {
   buildInstanceList();
   buildNetList();
-  buildSummary();
 }
 
 void DataManager::buildInstanceList()
@@ -193,28 +192,6 @@ bool DataManager::isDriverPin(Pin& pin)
 bool DataManager::isOutputLikeDirection(PinDirection direction)
 {
   return direction == PinDirection::kOutput || direction == PinDirection::kInout;
-}
-
-void DataManager::buildSummary()
-{
-  makeSummary();
-}
-
-void DataManager::makeSummary()
-{
-  Summary& summary = _database.get_summary();
-  summary.set_instance_num(_database.get_instance_map().size());
-  summary.set_pin_num(_database.get_pin_map().size());
-  summary.set_net_num(_database.get_net_map().size());
-  summary.set_arc_num(_database.get_arc_list().size());
-  summary.set_startpoint_num(_database.get_startpoint_list().size());
-  summary.set_endpoint_num(_database.get_endpoint_list().size());
-  summary.set_port_num(0);
-  for (auto& pin_pair : _database.get_pin_map()) {
-    if (pin_pair.second.get_is_port()) {
-      summary.set_port_num(summary.get_port_num() + 1);
-    }
-  }
 }
 
 void DataManager::printConfig()
