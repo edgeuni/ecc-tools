@@ -27,14 +27,14 @@ class Arc
   Arc() = default;
   ~Arc() = default;
   // getter
-  std::string& get_name() { return _name; }
+  std::string& get_arc_name() { return _arc_name; }
   std::string& get_source_pin() { return _source_pin; }
   std::string& get_sink_pin() { return _sink_pin; }
   std::string& get_owner_name() { return _owner_name; }
   ArcType get_type() const { return _type; }
   double get_delay() const { return _delay; }
   // setter
-  void set_name(const std::string& name) { _name = name; }
+  void set_arc_name(const std::string& arc_name) { _arc_name = arc_name; }
   void set_source_pin(const std::string& source_pin) { _source_pin = source_pin; }
   void set_sink_pin(const std::string& sink_pin) { _sink_pin = sink_pin; }
   void set_owner_name(const std::string& owner_name) { _owner_name = owner_name; }
@@ -43,7 +43,7 @@ class Arc
   // function
 
  private:
-  std::string _name;
+  std::string _arc_name;
   std::string _source_pin;
   std::string _sink_pin;
   std::string _owner_name;

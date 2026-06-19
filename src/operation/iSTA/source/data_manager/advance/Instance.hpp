@@ -26,17 +26,17 @@ class Instance
   Instance() = default;
   ~Instance() = default;
   // getter
-  std::string& get_name() { return _name; }
+  std::string& get_instance_name() { return _instance_name; }
   std::string& get_cell_name() { return _cell_name; }
   std::vector<std::string>& get_pin_name_list() { return _pin_name_list; }
   // setter
-  void set_name(const std::string& name) { _name = name; }
+  void set_instance_name(const std::string& instance_name) { _instance_name = instance_name; }
   void set_cell_name(const std::string& cell_name) { _cell_name = cell_name; }
   void set_pin_name_list(const std::vector<std::string>& pin_name_list) { _pin_name_list = pin_name_list; }
   // function
 
  private:
-  std::string _name;
+  std::string _instance_name;
   std::string _cell_name;
   std::vector<std::string> _pin_name_list;
 };

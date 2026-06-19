@@ -126,19 +126,23 @@ void DataManager::makeInstanceList()
   }
 
   for (auto& pin_pair : _database.get_pin_map()) {
-    std::string pin_name = pin_pair.first;
     Pin& pin = pin_pair.second;
-    if (pin.get_instance_name().empty()) {
+    if (!isInstancePin(pin)) {
       continue;
     }
 
-    makeUniqueName(_database.get_instance_map()[pin.get_instance_name()].get_pin_name_list(), pin_name);
+    makeUniqueName(_database.get_instance_map()[pin.get_instance_name()].get_pin_name_list(), pin_pair.first);
   }
 }
 
-void DataManager::makeUniqueName(std::vector<std::string>& list, std::string& value)
+bool DataManager::isInstancePin(Pin& pin)
 {
-  if (std::find(list.begin(), list.end(), value) == list.end()) {
+  return !pin.get_is_port();
+}
+
+void DataManager::makeUniqueName(std::vector<std::string>& list, const std::string& value)
+{
+  if (!STAUTIL.exist(list, value)) {
     list.push_back(value);
   }
 }
@@ -155,12 +159,11 @@ void DataManager::makeNetList()
   }
 
   for (auto& net_pair : _database.get_net_map()) {
-    std::string net_name = net_pair.first;
-    makeNet(net_name, net_pair.second);
+    makeNet(net_pair.first, net_pair.second);
   }
 }
 
-void DataManager::makeNet(std::string& net_name, Net& net)
+void DataManager::makeNet(const std::string& net_name, Net& net)
 {
   net.get_driver_pin().clear();
   net.get_load_pin_list().clear();
@@ -171,10 +174,6 @@ void DataManager::makeNet(std::string& net_name, Net& net)
     if (net.get_driver_pin().empty() && isDriverPin(pin)) {
       net.set_driver_pin(pin_name);
     }
-  }
-
-  if (net.get_driver_pin().empty() && !net.get_pin_name_list().empty()) {
-    net.set_driver_pin(net.get_pin_name_list().front());
   }
 
   for (std::string& pin_name : net.get_pin_name_list()) {

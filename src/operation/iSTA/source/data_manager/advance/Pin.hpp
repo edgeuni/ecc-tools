@@ -27,7 +27,7 @@ class Pin
   Pin() = default;
   ~Pin() = default;
   // getter
-  std::string& get_name() { return _name; }
+  std::string& get_pin_name() { return _pin_name; }
   std::string& get_full_name() { return _full_name; }
   std::string& get_instance_name() { return _instance_name; }
   std::string& get_net_name() { return _net_name; }
@@ -36,7 +36,7 @@ class Pin
   double get_y() const { return _y; }
   bool get_is_port() const { return _is_port; }
   // setter
-  void set_name(const std::string& name) { _name = name; }
+  void set_pin_name(const std::string& pin_name) { _pin_name = pin_name; }
   void set_full_name(const std::string& full_name) { _full_name = full_name; }
   void set_instance_name(const std::string& instance_name) { _instance_name = instance_name; }
   void set_net_name(const std::string& net_name) { _net_name = net_name; }
@@ -47,7 +47,7 @@ class Pin
   // function
 
  private:
-  std::string _name;
+  std::string _pin_name;
   std::string _full_name;
   std::string _instance_name;
   std::string _net_name;

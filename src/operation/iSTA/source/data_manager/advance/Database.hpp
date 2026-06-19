@@ -33,15 +33,15 @@ class Database
   ~Database() = default;
   // getter
   std::string& get_design_name() { return _design_name; }
-  std::unordered_map<std::string, Instance>& get_instance_map() { return _instance_map; }
-  std::unordered_map<std::string, Pin>& get_pin_map() { return _pin_map; }
-  std::unordered_map<std::string, Net>& get_net_map() { return _net_map; }
+  std::map<std::string, Instance>& get_instance_map() { return _instance_map; }
+  std::map<std::string, Pin>& get_pin_map() { return _pin_map; }
+  std::map<std::string, Net>& get_net_map() { return _net_map; }
   std::vector<Arc>& get_arc_list() { return _arc_list; }
-  std::unordered_map<std::string, std::vector<std::size_t>>& get_outgoing_arc_list_map() { return _outgoing_arc_list_map; }
-  std::unordered_map<std::string, std::vector<std::size_t>>& get_incoming_arc_list_map() { return _incoming_arc_list_map; }
+  std::map<std::string, std::vector<std::size_t>>& get_outgoing_arc_list_map() { return _outgoing_arc_list_map; }
+  std::map<std::string, std::vector<std::size_t>>& get_incoming_arc_list_map() { return _incoming_arc_list_map; }
   std::vector<std::string>& get_startpoint_list() { return _startpoint_list; }
   std::vector<std::string>& get_endpoint_list() { return _endpoint_list; }
-  std::unordered_map<std::string, TimingPoint>& get_timing_point_map() { return _timing_point_map; }
+  std::map<std::string, TimingPoint>& get_timing_point_map() { return _timing_point_map; }
   Summary& get_summary() { return _summary; }
   // setter
   void set_design_name(const std::string& design_name) { _design_name = design_name; }
@@ -49,15 +49,15 @@ class Database
 
  private:
   std::string _design_name;
-  std::unordered_map<std::string, Instance> _instance_map;
-  std::unordered_map<std::string, Pin> _pin_map;
-  std::unordered_map<std::string, Net> _net_map;
+  std::map<std::string, Instance> _instance_map;
+  std::map<std::string, Pin> _pin_map;
+  std::map<std::string, Net> _net_map;
   std::vector<Arc> _arc_list;
-  std::unordered_map<std::string, std::vector<std::size_t>> _outgoing_arc_list_map;
-  std::unordered_map<std::string, std::vector<std::size_t>> _incoming_arc_list_map;
+  std::map<std::string, std::vector<std::size_t>> _outgoing_arc_list_map;
+  std::map<std::string, std::vector<std::size_t>> _incoming_arc_list_map;
   std::vector<std::string> _startpoint_list;
   std::vector<std::string> _endpoint_list;
-  std::unordered_map<std::string, TimingPoint> _timing_point_map;
+  std::map<std::string, TimingPoint> _timing_point_map;
   Summary _summary;
 };
 

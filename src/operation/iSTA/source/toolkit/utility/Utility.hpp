@@ -43,6 +43,25 @@ class Utility
     return string;
   }
 
+  template <typename Stream, typename T, typename... Args>
+  static void pushStream(Stream* stream, T t, Args... args)
+  {
+    pushStream(*stream, t, args...);
+  }
+
+  template <typename Stream, typename T, typename... Args>
+  static void pushStream(Stream& stream, T t, Args... args)
+  {
+    stream << t;
+    pushStream(stream, args...);
+  }
+
+  template <typename Stream, typename T>
+  static void pushStream(Stream& stream, T t)
+  {
+    stream << t;
+  }
+
   static std::string formatSec(double sec)
   {
     std::string sec_string;
@@ -74,19 +93,53 @@ class Utility
   template <typename T>
   static T getConfigValue(std::map<std::string, std::any>& config_map, const std::string& config_name, const T& default_value)
   {
-    if (config_map.find(config_name) != config_map.end()) {
-      return std::any_cast<T>(config_map[config_name]);
+    T value;
+    if (exist(config_map, config_name)) {
+      value = std::any_cast<T>(config_map[config_name]);
+    } else {
+      STALOG.warn(Loc::current(), "The config '", config_name, "' uses the default value!");
+      value = default_value;
     }
-    STALOG.warn(Loc::current(), "The config '", config_name, "' uses the default value!");
-    return default_value;
+    return value;
   }
-  static void createDirByFile(std::string file_path)
+
+  template <typename Key>
+  static bool exist(const std::vector<Key>& vector, const Key& key)
   {
-    std::filesystem::path parent_path = std::filesystem::path(file_path).parent_path();
-    if (!parent_path.empty()) {
-      createDir(parent_path.string());
+    for (size_t i = 0; i < vector.size(); i++) {
+      if (vector[i] == key) {
+        return true;
+      }
     }
+    return false;
   }
+
+  template <typename Key, typename Compare = std::less<Key>>
+  static bool exist(const std::set<Key, Compare>& set, const Key& key)
+  {
+    return (set.find(key) != set.end());
+  }
+
+  template <typename Key, typename Hash = std::hash<Key>>
+  static bool exist(const std::unordered_set<Key, Hash>& set, const Key& key)
+  {
+    return (set.find(key) != set.end());
+  }
+
+  template <typename Key, typename Value, typename Compare = std::less<Key>>
+  static bool exist(const std::map<Key, Value, Compare>& map, const Key& key)
+  {
+    return (map.find(key) != map.end());
+  }
+
+  template <typename Key, typename Value, typename Hash = std::hash<Key>>
+  static bool exist(const std::unordered_map<Key, Value, Hash>& map, const Key& key)
+  {
+    return (map.find(key) != map.end());
+  }
+
+  static void createDirByFile(std::string file_path) { createDir(dirname((char*) file_path.c_str())); }
+
   static void createDir(std::string dir_path)
   {
     if (!std::filesystem::exists(dir_path)) {
@@ -99,8 +152,13 @@ class Utility
   static void removeDir(const std::string& dir_path)
   {
     std::error_code system_error;
-    if (std::filesystem::exists(dir_path, system_error) && !std::filesystem::remove_all(dir_path, system_error)) {
-      STALOG.error(Loc::current(), "Failed to remove directory '", dir_path, "'. Error: ", system_error.message());
+
+    // 检查文件夹是否存在
+    if (std::filesystem::exists(dir_path, system_error)) {
+      // 尝试删除文件夹
+      if (!std::filesystem::remove_all(dir_path, system_error)) {
+        STALOG.error(Loc::current(), "Failed to remove directory '", dir_path, "'. Error: ", system_error.message());
+      }
     }
   }
 
@@ -125,19 +183,6 @@ class Utility
   Utility& operator=(const Utility& other) = delete;
   Utility& operator=(Utility&& other) = delete;
   // function
-
-  template <typename Stream, typename T, typename... Args>
-  static void pushStream(Stream& stream, T t, const Args&... args)
-  {
-    stream << t;
-    pushStream(stream, args...);
-  }
-
-  template <typename Stream, typename T>
-  static void pushStream(Stream& stream, T t)
-  {
-    stream << t;
-  }
 };
 
 }  // namespace ista

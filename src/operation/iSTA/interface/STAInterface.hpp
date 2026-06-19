@@ -29,7 +29,6 @@ class IdbInstance;
 class IdbNet;
 class IdbPin;
 class IdbPins;
-class IdbSpecialNet;
 enum class IdbConnectType : uint8_t;
 enum class IdbConnectDirection : uint8_t;
 }  // namespace idb
@@ -87,11 +86,10 @@ class STAInterface
   void wrapNetPinList(idb::IdbNet* idb_net, Net& net);
   void wrapNetPinList(idb::IdbPins* io_pin_list, idb::IdbPins* instance_pin_list, Net& net);
   void wrapNetPin(idb::IdbPin* idb_pin, Net& net);
-  std::string wrapNetPinName(idb::IdbPin* idb_pin);
+  std::string wrapNetIOPinName(idb::IdbPin* idb_pin);
+  std::string wrapNetInstancePinName(idb::IdbPin* idb_pin);
   void wrapNetPinNameList(Net& net, std::string& pin_name);
   void wrapNetToDatabase(Net& net);
-  void wrapSpecialNet(idb::IdbSpecialNet* idb_net);
-  void wrapNetPinList(idb::IdbSpecialNet* idb_net, Net& net);
 #endif
 
 #if 1  // output

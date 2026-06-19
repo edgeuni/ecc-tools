@@ -19,6 +19,7 @@
 #include "DataManager.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "Utility.hpp"
 
 namespace ista {
 
@@ -100,7 +101,7 @@ void GraphBuilder::addArc(Database& database, const std::string& source_pin, con
   }
 
   Arc arc;
-  arc.set_name(owner_name + ":" + source_pin + "->" + sink_pin);
+  arc.set_arc_name(owner_name + ":" + source_pin + "->" + sink_pin);
   arc.set_source_pin(source_pin);
   arc.set_sink_pin(sink_pin);
   arc.set_owner_name(owner_name);
@@ -207,7 +208,7 @@ void GraphBuilder::buildEndpoints(Database& database)
 
 void GraphBuilder::appendUnique(std::vector<std::string>& list, const std::string& value)
 {
-  if (std::find(list.begin(), list.end(), value) == list.end()) {
+  if (!STAUTIL.exist(list, value)) {
     list.push_back(value);
   }
 }
