@@ -182,7 +182,7 @@ void STAInterface::wrapInstancePinList(idb::IdbInstance* idb_instance)
 
 void STAInterface::wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin)
 {
-  const std::string full_name = wrapInstancePinName(idb_instance, idb_pin);
+  std::string full_name = wrapInstancePinName(idb_instance, idb_pin);
   Pin pin;
   pin.set_name(idb_pin->get_term_name());
   pin.set_full_name(full_name);
@@ -197,7 +197,7 @@ std::string STAInterface::wrapInstancePinName(idb::IdbInstance* idb_instance, id
   return idb_instance->get_name() + ":" + idb_pin->get_term_name();
 }
 
-PinDirection STAInterface::wrapPinDirection(const idb::IdbConnectDirection& idb_direction)
+PinDirection STAInterface::wrapPinDirection(idb::IdbConnectDirection idb_direction)
 {
   switch (idb_direction) {
     case idb::IdbConnectDirection::kInput:
@@ -229,7 +229,7 @@ void STAInterface::wrapPortList()
 
 void STAInterface::wrapPortPin(idb::IdbPin* idb_pin)
 {
-  const std::string full_name = wrapPinName(idb_pin);
+  std::string full_name = wrapPinName(idb_pin);
   Pin pin;
   pin.set_name(idb_pin->get_pin_name());
   pin.set_full_name(full_name);

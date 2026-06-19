@@ -125,7 +125,9 @@ void DataManager::makeInstanceList()
     instance_pair.second.get_pin_name_list().clear();
   }
 
-  for (auto& [pin_name, pin] : _database.get_pin_map()) {
+  for (auto& pin_pair : _database.get_pin_map()) {
+    std::string pin_name = pin_pair.first;
+    Pin& pin = pin_pair.second;
     if (pin.get_instance_name().empty()) {
       continue;
     }
@@ -134,7 +136,7 @@ void DataManager::makeInstanceList()
   }
 }
 
-void DataManager::makeUniqueName(std::vector<std::string>& list, const std::string& value)
+void DataManager::makeUniqueName(std::vector<std::string>& list, std::string& value)
 {
   if (std::find(list.begin(), list.end(), value) == list.end()) {
     list.push_back(value);
@@ -152,12 +154,13 @@ void DataManager::makeNetList()
     pin_pair.second.get_net_name().clear();
   }
 
-  for (auto& [net_name, net] : _database.get_net_map()) {
-    makeNet(net_name, net);
+  for (auto& net_pair : _database.get_net_map()) {
+    std::string net_name = net_pair.first;
+    makeNet(net_name, net_pair.second);
   }
 }
 
-void DataManager::makeNet(const std::string& net_name, Net& net)
+void DataManager::makeNet(std::string& net_name, Net& net)
 {
   net.get_driver_pin().clear();
   net.get_load_pin_list().clear();
@@ -228,26 +231,31 @@ void DataManager::printConfig()
 
 void DataManager::printDatabase()
 {
-  Summary& summary = _database.get_summary();
+  std::size_t port_num = 0;
+  for (auto& [pin_name, pin] : _database.get_pin_map()) {
+    if (pin.get_is_port()) {
+      port_num++;
+    }
+  }
   /////////////////////////////////////////////
   // **********        STA        ********** //
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(0), "STA_DATABASE");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "design_name");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_design_name());
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "instance_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), summary.get_instance_num());
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_instance_map().size());
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "port_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), summary.get_port_num());
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), port_num);
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "pin_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), summary.get_pin_num());
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_pin_map().size());
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "net_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), summary.get_net_num());
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_net_map().size());
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "arc_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), summary.get_arc_num());
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_arc_list().size());
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "startpoint_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), summary.get_startpoint_num());
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_startpoint_list().size());
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "endpoint_num");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), summary.get_endpoint_num());
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _database.get_endpoint_list().size());
   /////////////////////////////////////////////
 }
 

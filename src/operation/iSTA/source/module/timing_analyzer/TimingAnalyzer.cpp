@@ -57,20 +57,20 @@ bool TimingAnalyzer::build()
   Database& database = STADM.getDatabase();
   Summary& summary = database.get_summary();
 
-  summary.set_instance_num(database.get_instance_map().size());
-  summary.set_port_num(0);
+  summary.instance_num = database.get_instance_map().size();
+  summary.port_num = 0;
   for (auto& [pin_name, pin] : database.get_pin_map()) {
     if (pin.get_is_port()) {
-      summary.set_port_num(summary.get_port_num() + 1);
+      summary.port_num++;
     }
   }
-  summary.set_pin_num(database.get_pin_map().size());
-  summary.set_net_num(database.get_net_map().size());
-  summary.set_arc_num(database.get_arc_list().size());
-  summary.set_startpoint_num(database.get_startpoint_list().size());
-  summary.set_endpoint_num(database.get_endpoint_list().size());
-  summary.set_worst_slack(std::numeric_limits<double>::infinity());
-  summary.get_worst_endpoint().clear();
+  summary.pin_num = database.get_pin_map().size();
+  summary.net_num = database.get_net_map().size();
+  summary.arc_num = database.get_arc_list().size();
+  summary.startpoint_num = database.get_startpoint_list().size();
+  summary.endpoint_num = database.get_endpoint_list().size();
+  summary.worst_slack = std::numeric_limits<double>::infinity();
+  summary.worst_endpoint.clear();
 
   for (std::string& endpoint : database.get_endpoint_list()) {
     auto timing_iter = database.get_timing_point_map().find(endpoint);
@@ -81,18 +81,17 @@ bool TimingAnalyzer::build()
     if (!std::isfinite(timing_point.get_arrival()) || !std::isfinite(timing_point.get_required())) {
       continue;
     }
-    if (timing_point.get_slack() < summary.get_worst_slack()) {
-      summary.set_worst_slack(timing_point.get_slack());
-      summary.set_worst_endpoint(endpoint);
+    if (timing_point.get_slack() < summary.worst_slack) {
+      summary.worst_slack = timing_point.get_slack();
+      summary.worst_endpoint = endpoint;
     }
   }
 
-  if (!std::isfinite(summary.get_worst_slack())) {
-    summary.set_worst_slack(0.0);
+  if (!std::isfinite(summary.worst_slack)) {
+    summary.worst_slack = 0.0;
   }
 
-  STALOG.info(Loc::current(), "Analyze iSTA timing: worst_slack=", summary.get_worst_slack(),
-              " endpoint=", summary.get_worst_endpoint());
+  STALOG.info(Loc::current(), "Analyze iSTA timing: worst_slack=", summary.worst_slack, " endpoint=", summary.worst_endpoint);
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return true;
 }

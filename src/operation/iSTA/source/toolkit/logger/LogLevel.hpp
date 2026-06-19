@@ -20,10 +20,10 @@ namespace ista {
 
 enum class LogLevel
 {
-  kNone,
-  kInfo,
-  kWarn,
-  kError
+  kNone = 0,
+  kInfo = 1,
+  kWarn = 2,
+  kError = 3
 };
 
 }  // namespace ista

@@ -45,25 +45,6 @@ class Database
   Summary& get_summary() { return _summary; }
   // setter
   void set_design_name(const std::string& design_name) { _design_name = design_name; }
-  void set_instance_map(const std::unordered_map<std::string, Instance>& instance_map) { _instance_map = instance_map; }
-  void set_pin_map(const std::unordered_map<std::string, Pin>& pin_map) { _pin_map = pin_map; }
-  void set_net_map(const std::unordered_map<std::string, Net>& net_map) { _net_map = net_map; }
-  void set_arc_list(const std::vector<Arc>& arc_list) { _arc_list = arc_list; }
-  void set_outgoing_arc_list_map(const std::unordered_map<std::string, std::vector<std::size_t>>& outgoing_arc_list_map)
-  {
-    _outgoing_arc_list_map = outgoing_arc_list_map;
-  }
-  void set_incoming_arc_list_map(const std::unordered_map<std::string, std::vector<std::size_t>>& incoming_arc_list_map)
-  {
-    _incoming_arc_list_map = incoming_arc_list_map;
-  }
-  void set_startpoint_list(const std::vector<std::string>& startpoint_list) { _startpoint_list = startpoint_list; }
-  void set_endpoint_list(const std::vector<std::string>& endpoint_list) { _endpoint_list = endpoint_list; }
-  void set_timing_point_map(const std::unordered_map<std::string, TimingPoint>& timing_point_map)
-  {
-    _timing_point_map = timing_point_map;
-  }
-  void set_summary(const Summary& summary) { _summary = summary; }
   // function
 
  private:

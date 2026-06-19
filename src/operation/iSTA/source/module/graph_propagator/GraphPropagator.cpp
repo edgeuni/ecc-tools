@@ -63,9 +63,9 @@ bool GraphPropagator::build()
   std::vector<std::string> timing_order = propagateArrival(database);
   propagateRequired(database, timing_order);
 
-  database.get_summary().set_timing_order(timing_order);
+  database.get_summary().timing_order = timing_order;
   STALOG.info(Loc::current(), "Propagate iSTA timing: timing_order=", timing_order.size(), " loop_vertices=",
-              database.get_summary().get_loop_vertex_num());
+              database.get_summary().loop_vertex_num);
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return true;
 }
@@ -127,9 +127,9 @@ std::vector<std::string> GraphPropagator::propagateArrival(Database& database)
     }
   }
 
-  database.get_summary().set_loop_vertex_num(database.get_pin_map().size() - timing_order.size());
-  if (database.get_summary().get_loop_vertex_num() > 0) {
-    STALOG.warn(Loc::current(), "Detected ", database.get_summary().get_loop_vertex_num(),
+  database.get_summary().loop_vertex_num = database.get_pin_map().size() - timing_order.size();
+  if (database.get_summary().loop_vertex_num > 0) {
+    STALOG.warn(Loc::current(), "Detected ", database.get_summary().loop_vertex_num,
                 " vertex(es) in combinational loop or unresolved dependency.");
   }
 
@@ -144,7 +144,7 @@ bool GraphPropagator::isFinite(double value)
 void GraphPropagator::propagateRequired(Database& database, std::vector<std::string>& timing_order)
 {
   const double required_time = resolveRequiredTime(database);
-  database.get_summary().set_required_time(required_time);
+  database.get_summary().required_time = required_time;
 
   for (std::string& endpoint : database.get_endpoint_list()) {
     auto timing_iter = database.get_timing_point_map().find(endpoint);
