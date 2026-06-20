@@ -165,10 +165,10 @@ TEST(SinkLoadRegionSplitTest, SeventeenLoadsUseTwoLocalLevels)
   }
   const auto plan = icts::htree::SplitSinkLoadRegionGroup(loads, 4U);
   ASSERT_TRUE(plan.feasible);
-  EXPECT_EQ(plan.children.size(), 4U);
+  EXPECT_EQ(plan.children.size(), 2U);
   EXPECT_EQ(plan.local_depth, 2U);
   EXPECT_EQ(plan.leaf_group_count, 5U);
-  EXPECT_EQ(plan.buffer_count, 6U);
+  EXPECT_EQ(plan.buffer_count, 7U);
   expectTreeFanoutLegal(plan.children, 4U);
 }
 
@@ -244,9 +244,9 @@ TEST(SinkLoadRegionSplitTest, TwentyFiveLoadsUseRecursiveTree)
   }
   const auto plan = icts::htree::SplitSinkLoadRegionGroup(loads, 4U);
   ASSERT_TRUE(plan.feasible);
-  EXPECT_EQ(plan.children.size(), 4U);
+  EXPECT_EQ(plan.children.size(), 2U);
   EXPECT_EQ(plan.local_depth, 2U);
-  EXPECT_EQ(plan.leaf_group_count, 8U);
+  EXPECT_EQ(plan.leaf_group_count, 7U);
   EXPECT_EQ(plan.buffer_count, countTreeNodes(plan.children));
   expectTreeFanoutLegal(plan.children, 4U);
 

@@ -107,6 +107,26 @@ auto AddSyntheticLoadPinCaps(const std::vector<icts::Pin*>& loads, icts::Cluster
   }
 }
 
+auto CollectClusterOriginalIndexSets(const icts::ClusterOutput& result, const std::vector<icts::Pin*>& loads)
+    -> std::set<std::set<std::size_t>>
+{
+  std::unordered_map<const icts::Pin*, std::size_t> original_index_by_pin;
+  original_index_by_pin.reserve(loads.size());
+  for (std::size_t index = 0; index < loads.size(); ++index) {
+    original_index_by_pin.emplace(loads.at(index), index);
+  }
+
+  std::set<std::set<std::size_t>> cluster_index_sets;
+  for (const auto& cluster : result.clusters) {
+    std::set<std::size_t> index_set;
+    for (const auto* pin : cluster) {
+      index_set.insert(original_index_by_pin.at(pin));
+    }
+    cluster_index_sets.insert(std::move(index_set));
+  }
+  return cluster_index_sets;
+}
+
 TEST(FastClusteringSyntheticTest, FacadeProducesCompleteLegalClusters)
 {
   auto generated = common::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "fast_pin_");
@@ -132,6 +152,23 @@ TEST(FastClusteringSyntheticTest, FacadeProducesCompleteLegalClusters)
     }
   }
   EXPECT_EQ(seen_pins.size(), generated.loads.size());
+}
+
+TEST(FastClusteringSyntheticTest, FacadePreservesParetoAxisOutcomeAfterPolish)
+{
+  const std::vector<icts::Point<int>> points{
+      {180, 235}, {465, 137}, {337, 280}, {311, 2}, {196, 262}, {414, 66},
+  };
+  auto generated = common::data::pin_factory::BuildPinsFromPoints(points, {.width = 600, .height = 320}, "axis_pin_");
+  icts::ClusterConfig config;
+  config.max_fanout = 4;
+  config.max_cap = std::numeric_limits<double>::infinity();
+  config.enable_exact_cap = false;
+
+  const auto result = icts::FastClustering::run(generated.loads, config);
+
+  ASSERT_EQ(result.clusters.size(), 2U);
+  EXPECT_EQ(CollectClusterOriginalIndexSets(result, generated.loads), (std::set<std::set<std::size_t>>{{0U, 4U}, {1U, 2U, 3U, 5U}}));
 }
 
 TEST(FastClusteringSyntheticTest, ExactCapUsesExplicitClusterLoadPinCaps)

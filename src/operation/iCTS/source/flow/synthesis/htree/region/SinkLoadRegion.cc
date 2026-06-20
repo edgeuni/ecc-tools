@@ -590,16 +590,7 @@ auto SortLoadsForLocalSplit(std::vector<Pin*>& loads) -> void
   });
 }
 
-auto ResolveLocalSplitChildCount(std::size_t load_count, std::size_t max_fanout) -> std::size_t
-{
-  if (load_count <= max_fanout) {
-    return 0U;
-  }
-  const auto target_leaf_children = (load_count + max_fanout - 1U) / max_fanout;
-  return std::clamp<std::size_t>(target_leaf_children, 2U, max_fanout);
-}
-
-auto BuildLocalSplitNode(std::vector<Pin*> loads, std::size_t max_fanout) -> SinkLoadRegionSplitNode
+auto BuildLocalSplitBaseNode(std::vector<Pin*> loads) -> SinkLoadRegionSplitNode
 {
   std::ranges::sort(loads, CanonicalLoadLess);
   SinkLoadRegionSplitNode node{
@@ -608,40 +599,115 @@ auto BuildLocalSplitNode(std::vector<Pin*> loads, std::size_t max_fanout) -> Sin
       .children = {},
   };
   node.center = CalcLoadCenter(node.loads);
+  return node;
+}
 
-  std::vector<SinkLoadRegionSplitNode*> pending_nodes = {&node};
-  while (!pending_nodes.empty()) {
-    auto* current_node = pending_nodes.back();
-    pending_nodes.pop_back();
-    const auto child_count = ResolveLocalSplitChildCount(current_node->loads.size(), max_fanout);
-    if (child_count == 0U) {
+auto CalcLocalSplitLeafCapacity(unsigned depth, std::size_t max_fanout) -> std::size_t
+{
+  std::size_t capacity = 1U;
+  for (unsigned level = 0U; level < depth; ++level) {
+    if (capacity > std::numeric_limits<std::size_t>::max() / max_fanout) {
+      return std::numeric_limits<std::size_t>::max();
+    }
+    capacity *= max_fanout;
+  }
+  return capacity;
+}
+
+auto ResolveUniformLocalSplitDepth(std::size_t leaf_count, std::size_t max_fanout) -> unsigned
+{
+  unsigned depth = 1U;
+  auto capacity = max_fanout;
+  while (capacity < leaf_count) {
+    if (capacity > std::numeric_limits<std::size_t>::max() / max_fanout) {
+      return depth;
+    }
+    capacity *= max_fanout;
+    ++depth;
+  }
+  return depth;
+}
+
+auto ResolveUniformLocalSplitChildCount(std::size_t leaf_count, std::size_t max_fanout, unsigned depth) -> std::size_t
+{
+  if (depth <= 1U) {
+    return leaf_count;
+  }
+  const auto child_capacity = CalcLocalSplitLeafCapacity(depth - 1U, max_fanout);
+  return std::min(max_fanout, (leaf_count + child_capacity - 1U) / child_capacity);
+}
+
+struct LocalSplitBuildFrame
+{
+  SinkLoadRegionSplitNode* node = nullptr;
+  std::vector<Pin*> loads;
+  std::size_t leaf_count = 0U;
+  unsigned depth = 0U;
+};
+
+auto AppendUniformLocalSplitChildren(SinkLoadRegionSplitNode& root, std::vector<Pin*> loads, std::size_t leaf_count, std::size_t max_fanout,
+                                     unsigned depth) -> void
+{
+  std::vector<LocalSplitBuildFrame> pending_frames;
+  pending_frames.push_back(LocalSplitBuildFrame{
+      .node = &root,
+      .loads = std::move(loads),
+      .leaf_count = leaf_count,
+      .depth = depth,
+  });
+
+  while (!pending_frames.empty()) {
+    auto frame = std::move(pending_frames.back());
+    pending_frames.pop_back();
+    LOG_FATAL_IF(frame.node == nullptr) << "HTree: null local split frame node.";
+    if (frame.leaf_count == 0U || frame.depth == 0U) {
       continue;
     }
 
-    auto ordered_loads = current_node->loads;
-    SortLoadsForLocalSplit(ordered_loads);
-    current_node->children.reserve(child_count);
-    for (std::size_t child_index = 0; child_index < child_count; ++child_index) {
-      const auto begin_index = (ordered_loads.size() * child_index) / child_count;
-      const auto end_index = (ordered_loads.size() * (child_index + 1U)) / child_count;
-      if (begin_index >= end_index) {
-        continue;
-      }
-      std::vector<Pin*> child_loads(ordered_loads.begin() + static_cast<std::ptrdiff_t>(begin_index),
-                                    ordered_loads.begin() + static_cast<std::ptrdiff_t>(end_index));
-      std::ranges::sort(child_loads, CanonicalLoadLess);
-      SinkLoadRegionSplitNode child{
-          .loads = std::move(child_loads),
-          .center = {},
-          .children = {},
-      };
-      child.center = CalcLoadCenter(child.loads);
-      current_node->children.push_back(std::move(child));
+    SortLoadsForLocalSplit(frame.loads);
+    const auto child_count = ResolveUniformLocalSplitChildCount(frame.leaf_count, max_fanout, frame.depth);
+    const auto child_depth = frame.depth - 1U;
+    frame.node->children.reserve(child_count);
+    std::vector<std::size_t> child_leaf_counts;
+    child_leaf_counts.reserve(child_count);
+
+    for (std::size_t child_index = 0U; child_index < child_count; ++child_index) {
+      const auto leaf_begin = (frame.leaf_count * child_index) / child_count;
+      const auto leaf_end = (frame.leaf_count * (child_index + 1U)) / child_count;
+      const auto begin_index = (frame.loads.size() * leaf_begin) / frame.leaf_count;
+      const auto end_index = (frame.loads.size() * leaf_end) / frame.leaf_count;
+      std::vector<Pin*> child_loads(frame.loads.begin() + static_cast<std::ptrdiff_t>(begin_index),
+                                    frame.loads.begin() + static_cast<std::ptrdiff_t>(end_index));
+      child_leaf_counts.push_back(leaf_end - leaf_begin);
+      frame.node->children.push_back(BuildLocalSplitBaseNode(std::move(child_loads)));
     }
-    for (auto& child : current_node->children) {
-      pending_nodes.push_back(&child);
+
+    if (child_depth == 0U) {
+      continue;
+    }
+    for (std::size_t child_index = frame.node->children.size(); child_index > 0U; --child_index) {
+      auto& child = frame.node->children.at(child_index - 1U);
+      pending_frames.push_back(LocalSplitBuildFrame{
+          .node = &child,
+          .loads = child.loads,
+          .leaf_count = child_leaf_counts.at(child_index - 1U),
+          .depth = child_depth,
+      });
     }
   }
+}
+
+auto BuildLocalSplitNode(std::vector<Pin*> loads, std::size_t max_fanout) -> SinkLoadRegionSplitNode
+{
+  auto node = BuildLocalSplitBaseNode(std::move(loads));
+  if (node.loads.size() <= max_fanout) {
+    return node;
+  }
+
+  const auto leaf_count = (node.loads.size() + max_fanout - 1U) / max_fanout;
+  const auto split_depth = ResolveUniformLocalSplitDepth(leaf_count, max_fanout);
+  auto ordered_loads = node.loads;
+  AppendUniformLocalSplitChildren(node, std::move(ordered_loads), leaf_count, max_fanout, split_depth);
   return node;
 }
 
