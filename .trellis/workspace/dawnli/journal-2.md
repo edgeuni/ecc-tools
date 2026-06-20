@@ -1466,3 +1466,36 @@ Fixed depth-0 downstream HTree handling for small clustered clock trees, verifie
 ### Next Steps
 
 - None - task complete
+
+
+## Session 82: CTS capability alignment cleanup
+
+**Date**: 2026-06-20
+**Task**: CTS capability alignment cleanup
+**Branch**: `cts_refactor`
+
+### Summary
+
+Cleaned CTS alignment task artifacts, retained algorithmic fast clustering Pareto split-axis and uniform-depth local split packing changes, staged and validated iCTS checks, then committed and archived the task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c76529151` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
