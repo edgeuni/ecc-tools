@@ -76,4 +76,32 @@ class TclCompareSpef : public TclCmd
   unsigned exec() override;
 };
 
+/**
+ * @brief Dump net shapes.
+ *
+ */
+class TclDumpNetShape : public TclCmd
+{
+ public:
+  explicit TclDumpNetShape(const char* cmd_name);
+  ~TclDumpNetShape() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+};
+
+/**
+ * @brief Plot a SPEF netlist into GDS text.
+ *
+ */
+class TclPlotSpef : public TclCmd
+{
+ public:
+  explicit TclPlotSpef(const char* cmd_name);
+  ~TclPlotSpef() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+};
+
 }  // namespace tcl

@@ -27,7 +27,7 @@ namespace ircx {
 auto Report::dumpSpef() -> bool
 {
   const Str& output_dir = RCX_CONFIG_INST.get_output_dir();
-  if (!path::mkdirs(output_dir, "output_dir")) {
+  if (!path::ensure_dir(output_dir, "output_dir")) {
     return false;
   }
 
