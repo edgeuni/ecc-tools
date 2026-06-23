@@ -45,11 +45,15 @@ class GraphPropagator
   void propagateArrival(Database& database);
   void initTimingPointList(Database& database);
   void seedStartPointList(Database& database);
+  double getStartPointArrival(Database& database, std::string& start_point);
+  std::string getClockName(Database& database, std::string& pin_name);
+  double getClockPeriod(Database& database, std::string& clock_name);
   void propagateArrivalArc(Database& database, std::size_t arc_idx);
   bool isFinite(double value);
   void propagateRequired(Database& database);
   double resolveRequiredTime(Database& database);
   void seedEndPointRequired(Database& database, double required_time);
+  double getEndPointRequired(Database& database, std::string& end_point, double default_required_time);
   void propagateRequiredArc(Database& database, Arc& arc);
   void updateSlack(Database& database);
 };

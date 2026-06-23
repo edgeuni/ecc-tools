@@ -43,12 +43,14 @@ class TimingAnalyzer
   TimingAnalyzer& operator=(TimingAnalyzer&& other) = delete;
   // function
   void analyzeEndPointList(Database& database);
-  TimingPathGroup initTimingPathGroup();
+  TimingPathGroup initTimingPathGroup(Database& database);
   bool hasValidTiming(TimingPoint& timing_point);
   TimingPath buildTimingPath(Database& database, std::string& end_point);
   std::vector<std::string> getPathPinNameList(Database& database, std::string& end_point);
   std::vector<std::size_t> getPathArcIdxList(Database& database, std::vector<std::string>& path_pin_name_list);
   void updatePathDelay(TimingPath& timing_path, Arc* arc);
+  void updateClockInfo(Database& database, TimingPath& timing_path);
+  double getClockPeriod(Database& database, std::string& clock_name);
   TimingPathPoint makeTimingPathPoint(Database& database, std::string& pin_name, Arc* arc);
   void insertTimingPath(TimingPathGroup& timing_path_group, TimingPath& timing_path);
   TimingPathEnd initTimingPathEnd(std::string& end_point);

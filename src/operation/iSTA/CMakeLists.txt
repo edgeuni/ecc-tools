@@ -20,6 +20,7 @@ set(CMAKE_CXX_STANDARD 20)
 ############################ debug source module ############################
 
 # set(DEBUG_ISTA_GRAPH_BUILDER ON)
+# set(DEBUG_ISTA_SDC_READER ON)
 # set(DEBUG_ISTA_DELAY_CALCULATOR ON)
 # set(DEBUG_ISTA_GRAPH_LEVELIZER ON)
 # set(DEBUG_ISTA_GRAPH_PROPAGATOR ON)

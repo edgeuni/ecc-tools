@@ -75,6 +75,7 @@ void DataManager::resetData()
   _idb_lef_service = nullptr;
   _design = nullptr;
   _layout = nullptr;
+  _lib_readers.clear();
 }
 
 bool DataManager::readLef(string config_path)
@@ -221,6 +222,15 @@ bool DataManager::readVerilog(string path, string top_module)
   }
 
   if (!initVerilog(path, top_module)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool DataManager::readLib(vector<string> lib_paths)
+{
+  if (!initLib(lib_paths)) {
     return false;
   }
 

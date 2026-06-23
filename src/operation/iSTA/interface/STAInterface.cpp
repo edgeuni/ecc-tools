@@ -23,6 +23,7 @@
 #include "GraphPropagator.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "SdcReader.hpp"
 #include "STAHeader.hpp"
 #include "TimingAnalyzer.hpp"
 #include "TimingReporter.hpp"
@@ -82,6 +83,10 @@ void STAInterface::runSTA()
 {
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
+
+  SdcReader::initInst();
+  STASR.read();
+  SdcReader::destroyInst();
 
   GraphBuilder::initInst();
   STAGB.build();

@@ -29,16 +29,34 @@ class Instance
   std::string& get_instance_name() { return _instance_name; }
   std::string& get_cell_name() { return _cell_name; }
   std::vector<std::string>& get_pin_name_list() { return _pin_name_list; }
+  std::string& get_clock_pin_name() { return _clock_pin_name; }
+  std::string& get_output_pin_name() { return _output_pin_name; }
+  std::string& get_data_pin_name() { return _data_pin_name; }
+  double get_clock_to_q_delay() const { return _clock_to_q_delay; }
+  double get_setup_time() const { return _setup_time; }
+  bool get_is_sequential() const { return _is_sequential; }
   // setter
   void set_instance_name(const std::string& instance_name) { _instance_name = instance_name; }
   void set_cell_name(const std::string& cell_name) { _cell_name = cell_name; }
   void set_pin_name_list(const std::vector<std::string>& pin_name_list) { _pin_name_list = pin_name_list; }
+  void set_clock_pin_name(const std::string& clock_pin_name) { _clock_pin_name = clock_pin_name; }
+  void set_output_pin_name(const std::string& output_pin_name) { _output_pin_name = output_pin_name; }
+  void set_data_pin_name(const std::string& data_pin_name) { _data_pin_name = data_pin_name; }
+  void set_clock_to_q_delay(const double clock_to_q_delay) { _clock_to_q_delay = clock_to_q_delay; }
+  void set_setup_time(const double setup_time) { _setup_time = setup_time; }
+  void set_is_sequential(const bool is_sequential) { _is_sequential = is_sequential; }
   // function
 
  private:
   std::string _instance_name;
   std::string _cell_name;
   std::vector<std::string> _pin_name_list;
+  std::string _clock_pin_name;
+  std::string _output_pin_name;
+  std::string _data_pin_name;
+  double _clock_to_q_delay = 0.0;
+  double _setup_time = 0.0;
+  bool _is_sequential = false;
 };
 
 }  // namespace ista

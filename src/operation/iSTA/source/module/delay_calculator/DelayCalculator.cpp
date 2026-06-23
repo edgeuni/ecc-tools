@@ -77,7 +77,7 @@ void DelayCalculator::buildArcDelayList(Database& database)
 double DelayCalculator::calcArcDelay(Database& database, Arc& arc)
 {
   if (arc.get_type() == ArcType::kCell) {
-    return calcCellArcDelay();
+    return calcCellArcDelay(database, arc);
   }
   if (arc.get_type() == ArcType::kNet) {
     return calcNetArcDelay(database, arc);
@@ -85,9 +85,33 @@ double DelayCalculator::calcArcDelay(Database& database, Arc& arc)
   return 0.0;
 }
 
-double DelayCalculator::calcCellArcDelay()
+double DelayCalculator::calcCellArcDelay(Database& database, Arc& arc)
 {
+  TimingCellArc* timing_cell_arc = getTimingCellArc(database, arc);
+  if (timing_cell_arc != nullptr) {
+    return timing_cell_arc->get_delay();
+  }
   return 1.0;
+}
+
+TimingCellArc* DelayCalculator::getTimingCellArc(Database& database, Arc& arc)
+{
+  if (database.get_instance_map().count(arc.get_owner_name()) == 0) {
+    return nullptr;
+  }
+  Instance& instance = database.get_instance_map()[arc.get_owner_name()];
+  auto& timing_cell_map = database.get_timing_library().get_cell_map();
+  if (timing_cell_map.count(instance.get_cell_name()) == 0) {
+    return nullptr;
+  }
+  TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
+  for (TimingCellArc& timing_cell_arc : timing_cell.get_cell_arc_list()) {
+    if (timing_cell_arc.get_source_port() == arc.get_library_source_port()
+        && timing_cell_arc.get_sink_port() == arc.get_library_sink_port()) {
+      return &timing_cell_arc;
+    }
+  }
+  return nullptr;
 }
 
 double DelayCalculator::calcNetArcDelay(Database& database, Arc& arc)

@@ -35,6 +35,7 @@
 #include "../../database/interaction/ids.hpp"
 #include "IdbDesign.h"
 #include "IdbLayout.h"
+#include "liberty/LibParserCpp.hh"
 #include "builder.h"
 #include "config/dm_config.h"
 #include "def_service.h"
@@ -76,6 +77,7 @@ class DataManager
   IdbDesign* get_idb_design() { return _idb_def_service != nullptr ? _idb_def_service->get_design() : nullptr; }
   IdbLayout* get_idb_layout() { return _idb_lef_service != nullptr ? _idb_lef_service->get_layout() : nullptr; }
   bool is_def_read() { return _idb_def_service != nullptr ? true : false; }
+  vector<LibertyReader>& get_lib_readers() { return _lib_readers; }
 
   int get_routing_layer_1st();
 
@@ -90,6 +92,7 @@ class DataManager
   bool readLef(vector<string> lef_paths, bool b_techlef = false);
   bool readDef(string path);
   bool readVerilog(string path, string top_module = "");
+  bool readLib(vector<string> lib_paths);
 
   /// iDB save
   bool save(string name, string def_path = "");
@@ -237,6 +240,7 @@ class DataManager
   IdbLefService* _idb_lef_service = nullptr;
   IdbDesign* _design = nullptr;
   IdbLayout* _layout = nullptr;
+  vector<LibertyReader> _lib_readers;
   // pa
   // std::map<std::string, std::map<std::string, std::vector<ids::AccessPoint>>> _master_access_point_map;
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -252,6 +256,7 @@ class DataManager
   bool initLef(vector<string> lef_paths, bool b_techlef = false);
   bool initDef(string def_path);
   bool initVerilog(string verilog_path, string top_module);
+  bool initLib(vector<string> lib_paths);
 
   /// iDB save
   // bool saveDef(string def_path);

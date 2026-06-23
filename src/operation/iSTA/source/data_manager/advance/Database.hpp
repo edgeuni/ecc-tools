@@ -22,6 +22,8 @@
 #include "Pin.hpp"
 #include "STAHeader.hpp"
 #include "Summary.hpp"
+#include "TimingConstraint.hpp"
+#include "TimingLibrary.hpp"
 #include "TimingPathGroup.hpp"
 #include "TimingPoint.hpp"
 
@@ -45,6 +47,8 @@ class Database
   std::vector<std::string>& get_timing_order_list() { return _timing_order_list; }
   std::map<std::string, TimingPoint>& get_timing_point_map() { return _timing_point_map; }
   std::vector<TimingPathGroup>& get_timing_path_group_list() { return _timing_path_group_list; }
+  TimingLibrary& get_timing_library() { return _timing_library; }
+  TimingConstraint& get_timing_constraint() { return _timing_constraint; }
   Summary& get_summary() { return _summary; }
   // setter
   void set_design_name(const std::string& design_name) { _design_name = design_name; }
@@ -63,6 +67,8 @@ class Database
   std::vector<std::string> _timing_order_list;
   std::map<std::string, TimingPoint> _timing_point_map;
   std::vector<TimingPathGroup> _timing_path_group_list;
+  TimingLibrary _timing_library;
+  TimingConstraint _timing_constraint;
   Summary _summary;
 };
 

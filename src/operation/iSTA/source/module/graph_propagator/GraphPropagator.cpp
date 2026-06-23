@@ -88,16 +88,70 @@ void GraphPropagator::initTimingPointList(Database& database)
     timing_pair.second.set_arrival(-std::numeric_limits<double>::infinity());
     timing_pair.second.set_required(std::numeric_limits<double>::infinity());
     timing_pair.second.set_slack(0.0);
+    timing_pair.second.set_launch_time(0.0);
     timing_pair.second.get_predecessor().clear();
+    timing_pair.second.get_clock_name().clear();
     timing_pair.second.set_predecessor_arc_idx(std::numeric_limits<std::size_t>::max());
+    timing_pair.second.set_is_clock_point(false);
   }
 }
 
 void GraphPropagator::seedStartPointList(Database& database)
 {
   for (std::string& start_point : database.get_start_point_list()) {
-    database.get_timing_point_map()[start_point].set_arrival(0.0);
+    TimingPoint& timing_point = database.get_timing_point_map()[start_point];
+    timing_point.set_arrival(getStartPointArrival(database, start_point));
+    timing_point.set_launch_time(0.0);
+    timing_point.set_clock_name(getClockName(database, start_point));
   }
+}
+
+double GraphPropagator::getStartPointArrival(Database& database, std::string& start_point)
+{
+  Pin& pin = database.get_pin_map()[start_point];
+  if (pin.get_is_port()) {
+    auto& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
+    if (port_constraint_map.count(start_point) > 0 && port_constraint_map[start_point].get_has_input_delay_max()) {
+      return port_constraint_map[start_point].get_input_delay_max();
+    }
+    return 0.0;
+  }
+  if (database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return 0.0;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  if (instance.get_is_sequential() && start_point == instance.get_output_pin_name()) {
+    return instance.get_clock_to_q_delay();
+  }
+  return 0.0;
+}
+
+std::string GraphPropagator::getClockName(Database& database, std::string& pin_name)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  auto& clock_map = database.get_timing_constraint().get_clock_map();
+  if (pin.get_is_port()) {
+    auto& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
+    if (port_constraint_map.count(pin_name) > 0 && !port_constraint_map[pin_name].get_clock_name().empty()) {
+      return port_constraint_map[pin_name].get_clock_name();
+    }
+  }
+  if (!clock_map.empty()) {
+    return clock_map.begin()->first;
+  }
+  return "clk";
+}
+
+double GraphPropagator::getClockPeriod(Database& database, std::string& clock_name)
+{
+  auto& clock_map = database.get_timing_constraint().get_clock_map();
+  if (clock_map.count(clock_name) > 0) {
+    return clock_map[clock_name].get_period();
+  }
+  if (!clock_map.empty()) {
+    return clock_map.begin()->second.get_period();
+  }
+  return 0.0;
 }
 
 void GraphPropagator::propagateArrivalArc(Database& database, std::size_t arc_idx)
@@ -112,6 +166,8 @@ void GraphPropagator::propagateArrivalArc(Database& database, std::size_t arc_id
       sink_point.set_arrival(candidate_arrival);
       sink_point.set_predecessor(arc.get_source_pin());
       sink_point.set_predecessor_arc_idx(arc_idx);
+      sink_point.set_launch_time(source_point.get_launch_time());
+      sink_point.set_clock_name(source_point.get_clock_name());
     }
   }
 }
@@ -152,8 +208,30 @@ double GraphPropagator::resolveRequiredTime(Database& database)
 void GraphPropagator::seedEndPointRequired(Database& database, double required_time)
 {
   for (std::string& end_point : database.get_end_point_list()) {
-    database.get_timing_point_map()[end_point].set_required(required_time);
+    database.get_timing_point_map()[end_point].set_required(getEndPointRequired(database, end_point, required_time));
   }
+}
+
+double GraphPropagator::getEndPointRequired(Database& database, std::string& end_point, double default_required_time)
+{
+  Pin& pin = database.get_pin_map()[end_point];
+  if (pin.get_is_port()) {
+    auto& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
+    if (port_constraint_map.count(end_point) > 0 && port_constraint_map[end_point].get_has_output_delay_max()) {
+      std::string clock_name = port_constraint_map[end_point].get_clock_name();
+      return getClockPeriod(database, clock_name) - port_constraint_map[end_point].get_output_delay_max();
+    }
+    return default_required_time;
+  }
+  if (database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return default_required_time;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  if (instance.get_is_sequential() && end_point == instance.get_data_pin_name()) {
+    std::string clock_name = getClockName(database, end_point);
+    return getClockPeriod(database, clock_name) - instance.get_setup_time();
+  }
+  return default_required_time;
 }
 
 void GraphPropagator::propagateRequiredArc(Database& database, Arc& arc)

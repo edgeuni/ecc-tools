@@ -19,6 +19,14 @@
 #include "Config.hpp"
 #include "Database.hpp"
 
+namespace idb {
+class LibArc;
+class LibArcSet;
+class LibCell;
+class LibLibrary;
+class LibPort;
+}  // namespace idb
+
 namespace ista {
 
 #define STADM (ista::DataManager::getInst())
@@ -53,8 +61,21 @@ class DataManager
 #if 1  // build
   void buildConfig();
   void buildDatabase();
+  void buildTimingLibrary();
+  void buildTimingCellMap(std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list);
+  void makeTimingCell(idb::LibCell* lib_cell);
+  void makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_port);
+  void makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib_arc_set);
+  TimingCellArc makeDelayArc(idb::LibArc* lib_arc);
+  TimingCheckArc makeSetupArc(idb::LibArc* lib_arc);
+  void updateTimingCell(TimingCell& timing_cell);
   void buildInstanceList();
   void makeInstanceList();
+  void buildInstanceTimingInfo();
+  void makeInstanceTimingInfo(Instance& instance);
+  TimingCellArc* findClockToQArc(TimingCell& timing_cell);
+  std::string getInstancePinName(Instance& instance, std::string& port_name);
+  std::string findOutputPinName(Instance& instance, TimingCell& timing_cell);
   bool isInstancePin(Pin& pin);
   void makeUniqueName(std::vector<std::string>& list, const std::string& value);
   void buildNetList();

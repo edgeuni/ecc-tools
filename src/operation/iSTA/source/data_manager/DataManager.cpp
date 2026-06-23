@@ -20,6 +20,8 @@
 #include "Monitor.hpp"
 #include "STAInterface.hpp"
 #include "Utility.hpp"
+#include "idm.h"
+#include "liberty/Lib.hh"
 
 namespace ista {
 
@@ -88,6 +90,8 @@ void DataManager::buildConfig()
   _config.dm_temp_directory_path = _config.temp_directory_path + "data_manager/";
   // **********   GraphBuilder    ********** //
   _config.gb_temp_directory_path = _config.temp_directory_path + "graph_builder/";
+  // **********     SdcReader     ********** //
+  _config.sr_temp_directory_path = _config.temp_directory_path + "sdc_reader/";
   // ********** DelayCalculator   ********** //
   _config.dc_temp_directory_path = _config.temp_directory_path + "delay_calculator/";
   // **********  GraphLevelizer   ********** //
@@ -107,6 +111,8 @@ void DataManager::buildConfig()
   STAUTIL.createDir(_config.dm_temp_directory_path);
   // **********   GraphBuilder    ********** //
   STAUTIL.createDir(_config.gb_temp_directory_path);
+  // **********     SdcReader     ********** //
+  STAUTIL.createDir(_config.sr_temp_directory_path);
   // ********** DelayCalculator   ********** //
   STAUTIL.createDir(_config.dc_temp_directory_path);
   // **********  GraphLevelizer   ********** //
@@ -123,8 +129,98 @@ void DataManager::buildConfig()
 
 void DataManager::buildDatabase()
 {
+  buildTimingLibrary();
   buildInstanceList();
   buildNetList();
+  buildInstanceTimingInfo();
+}
+
+void DataManager::buildTimingLibrary()
+{
+  std::vector<std::unique_ptr<idb::LibLibrary>> lib_list;
+  for (idb::LibertyReader& liberty_reader : dmInst->get_lib_readers()) {
+    liberty_reader.linkLib();
+    idb::LibBuilder* lib_builder = liberty_reader.get_library_builder();
+    lib_list.push_back(lib_builder->takeLib());
+    delete lib_builder;
+    liberty_reader.set_library_builder(nullptr);
+  }
+  buildTimingCellMap(lib_list);
+}
+
+void DataManager::buildTimingCellMap(std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list)
+{
+  _database.get_timing_library().get_cell_map().clear();
+  for (std::unique_ptr<idb::LibLibrary>& lib : lib_list) {
+    for (std::unique_ptr<idb::LibCell>& lib_cell : lib->get_cells()) {
+      makeTimingCell(lib_cell.get());
+    }
+  }
+}
+
+void DataManager::makeTimingCell(idb::LibCell* lib_cell)
+{
+  TimingCell timing_cell;
+  timing_cell.set_cell_name(lib_cell->get_cell_name());
+  timing_cell.set_is_sequential(lib_cell->isSequentialCell());
+
+  for (std::unique_ptr<idb::LibPort>& lib_port : lib_cell->get_cell_ports()) {
+    makeTimingCellPort(timing_cell, lib_port.get());
+  }
+
+  for (std::unique_ptr<idb::LibArcSet>& lib_arc_set : lib_cell->get_cell_arcs()) {
+    makeTimingCellArc(timing_cell, lib_arc_set.get());
+  }
+
+  updateTimingCell(timing_cell);
+  _database.get_timing_library().get_cell_map()[timing_cell.get_cell_name()] = timing_cell;
+}
+
+void DataManager::makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_port)
+{
+  TimingCellPort timing_cell_port;
+  timing_cell_port.set_port_name(lib_port->get_port_name());
+  timing_cell_port.set_capacitance(lib_port->get_port_cap());
+  timing_cell_port.set_is_input(lib_port->isInput());
+  timing_cell_port.set_is_output(lib_port->isOutput());
+  timing_cell_port.set_is_clock(lib_port->isClock() || lib_port->get_is_clock_pin() || lib_port->get_is_clock());
+  timing_cell.get_port_map()[timing_cell_port.get_port_name()] = timing_cell_port;
+}
+
+void DataManager::makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib_arc_set)
+{
+  idb::LibArc* lib_arc = lib_arc_set->front();
+  if (lib_arc->isDelayArc()) {
+    timing_cell.get_cell_arc_list().push_back(makeDelayArc(lib_arc));
+  } else if (lib_arc->isSetupArc()) {
+    timing_cell.get_setup_arc_list().push_back(makeSetupArc(lib_arc));
+  }
+}
+
+TimingCellArc DataManager::makeDelayArc(idb::LibArc* lib_arc)
+{
+  TimingCellArc timing_cell_arc;
+  timing_cell_arc.set_source_port(lib_arc->get_src_port());
+  timing_cell_arc.set_sink_port(lib_arc->get_snk_port());
+  timing_cell_arc.set_delay(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
+  timing_cell_arc.set_is_clock_arc(lib_arc->isRisingTriggerArc() || lib_arc->isFallingTriggerArc());
+  return timing_cell_arc;
+}
+
+TimingCheckArc DataManager::makeSetupArc(idb::LibArc* lib_arc)
+{
+  TimingCheckArc timing_check_arc;
+  timing_check_arc.set_clock_port(lib_arc->get_src_port());
+  timing_check_arc.set_data_port(lib_arc->get_snk_port());
+  timing_check_arc.set_setup_time(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
+  return timing_check_arc;
+}
+
+void DataManager::updateTimingCell(TimingCell& timing_cell)
+{
+  if (!timing_cell.get_setup_arc_list().empty()) {
+    timing_cell.set_is_sequential(true);
+  }
 }
 
 void DataManager::buildInstanceList()
@@ -146,6 +242,64 @@ void DataManager::makeInstanceList()
 
     makeUniqueName(_database.get_instance_map()[pin.get_instance_name()].get_pin_name_list(), pin_pair.first);
   }
+}
+
+void DataManager::buildInstanceTimingInfo()
+{
+  for (auto& instance_pair : _database.get_instance_map()) {
+    makeInstanceTimingInfo(instance_pair.second);
+  }
+}
+
+void DataManager::makeInstanceTimingInfo(Instance& instance)
+{
+  auto& timing_cell_map = _database.get_timing_library().get_cell_map();
+  if (timing_cell_map.count(instance.get_cell_name()) == 0) {
+    return;
+  }
+
+  TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
+  instance.set_is_sequential(timing_cell.get_is_sequential());
+  TimingCellArc* clock_to_q_arc = findClockToQArc(timing_cell);
+  if (clock_to_q_arc != nullptr) {
+    instance.set_output_pin_name(getInstancePinName(instance, clock_to_q_arc->get_sink_port()));
+    instance.set_clock_to_q_delay(clock_to_q_arc->get_delay());
+  } else {
+    instance.set_output_pin_name(findOutputPinName(instance, timing_cell));
+  }
+  if (timing_cell.get_setup_arc_list().empty()) {
+    return;
+  }
+
+  TimingCheckArc& setup_arc = timing_cell.get_setup_arc_list().front();
+  instance.set_clock_pin_name(getInstancePinName(instance, setup_arc.get_clock_port()));
+  instance.set_data_pin_name(getInstancePinName(instance, setup_arc.get_data_port()));
+  instance.set_setup_time(setup_arc.get_setup_time());
+}
+
+TimingCellArc* DataManager::findClockToQArc(TimingCell& timing_cell)
+{
+  for (TimingCellArc& timing_cell_arc : timing_cell.get_cell_arc_list()) {
+    if (timing_cell_arc.get_is_clock_arc()) {
+      return &timing_cell_arc;
+    }
+  }
+  return nullptr;
+}
+
+std::string DataManager::getInstancePinName(Instance& instance, std::string& port_name)
+{
+  return instance.get_instance_name() + ":" + port_name;
+}
+
+std::string DataManager::findOutputPinName(Instance& instance, TimingCell& timing_cell)
+{
+  for (auto& [port_name, timing_cell_port] : timing_cell.get_port_map()) {
+    if (timing_cell_port.get_is_output() && !timing_cell_port.get_is_clock()) {
+      return getInstancePinName(instance, timing_cell_port.get_port_name());
+    }
+  }
+  return "";
 }
 
 bool DataManager::isInstancePin(Pin& pin)
@@ -232,6 +386,10 @@ void DataManager::printConfig()
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "GraphBuilder");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "gb_temp_directory_path");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(3), _config.gb_temp_directory_path);
+  // **********     SdcReader     ********** //
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "SdcReader");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "sr_temp_directory_path");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(3), _config.sr_temp_directory_path);
   // ********** DelayCalculator   ********** //
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "DelayCalculator");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "dc_temp_directory_path");

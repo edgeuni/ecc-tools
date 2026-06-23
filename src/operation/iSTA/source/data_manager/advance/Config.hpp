@@ -37,6 +37,8 @@ class Config
   std::string dm_temp_directory_path;  // building
   // **********   GraphBuilder    ********** //
   std::string gb_temp_directory_path;  // building
+  // **********     SdcReader     ********** //
+  std::string sr_temp_directory_path;  // building
   // ********** DelayCalculator   ********** //
   std::string dc_temp_directory_path;  // building
   // **********  GraphLevelizer   ********** //

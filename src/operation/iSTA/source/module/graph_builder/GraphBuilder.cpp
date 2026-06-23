@@ -82,6 +82,9 @@ void GraphBuilder::buildTimingPointList(Database& database)
 void GraphBuilder::buildCellArcs(Database& database)
 {
   for (auto& [instance_name, instance] : database.get_instance_map()) {
+    if (buildLibraryCellArcs(database, instance)) {
+      continue;
+    }
     std::vector<std::string> input_pin_list = collectInputPins(database, instance);
     std::vector<std::string> output_pin_list = collectOutputPins(database, instance);
     if (input_pin_list.empty() || output_pin_list.empty()) {
@@ -96,6 +99,63 @@ void GraphBuilder::buildCellArcs(Database& database)
       }
     }
   }
+}
+
+bool GraphBuilder::buildLibraryCellArcs(Database& database, Instance& instance)
+{
+  auto& timing_cell_map = database.get_timing_library().get_cell_map();
+  if (timing_cell_map.count(instance.get_cell_name()) == 0) {
+    return false;
+  }
+
+  TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
+  if (timing_cell.get_cell_arc_list().empty()) {
+    return false;
+  }
+
+  for (TimingCellArc& timing_cell_arc : timing_cell.get_cell_arc_list()) {
+    if (timing_cell_arc.get_is_clock_arc()) {
+      continue;
+    }
+    addCellArc(database, instance, timing_cell_arc);
+  }
+  return true;
+}
+
+std::string GraphBuilder::getInstancePinName(Instance& instance, std::string& port_name)
+{
+  return instance.get_instance_name() + ":" + port_name;
+}
+
+void GraphBuilder::addCellArc(Database& database, Instance& instance, TimingCellArc& timing_cell_arc)
+{
+  std::string source_pin = getInstancePinName(instance, timing_cell_arc.get_source_port());
+  std::string sink_pin = getInstancePinName(instance, timing_cell_arc.get_sink_port());
+  if (database.get_pin_map().count(source_pin) == 0 || database.get_pin_map().count(sink_pin) == 0) {
+    return;
+  }
+  addArc(database, source_pin, sink_pin, ArcType::kCell, instance.get_instance_name(), timing_cell_arc.get_source_port(),
+         timing_cell_arc.get_sink_port(), timing_cell_arc.get_is_clock_arc());
+}
+
+void GraphBuilder::addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
+                          const std::string& owner_name, const std::string& library_source_port,
+                          const std::string& library_sink_port, bool is_clock_arc)
+{
+  Arc arc;
+  arc.set_arc_name(owner_name + ":" + source_pin + "->" + sink_pin);
+  arc.set_source_pin(source_pin);
+  arc.set_sink_pin(sink_pin);
+  arc.set_owner_name(owner_name);
+  arc.set_library_source_port(library_source_port);
+  arc.set_library_sink_port(library_sink_port);
+  arc.set_type(type);
+  arc.set_is_clock_arc(is_clock_arc);
+
+  database.get_arc_list().push_back(arc);
+  const std::size_t arc_idx = database.get_arc_list().size() - 1;
+  database.get_outgoing_arc_list_map()[source_pin].push_back(arc_idx);
+  database.get_incoming_arc_list_map()[sink_pin].push_back(arc_idx);
 }
 
 std::vector<std::string> GraphBuilder::collectInputPins(Database& database, Instance& instance)
@@ -175,7 +235,28 @@ void GraphBuilder::buildStartEndPointList(Database& database)
 
 bool GraphBuilder::isStartPoint(Database& database, const std::string& pin_name, Pin& pin)
 {
+  if (isClockPin(database, pin_name, pin) || isClockSource(database, pin_name)) {
+    return false;
+  }
   return !hasIncomingArc(database, pin_name) || isStartPort(pin);
+}
+
+bool GraphBuilder::isClockPin(Database& database, const std::string& pin_name, Pin& pin)
+{
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return false;
+  }
+  return pin_name == database.get_instance_map()[pin.get_instance_name()].get_clock_pin_name();
+}
+
+bool GraphBuilder::isClockSource(Database& database, const std::string& pin_name)
+{
+  for (auto& [clock_name, timing_clock] : database.get_timing_constraint().get_clock_map()) {
+    if (STAUTIL.exist(timing_clock.get_source_list(), pin_name)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool GraphBuilder::hasIncomingArc(Database& database, const std::string& pin_name)
@@ -190,6 +271,9 @@ bool GraphBuilder::isStartPort(Pin& pin)
 
 bool GraphBuilder::isEndPoint(Database& database, const std::string& pin_name, Pin& pin)
 {
+  if (isClockPin(database, pin_name, pin) || isClockSource(database, pin_name)) {
+    return false;
+  }
   return !hasOutgoingArc(database, pin_name) || isEndPort(pin);
 }
 

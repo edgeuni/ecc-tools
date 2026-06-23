@@ -73,7 +73,7 @@ void TimingAnalyzer::analyzeEndPointList(Database& database)
   std::size_t unconstrained_end_point_num = 0;
   std::size_t violation_num = 0;
   double total_negative_slack = 0.0;
-  TimingPathGroup timing_path_group = initTimingPathGroup();
+  TimingPathGroup timing_path_group = initTimingPathGroup(database);
 
   database.get_timing_path_group_list().clear();
   for (std::string& end_point : database.get_end_point_list()) {
@@ -102,10 +102,14 @@ void TimingAnalyzer::analyzeEndPointList(Database& database)
               " total_negative_slack=", total_negative_slack, " end_point=", worst_end_point);
 }
 
-TimingPathGroup TimingAnalyzer::initTimingPathGroup()
+TimingPathGroup TimingAnalyzer::initTimingPathGroup(Database& database)
 {
   TimingPathGroup timing_path_group;
-  timing_path_group.set_group_name("default");
+  if (!database.get_timing_constraint().get_clock_map().empty()) {
+    timing_path_group.set_group_name(database.get_timing_constraint().get_clock_map().begin()->first);
+  } else {
+    timing_path_group.set_group_name("default");
+  }
   return timing_path_group;
 }
 
@@ -125,6 +129,7 @@ TimingPath TimingAnalyzer::buildTimingPath(Database& database, std::string& end_
   timing_path.set_required_time(database.get_timing_point_map()[end_point].get_required());
   timing_path.set_slack(database.get_timing_point_map()[end_point].get_slack());
   timing_path.set_level(database.get_timing_point_map()[end_point].get_level());
+  updateClockInfo(database, timing_path);
 
   Arc* arc = nullptr;
   for (size_t i = 0; i < path_pin_name_list.size(); i++) {
@@ -169,6 +174,36 @@ void TimingAnalyzer::updatePathDelay(TimingPath& timing_path, Arc* arc)
   } else if (arc->get_type() == ArcType::kNet) {
     timing_path.set_net_delay(timing_path.get_net_delay() + arc->get_delay());
   }
+}
+
+void TimingAnalyzer::updateClockInfo(Database& database, TimingPath& timing_path)
+{
+  TimingPoint& end_timing_point = database.get_timing_point_map()[timing_path.get_end_point()];
+  timing_path.set_launch_time(end_timing_point.get_launch_time());
+  timing_path.set_clock_name(end_timing_point.get_clock_name());
+  timing_path.set_capture_time(getClockPeriod(database, timing_path.get_clock_name()));
+
+  Pin& end_pin = database.get_pin_map()[timing_path.get_end_point()];
+  if (end_pin.get_is_port() || database.get_instance_map().count(end_pin.get_instance_name()) == 0) {
+    return;
+  }
+  Instance& instance = database.get_instance_map()[end_pin.get_instance_name()];
+  if (instance.get_is_sequential() && timing_path.get_end_point() == instance.get_data_pin_name()) {
+    timing_path.set_capture_clock_pin(instance.get_clock_pin_name());
+    timing_path.set_setup_time(instance.get_setup_time());
+  }
+}
+
+double TimingAnalyzer::getClockPeriod(Database& database, std::string& clock_name)
+{
+  auto& clock_map = database.get_timing_constraint().get_clock_map();
+  if (clock_map.count(clock_name) > 0) {
+    return clock_map[clock_name].get_period();
+  }
+  if (!clock_map.empty()) {
+    return clock_map.begin()->second.get_period();
+  }
+  return 0.0;
 }
 
 TimingPathPoint TimingAnalyzer::makeTimingPathPoint(Database& database, std::string& pin_name, Arc* arc)

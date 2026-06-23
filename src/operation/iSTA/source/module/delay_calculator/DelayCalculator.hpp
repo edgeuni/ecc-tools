@@ -44,7 +44,8 @@ class DelayCalculator
   // function
   void buildArcDelayList(Database& database);
   double calcArcDelay(Database& database, Arc& arc);
-  double calcCellArcDelay();
+  double calcCellArcDelay(Database& database, Arc& arc);
+  TimingCellArc* getTimingCellArc(Database& database, Arc& arc);
   double calcNetArcDelay(Database& database, Arc& arc);
   double calcManhattanDistance(Database& database, std::string& source_pin, std::string& sink_pin);
 };

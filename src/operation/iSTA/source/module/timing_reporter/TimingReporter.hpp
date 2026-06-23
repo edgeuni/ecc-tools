@@ -79,12 +79,22 @@ class TimingReporter
                               DelayType delay_type);
   std::string getStartPointText(Database& database, TimingPath& timing_path);
   std::string getEndPointText(Database& database, TimingPath& timing_path);
-  void outputTimingPointList(std::ofstream* report_file, TimingPath& timing_path);
-  void outputTimingPoint(std::ofstream* report_file, TimingPathPoint& path_point);
+  void outputTimingPointList(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type);
+  void outputLaunchClockInfo(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type);
+  void outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr,
+                        std::string transition);
+  std::string getClockName(Database& database, TimingPath& timing_path);
+  double getInputDelay(Database& database, TimingPath& timing_path, DelayType delay_type);
+  std::string getStartClockPin(Database& database, TimingPath& timing_path);
+  void outputTimingPoint(std::ofstream* report_file, Database& database, TimingPath& timing_path, TimingPathPoint& path_point,
+                         bool is_first_point);
   std::string getNumberString(double value);
   std::string getPointLabel(TimingPathPoint& path_point);
   std::string getPTPinName(std::string& pin_name);
   std::string getPTCellName(TimingPathPoint& path_point);
+  void outputRequiredClockInfo(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type);
+  double getOutputDelay(Database& database, TimingPath& timing_path, DelayType delay_type);
+  std::string getPinLabel(Database& database, std::string& pin_name);
   void outputTimingPathSummary(std::ofstream* report_file, TimingPath& timing_path);
   std::string getSlackStatus(TimingPath& timing_path);
 };
