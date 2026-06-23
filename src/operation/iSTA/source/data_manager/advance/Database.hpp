@@ -22,6 +22,7 @@
 #include "Pin.hpp"
 #include "STAHeader.hpp"
 #include "Summary.hpp"
+#include "TimingPathGroup.hpp"
 #include "TimingPoint.hpp"
 
 namespace ista {
@@ -41,7 +42,9 @@ class Database
   std::map<std::string, std::vector<std::size_t>>& get_incoming_arc_list_map() { return _incoming_arc_list_map; }
   std::vector<std::string>& get_start_point_list() { return _start_point_list; }
   std::vector<std::string>& get_end_point_list() { return _end_point_list; }
+  std::vector<std::string>& get_timing_order_list() { return _timing_order_list; }
   std::map<std::string, TimingPoint>& get_timing_point_map() { return _timing_point_map; }
+  std::vector<TimingPathGroup>& get_timing_path_group_list() { return _timing_path_group_list; }
   Summary& get_summary() { return _summary; }
   // setter
   void set_design_name(const std::string& design_name) { _design_name = design_name; }
@@ -57,7 +60,9 @@ class Database
   std::map<std::string, std::vector<std::size_t>> _incoming_arc_list_map;
   std::vector<std::string> _start_point_list;
   std::vector<std::string> _end_point_list;
+  std::vector<std::string> _timing_order_list;
   std::map<std::string, TimingPoint> _timing_point_map;
+  std::vector<TimingPathGroup> _timing_path_group_list;
   Summary _summary;
 };
 

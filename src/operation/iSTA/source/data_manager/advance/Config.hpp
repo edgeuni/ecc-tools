@@ -29,6 +29,7 @@ class Config
   // **********        STA        ********** //
   std::string temp_directory_path;  // required
   int32_t thread_number;            // optional
+  int32_t path_report_number;       // optional
   /////////////////////////////////////////////
   // **********        STA        ********** //
   std::string log_file_path;  // building
@@ -36,10 +37,16 @@ class Config
   std::string dm_temp_directory_path;  // building
   // **********   GraphBuilder    ********** //
   std::string gb_temp_directory_path;  // building
+  // ********** DelayCalculator   ********** //
+  std::string dc_temp_directory_path;  // building
+  // **********  GraphLevelizer   ********** //
+  std::string gl_temp_directory_path;  // building
   // *********  GraphPropagator   ********* //
   std::string gp_temp_directory_path;  // building
   // **********  TimingAnalyzer   ********** //
   std::string ta_temp_directory_path;  // building
+  // **********  TimingReporter   ********** //
+  std::string tr_temp_directory_path;  // building
   /////////////////////////////////////////////
 };
 

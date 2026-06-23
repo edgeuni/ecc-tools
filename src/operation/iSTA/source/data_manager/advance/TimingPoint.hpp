@@ -29,19 +29,25 @@ class TimingPoint
   double get_arrival() const { return _arrival; }
   double get_required() const { return _required; }
   double get_slack() const { return _slack; }
+  int32_t get_level() const { return _level; }
   std::string& get_predecessor() { return _predecessor; }
+  std::size_t get_predecessor_arc_idx() const { return _predecessor_arc_idx; }
   // setter
   void set_arrival(const double arrival) { _arrival = arrival; }
   void set_required(const double required) { _required = required; }
   void set_slack(const double slack) { _slack = slack; }
+  void set_level(const int32_t level) { _level = level; }
   void set_predecessor(const std::string& predecessor) { _predecessor = predecessor; }
+  void set_predecessor_arc_idx(const std::size_t predecessor_arc_idx) { _predecessor_arc_idx = predecessor_arc_idx; }
   // function
 
  private:
   double _arrival = -std::numeric_limits<double>::infinity();
   double _required = std::numeric_limits<double>::infinity();
   double _slack = 0.0;
+  int32_t _level = 0;
   std::string _predecessor;
+  std::size_t _predecessor_arc_idx = std::numeric_limits<std::size_t>::max();
 };
 
 }  // namespace ista

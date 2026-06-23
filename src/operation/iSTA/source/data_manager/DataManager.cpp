@@ -83,14 +83,21 @@ void DataManager::buildConfig()
   _config.temp_directory_path = std::filesystem::absolute(_config.temp_directory_path);
   _config.temp_directory_path += "/";
   _config.log_file_path = _config.temp_directory_path + "sta.log";
+  _config.path_report_number = 1000;
   // **********    DataManager    ********** //
   _config.dm_temp_directory_path = _config.temp_directory_path + "data_manager/";
   // **********   GraphBuilder    ********** //
   _config.gb_temp_directory_path = _config.temp_directory_path + "graph_builder/";
+  // ********** DelayCalculator   ********** //
+  _config.dc_temp_directory_path = _config.temp_directory_path + "delay_calculator/";
+  // **********  GraphLevelizer   ********** //
+  _config.gl_temp_directory_path = _config.temp_directory_path + "graph_levelizer/";
   // *********  GraphPropagator   ********* //
   _config.gp_temp_directory_path = _config.temp_directory_path + "graph_propagator/";
   // **********  TimingAnalyzer   ********** //
   _config.ta_temp_directory_path = _config.temp_directory_path + "timing_analyzer/";
+  // **********  TimingReporter   ********** //
+  _config.tr_temp_directory_path = _config.temp_directory_path + "timing_reporter/";
   /////////////////////////////////////////////
   // **********        STA        ********** //
   STAUTIL.removeDir(_config.temp_directory_path);
@@ -100,10 +107,16 @@ void DataManager::buildConfig()
   STAUTIL.createDir(_config.dm_temp_directory_path);
   // **********   GraphBuilder    ********** //
   STAUTIL.createDir(_config.gb_temp_directory_path);
+  // ********** DelayCalculator   ********** //
+  STAUTIL.createDir(_config.dc_temp_directory_path);
+  // **********  GraphLevelizer   ********** //
+  STAUTIL.createDir(_config.gl_temp_directory_path);
   // *********  GraphPropagator   ********* //
   STAUTIL.createDir(_config.gp_temp_directory_path);
   // **********  TimingAnalyzer   ********** //
   STAUTIL.createDir(_config.ta_temp_directory_path);
+  // **********  TimingReporter   ********** //
+  STAUTIL.createDir(_config.tr_temp_directory_path);
   /////////////////////////////////////////////
   STALOG.openLogFileStream(_config.log_file_path);
 }
@@ -205,6 +218,8 @@ void DataManager::printConfig()
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.temp_directory_path);
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "thread_number");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.thread_number);
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "path_report_number");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.path_report_number);
   // **********        STA        ********** //
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(0), "STA_CONFIG_BUILD");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "log_file_path");
@@ -217,6 +232,14 @@ void DataManager::printConfig()
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "GraphBuilder");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "gb_temp_directory_path");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(3), _config.gb_temp_directory_path);
+  // ********** DelayCalculator   ********** //
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "DelayCalculator");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "dc_temp_directory_path");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(3), _config.dc_temp_directory_path);
+  // **********  GraphLevelizer   ********** //
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "GraphLevelizer");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "gl_temp_directory_path");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(3), _config.gl_temp_directory_path);
   // *********  GraphPropagator   ********* //
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "GraphPropagator");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "gp_temp_directory_path");
@@ -225,6 +248,10 @@ void DataManager::printConfig()
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "TimingAnalyzer");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "ta_temp_directory_path");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(3), _config.ta_temp_directory_path);
+  // **********  TimingReporter   ********** //
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "TimingReporter");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), "tr_temp_directory_path");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(3), _config.tr_temp_directory_path);
   /////////////////////////////////////////////
 }
 

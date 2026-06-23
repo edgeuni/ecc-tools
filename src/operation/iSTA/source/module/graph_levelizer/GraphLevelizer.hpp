@@ -20,38 +20,34 @@
 
 namespace ista {
 
-#define STAGP (ista::GraphPropagator::getInst())
+#define STAGL (ista::GraphLevelizer::getInst())
 
-class GraphPropagator
+class GraphLevelizer
 {
  public:
   static void initInst();
-  static GraphPropagator& getInst();
+  static GraphLevelizer& getInst();
   static void destroyInst();
   // function
   bool build();
 
  private:
   // self
-  static GraphPropagator* _gp_instance;
+  static GraphLevelizer* _gl_instance;
 
-  GraphPropagator() = default;
-  GraphPropagator(const GraphPropagator& other) = delete;
-  GraphPropagator(GraphPropagator&& other) = delete;
-  ~GraphPropagator() = default;
-  GraphPropagator& operator=(const GraphPropagator& other) = delete;
-  GraphPropagator& operator=(GraphPropagator&& other) = delete;
+  GraphLevelizer() = default;
+  GraphLevelizer(const GraphLevelizer& other) = delete;
+  GraphLevelizer(GraphLevelizer&& other) = delete;
+  ~GraphLevelizer() = default;
+  GraphLevelizer& operator=(const GraphLevelizer& other) = delete;
+  GraphLevelizer& operator=(GraphLevelizer&& other) = delete;
   // function
-  void propagateArrival(Database& database);
-  void initTimingPointList(Database& database);
-  void seedStartPointList(Database& database);
-  void propagateArrivalArc(Database& database, std::size_t arc_idx);
-  bool isFinite(double value);
-  void propagateRequired(Database& database);
-  double resolveRequiredTime(Database& database);
-  void seedEndPointRequired(Database& database, double required_time);
-  void propagateRequiredArc(Database& database, Arc& arc);
-  void updateSlack(Database& database);
+  void buildTimingOrder(Database& database);
+  std::map<std::string, std::size_t> makeIndegreeMap(Database& database);
+  void pushRootPinList(Database& database, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
+  void updateSinkLevel(Database& database, Arc& arc);
+  void updateSinkIndegree(Arc& arc, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
+  void printLoopInfo(Database& database);
 };
 
 }  // namespace ista

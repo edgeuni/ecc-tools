@@ -27,6 +27,20 @@ class GBSummary
   ~GBSummary() = default;
 };
 
+class DCSummary
+{
+ public:
+  DCSummary() = default;
+  ~DCSummary() = default;
+};
+
+class GLSummary
+{
+ public:
+  GLSummary() = default;
+  ~GLSummary() = default;
+};
+
 class GPSummary
 {
  public:
@@ -39,6 +53,20 @@ class TASummary
  public:
   TASummary() = default;
   ~TASummary() = default;
+  std::size_t timing_path_num = 0;
+  std::size_t checked_end_point_num = 0;
+  std::size_t unconstrained_end_point_num = 0;
+  std::size_t violating_end_point_num = 0;
+  double worst_slack = 0;
+  double total_negative_slack = 0;
+  std::string worst_end_point;
+};
+
+class TRSummary
+{
+ public:
+  TRSummary() = default;
+  ~TRSummary() = default;
 };
 
 class Summary
@@ -47,8 +75,11 @@ class Summary
   Summary() = default;
   ~Summary() = default;
   GBSummary gb_summary;
+  DCSummary dc_summary;
+  GLSummary gl_summary;
   GPSummary gp_summary;
   TASummary ta_summary;
+  TRSummary tr_summary;
 };
 
 }  // namespace ista

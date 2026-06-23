@@ -20,38 +20,33 @@
 
 namespace ista {
 
-#define STAGP (ista::GraphPropagator::getInst())
+#define STADC (ista::DelayCalculator::getInst())
 
-class GraphPropagator
+class DelayCalculator
 {
  public:
   static void initInst();
-  static GraphPropagator& getInst();
+  static DelayCalculator& getInst();
   static void destroyInst();
   // function
   bool build();
 
  private:
   // self
-  static GraphPropagator* _gp_instance;
+  static DelayCalculator* _dc_instance;
 
-  GraphPropagator() = default;
-  GraphPropagator(const GraphPropagator& other) = delete;
-  GraphPropagator(GraphPropagator&& other) = delete;
-  ~GraphPropagator() = default;
-  GraphPropagator& operator=(const GraphPropagator& other) = delete;
-  GraphPropagator& operator=(GraphPropagator&& other) = delete;
+  DelayCalculator() = default;
+  DelayCalculator(const DelayCalculator& other) = delete;
+  DelayCalculator(DelayCalculator&& other) = delete;
+  ~DelayCalculator() = default;
+  DelayCalculator& operator=(const DelayCalculator& other) = delete;
+  DelayCalculator& operator=(DelayCalculator&& other) = delete;
   // function
-  void propagateArrival(Database& database);
-  void initTimingPointList(Database& database);
-  void seedStartPointList(Database& database);
-  void propagateArrivalArc(Database& database, std::size_t arc_idx);
-  bool isFinite(double value);
-  void propagateRequired(Database& database);
-  double resolveRequiredTime(Database& database);
-  void seedEndPointRequired(Database& database, double required_time);
-  void propagateRequiredArc(Database& database, Arc& arc);
-  void updateSlack(Database& database);
+  void buildArcDelayList(Database& database);
+  double calcArcDelay(Database& database, Arc& arc);
+  double calcCellArcDelay();
+  double calcNetArcDelay(Database& database, Arc& arc);
+  double calcManhattanDistance(Database& database, std::string& source_pin, std::string& sink_pin);
 };
 
 }  // namespace ista

@@ -18,11 +18,14 @@
 
 #include "DataManager.hpp"
 #include "GraphBuilder.hpp"
+#include "DelayCalculator.hpp"
+#include "GraphLevelizer.hpp"
 #include "GraphPropagator.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "STAHeader.hpp"
 #include "TimingAnalyzer.hpp"
+#include "TimingReporter.hpp"
 #include "Utility.hpp"
 #include "idm.h"
 
@@ -84,6 +87,14 @@ void STAInterface::runSTA()
   STAGB.build();
   GraphBuilder::destroyInst();
 
+  DelayCalculator::initInst();
+  STADC.build();
+  DelayCalculator::destroyInst();
+
+  GraphLevelizer::initInst();
+  STAGL.build();
+  GraphLevelizer::destroyInst();
+
   GraphPropagator::initInst();
   STAGP.build();
   GraphPropagator::destroyInst();
@@ -91,6 +102,10 @@ void STAInterface::runSTA()
   TimingAnalyzer::initInst();
   STATA.build();
   TimingAnalyzer::destroyInst();
+
+  TimingReporter::initInst();
+  STATR.report();
+  TimingReporter::destroyInst();
 
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }

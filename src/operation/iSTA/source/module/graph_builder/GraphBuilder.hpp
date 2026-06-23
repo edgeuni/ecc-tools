@@ -42,17 +42,22 @@ class GraphBuilder
   GraphBuilder& operator=(const GraphBuilder& other) = delete;
   GraphBuilder& operator=(GraphBuilder&& other) = delete;
   // function
-  void buildNetArcs(Database& database);
-  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
-              const std::string& owner_name, double delay);
-  double estimateNetDelay(Database& database, std::string& source_pin, std::string& sink_pin);
+  void buildTimingPointList(Database& database);
   void buildCellArcs(Database& database);
   std::vector<std::string> collectInputPins(Database& database, Instance& instance);
   bool isInputLike(PinDirection direction);
   std::vector<std::string> collectOutputPins(Database& database, Instance& instance);
   bool isOutputLike(PinDirection direction);
-  double estimateCellDelay(std::string& cell_name);
-  void buildEndPoints(Database& database);
+  void buildNetArcs(Database& database);
+  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
+              const std::string& owner_name);
+  void buildStartEndPointList(Database& database);
+  bool isStartPoint(Database& database, const std::string& pin_name, Pin& pin);
+  bool hasIncomingArc(Database& database, const std::string& pin_name);
+  bool isStartPort(Pin& pin);
+  bool isEndPoint(Database& database, const std::string& pin_name, Pin& pin);
+  bool hasOutgoingArc(Database& database, const std::string& pin_name);
+  bool isEndPort(Pin& pin);
   void appendUnique(std::vector<std::string>& list, const std::string& value);
 };
 
