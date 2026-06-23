@@ -16,6 +16,9 @@
 // ***************************************************************************************
 #include "ViaResistanceModel.hh"
 
+#include <algorithm>
+#include <utility>
+
 #include "Geometry.hh"
 #include "ProcessCorner.hpp"
 #include "ResistanceTemperature.hh"
@@ -23,10 +26,44 @@
 
 namespace ircx {
 
+namespace {
+
+auto viaDrawLengthWidth(const TopoEdge& edge, Micron micron_per_dbu) -> std::pair<F64, F64>
+{
+  const F64 dx = static_cast<F64>(geom::delta_x(edge.shape())) * micron_per_dbu;
+  const F64 dy = static_cast<F64>(geom::delta_y(edge.shape())) * micron_per_dbu;
+  return {std::max(dx, dy), std::min(dx, dy)};
+}
+
+auto viaResistanceArea(const TopoEdge& edge,
+                       const itf::ProcessCorner& corner,
+                       const itf::LayerVia& layer,
+                       Micron micron_per_dbu) -> F64
+{
+  auto [length, width] = viaDrawLengthWidth(edge, micron_per_dbu);
+  const F64 half_node_scale_factor = corner.get_half_node_scale_factor();
+  length *= half_node_scale_factor;
+  width *= half_node_scale_factor;
+
+  if (layer.use_etch_vwl_for_resistance()) {
+    const auto etch = layer.get_etch_vwl().query_interpolation(static_cast<float>(width), static_cast<float>(length));
+    if (etch) {
+      const F64 length_etch = etch->first;
+      const F64 width_etch = etch->second;
+      length = std::max<F64>(0.0, length - 2.0 * length_etch);
+      width = std::max<F64>(0.0, width - 2.0 * width_etch);
+    }
+  }
+
+  return length * width;
+}
+
+}  // namespace
+
 auto ViaResistanceModel::calc(const TopoEdge& edge, const itf::ProcessCorner& corner, const itf::LayerVia& layer, Micron micron_per_dbu,
                               F64 operating_temperature) -> F64
 {
-  const F64 via_area = geom::area(edge.shape()) * micron_per_dbu * micron_per_dbu;
+  const F64 via_area = viaResistanceArea(edge, corner, layer, micron_per_dbu);
 
   F64 via_resistance = 0.0;
   if (auto rpv = layer.get_rpv()) {

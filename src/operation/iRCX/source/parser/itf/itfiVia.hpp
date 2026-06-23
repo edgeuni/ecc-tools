@@ -17,6 +17,7 @@
 #pragma once
 
 #include <optional>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -91,6 +92,11 @@ class itfiVia {
   bool has_t0() const;
   const char* get_from() const;
   const char* get_to() const;
+  const itf2DLUT<float, float, std::pair<float, float>>& get_etch_vwl() const;
+  const std::string& get_etch_vwl_type() const;
+  bool has_etch_vwl() const;
+  bool use_etch_vwl_for_resistance() const;
+  bool use_etch_vwl_for_capacitance() const;
 
   // setter
   void set_via_name(const char*);
@@ -105,7 +111,7 @@ class itfiVia {
   void set_area(float);
   void add_area_rpv(float, float);
   void set_etch_vws(const char*, const itf2DLUT<float, float, float>&);
-  void set_etch_vwl(const itf2DLUT<float, float, std::pair<float, float>>&);
+  void set_etch_vwl(const char*, const itf2DLUT<float, float, std::pair<float, float>>&);
   void set_capacitive_only_etch(float);
 
   // operator
@@ -132,6 +138,7 @@ class itfiVia {
   itfiEVCAGS _etch_cg; //etch_vs_contact_and_gate_spacings
   itfTitleLut<float, float, float> _etch_vws; // etch_vs_width_and_spacing;
   itf2DLUT<float, float, std::pair<float, float>> _etch_vwl; // etch_vs_width_and_length; (widths, lengths) -> values)
+  std::string _etch_vwl_type; // empty: capacitance and resistance; CAPACITIVE_ONLY; RESISTIVE_ONLY
   float _capacitive_only_etch;
 };
   
