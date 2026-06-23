@@ -64,9 +64,8 @@ bool DesignLoader::build()
   readSdc(database);
 
   STALOG.info(Loc::current(), "Load iSTA design: timing_cells=", database.get_timing_library().get_cell_map().size(),
-              " parasitic_nets=", database.get_parasitic_library().get_net_map().size(), " clocks=",
-              database.get_timing_constraint().get_clock_map().size(), " port_constraints=",
-              database.get_timing_constraint().get_port_constraint_map().size());
+              " parasitic_nets=", database.get_parasitic_library().get_net_map().size(), " clocks=", database.get_timing_constraint().get_clock_map().size(),
+              " port_constraints=", database.get_timing_constraint().get_port_constraint_map().size());
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return true;
 }
@@ -179,11 +178,11 @@ void DesignLoader::buildInstanceList(Database& database)
 
 void DesignLoader::makeInstanceList(Database& database)
 {
-  for (auto& instance_pair : database.get_instance_map()) {
+  for (std::pair<const std::string, Instance>& instance_pair : database.get_instance_map()) {
     instance_pair.second.get_pin_name_list().clear();
   }
 
-  for (auto& pin_pair : database.get_pin_map()) {
+  for (std::pair<const std::string, Pin>& pin_pair : database.get_pin_map()) {
     Pin& pin = pin_pair.second;
     if (!isInstancePin(pin)) {
       continue;
@@ -195,14 +194,14 @@ void DesignLoader::makeInstanceList(Database& database)
 
 void DesignLoader::buildInstanceTimingInfo(Database& database)
 {
-  for (auto& instance_pair : database.get_instance_map()) {
+  for (std::pair<const std::string, Instance>& instance_pair : database.get_instance_map()) {
     makeInstanceTimingInfo(database, instance_pair.second);
   }
 }
 
 void DesignLoader::makeInstanceTimingInfo(Database& database, Instance& instance)
 {
-  auto& timing_cell_map = database.get_timing_library().get_cell_map();
+  std::map<std::string, TimingCell>& timing_cell_map = database.get_timing_library().get_cell_map();
   if (timing_cell_map.count(instance.get_cell_name()) == 0) {
     return;
   }
@@ -270,11 +269,11 @@ void DesignLoader::buildNetList(Database& database)
 
 void DesignLoader::makeNetList(Database& database)
 {
-  for (auto& pin_pair : database.get_pin_map()) {
+  for (std::pair<const std::string, Pin>& pin_pair : database.get_pin_map()) {
     pin_pair.second.get_net_name().clear();
   }
 
-  for (auto& net_pair : database.get_net_map()) {
+  for (std::pair<const std::string, Net>& net_pair : database.get_net_map()) {
     makeNet(database, net_pair.first, net_pair.second);
   }
 }

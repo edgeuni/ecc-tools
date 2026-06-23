@@ -70,9 +70,8 @@ class TimingPropagator
   void updateWorstSlack(std::string& end_point, TimingPoint& timing_point, double& worst_slack, std::string& worst_end_point);
   void updateViolation(TimingPoint& timing_point, std::size_t& violation_num, double& total_negative_slack);
   std::size_t getTimingPathNum(TimingPathGroup& timing_path_group);
-  void updateSummary(Database& database, TimingPathGroup& timing_path_group, std::size_t checked_end_point_num,
-                     std::size_t unconstrained_end_point_num, std::size_t violation_num, double worst_slack,
-                     double total_negative_slack, std::string& worst_end_point);
+  void updateSummary(Database& database, TimingPathGroup& timing_path_group, std::size_t checked_end_point_num, std::size_t unconstrained_end_point_num,
+                     std::size_t violation_num, double worst_slack, double total_negative_slack, std::string& worst_end_point);
 };
 
 }  // namespace ista

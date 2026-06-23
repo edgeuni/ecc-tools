@@ -34,10 +34,7 @@ class TimingConstraint
   // setter
   void set_sdc_file_path(const std::string& sdc_file_path) { _sdc_file_path = sdc_file_path; }
   void set_clock_map(const std::map<std::string, TimingClock>& clock_map) { _clock_map = clock_map; }
-  void set_port_constraint_map(const std::map<std::string, TimingPortConstraint>& port_constraint_map)
-  {
-    _port_constraint_map = port_constraint_map;
-  }
+  void set_port_constraint_map(const std::map<std::string, TimingPortConstraint>& port_constraint_map) { _port_constraint_map = port_constraint_map; }
   // function
 
  private:

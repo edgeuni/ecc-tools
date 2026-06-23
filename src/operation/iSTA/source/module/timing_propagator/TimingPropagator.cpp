@@ -61,8 +61,7 @@ bool TimingPropagator::build()
   analyzeEndPointList(database);
 
   std::size_t loop_vertex_num = database.get_pin_map().size() - database.get_timing_order_list().size();
-  STALOG.info(Loc::current(), "Propagate iSTA timing: timing_order=", database.get_timing_order_list().size(), " loop_vertices=",
-              loop_vertex_num);
+  STALOG.info(Loc::current(), "Propagate iSTA timing: timing_order=", database.get_timing_order_list().size(), " loop_vertices=", loop_vertex_num);
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
   return true;
 }
@@ -85,7 +84,7 @@ void TimingPropagator::propagateArrival(Database& database)
 
 void TimingPropagator::initTimingPointList(Database& database)
 {
-  for (auto& timing_pair : database.get_timing_point_map()) {
+  for (std::pair<const std::string, TimingPoint>& timing_pair : database.get_timing_point_map()) {
     timing_pair.second.set_arrival(-std::numeric_limits<double>::infinity());
     timing_pair.second.set_required(std::numeric_limits<double>::infinity());
     timing_pair.second.set_slack(0.0);
@@ -111,7 +110,7 @@ double TimingPropagator::getStartPointArrival(Database& database, std::string& s
 {
   Pin& pin = database.get_pin_map()[start_point];
   if (pin.get_is_port()) {
-    auto& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
+    std::map<std::string, TimingPortConstraint>& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
     if (port_constraint_map.count(start_point) > 0 && port_constraint_map[start_point].get_has_input_delay_max()) {
       return port_constraint_map[start_point].get_input_delay_max();
     }
@@ -130,9 +129,9 @@ double TimingPropagator::getStartPointArrival(Database& database, std::string& s
 std::string TimingPropagator::getClockName(Database& database, std::string& pin_name)
 {
   Pin& pin = database.get_pin_map()[pin_name];
-  auto& clock_map = database.get_timing_constraint().get_clock_map();
+  std::map<std::string, TimingClock>& clock_map = database.get_timing_constraint().get_clock_map();
   if (pin.get_is_port()) {
-    auto& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
+    std::map<std::string, TimingPortConstraint>& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
     if (port_constraint_map.count(pin_name) > 0 && !port_constraint_map[pin_name].get_clock_name().empty()) {
       return port_constraint_map[pin_name].get_clock_name();
     }
@@ -205,7 +204,7 @@ double TimingPropagator::getEndPointRequired(Database& database, std::string& en
 {
   Pin& pin = database.get_pin_map()[end_point];
   if (pin.get_is_port()) {
-    auto& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
+    std::map<std::string, TimingPortConstraint>& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
     if (port_constraint_map.count(end_point) > 0 && port_constraint_map[end_point].get_has_output_delay_max()) {
       std::string clock_name = port_constraint_map[end_point].get_clock_name();
       return getClockPeriod(database, clock_name) - port_constraint_map[end_point].get_output_delay_max();
@@ -225,7 +224,7 @@ double TimingPropagator::getEndPointRequired(Database& database, std::string& en
 
 double TimingPropagator::getClockPeriod(Database& database, std::string& clock_name)
 {
-  auto& clock_map = database.get_timing_constraint().get_clock_map();
+  std::map<std::string, TimingClock>& clock_map = database.get_timing_constraint().get_clock_map();
   if (clock_map.count(clock_name) > 0) {
     return clock_map[clock_name].get_period();
   }
@@ -246,7 +245,7 @@ void TimingPropagator::propagateRequiredArc(Database& database, Arc& arc)
 
 void TimingPropagator::updateSlack(Database& database)
 {
-  for (auto& timing_pair : database.get_timing_point_map()) {
+  for (std::pair<const std::string, TimingPoint>& timing_pair : database.get_timing_point_map()) {
     TimingPoint& timing_point = timing_pair.second;
     if (isFinite(timing_point.get_arrival()) && isFinite(timing_point.get_required())) {
       timing_point.set_slack(timing_point.get_required() - timing_point.get_arrival());
@@ -281,13 +280,12 @@ void TimingPropagator::analyzeEndPointList(Database& database)
   if (!std::isfinite(worst_slack)) {
     worst_slack = 0.0;
   }
-  updateSummary(database, timing_path_group, checked_end_point_num, unconstrained_end_point_num, violation_num, worst_slack,
-                total_negative_slack, worst_end_point);
+  updateSummary(database, timing_path_group, checked_end_point_num, unconstrained_end_point_num, violation_num, worst_slack, total_negative_slack,
+                worst_end_point);
   database.get_timing_path_group_list().push_back(timing_path_group);
 
-  STALOG.info(Loc::current(), "Analyze iSTA timing: timing_paths=", getTimingPathNum(timing_path_group),
-              " checked_end_points=", checked_end_point_num, " unconstrained_end_points=", unconstrained_end_point_num,
-              " violating_end_points=", violation_num, " worst_slack=", worst_slack,
+  STALOG.info(Loc::current(), "Analyze iSTA timing: timing_paths=", getTimingPathNum(timing_path_group), " checked_end_points=", checked_end_point_num,
+              " unconstrained_end_points=", unconstrained_end_point_num, " violating_end_points=", violation_num, " worst_slack=", worst_slack,
               " total_negative_slack=", total_negative_slack, " end_point=", worst_end_point);
 }
 
@@ -423,8 +421,7 @@ TimingPathEnd TimingPropagator::initTimingPathEnd(std::string& end_point)
   return timing_path_end;
 }
 
-void TimingPropagator::updateWorstSlack(std::string& end_point, TimingPoint& timing_point, double& worst_slack,
-                                        std::string& worst_end_point)
+void TimingPropagator::updateWorstSlack(std::string& end_point, TimingPoint& timing_point, double& worst_slack, std::string& worst_end_point)
 {
   if (timing_point.get_slack() < worst_slack) {
     worst_slack = timing_point.get_slack();
@@ -450,8 +447,8 @@ std::size_t TimingPropagator::getTimingPathNum(TimingPathGroup& timing_path_grou
 }
 
 void TimingPropagator::updateSummary(Database& database, TimingPathGroup& timing_path_group, std::size_t checked_end_point_num,
-                                     std::size_t unconstrained_end_point_num, std::size_t violation_num, double worst_slack,
-                                     double total_negative_slack, std::string& worst_end_point)
+                                     std::size_t unconstrained_end_point_num, std::size_t violation_num, double worst_slack, double total_negative_slack,
+                                     std::string& worst_end_point)
 {
   TPSummary& tp_summary = database.get_summary().tp_summary;
   tp_summary.timing_path_num = getTimingPathNum(timing_path_group);

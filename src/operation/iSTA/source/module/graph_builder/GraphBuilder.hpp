@@ -47,16 +47,14 @@ class GraphBuilder
   bool buildLibraryCellArcs(Database& database, Instance& instance);
   std::string getInstancePinName(Instance& instance, std::string& port_name);
   void addCellArc(Database& database, Instance& instance, TimingCellArc& timing_cell_arc);
-  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
-              const std::string& owner_name, const std::string& library_source_port, const std::string& library_sink_port,
-              bool is_clock_arc);
+  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name,
+              const std::string& library_source_port, const std::string& library_sink_port, bool is_clock_arc);
   std::vector<std::string> collectInputPins(Database& database, Instance& instance);
   bool isInputLike(PinDirection direction);
   std::vector<std::string> collectOutputPins(Database& database, Instance& instance);
   bool isOutputLike(PinDirection direction);
   void buildNetArcs(Database& database);
-  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
-              const std::string& owner_name);
+  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name);
   void buildStartEndPointList(Database& database);
   bool isStartPoint(Database& database, const std::string& pin_name, Pin& pin);
   bool isClockPin(Database& database, const std::string& pin_name, Pin& pin);

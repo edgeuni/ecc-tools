@@ -169,8 +169,8 @@ void DataManager::printConfig()
 void DataManager::printDatabase()
 {
   std::size_t port_num = 0;
-  for (auto& [pin_name, pin] : _database.get_pin_map()) {
-    if (pin.get_is_port()) {
+  for (std::pair<const std::string, Pin>& pin_pair : _database.get_pin_map()) {
+    if (pin_pair.second.get_is_port()) {
       port_num++;
     }
   }

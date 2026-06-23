@@ -67,27 +67,22 @@ class TimingReporter
   std::string getReportDate();
   void outputPathGroupList(std::ofstream* report_file, Database& database, DelayType delay_type, StartEndType start_end_type);
   void outputReportFooter(std::ofstream* report_file);
-  void outputTimingPathGroup(std::ofstream* report_file, Database& database, TimingPathGroup& timing_path_group,
-                             DelayType delay_type, StartEndType start_end_type);
-  std::vector<TimingPath*> getSortedTimingPathList(Database& database, TimingPathGroup& timing_path_group,
-                                                   StartEndType start_end_type);
+  void outputTimingPathGroup(std::ofstream* report_file, Database& database, TimingPathGroup& timing_path_group, DelayType delay_type,
+                             StartEndType start_end_type);
+  std::vector<TimingPath*> getSortedTimingPathList(Database& database, TimingPathGroup& timing_path_group, StartEndType start_end_type);
   bool isMatchStartEndType(Database& database, TimingPath& timing_path, StartEndType start_end_type);
   bool isPort(Database& database, std::string& pin_name);
-  void outputTimingPath(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name,
-                        DelayType delay_type);
-  void outputTimingPathHeader(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name,
-                              DelayType delay_type);
+  void outputTimingPath(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
+  void outputTimingPathHeader(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
   std::string getStartPointText(Database& database, TimingPath& timing_path);
   std::string getEndPointText(Database& database, TimingPath& timing_path);
   void outputTimingPointList(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type);
   void outputLaunchClockInfo(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type);
-  void outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr,
-                        std::string transition);
+  void outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr, std::string transition);
   std::string getClockName(Database& database, TimingPath& timing_path);
   double getInputDelay(Database& database, TimingPath& timing_path, DelayType delay_type);
   std::string getStartClockPin(Database& database, TimingPath& timing_path);
-  void outputTimingPoint(std::ofstream* report_file, Database& database, TimingPath& timing_path, TimingPathPoint& path_point,
-                         bool is_first_point);
+  void outputTimingPoint(std::ofstream* report_file, Database& database, TimingPath& timing_path, TimingPathPoint& path_point, bool is_first_point);
   std::string getNumberString(double value);
   std::string getPointLabel(TimingPathPoint& path_point);
   std::string getPTPinName(std::string& pin_name);

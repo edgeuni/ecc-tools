@@ -77,7 +77,7 @@ GraphBuilder* GraphBuilder::_gb_instance = nullptr;
 
 void GraphBuilder::buildTimingPointList(Database& database)
 {
-  for (auto& pin_pair : database.get_pin_map()) {
+  for (std::pair<const std::string, Pin>& pin_pair : database.get_pin_map()) {
     database.get_timing_point_map()[pin_pair.first] = TimingPoint();
   }
 }
@@ -106,7 +106,7 @@ void GraphBuilder::buildCellArcs(Database& database)
 
 bool GraphBuilder::buildLibraryCellArcs(Database& database, Instance& instance)
 {
-  auto& timing_cell_map = database.get_timing_library().get_cell_map();
+  std::map<std::string, TimingCell>& timing_cell_map = database.get_timing_library().get_cell_map();
   if (timing_cell_map.count(instance.get_cell_name()) == 0) {
     return false;
   }
@@ -137,13 +137,12 @@ void GraphBuilder::addCellArc(Database& database, Instance& instance, TimingCell
   if (database.get_pin_map().count(source_pin) == 0 || database.get_pin_map().count(sink_pin) == 0) {
     return;
   }
-  addArc(database, source_pin, sink_pin, ArcType::kCell, instance.get_instance_name(), timing_cell_arc.get_source_port(),
-         timing_cell_arc.get_sink_port(), timing_cell_arc.get_is_clock_arc());
+  addArc(database, source_pin, sink_pin, ArcType::kCell, instance.get_instance_name(), timing_cell_arc.get_source_port(), timing_cell_arc.get_sink_port(),
+         timing_cell_arc.get_is_clock_arc());
 }
 
-void GraphBuilder::addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
-                          const std::string& owner_name, const std::string& library_source_port,
-                          const std::string& library_sink_port, bool is_clock_arc)
+void GraphBuilder::addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name,
+                          const std::string& library_source_port, const std::string& library_sink_port, bool is_clock_arc)
 {
   Arc arc;
   arc.set_arc_name(owner_name + ":" + source_pin + "->" + sink_pin);
@@ -208,8 +207,7 @@ void GraphBuilder::buildNetArcs(Database& database)
   }
 }
 
-void GraphBuilder::addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type,
-                          const std::string& owner_name)
+void GraphBuilder::addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name)
 {
   Arc arc;
   arc.set_arc_name(owner_name + ":" + source_pin + "->" + sink_pin);
@@ -320,17 +318,16 @@ void GraphBuilder::buildTimingOrder(Database& database)
 std::map<std::string, std::size_t> GraphBuilder::makeIndegreeMap(Database& database)
 {
   std::map<std::string, std::size_t> indegree_map;
-  for (auto& timing_pair : database.get_timing_point_map()) {
+  for (std::pair<const std::string, TimingPoint>& timing_pair : database.get_timing_point_map()) {
     timing_pair.second.set_level(0);
     indegree_map[timing_pair.first] = database.get_incoming_arc_list_map()[timing_pair.first].size();
   }
   return indegree_map;
 }
 
-void GraphBuilder::pushRootPinList(Database& database, std::map<std::string, std::size_t>& indegree_map,
-                                   std::queue<std::string>& pin_queue)
+void GraphBuilder::pushRootPinList(Database& database, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue)
 {
-  for (auto& timing_pair : database.get_timing_point_map()) {
+  for (std::pair<const std::string, TimingPoint>& timing_pair : database.get_timing_point_map()) {
     if (indegree_map[timing_pair.first] == 0) {
       database.get_timing_point_map()[timing_pair.first].set_level(1);
       pin_queue.push(timing_pair.first);

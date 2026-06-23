@@ -231,7 +231,7 @@ PinDirection STAInterface::wrapPinDirection(idb::IdbConnectDirection idb_directi
 
 void STAInterface::wrapPinCoordinate(Pin& pin, idb::IdbPin* idb_pin)
 {
-  auto* coordinate = idb_pin->get_average_coordinate();
+  idb::IdbCoordinate<int32_t>* coordinate = idb_pin->get_average_coordinate();
   pin.set_x(coordinate->get_x());
   pin.set_y(coordinate->get_y());
 }
@@ -283,9 +283,8 @@ void STAInterface::wrapNet(idb::IdbNet* idb_net)
 
 bool STAInterface::wrapSignalNet(idb::IdbConnectType connect_type)
 {
-  return connect_type == idb::IdbConnectType::kNone || connect_type == idb::IdbConnectType::kSignal
-         || connect_type == idb::IdbConnectType::kClock || connect_type == idb::IdbConnectType::kReset
-         || connect_type == idb::IdbConnectType::kScan || connect_type == idb::IdbConnectType::kTieOff;
+  return connect_type == idb::IdbConnectType::kNone || connect_type == idb::IdbConnectType::kSignal || connect_type == idb::IdbConnectType::kClock
+         || connect_type == idb::IdbConnectType::kReset || connect_type == idb::IdbConnectType::kScan || connect_type == idb::IdbConnectType::kTieOff;
 }
 
 void STAInterface::wrapNetPinList(idb::IdbNet* idb_net, Net& net)
@@ -326,7 +325,7 @@ std::string STAInterface::wrapNetInstancePinName(idb::IdbPin* idb_pin)
 
 void STAInterface::wrapNetPinNameList(Net& net, std::string& pin_name)
 {
-  auto& pin_name_list = net.get_pin_name_list();
+  std::vector<std::string>& pin_name_list = net.get_pin_name_list();
   if (!STAUTIL.exist(pin_name_list, pin_name)) {
     pin_name_list.push_back(pin_name);
   }

@@ -31,10 +31,7 @@ class TimingPathGroup
   std::map<std::string, TimingPathEnd>& get_timing_path_end_map() { return _timing_path_end_map; }
   // setter
   void set_group_name(const std::string& group_name) { _group_name = group_name; }
-  void set_timing_path_end_map(const std::map<std::string, TimingPathEnd>& timing_path_end_map)
-  {
-    _timing_path_end_map = timing_path_end_map;
-  }
+  void set_timing_path_end_map(const std::map<std::string, TimingPathEnd>& timing_path_end_map) { _timing_path_end_map = timing_path_end_map; }
   // function
 
  private:
