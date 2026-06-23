@@ -20,28 +20,42 @@
 
 namespace ista {
 
-#define STATA (ista::TimingAnalyzer::getInst())
+#define STATP (ista::TimingPropagator::getInst())
 
-class TimingAnalyzer
+class TimingPropagator
 {
  public:
   static void initInst();
-  static TimingAnalyzer& getInst();
+  static TimingPropagator& getInst();
   static void destroyInst();
   // function
   bool build();
 
  private:
   // self
-  static TimingAnalyzer* _ta_instance;
+  static TimingPropagator* _tp_instance;
 
-  TimingAnalyzer() = default;
-  TimingAnalyzer(const TimingAnalyzer& other) = delete;
-  TimingAnalyzer(TimingAnalyzer&& other) = delete;
-  ~TimingAnalyzer() = default;
-  TimingAnalyzer& operator=(const TimingAnalyzer& other) = delete;
-  TimingAnalyzer& operator=(TimingAnalyzer&& other) = delete;
+  TimingPropagator() = default;
+  TimingPropagator(const TimingPropagator& other) = delete;
+  TimingPropagator(TimingPropagator&& other) = delete;
+  ~TimingPropagator() = default;
+  TimingPropagator& operator=(const TimingPropagator& other) = delete;
+  TimingPropagator& operator=(TimingPropagator&& other) = delete;
   // function
+  void propagateArrival(Database& database);
+  void initTimingPointList(Database& database);
+  void seedStartPointList(Database& database);
+  double getStartPointArrival(Database& database, std::string& start_point);
+  std::string getClockName(Database& database, std::string& pin_name);
+  void propagateArrivalArc(Database& database, std::size_t arc_idx);
+  bool isFinite(double value);
+  void propagateRequired(Database& database);
+  double resolveRequiredTime(Database& database);
+  void seedEndPointRequired(Database& database, double required_time);
+  double getEndPointRequired(Database& database, std::string& end_point, double default_required_time);
+  double getClockPeriod(Database& database, std::string& clock_name);
+  void propagateRequiredArc(Database& database, Arc& arc);
+  void updateSlack(Database& database);
   void analyzeEndPointList(Database& database);
   TimingPathGroup initTimingPathGroup(Database& database);
   bool hasValidTiming(TimingPoint& timing_point);
@@ -50,7 +64,6 @@ class TimingAnalyzer
   std::vector<std::size_t> getPathArcIdxList(Database& database, std::vector<std::string>& path_pin_name_list);
   void updatePathDelay(TimingPath& timing_path, Arc* arc);
   void updateClockInfo(Database& database, TimingPath& timing_path);
-  double getClockPeriod(Database& database, std::string& clock_name);
   TimingPathPoint makeTimingPathPoint(Database& database, std::string& pin_name, Arc* arc);
   void insertTimingPath(TimingPathGroup& timing_path_group, TimingPath& timing_path);
   TimingPathEnd initTimingPathEnd(std::string& end_point);

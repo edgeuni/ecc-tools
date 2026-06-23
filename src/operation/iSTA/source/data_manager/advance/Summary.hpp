@@ -34,25 +34,25 @@ class DCSummary
   ~DCSummary() = default;
 };
 
-class GLSummary
+class DLSummary
 {
  public:
-  GLSummary() = default;
-  ~GLSummary() = default;
+  DLSummary() = default;
+  ~DLSummary() = default;
 };
 
-class GPSummary
+class CMSummary
 {
  public:
-  GPSummary() = default;
-  ~GPSummary() = default;
+  CMSummary() = default;
+  ~CMSummary() = default;
 };
 
-class TASummary
+class TPSummary
 {
  public:
-  TASummary() = default;
-  ~TASummary() = default;
+  TPSummary() = default;
+  ~TPSummary() = default;
   std::size_t timing_path_num = 0;
   std::size_t checked_end_point_num = 0;
   std::size_t unconstrained_end_point_num = 0;
@@ -74,11 +74,11 @@ class Summary
  public:
   Summary() = default;
   ~Summary() = default;
+  DLSummary dl_summary;
+  CMSummary cm_summary;
   GBSummary gb_summary;
   DCSummary dc_summary;
-  GLSummary gl_summary;
-  GPSummary gp_summary;
-  TASummary ta_summary;
+  TPSummary tp_summary;
   TRSummary tr_summary;
 };
 

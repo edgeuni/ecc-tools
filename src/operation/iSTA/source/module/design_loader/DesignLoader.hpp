@@ -18,30 +18,73 @@
 
 #include "Database.hpp"
 
+namespace spef {
+struct ConnEntry;
+struct Net;
+struct ResCap;
+}  // namespace spef
+
+namespace idb {
+class LibArc;
+class LibArcSet;
+class LibCell;
+class LibLibrary;
+class LibPort;
+}  // namespace idb
+
 namespace ista {
 
-#define STASR (ista::SdcReader::getInst())
+#define STADL (ista::DesignLoader::getInst())
 
-class SdcReader
+class DesignLoader
 {
  public:
   static void initInst();
-  static SdcReader& getInst();
+  static DesignLoader& getInst();
   static void destroyInst();
   // function
-  bool read();
+  bool build();
 
  private:
   // self
-  static SdcReader* _sr_instance;
+  static DesignLoader* _dl_instance;
 
-  SdcReader() = default;
-  SdcReader(const SdcReader& other) = delete;
-  SdcReader(SdcReader&& other) = delete;
-  ~SdcReader() = default;
-  SdcReader& operator=(const SdcReader& other) = delete;
-  SdcReader& operator=(SdcReader&& other) = delete;
+  DesignLoader() = default;
+  DesignLoader(const DesignLoader& other) = delete;
+  DesignLoader(DesignLoader&& other) = delete;
+  ~DesignLoader() = default;
+  DesignLoader& operator=(const DesignLoader& other) = delete;
+  DesignLoader& operator=(DesignLoader&& other) = delete;
   // function
+  void buildDesign(Database& database);
+  void buildTimingLibrary(Database& database);
+  void buildTimingCellMap(Database& database, std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list);
+  void makeTimingCell(Database& database, idb::LibCell* lib_cell);
+  void makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_port);
+  void makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib_arc_set);
+  TimingCellArc makeDelayArc(idb::LibArc* lib_arc);
+  TimingCheckArc makeSetupArc(idb::LibArc* lib_arc);
+  void updateTimingCell(TimingCell& timing_cell);
+  void buildInstanceList(Database& database);
+  void makeInstanceList(Database& database);
+  void buildInstanceTimingInfo(Database& database);
+  void makeInstanceTimingInfo(Database& database, Instance& instance);
+  TimingCellArc* findClockToQArc(TimingCell& timing_cell);
+  std::string getInstancePinName(Instance& instance, std::string& port_name);
+  std::string findOutputPinName(Instance& instance, TimingCell& timing_cell);
+  bool isInstancePin(Pin& pin);
+  void makeUniqueName(std::vector<std::string>& list, const std::string& value);
+  void buildNetList(Database& database);
+  void makeNetList(Database& database);
+  void makeNet(Database& database, const std::string& net_name, Net& net);
+  bool isDriverPin(Pin& pin);
+  bool isOutputLikeDirection(PinDirection direction);
+  void buildParasiticLibrary(Database& database);
+  void buildParasiticNetMap(Database& database, spef::Net& spef_net);
+  void makeParasiticConnection(ParasiticNet& parasitic_net, spef::ConnEntry& spef_conn);
+  void makeParasiticCapacitance(ParasiticNet& parasitic_net, spef::ResCap& spef_cap);
+  void makeParasiticResistance(ParasiticNet& parasitic_net, spef::ResCap& spef_res);
+  ParasiticNode& getParasiticNode(ParasiticNet& parasitic_net, const std::string& node_name);
   void readSdc(Database& database);
   std::vector<std::vector<std::string>> readCommandList(std::string& sdc_file_path);
   std::vector<std::string> tokenizeSdc(std::string& content);

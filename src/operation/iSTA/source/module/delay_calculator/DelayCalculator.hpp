@@ -47,6 +47,9 @@ class DelayCalculator
   double calcCellArcDelay(Database& database, Arc& arc);
   TimingCellArc* getTimingCellArc(Database& database, Arc& arc);
   double calcNetArcDelay(Database& database, Arc& arc);
+  double calcParasiticDelay(Database& database, Arc& arc);
+  double getParasiticNodeCapacitance(ParasiticNet& parasitic_net, std::string& pin_name);
+  double getParasiticTotalResistance(ParasiticNet& parasitic_net);
   double calcManhattanDistance(Database& database, std::string& source_pin, std::string& sink_pin);
 };
 

@@ -9,7 +9,7 @@
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-// WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
@@ -20,34 +20,29 @@
 
 namespace ista {
 
-#define STAGL (ista::GraphLevelizer::getInst())
+#define STACM (ista::ConstraintManager::getInst())
 
-class GraphLevelizer
+class ConstraintManager
 {
  public:
   static void initInst();
-  static GraphLevelizer& getInst();
+  static ConstraintManager& getInst();
   static void destroyInst();
   // function
   bool build();
 
  private:
   // self
-  static GraphLevelizer* _gl_instance;
+  static ConstraintManager* _cm_instance;
 
-  GraphLevelizer() = default;
-  GraphLevelizer(const GraphLevelizer& other) = delete;
-  GraphLevelizer(GraphLevelizer&& other) = delete;
-  ~GraphLevelizer() = default;
-  GraphLevelizer& operator=(const GraphLevelizer& other) = delete;
-  GraphLevelizer& operator=(GraphLevelizer&& other) = delete;
+  ConstraintManager() = default;
+  ConstraintManager(const ConstraintManager& other) = delete;
+  ConstraintManager(ConstraintManager&& other) = delete;
+  ~ConstraintManager() = default;
+  ConstraintManager& operator=(const ConstraintManager& other) = delete;
+  ConstraintManager& operator=(ConstraintManager&& other) = delete;
   // function
-  void buildTimingOrder(Database& database);
-  std::map<std::string, std::size_t> makeIndegreeMap(Database& database);
-  void pushRootPinList(Database& database, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
-  void updateSinkLevel(Database& database, Arc& arc);
-  void updateSinkIndegree(Arc& arc, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
-  void printLoopInfo(Database& database);
+  void buildConstraint(Database& database);
 };
 
 }  // namespace ista

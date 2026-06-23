@@ -116,7 +116,41 @@ TimingCellArc* DelayCalculator::getTimingCellArc(Database& database, Arc& arc)
 
 double DelayCalculator::calcNetArcDelay(Database& database, Arc& arc)
 {
+  if (database.get_parasitic_library().get_net_map().count(arc.get_owner_name()) > 0) {
+    return calcParasiticDelay(database, arc);
+  }
   return 1.0 + calcManhattanDistance(database, arc.get_source_pin(), arc.get_sink_pin()) * 0.000001;
+}
+
+double DelayCalculator::calcParasiticDelay(Database& database, Arc& arc)
+{
+  ParasiticNet& parasitic_net = database.get_parasitic_library().get_net_map()[arc.get_owner_name()];
+  double source_capacitance = getParasiticNodeCapacitance(parasitic_net, arc.get_source_pin());
+  double sink_capacitance = getParasiticNodeCapacitance(parasitic_net, arc.get_sink_pin());
+  double resistance = getParasiticTotalResistance(parasitic_net);
+  return resistance * (source_capacitance + sink_capacitance) * 0.5;
+}
+
+double DelayCalculator::getParasiticNodeCapacitance(ParasiticNet& parasitic_net, std::string& pin_name)
+{
+  std::string spef_pin_name = pin_name;
+  std::replace(spef_pin_name.begin(), spef_pin_name.end(), ':', '/');
+  if (parasitic_net.get_node_map().count(spef_pin_name) > 0) {
+    return parasitic_net.get_node_map()[spef_pin_name].get_capacitance();
+  }
+  if (parasitic_net.get_node_map().count(pin_name) > 0) {
+    return parasitic_net.get_node_map()[pin_name].get_capacitance();
+  }
+  return parasitic_net.get_lumped_capacitance();
+}
+
+double DelayCalculator::getParasiticTotalResistance(ParasiticNet& parasitic_net)
+{
+  double resistance = 0.0;
+  for (ParasiticResistor& parasitic_resistor : parasitic_net.get_resistor_list()) {
+    resistance += parasitic_resistor.get_resistance();
+  }
+  return resistance;
 }
 
 double DelayCalculator::calcManhattanDistance(Database& database, std::string& source_pin, std::string& sink_pin)

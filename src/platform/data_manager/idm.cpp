@@ -76,6 +76,7 @@ void DataManager::resetData()
   _design = nullptr;
   _layout = nullptr;
   _lib_readers.clear();
+  _spef_reader.reset();
 }
 
 bool DataManager::readLef(string config_path)
@@ -231,6 +232,15 @@ bool DataManager::readVerilog(string path, string top_module)
 bool DataManager::readLib(vector<string> lib_paths)
 {
   if (!initLib(lib_paths)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool DataManager::readSpef(string spef_path)
+{
+  if (!initSpef(spef_path)) {
     return false;
   }
 

@@ -16,45 +16,29 @@
 // ***************************************************************************************
 #pragma once
 
-#include "Config.hpp"
-#include "Database.hpp"
+#include "STAHeader.hpp"
 
 namespace ista {
 
-#define STADM (ista::DataManager::getInst())
-
-class DataManager
+class ParasiticResistor
 {
  public:
-  static void initInst();
-  static DataManager& getInst();
-  static void destroyInst();
+  ParasiticResistor() = default;
+  ~ParasiticResistor() = default;
+  // getter
+  std::string& get_source_node() { return _source_node; }
+  std::string& get_sink_node() { return _sink_node; }
+  double get_resistance() const { return _resistance; }
+  // setter
+  void set_source_node(const std::string& source_node) { _source_node = source_node; }
+  void set_sink_node(const std::string& sink_node) { _sink_node = sink_node; }
+  void set_resistance(const double resistance) { _resistance = resistance; }
   // function
-  void input(std::map<std::string, std::any>& config_map);
-  void output();
-
-  Config& getConfig() { return _config; }
-  Database& getDatabase() { return _database; }
 
  private:
-  static DataManager* _dm_instance;
-
-  // config & database
-  Config _config;
-  Database _database;
-
-  DataManager() = default;
-  DataManager(const DataManager& other) = delete;
-  DataManager(DataManager&& other) = delete;
-  ~DataManager() = default;
-  DataManager& operator=(const DataManager& other) = delete;
-  DataManager& operator=(DataManager&& other) = delete;
-
-#if 1  // build
-  void buildConfig();
-  void printConfig();
-  void printDatabase();
-#endif
+  std::string _source_node;
+  std::string _sink_node;
+  double _resistance = 0.0;
 };
 
 }  // namespace ista

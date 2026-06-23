@@ -16,45 +16,32 @@
 // ***************************************************************************************
 #pragma once
 
-#include "Config.hpp"
-#include "Database.hpp"
+#include "STAHeader.hpp"
 
 namespace ista {
 
-#define STADM (ista::DataManager::getInst())
-
-class DataManager
+class ParasiticNode
 {
  public:
-  static void initInst();
-  static DataManager& getInst();
-  static void destroyInst();
+  ParasiticNode() = default;
+  ~ParasiticNode() = default;
+  // getter
+  std::string& get_node_name() { return _node_name; }
+  double get_capacitance() const { return _capacitance; }
+  double get_x() const { return _x; }
+  double get_y() const { return _y; }
+  // setter
+  void set_node_name(const std::string& node_name) { _node_name = node_name; }
+  void set_capacitance(const double capacitance) { _capacitance = capacitance; }
+  void set_x(const double x) { _x = x; }
+  void set_y(const double y) { _y = y; }
   // function
-  void input(std::map<std::string, std::any>& config_map);
-  void output();
-
-  Config& getConfig() { return _config; }
-  Database& getDatabase() { return _database; }
 
  private:
-  static DataManager* _dm_instance;
-
-  // config & database
-  Config _config;
-  Database _database;
-
-  DataManager() = default;
-  DataManager(const DataManager& other) = delete;
-  DataManager(DataManager&& other) = delete;
-  ~DataManager() = default;
-  DataManager& operator=(const DataManager& other) = delete;
-  DataManager& operator=(DataManager&& other) = delete;
-
-#if 1  // build
-  void buildConfig();
-  void printConfig();
-  void printDatabase();
-#endif
+  std::string _node_name;
+  double _capacitance = 0.0;
+  double _x = 0.0;
+  double _y = 0.0;
 };
 
 }  // namespace ista

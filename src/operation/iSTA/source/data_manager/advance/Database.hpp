@@ -19,6 +19,7 @@
 #include "Arc.hpp"
 #include "Instance.hpp"
 #include "Net.hpp"
+#include "ParasiticLibrary.hpp"
 #include "Pin.hpp"
 #include "STAHeader.hpp"
 #include "Summary.hpp"
@@ -48,6 +49,7 @@ class Database
   std::map<std::string, TimingPoint>& get_timing_point_map() { return _timing_point_map; }
   std::vector<TimingPathGroup>& get_timing_path_group_list() { return _timing_path_group_list; }
   TimingLibrary& get_timing_library() { return _timing_library; }
+  ParasiticLibrary& get_parasitic_library() { return _parasitic_library; }
   TimingConstraint& get_timing_constraint() { return _timing_constraint; }
   Summary& get_summary() { return _summary; }
   // setter
@@ -68,6 +70,7 @@ class Database
   std::map<std::string, TimingPoint> _timing_point_map;
   std::vector<TimingPathGroup> _timing_path_group_list;
   TimingLibrary _timing_library;
+  ParasiticLibrary _parasitic_library;
   TimingConstraint _timing_constraint;
   Summary _summary;
 };

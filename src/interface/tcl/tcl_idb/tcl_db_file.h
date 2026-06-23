@@ -136,6 +136,20 @@ class CmdInitSdc : public TclCmd
   // private data
 };
 
+class CmdInitSpef : public TclCmd
+{
+ public:
+  explicit CmdInitSpef(const char* cmd_name);
+  ~CmdInitSpef() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+
+ private:
+  // private function
+  // private data
+};
+
 class CmdSaveDef : public TclCmd
 {
  public:

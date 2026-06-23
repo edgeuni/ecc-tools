@@ -24,6 +24,7 @@ target_link_libraries(idm
     flow 
     file_manager_cts 
     liberty
+    spef
     # file_manager_drc 
     tool_manager
     )

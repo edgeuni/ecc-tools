@@ -74,4 +74,15 @@ bool DataManager::initLib(vector<string> lib_paths)
   return true;
 }
 
+bool DataManager::initSpef(string spef_path)
+{
+  _spef_reader = std::make_unique<spef::SpefReader>();
+  if (!_spef_reader->read(spef_path)) {
+    return false;
+  }
+  _spef_reader->expandName();
+
+  return true;
+}
+
 }  // namespace idm

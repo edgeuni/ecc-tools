@@ -67,6 +67,12 @@ class GraphBuilder
   bool hasOutgoingArc(Database& database, const std::string& pin_name);
   bool isEndPort(Pin& pin);
   void appendUnique(std::vector<std::string>& list, const std::string& value);
+  void buildTimingOrder(Database& database);
+  std::map<std::string, std::size_t> makeIndegreeMap(Database& database);
+  void pushRootPinList(Database& database, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
+  void updateSinkLevel(Database& database, Arc& arc);
+  void updateSinkIndegree(Arc& arc, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
+  void printLoopInfo(Database& database);
 };
 
 }  // namespace ista

@@ -265,6 +265,35 @@ unsigned CmdInitSdc::exec()
   return 1;
 }
 
+CmdInitSpef::CmdInitSpef(const char* cmd_name) : TclCmd(cmd_name)
+{
+  auto* path = new TclStringOption(TCL_PATH, 1);
+  addOption(path);
+}
+
+unsigned CmdInitSpef::check()
+{
+  TclOption* path = getOptionOrArg(TCL_PATH);
+  LOG_FATAL_IF(!path);
+  return 1;
+}
+
+unsigned CmdInitSpef::exec()
+{
+  if (!check()) {
+    return 0;
+  }
+
+  TclOption* spef_name = getOptionOrArg(TCL_PATH);
+  auto spef_path = spef_name->getStringVal();
+  if (spef_path != nullptr) {
+    dmInst->get_config().set_spef_path(spef_path);
+    dmInst->readSpef(spef_path);
+    return 1;
+  }
+  return 1;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

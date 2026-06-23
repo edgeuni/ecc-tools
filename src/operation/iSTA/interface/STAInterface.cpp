@@ -16,16 +16,15 @@
 // ***************************************************************************************
 #include "STAInterface.hpp"
 
+#include "ConstraintManager.hpp"
 #include "DataManager.hpp"
-#include "GraphBuilder.hpp"
 #include "DelayCalculator.hpp"
-#include "GraphLevelizer.hpp"
-#include "GraphPropagator.hpp"
+#include "DesignLoader.hpp"
+#include "GraphBuilder.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
-#include "SdcReader.hpp"
 #include "STAHeader.hpp"
-#include "TimingAnalyzer.hpp"
+#include "TimingPropagator.hpp"
 #include "TimingReporter.hpp"
 #include "Utility.hpp"
 #include "idm.h"
@@ -84,9 +83,13 @@ void STAInterface::runSTA()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
-  SdcReader::initInst();
-  STASR.read();
-  SdcReader::destroyInst();
+  DesignLoader::initInst();
+  STADL.build();
+  DesignLoader::destroyInst();
+
+  ConstraintManager::initInst();
+  STACM.build();
+  ConstraintManager::destroyInst();
 
   GraphBuilder::initInst();
   STAGB.build();
@@ -96,17 +99,9 @@ void STAInterface::runSTA()
   STADC.build();
   DelayCalculator::destroyInst();
 
-  GraphLevelizer::initInst();
-  STAGL.build();
-  GraphLevelizer::destroyInst();
-
-  GraphPropagator::initInst();
-  STAGP.build();
-  GraphPropagator::destroyInst();
-
-  TimingAnalyzer::initInst();
-  STATA.build();
-  TimingAnalyzer::destroyInst();
+  TimingPropagator::initInst();
+  STATP.build();
+  TimingPropagator::destroyInst();
 
   TimingReporter::initInst();
   STATR.report();

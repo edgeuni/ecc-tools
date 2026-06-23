@@ -35,18 +35,16 @@ class Config
   std::string log_file_path;  // building
   // **********    DataManager    ********** //
   std::string dm_temp_directory_path;  // building
+  // **********   DesignLoader    ********** //
+  std::string dl_temp_directory_path;  // building
+  // ********* ConstraintManager  ********** //
+  std::string cm_temp_directory_path;  // building
   // **********   GraphBuilder    ********** //
   std::string gb_temp_directory_path;  // building
-  // **********     SdcReader     ********** //
-  std::string sr_temp_directory_path;  // building
   // ********** DelayCalculator   ********** //
   std::string dc_temp_directory_path;  // building
-  // **********  GraphLevelizer   ********** //
-  std::string gl_temp_directory_path;  // building
-  // *********  GraphPropagator   ********* //
-  std::string gp_temp_directory_path;  // building
-  // **********  TimingAnalyzer   ********** //
-  std::string ta_temp_directory_path;  // building
+  // ********* TimingPropagator   ********* //
+  std::string tp_temp_directory_path;  // building
   // **********  TimingReporter   ********** //
   std::string tr_temp_directory_path;  // building
   /////////////////////////////////////////////
