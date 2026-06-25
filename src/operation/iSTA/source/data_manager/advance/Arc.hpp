@@ -16,10 +16,14 @@
 // ***************************************************************************************
 #pragma once
 
+#include "AnalysisType.hpp"
 #include "ArcType.hpp"
 #include "STAHeader.hpp"
+#include "TransType.hpp"
 
 namespace ista {
+
+class TimingCellArc;
 
 class Arc
 {
@@ -35,7 +39,16 @@ class Arc
   std::string& get_library_sink_port() { return _library_sink_port; }
   ArcType get_type() const { return _type; }
   double get_delay() const { return _delay; }
+  double get_delay_max() const { return _delay_max; }
+  double get_delay_min() const { return _delay_min; }
+  std::map<AnalysisType, std::map<TransType, double>>& get_trans_delay_map() { return _trans_delay_map; }
+  std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>>& get_input_output_delay_map() { return _input_output_delay_map; }
+  std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>>& get_graph_delay_map() { return _graph_delay_map; }
+  std::map<TransType, TransType>& get_trans_type_map() { return _trans_type_map; }
+  TimingCellArc* get_timing_cell_arc() { return _timing_cell_arc; }
   bool get_is_clock_arc() const { return _is_clock_arc; }
+  bool get_is_disable_arc() const { return _is_disable_arc; }
+  bool get_is_loop_disable() const { return _is_loop_disable; }
   // setter
   void set_arc_name(const std::string& arc_name) { _arc_name = arc_name; }
   void set_source_pin(const std::string& source_pin) { _source_pin = source_pin; }
@@ -45,7 +58,22 @@ class Arc
   void set_library_sink_port(const std::string& library_sink_port) { _library_sink_port = library_sink_port; }
   void set_type(const ArcType& type) { _type = type; }
   void set_delay(const double delay) { _delay = delay; }
+  void set_delay_max(const double delay_max) { _delay_max = delay_max; }
+  void set_delay_min(const double delay_min) { _delay_min = delay_min; }
+  void set_trans_delay_map(const std::map<AnalysisType, std::map<TransType, double>>& trans_delay_map) { _trans_delay_map = trans_delay_map; }
+  void set_input_output_delay_map(const std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>>& input_output_delay_map)
+  {
+    _input_output_delay_map = input_output_delay_map;
+  }
+  void set_graph_delay_map(const std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>>& graph_delay_map)
+  {
+    _graph_delay_map = graph_delay_map;
+  }
+  void set_trans_type_map(const std::map<TransType, TransType>& trans_type_map) { _trans_type_map = trans_type_map; }
+  void set_timing_cell_arc(TimingCellArc* timing_cell_arc) { _timing_cell_arc = timing_cell_arc; }
   void set_is_clock_arc(const bool is_clock_arc) { _is_clock_arc = is_clock_arc; }
+  void set_is_disable_arc(const bool is_disable_arc) { _is_disable_arc = is_disable_arc; }
+  void set_is_loop_disable(const bool is_loop_disable) { _is_loop_disable = is_loop_disable; }
   // function
 
  private:
@@ -57,7 +85,16 @@ class Arc
   std::string _library_sink_port;
   ArcType _type = ArcType::kNone;
   double _delay = 1.0;
+  double _delay_max = 1.0;
+  double _delay_min = 1.0;
+  std::map<AnalysisType, std::map<TransType, double>> _trans_delay_map;
+  std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>> _input_output_delay_map;
+  std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>> _graph_delay_map;
+  std::map<TransType, TransType> _trans_type_map;
+  TimingCellArc* _timing_cell_arc = nullptr;
   bool _is_clock_arc = false;
+  bool _is_disable_arc = false;
+  bool _is_loop_disable = false;
 };
 
 }  // namespace ista

@@ -95,21 +95,33 @@ void TimingReporter::outputTimingReport(Database& database, DelayType delay_type
 
 std::string TimingReporter::getReportFilePath(DelayType delay_type, StartEndType start_end_type)
 {
-  return STAUTIL.getString(STADM.getConfig().tr_temp_directory_path, "timing_", getDelayTypeName(delay_type), "_", getStartEndTypeName(start_end_type), ".rpt");
+  return STAUTIL.getString(STADM.getConfig().tr_temp_directory_path, "timing_", getDelayTypeName(delay_type), "_", getReportStartEndTypeName(start_end_type),
+                           ".rpt");
+}
+
+std::string TimingReporter::getReportStartEndTypeName(StartEndType start_end_type)
+{
+  if (start_end_type == StartEndType::kInToOut) {
+    return "in2out";
+  }
+  if (start_end_type == StartEndType::kInToReg) {
+    return "in2reg";
+  }
+  if (start_end_type == StartEndType::kRegToOut) {
+    return "reg2out";
+  }
+  return "reg2reg";
 }
 
 void TimingReporter::outputReportHeader(std::ofstream* report_file, Database& database, DelayType delay_type, StartEndType start_end_type)
 {
   (*report_file) << "****************************************\n";
-  (*report_file) << "Version: iSTA\n";
-  (*report_file) << "Date   : " << getReportDate() << "\n";
-  (*report_file) << "PathType : full\n";
-  (*report_file) << "DelayType : " << getDelayTypeName(delay_type) << "\n";
-  (*report_file) << "SlackLesserThan : 1000.0000000000\n";
-  (*report_file) << "MaxPaths : " << STADM.getConfig().path_report_number << "\n";
-  (*report_file) << "StartEndType : " << getStartEndTypeName(start_end_type) << "\n";
-  (*report_file) << "SortBy : slack\n";
   (*report_file) << "Design : " << database.get_design_name() << "\n";
+  (*report_file) << "DelayType : " << getDelayTypeName(delay_type) << "\n";
+  (*report_file) << "StartEndType : " << getStartEndTypeName(start_end_type) << "\n";
+  (*report_file) << "MaxSlack : 1000\n";
+  (*report_file) << "MaxPaths : " << STADM.getConfig().path_report_number << "\n";
+  (*report_file) << "SortBy : slack\n";
   (*report_file) << "****************************************\n\n";
 }
 
@@ -135,15 +147,6 @@ std::string TimingReporter::getStartEndTypeName(StartEndType start_end_type)
   return "reg_to_reg";
 }
 
-std::string TimingReporter::getReportDate()
-{
-  std::time_t current_time = std::time(nullptr);
-  std::tm* local_time = std::localtime(&current_time);
-  std::ostringstream oss;
-  oss << std::put_time(local_time, "%a %b %e %H:%M:%S %Y");
-  return oss.str();
-}
-
 void TimingReporter::outputPathGroupList(std::ofstream* report_file, Database& database, DelayType delay_type, StartEndType start_end_type)
 {
   if (database.get_timing_path_group_list().empty()) {
@@ -152,7 +155,7 @@ void TimingReporter::outputPathGroupList(std::ofstream* report_file, Database& d
   }
   bool has_timing_path = false;
   for (TimingPathGroup& timing_path_group : database.get_timing_path_group_list()) {
-    std::vector<TimingPath*> timing_path_list = getSortedTimingPathList(database, timing_path_group, start_end_type);
+    std::vector<TimingPath*> timing_path_list = getSortedTimingPathList(database, timing_path_group, delay_type, start_end_type);
     if (!timing_path_list.empty()) {
       has_timing_path = true;
     }
@@ -173,7 +176,7 @@ void TimingReporter::outputTimingPathGroup(std::ofstream* report_file, Database&
 {
   int32_t path_idx = 1;
   int32_t path_report_number = STADM.getConfig().path_report_number;
-  std::vector<TimingPath*> timing_path_list = getSortedTimingPathList(database, timing_path_group, start_end_type);
+  std::vector<TimingPath*> timing_path_list = getSortedTimingPathList(database, timing_path_group, delay_type, start_end_type);
   for (TimingPath* timing_path : timing_path_list) {
     if (path_idx > path_report_number) {
       break;
@@ -183,34 +186,64 @@ void TimingReporter::outputTimingPathGroup(std::ofstream* report_file, Database&
   }
 }
 
-std::vector<TimingPath*> TimingReporter::getSortedTimingPathList(Database& database, TimingPathGroup& timing_path_group, StartEndType start_end_type)
+std::vector<TimingPath*> TimingReporter::getSortedTimingPathList(Database& database, TimingPathGroup& timing_path_group, DelayType delay_type,
+                                                                 StartEndType start_end_type)
 {
   std::vector<TimingPath*> timing_path_list;
   for (auto& [end_point, timing_path_end] : timing_path_group.get_timing_path_end_map()) {
     for (TimingPath& timing_path : timing_path_end.get_timing_path_list()) {
-      if (isMatchStartEndType(database, timing_path, start_end_type)) {
+      if (isMatchAnalysisType(timing_path, delay_type) && isMatchStartEndType(database, timing_path, start_end_type)) {
         timing_path_list.push_back(&timing_path);
       }
     }
   }
+  timing_path_list = getEndpointWorstTimingPathList(timing_path_list);
   std::sort(timing_path_list.begin(), timing_path_list.end(), [](TimingPath* left, TimingPath* right) { return left->get_slack() < right->get_slack(); });
   return timing_path_list;
 }
 
+std::vector<TimingPath*> TimingReporter::getEndpointWorstTimingPathList(std::vector<TimingPath*>& timing_path_list)
+{
+  std::map<std::string, TimingPath*> end_point_timing_path_map;
+  for (TimingPath* timing_path : timing_path_list) {
+    std::string& end_point = timing_path->get_end_point();
+    if (end_point_timing_path_map.count(end_point) == 0 || timing_path->get_slack() < end_point_timing_path_map[end_point]->get_slack()) {
+      end_point_timing_path_map[end_point] = timing_path;
+    }
+  }
+
+  std::vector<TimingPath*> endpoint_worst_timing_path_list;
+  for (std::pair<const std::string, TimingPath*>& timing_path_pair : end_point_timing_path_map) {
+    endpoint_worst_timing_path_list.push_back(timing_path_pair.second);
+  }
+  return endpoint_worst_timing_path_list;
+}
+
+bool TimingReporter::isMatchAnalysisType(TimingPath& timing_path, DelayType delay_type)
+{
+  if (delay_type == DelayType::kMin) {
+    return timing_path.get_analysis_type() == AnalysisType::kMin;
+  }
+  return timing_path.get_analysis_type() == AnalysisType::kMax;
+}
+
 bool TimingReporter::isMatchStartEndType(Database& database, TimingPath& timing_path, StartEndType start_end_type)
 {
+  if (isPowerGroundPin(database, timing_path.get_start_point()) || isPowerGroundPin(database, timing_path.get_end_point())) {
+    return false;
+  }
   bool start_is_port = isPort(database, timing_path.get_start_point());
   bool end_is_port = isPort(database, timing_path.get_end_point());
   if (start_end_type == StartEndType::kInToOut) {
     return start_is_port && end_is_port;
   }
   if (start_end_type == StartEndType::kInToReg) {
-    return start_is_port && !end_is_port;
+    return start_is_port && isRegisterEndPoint(database, timing_path.get_end_point());
   }
   if (start_end_type == StartEndType::kRegToOut) {
-    return !start_is_port && end_is_port;
+    return isRegisterStartPoint(database, timing_path.get_start_point()) && end_is_port;
   }
-  return !start_is_port && !end_is_port;
+  return isRegisterStartPoint(database, timing_path.get_start_point()) && isRegisterEndPoint(database, timing_path.get_end_point());
 }
 
 bool TimingReporter::isPort(Database& database, std::string& pin_name)
@@ -218,12 +251,51 @@ bool TimingReporter::isPort(Database& database, std::string& pin_name)
   return database.get_pin_map()[pin_name].get_is_port();
 }
 
+bool TimingReporter::isRegisterStartPoint(Database& database, std::string& pin_name)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return false;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  return instance.get_is_sequential() && pin_name == instance.get_output_pin_name() && hasClockPoint(database, instance.get_clock_pin_name());
+}
+
+bool TimingReporter::isRegisterEndPoint(Database& database, std::string& pin_name)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return false;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  if (!instance.get_is_sequential() || !hasClockPoint(database, instance.get_clock_pin_name())) {
+    return false;
+  }
+  for (TimingCheckArc& timing_check_arc : instance.get_check_arc_list()) {
+    if (timing_check_arc.get_data_port() == pin_name) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool TimingReporter::hasClockPoint(Database& database, std::string& pin_name)
+{
+  return database.get_timing_point_map().count(pin_name) > 0 && database.get_timing_point_map()[pin_name].get_is_clock_point();
+}
+
+bool TimingReporter::isPowerGroundPin(Database& database, std::string& pin_name)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  return pin.get_pin_name() == "VDD" || pin.get_pin_name() == "VSS" || pin.get_pin_name() == "VDDIO" || pin.get_pin_name() == "VSSIO";
+}
+
 void TimingReporter::outputTimingPath(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name,
                                       DelayType delay_type)
 {
   outputTimingPathHeader(report_file, database, timing_path, path_group_name, delay_type);
-  outputTimingPointList(report_file, database, timing_path, delay_type);
-  outputTimingPathSummary(report_file, timing_path);
+  std::size_t label_width = outputTimingPointList(report_file, database, timing_path, delay_type);
+  outputTimingPathSummary(report_file, timing_path, label_width);
 }
 
 void TimingReporter::outputTimingPathHeader(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name,
@@ -231,6 +303,9 @@ void TimingReporter::outputTimingPathHeader(std::ofstream* report_file, Database
 {
   (*report_file) << "  Startpoint: " << getStartPointText(database, timing_path) << "\n";
   (*report_file) << "  Endpoint: " << getEndPointText(database, timing_path) << "\n";
+  if (isRegisterStartPoint(database, timing_path.get_start_point()) && isRegisterEndPoint(database, timing_path.get_end_point())) {
+    (*report_file) << "  Last common pin: " << getPTPinName(timing_path.get_last_common_pin()) << "\n";
+  }
   (*report_file) << "  Path Group: " << path_group_name << "\n";
   (*report_file) << "  Path Type: " << getDelayTypeName(delay_type) << "\n\n";
 }
@@ -260,34 +335,120 @@ std::string TimingReporter::getEndPointText(Database& database, TimingPath& timi
   if (isPort(database, timing_path.get_end_point())) {
     return STAUTIL.getString(end_point, " (output port clocked by ", clock_name, ")");
   }
+  return getEndPointCheckText(end_point, clock_name, timing_path);
+}
+
+std::string TimingReporter::getEndPointCheckText(std::string& end_point, std::string& clock_name, TimingPath& timing_path)
+{
+  if (timing_path.get_check_type() == TimingCheckType::kRecovery) {
+    return STAUTIL.getString(end_point, " (recovery check against rising-edge clock ", clock_name, ")");
+  }
+  if (timing_path.get_check_type() == TimingCheckType::kRemoval) {
+    return STAUTIL.getString(end_point, " (removal check against rising-edge clock ", clock_name, ")");
+  }
   return STAUTIL.getString(end_point, " (rising edge-triggered flip-flop clocked by ", clock_name, ")");
 }
 
-void TimingReporter::outputTimingPointList(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type)
+std::size_t TimingReporter::outputTimingPointList(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type)
 {
-  (*report_file) << "  Point                                    Incr       Path\n";
-  (*report_file) << "  ---------------------------------------------------------------\n";
-  outputLaunchClockInfo(report_file, database, timing_path, delay_type);
+  std::size_t label_width = getTimingLineLabelWidth(database, timing_path, delay_type);
+  outputTimingPointHeader(report_file, label_width);
+  (*report_file) << "  " << std::string(label_width + 28, '-') << "\n";
+  outputLaunchClockInfo(report_file, database, timing_path, delay_type, label_width);
   bool is_first_point = true;
   for (TimingPathPoint& path_point : timing_path.get_point_list()) {
-    outputTimingPoint(report_file, database, timing_path, path_point, is_first_point);
-    is_first_point = false;
+    if (shouldOutputTimingPoint(database, timing_path, path_point)) {
+      outputTimingPoint(report_file, database, timing_path, path_point, is_first_point, label_width);
+      is_first_point = false;
+    }
   }
-  outputTimingLine(report_file, "data arrival time", 0.0, timing_path.get_path_delay(), false, "");
+  outputTimingSummaryLine(report_file, "data arrival time", timing_path.get_path_delay(), label_width);
   (*report_file) << "\n";
-  outputRequiredClockInfo(report_file, database, timing_path, delay_type);
+  outputRequiredClockInfo(report_file, database, timing_path, delay_type, label_width);
+  return label_width;
 }
 
-void TimingReporter::outputLaunchClockInfo(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type)
+std::size_t TimingReporter::getTimingLineLabelWidth(Database& database, TimingPath& timing_path, DelayType delay_type)
 {
+  std::size_t label_width = 35;
   std::string clock_name = getClockName(database, timing_path);
-  double launch_time = timing_path.get_launch_time();
-  outputTimingLine(report_file, STAUTIL.getString("clock ", clock_name, " (rise edge)"), launch_time, launch_time, true, "");
-  outputTimingLine(report_file, "clock network delay (propagated)", 0.0, launch_time, true, "");
+  updateTimingLineLabelWidth(label_width, STAUTIL.getString("clock ", clock_name, " (rise edge)"));
+  updateTimingLineLabelWidth(label_width, "clock network delay (propagated)");
 
   std::string start_clock_pin = getStartClockPin(database, timing_path);
   if (!start_clock_pin.empty() && start_clock_pin != timing_path.get_start_point()) {
-    outputTimingLine(report_file, getPinLabel(database, start_clock_pin), 0.0, launch_time, false, "r");
+    updateTimingLineLabelWidth(label_width, getPinLabel(database, start_clock_pin));
+  }
+
+  std::map<std::string, TimingPortConstraint>& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
+  bool has_input_delay = port_constraint_map.count(timing_path.get_start_point()) > 0
+                         && (port_constraint_map[timing_path.get_start_point()].get_has_input_delay_max()
+                             || port_constraint_map[timing_path.get_start_point()].get_has_input_delay_min());
+  if (isPort(database, timing_path.get_start_point()) && has_input_delay) {
+    updateTimingLineLabelWidth(label_width, "input external delay");
+  }
+
+  for (TimingPathPoint& path_point : timing_path.get_point_list()) {
+    if (shouldOutputTimingPoint(database, timing_path, path_point)) {
+      updateTimingLineLabelWidth(label_width, getPointLabel(database, path_point));
+    }
+  }
+
+  updateTimingLineLabelWidth(label_width, "clock reconvergence pessimism");
+  if (!timing_path.get_capture_clock_pin().empty()) {
+    updateTimingLineLabelWidth(label_width, getPinLabel(database, timing_path.get_capture_clock_pin()));
+  }
+  if (std::fabs(timing_path.get_check_time()) > STA_ERROR) {
+    updateTimingLineLabelWidth(label_width, getLibraryCheckText(timing_path, delay_type));
+  } else if (isPort(database, timing_path.get_end_point())) {
+    bool has_output_delay = port_constraint_map.count(timing_path.get_end_point()) > 0
+                            && (port_constraint_map[timing_path.get_end_point()].get_has_output_delay_max()
+                                || port_constraint_map[timing_path.get_end_point()].get_has_output_delay_min());
+    if (has_output_delay) {
+      updateTimingLineLabelWidth(label_width, "output external delay");
+    }
+  }
+  return label_width;
+}
+
+bool TimingReporter::shouldOutputTimingPoint(Database& database, TimingPath& timing_path, TimingPathPoint& path_point)
+{
+  if (isPowerGroundPin(database, path_point.get_pin_name())) {
+    return false;
+  }
+  Pin& pin = database.get_pin_map()[path_point.get_pin_name()];
+  if (pin.get_is_port()) {
+    return true;
+  }
+  if (path_point.get_pin_name() == timing_path.get_start_point() || path_point.get_pin_name() == timing_path.get_end_point()) {
+    return true;
+  }
+  return pin.get_direction() == PinDirection::kOutput || pin.get_direction() == PinDirection::kInout;
+}
+
+void TimingReporter::updateTimingLineLabelWidth(std::size_t& label_width, std::string label)
+{
+  label_width = std::max(label_width, label.length());
+}
+
+void TimingReporter::outputTimingPointHeader(std::ofstream* report_file, std::size_t label_width)
+{
+  (*report_file) << "  " << std::left << std::setw(label_width) << "Point" << std::right << std::setw(10) << "Incr" << std::setw(11) << "Path"
+                 << "\n";
+}
+
+void TimingReporter::outputLaunchClockInfo(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type,
+                                           std::size_t label_width)
+{
+  std::string clock_name = getClockName(database, timing_path);
+  double launch_time = timing_path.get_launch_time();
+  double launch_clock_network_delay = timing_path.get_launch_clock_network_delay();
+  outputTimingLine(report_file, STAUTIL.getString("clock ", clock_name, " (rise edge)"), 0.0, 0.0, true, "", label_width);
+  outputTimingLine(report_file, "clock network delay (propagated)", launch_clock_network_delay, launch_time, true, "", label_width);
+
+  std::string start_clock_pin = getStartClockPin(database, timing_path);
+  if (!start_clock_pin.empty() && start_clock_pin != timing_path.get_start_point()) {
+    outputTimingLine(report_file, getPinLabel(database, start_clock_pin), 0.0, launch_time, true, "r", label_width);
   }
 
   double input_delay = getInputDelay(database, timing_path, delay_type);
@@ -296,22 +457,39 @@ void TimingReporter::outputLaunchClockInfo(std::ofstream* report_file, Database&
                          && (port_constraint_map[timing_path.get_start_point()].get_has_input_delay_max()
                              || port_constraint_map[timing_path.get_start_point()].get_has_input_delay_min());
   if (isPort(database, timing_path.get_start_point()) && has_input_delay) {
-    outputTimingLine(report_file, "input external delay", input_delay, launch_time + input_delay, true, "r");
+    outputTimingLine(report_file, "input external delay", input_delay, launch_time + input_delay, true, "r", label_width);
   }
 }
 
-void TimingReporter::outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr, std::string transition)
+std::string TimingReporter::getTransTypeName(TransType trans_type)
+{
+  if (trans_type == TransType::kFall) {
+    return "f";
+  }
+  if (trans_type == TransType::kRise) {
+    return "r";
+  }
+  return "";
+}
+
+void TimingReporter::outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr, std::string transition,
+                                      std::size_t label_width)
 {
   if (has_incr) {
-    (*report_file) << "  " << std::left << std::setw(38) << label << std::right << std::setw(14) << getNumberString(incr) << "\n";
-    (*report_file) << "  " << std::right << std::setw(63) << getNumberString(path);
+    (*report_file) << "  " << std::left << std::setw(label_width + 2) << label << getNumberString(incr) << "\n";
+    (*report_file) << "  " << std::setw(label_width + 13) << "" << getNumberString(path);
   } else {
-    (*report_file) << "  " << std::left << std::setw(52) << label << std::right << std::setw(14) << getNumberString(path);
+    (*report_file) << "  " << std::left << std::setw(label_width + 13) << label << getNumberString(path);
   }
   if (!transition.empty()) {
     (*report_file) << " " << transition;
   }
   (*report_file) << "\n";
+}
+
+void TimingReporter::outputTimingSummaryLine(std::ofstream* report_file, std::string label, double value, std::size_t label_width)
+{
+  (*report_file) << "  " << std::left << std::setw(label_width + 13) << label << getNumberString(value) << "\n";
 }
 
 std::string TimingReporter::getClockName(Database& database, TimingPath& timing_path)
@@ -324,6 +502,18 @@ std::string TimingReporter::getClockName(Database& database, TimingPath& timing_
     return clock_map.begin()->first;
   }
   return "clk";
+}
+
+double TimingReporter::getClockPeriod(Database& database, std::string& clock_name)
+{
+  std::map<std::string, TimingClock>& clock_map = database.get_timing_constraint().get_clock_map();
+  if (clock_map.count(clock_name) > 0) {
+    return clock_map[clock_name].get_period();
+  }
+  if (!clock_map.empty()) {
+    return clock_map.begin()->second.get_period();
+  }
+  return 0.0;
 }
 
 double TimingReporter::getInputDelay(Database& database, TimingPath& timing_path, DelayType delay_type)
@@ -352,24 +542,37 @@ std::string TimingReporter::getStartClockPin(Database& database, TimingPath& tim
 }
 
 void TimingReporter::outputTimingPoint(std::ofstream* report_file, Database& database, TimingPath& timing_path, TimingPathPoint& path_point,
-                                       bool is_first_point)
+                                       bool is_first_point, std::size_t label_width)
 {
   double arc_delay = path_point.get_arc_delay();
   if (is_first_point && !database.get_pin_map()[path_point.get_pin_name()].get_is_port()) {
     arc_delay = path_point.get_arrival() - timing_path.get_launch_time();
   }
-  outputTimingLine(report_file, getPointLabel(path_point), arc_delay, path_point.get_arrival(), true, "r");
+  outputTimingLine(report_file, getPointLabel(database, path_point), arc_delay, path_point.get_arrival(), true, getTransTypeName(path_point.get_trans_type()),
+                   label_width);
 }
 
 std::string TimingReporter::getNumberString(double value)
 {
   std::ostringstream oss;
+  if (std::fabs(value) < STA_ERROR) {
+    value = 0.0;
+  }
   oss << std::fixed << std::setprecision(10) << value;
   return oss.str();
 }
 
-std::string TimingReporter::getPointLabel(TimingPathPoint& path_point)
+std::string TimingReporter::getPointLabel(Database& database, TimingPathPoint& path_point)
 {
+  Pin& pin = database.get_pin_map()[path_point.get_pin_name()];
+  if (pin.get_is_port()) {
+    if (pin.get_direction() == PinDirection::kInput) {
+      return STAUTIL.getString(getPTPinName(path_point.get_pin_name()), " (in)");
+    }
+    if (pin.get_direction() == PinDirection::kOutput) {
+      return STAUTIL.getString(getPTPinName(path_point.get_pin_name()), " (out)");
+    }
+  }
   std::string point_label = getPTPinName(path_point.get_pin_name());
   std::string cell_name = getPTCellName(path_point);
   if (!cell_name.empty()) {
@@ -390,18 +593,26 @@ std::string TimingReporter::getPTCellName(TimingPathPoint& path_point)
   return path_point.get_cell_name();
 }
 
-void TimingReporter::outputRequiredClockInfo(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type)
+void TimingReporter::outputRequiredClockInfo(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type,
+                                             std::size_t label_width)
 {
   std::string clock_name = getClockName(database, timing_path);
   double capture_time = timing_path.get_capture_time();
-  outputTimingLine(report_file, STAUTIL.getString("clock ", clock_name, " (rise edge)"), capture_time, capture_time, true, "");
-  outputTimingLine(report_file, "clock network delay (propagated)", 0.0, capture_time, true, "");
-  outputTimingLine(report_file, "clock reconvergence pessimism", 0.0, capture_time, true, "");
+  double clock_edge = delay_type == DelayType::kMin ? 0.0 : getClockPeriod(database, clock_name);
+  double capture_clock_network_delay = timing_path.get_capture_clock_network_delay();
+  outputTimingLine(report_file, STAUTIL.getString("clock ", clock_name, " (rise edge)"), clock_edge, clock_edge, true, "", label_width);
+  outputTimingLine(report_file, "clock network delay (propagated)", capture_clock_network_delay, clock_edge + capture_clock_network_delay, true, "",
+                   label_width);
+  outputTimingLine(report_file, "clock reconvergence pessimism", timing_path.get_clock_reconvergence_pessimism(), capture_time, true, "", label_width);
   if (!timing_path.get_capture_clock_pin().empty()) {
-    outputTimingLine(report_file, getPinLabel(database, timing_path.get_capture_clock_pin()), 0.0, capture_time, false, "r");
+    outputTimingLine(report_file, getPinLabel(database, timing_path.get_capture_clock_pin()), 0.0, capture_time, false, "r", label_width);
   }
-  if (std::fabs(timing_path.get_setup_time()) > STA_ERROR) {
-    outputTimingLine(report_file, "library setup time", -timing_path.get_setup_time(), timing_path.get_required_time(), true, "");
+  if (std::fabs(timing_path.get_check_time()) > STA_ERROR) {
+    double check_time = timing_path.get_check_time();
+    if (delay_type == DelayType::kMax) {
+      check_time = -check_time;
+    }
+    outputTimingLine(report_file, getLibraryCheckText(timing_path, delay_type), check_time, timing_path.get_required_time(), true, "", label_width);
   } else if (isPort(database, timing_path.get_end_point())) {
     double output_delay = getOutputDelay(database, timing_path, delay_type);
     std::map<std::string, TimingPortConstraint>& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
@@ -409,10 +620,24 @@ void TimingReporter::outputRequiredClockInfo(std::ofstream* report_file, Databas
                             && (port_constraint_map[timing_path.get_end_point()].get_has_output_delay_max()
                                 || port_constraint_map[timing_path.get_end_point()].get_has_output_delay_min());
     if (has_output_delay) {
-      outputTimingLine(report_file, "output external delay", -output_delay, timing_path.get_required_time(), true, "");
+      outputTimingLine(report_file, "output external delay", output_delay, timing_path.get_required_time(), true, "", label_width);
     }
   }
-  outputTimingLine(report_file, "data required time", 0.0, timing_path.get_required_time(), false, "");
+  outputTimingSummaryLine(report_file, "data required time", timing_path.get_required_time(), label_width);
+}
+
+std::string TimingReporter::getLibraryCheckText(TimingPath& timing_path, DelayType delay_type)
+{
+  if (timing_path.get_check_type() == TimingCheckType::kRecovery) {
+    return "library recovery time";
+  }
+  if (timing_path.get_check_type() == TimingCheckType::kRemoval) {
+    return "library removal time";
+  }
+  if (delay_type == DelayType::kMin) {
+    return "library hold time";
+  }
+  return "library setup time";
 }
 
 double TimingReporter::getOutputDelay(Database& database, TimingPath& timing_path, DelayType delay_type)
@@ -441,18 +666,14 @@ std::string TimingReporter::getPinLabel(Database& database, std::string& pin_nam
   return point_label;
 }
 
-void TimingReporter::outputTimingPathSummary(std::ofstream* report_file, TimingPath& timing_path)
+void TimingReporter::outputTimingPathSummary(std::ofstream* report_file, TimingPath& timing_path, std::size_t label_width)
 {
-  (*report_file) << "  " << std::left << std::setw(47) << "data required time" << std::right << std::setw(16)
-                 << getNumberString(timing_path.get_required_time()) << "\n";
-  (*report_file) << "  ---------------------------------------------------------------\n";
-  (*report_file) << "  " << std::left << std::setw(47) << "data required time" << std::right << std::setw(16)
-                 << getNumberString(timing_path.get_required_time()) << "\n";
-  (*report_file) << "  " << std::left << std::setw(47) << "data arrival time" << std::right << std::setw(16) << getNumberString(-timing_path.get_path_delay())
-                 << "\n";
-  (*report_file) << "  ---------------------------------------------------------------\n";
-  (*report_file) << "  " << std::left << std::setw(47) << STAUTIL.getString("slack (", getSlackStatus(timing_path), ")") << std::right << std::setw(16)
-                 << getNumberString(timing_path.get_slack()) << "\n\n\n";
+  (*report_file) << "  " << std::string(label_width + 28, '-') << "\n";
+  outputTimingSummaryLine(report_file, "data required time", timing_path.get_required_time(), label_width);
+  outputTimingSummaryLine(report_file, "data arrival time", -timing_path.get_path_delay(), label_width);
+  (*report_file) << "  " << std::string(label_width + 28, '-') << "\n";
+  outputTimingSummaryLine(report_file, STAUTIL.getString("slack (", getSlackStatus(timing_path), ")"), timing_path.get_slack(), label_width);
+  (*report_file) << "\n\n";
 }
 
 std::string TimingReporter::getSlackStatus(TimingPath& timing_path)

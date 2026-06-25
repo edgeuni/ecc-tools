@@ -18,6 +18,7 @@
 
 #include "ArcType.hpp"
 #include "STAHeader.hpp"
+#include "TransType.hpp"
 
 namespace ista {
 
@@ -39,6 +40,7 @@ class TimingPathPoint
   double get_arrival() const { return _arrival; }
   double get_required() const { return _required; }
   double get_slack() const { return _slack; }
+  TransType get_trans_type() const { return _trans_type; }
   // setter
   void set_pin_name(const std::string& pin_name) { _pin_name = pin_name; }
   void set_instance_name(const std::string& instance_name) { _instance_name = instance_name; }
@@ -52,6 +54,7 @@ class TimingPathPoint
   void set_arrival(const double arrival) { _arrival = arrival; }
   void set_required(const double required) { _required = required; }
   void set_slack(const double slack) { _slack = slack; }
+  void set_trans_type(const TransType& trans_type) { _trans_type = trans_type; }
   // function
 
  private:
@@ -67,6 +70,7 @@ class TimingPathPoint
   double _arrival = 0.0;
   double _required = 0.0;
   double _slack = 0.0;
+  TransType _trans_type = TransType::kNone;
 };
 
 }  // namespace ista

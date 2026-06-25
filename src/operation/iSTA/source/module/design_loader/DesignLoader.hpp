@@ -58,17 +58,21 @@ class DesignLoader
   // function
   void buildDesign(Database& database);
   void buildTimingLibrary(Database& database);
-  void buildTimingCellMap(Database& database, std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list);
+  void buildTimingCellMap(Database& database);
   void makeTimingCell(Database& database, idb::LibCell* lib_cell);
   void makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_port);
   void makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib_arc_set);
-  TimingCellArc makeDelayArc(idb::LibArc* lib_arc);
-  TimingCheckArc makeSetupArc(idb::LibArc* lib_arc);
+  TimingCellArc makeDelayArc(idb::LibArcSet* lib_arc_set);
+  TimingCheckArc makeCheckArc(idb::LibArcSet* lib_arc_set);
+  TimingCheckType getTimingCheckType(idb::LibArc* lib_arc);
+  AnalysisType getAnalysisType(idb::AnalysisMode analysis_mode);
+  TransType getTransType(idb::TransType trans_type);
   void updateTimingCell(TimingCell& timing_cell);
   void buildInstanceList(Database& database);
   void makeInstanceList(Database& database);
   void buildInstanceTimingInfo(Database& database);
   void makeInstanceTimingInfo(Database& database, Instance& instance);
+  TimingCheckArc makeInstanceTimingCheckArc(Instance& instance, TimingCheckArc& timing_check_arc);
   TimingCellArc* findClockToQArc(TimingCell& timing_cell);
   std::string getInstancePinName(Instance& instance, std::string& port_name);
   std::string findOutputPinName(Instance& instance, TimingCell& timing_cell);
@@ -103,6 +107,7 @@ class DesignLoader
   std::string getCollectionName(std::vector<std::string>& token_list, std::size_t collection_idx);
   std::vector<std::string> getObjectList(std::vector<std::string>& token_list);
   void pushObjectName(std::vector<std::string>& object_list, std::string object_name);
+  std::string getObjectName(std::string& object_name);
   bool isCollectionCommand(std::string& token);
   bool isClockCollectionCommand(std::string& token);
   bool isCommandOptionValue(std::vector<std::string>& token_list, std::size_t token_idx);

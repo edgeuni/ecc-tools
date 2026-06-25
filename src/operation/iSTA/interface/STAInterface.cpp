@@ -97,11 +97,12 @@ void STAInterface::runSTA()
 
   DelayCalculator::initInst();
   STADC.build();
-  DelayCalculator::destroyInst();
 
   TimingPropagator::initInst();
   STATP.build();
   TimingPropagator::destroyInst();
+
+  DelayCalculator::destroyInst();
 
   TimingReporter::initInst();
   STATR.report();

@@ -85,21 +85,21 @@ void DesignLoader::buildDesign(Database& database)
 
 void DesignLoader::buildTimingLibrary(Database& database)
 {
-  std::vector<std::unique_ptr<idb::LibLibrary>> lib_list;
+  database.get_timing_library().get_lib_list().clear();
   for (idb::LibertyReader& liberty_reader : dmInst->get_lib_readers()) {
     liberty_reader.linkLib();
     idb::LibBuilder* lib_builder = liberty_reader.get_library_builder();
-    lib_list.push_back(lib_builder->takeLib());
+    database.get_timing_library().get_lib_list().push_back(lib_builder->takeLib());
     delete lib_builder;
     liberty_reader.set_library_builder(nullptr);
   }
-  buildTimingCellMap(database, lib_list);
+  buildTimingCellMap(database);
 }
 
-void DesignLoader::buildTimingCellMap(Database& database, std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list)
+void DesignLoader::buildTimingCellMap(Database& database)
 {
   database.get_timing_library().get_cell_map().clear();
-  for (std::unique_ptr<idb::LibLibrary>& lib : lib_list) {
+  for (std::unique_ptr<idb::LibLibrary>& lib : database.get_timing_library().get_lib_list()) {
     for (std::unique_ptr<idb::LibCell>& lib_cell : lib->get_cells()) {
       makeTimingCell(database, lib_cell.get());
     }
@@ -111,6 +111,8 @@ void DesignLoader::makeTimingCell(Database& database, idb::LibCell* lib_cell)
   TimingCell timing_cell;
   timing_cell.set_cell_name(lib_cell->get_cell_name());
   timing_cell.set_is_sequential(lib_cell->isSequentialCell());
+  timing_cell.set_is_clock_gating(lib_cell->isICG());
+  timing_cell.set_is_macro(lib_cell->isMacroCell());
 
   for (std::unique_ptr<idb::LibPort>& lib_port : lib_cell->get_cell_ports()) {
     makeTimingCellPort(timing_cell, lib_port.get());
@@ -129,6 +131,14 @@ void DesignLoader::makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib
   TimingCellPort timing_cell_port;
   timing_cell_port.set_port_name(lib_port->get_port_name());
   timing_cell_port.set_capacitance(lib_port->get_port_cap());
+  for (idb::AnalysisMode analysis_mode : {idb::AnalysisMode::kMax, idb::AnalysisMode::kMin}) {
+    for (idb::TransType trans_type : {idb::TransType::kRise, idb::TransType::kFall}) {
+      std::optional<double> port_cap = lib_port->get_port_cap(analysis_mode, trans_type);
+      if (port_cap) {
+        timing_cell_port.get_trans_capacitance_map()[getAnalysisType(analysis_mode)][getTransType(trans_type)] = *port_cap;
+      }
+    }
+  }
   timing_cell_port.set_is_input(lib_port->isInput());
   timing_cell_port.set_is_output(lib_port->isOutput());
   timing_cell_port.set_is_clock(lib_port->isClock() || lib_port->get_is_clock_pin() || lib_port->get_is_clock());
@@ -139,34 +149,82 @@ void DesignLoader::makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* li
 {
   idb::LibArc* lib_arc = lib_arc_set->front();
   if (lib_arc->isDelayArc()) {
-    timing_cell.get_cell_arc_list().push_back(makeDelayArc(lib_arc));
-  } else if (lib_arc->isSetupArc()) {
-    timing_cell.get_setup_arc_list().push_back(makeSetupArc(lib_arc));
+    timing_cell.get_cell_arc_list().push_back(makeDelayArc(lib_arc_set));
+  } else if (lib_arc->isCheckArc()) {
+    TimingCheckArc timing_check_arc = makeCheckArc(lib_arc_set);
+    timing_cell.get_check_arc_list().push_back(timing_check_arc);
+    if (timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
+      timing_cell.get_setup_arc_list().push_back(timing_check_arc);
+    }
   }
 }
 
-TimingCellArc DesignLoader::makeDelayArc(idb::LibArc* lib_arc)
+TimingCellArc DesignLoader::makeDelayArc(idb::LibArcSet* lib_arc_set)
 {
+  idb::LibArc* lib_arc = lib_arc_set->front();
   TimingCellArc timing_cell_arc;
   timing_cell_arc.set_source_port(lib_arc->get_src_port());
   timing_cell_arc.set_sink_port(lib_arc->get_snk_port());
   timing_cell_arc.set_delay(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
+  timing_cell_arc.set_delay_max(timing_cell_arc.get_delay());
+  timing_cell_arc.set_delay_min(timing_cell_arc.get_delay());
+  timing_cell_arc.set_lib_arc_set(lib_arc_set);
   timing_cell_arc.set_is_clock_arc(lib_arc->isRisingTriggerArc() || lib_arc->isFallingTriggerArc());
   return timing_cell_arc;
 }
 
-TimingCheckArc DesignLoader::makeSetupArc(idb::LibArc* lib_arc)
+TimingCheckArc DesignLoader::makeCheckArc(idb::LibArcSet* lib_arc_set)
 {
+  idb::LibArc* lib_arc = lib_arc_set->front();
   TimingCheckArc timing_check_arc;
   timing_check_arc.set_clock_port(lib_arc->get_src_port());
   timing_check_arc.set_data_port(lib_arc->get_snk_port());
-  timing_check_arc.set_setup_time(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
+  timing_check_arc.set_check_type(getTimingCheckType(lib_arc));
+  timing_check_arc.set_check_time(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
+  timing_check_arc.set_lib_arc(lib_arc);
+  timing_check_arc.set_lib_arc_set(lib_arc_set);
+  if (timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
+    timing_check_arc.set_setup_time(timing_check_arc.get_check_time());
+  }
   return timing_check_arc;
+}
+
+TimingCheckType DesignLoader::getTimingCheckType(idb::LibArc* lib_arc)
+{
+  if (lib_arc->isSetupArc()) {
+    return TimingCheckType::kSetup;
+  }
+  if (lib_arc->isHoldArc()) {
+    return TimingCheckType::kHold;
+  }
+  if (lib_arc->isRecoveryArc()) {
+    return TimingCheckType::kRecovery;
+  }
+  if (lib_arc->isRemovalArc()) {
+    return TimingCheckType::kRemoval;
+  }
+  return TimingCheckType::kNone;
+}
+
+AnalysisType DesignLoader::getAnalysisType(idb::AnalysisMode analysis_mode)
+{
+  if (analysis_mode == idb::AnalysisMode::kMin) {
+    return AnalysisType::kMin;
+  }
+  return AnalysisType::kMax;
+}
+
+TransType DesignLoader::getTransType(idb::TransType trans_type)
+{
+  if (trans_type == idb::TransType::kFall) {
+    return TransType::kFall;
+  }
+  return TransType::kRise;
 }
 
 void DesignLoader::updateTimingCell(TimingCell& timing_cell)
 {
-  if (!timing_cell.get_setup_arc_list().empty()) {
+  if (!timing_cell.get_check_arc_list().empty()) {
     timing_cell.set_is_sequential(true);
   }
 }
@@ -212,6 +270,7 @@ void DesignLoader::makeInstanceTimingInfo(Database& database, Instance& instance
   if (clock_to_q_arc != nullptr) {
     instance.set_output_pin_name(getInstancePinName(instance, clock_to_q_arc->get_sink_port()));
     instance.set_clock_to_q_delay(clock_to_q_arc->get_delay());
+    instance.set_clock_to_q_arc(*clock_to_q_arc);
   } else {
     instance.set_output_pin_name(findOutputPinName(instance, timing_cell));
   }
@@ -223,6 +282,23 @@ void DesignLoader::makeInstanceTimingInfo(Database& database, Instance& instance
   instance.set_clock_pin_name(getInstancePinName(instance, setup_arc.get_clock_port()));
   instance.set_data_pin_name(getInstancePinName(instance, setup_arc.get_data_port()));
   instance.set_setup_time(setup_arc.get_setup_time());
+  instance.get_check_arc_list().clear();
+  for (TimingCheckArc& timing_check_arc : timing_cell.get_check_arc_list()) {
+    instance.get_check_arc_list().push_back(makeInstanceTimingCheckArc(instance, timing_check_arc));
+  }
+}
+
+TimingCheckArc DesignLoader::makeInstanceTimingCheckArc(Instance& instance, TimingCheckArc& timing_check_arc)
+{
+  TimingCheckArc instance_timing_check_arc;
+  instance_timing_check_arc.set_clock_port(getInstancePinName(instance, timing_check_arc.get_clock_port()));
+  instance_timing_check_arc.set_data_port(getInstancePinName(instance, timing_check_arc.get_data_port()));
+  instance_timing_check_arc.set_setup_time(timing_check_arc.get_setup_time());
+  instance_timing_check_arc.set_check_type(timing_check_arc.get_check_type());
+  instance_timing_check_arc.set_check_time(timing_check_arc.get_check_time());
+  instance_timing_check_arc.set_lib_arc(timing_check_arc.get_lib_arc());
+  instance_timing_check_arc.set_lib_arc_set(timing_check_arc.get_lib_arc_set());
+  return instance_timing_check_arc;
 }
 
 TimingCellArc* DesignLoader::findClockToQArc(TimingCell& timing_cell)
@@ -281,18 +357,22 @@ void DesignLoader::makeNetList(Database& database)
 void DesignLoader::makeNet(Database& database, const std::string& net_name, Net& net)
 {
   net.get_driver_pin().clear();
+  net.get_driver_pin_list().clear();
   net.get_load_pin_list().clear();
 
   for (std::string& pin_name : net.get_pin_name_list()) {
     Pin& pin = database.get_pin_map()[pin_name];
     pin.set_net_name(net_name);
-    if (net.get_driver_pin().empty() && isDriverPin(pin)) {
-      net.set_driver_pin(pin_name);
+    if (isDriverPin(pin)) {
+      if (net.get_driver_pin().empty()) {
+        net.set_driver_pin(pin_name);
+      }
+      makeUniqueName(net.get_driver_pin_list(), pin_name);
     }
   }
 
   for (std::string& pin_name : net.get_pin_name_list()) {
-    if (pin_name != net.get_driver_pin()) {
+    if (!STAUTIL.exist(net.get_driver_pin_list(), pin_name)) {
       makeUniqueName(net.get_load_pin_list(), pin_name);
     }
   }
@@ -684,10 +764,6 @@ std::string DesignLoader::getCollectionName(std::vector<std::string>& token_list
     if (object_name == "]") {
       break;
     }
-    if (!object_name.empty() && object_name.back() == ']') {
-      object_name.pop_back();
-      is_end = true;
-    }
     pushObjectName(name_list, object_name);
     if (is_end) {
       break;
@@ -710,10 +786,6 @@ std::vector<std::string> DesignLoader::getObjectList(std::vector<std::string>& t
       if (object_name == "]") {
         break;
       }
-      if (!object_name.empty() && object_name.back() == ']') {
-        object_name.pop_back();
-        is_end = true;
-      }
       pushObjectName(object_list, object_name);
       if (is_end) {
         break;
@@ -735,14 +807,19 @@ std::vector<std::string> DesignLoader::getObjectList(std::vector<std::string>& t
 
 void DesignLoader::pushObjectName(std::vector<std::string>& object_list, std::string object_name)
 {
-  if (!object_name.empty() && object_name.back() == ']') {
-    object_name.pop_back();
-  }
   std::istringstream iss(object_name);
   std::string split_object_name;
   while (iss >> split_object_name) {
-    object_list.push_back(split_object_name);
+    object_list.push_back(getObjectName(split_object_name));
   }
+}
+
+std::string DesignLoader::getObjectName(std::string& object_name)
+{
+  if (!object_name.empty() && object_name.front() == '\\') {
+    object_name.erase(object_name.begin());
+  }
+  return object_name;
 }
 
 bool DesignLoader::isCollectionCommand(std::string& token)
@@ -781,12 +858,17 @@ std::vector<std::string> DesignLoader::resolveObjectList(Database& database, std
       resolved_object_name = resolved_object_name.substr(9);
       std::replace(resolved_object_name.begin(), resolved_object_name.end(), '/', ':');
     }
-    if (!resolved_object_name.empty() && resolved_object_name.back() == ']') {
-      resolved_object_name.pop_back();
-    }
     if (database.get_pin_map().count(resolved_object_name) > 0) {
       resolved_object_list.push_back(resolved_object_name);
       continue;
+    }
+    if (!resolved_object_name.empty() && resolved_object_name.back() == ']') {
+      std::string trim_object_name = resolved_object_name;
+      trim_object_name.pop_back();
+      if (database.get_pin_map().count(trim_object_name) > 0) {
+        resolved_object_list.push_back(trim_object_name);
+        continue;
+      }
     }
     std::replace(resolved_object_name.begin(), resolved_object_name.end(), '/', ':');
     if (database.get_pin_map().count(resolved_object_name) > 0) {

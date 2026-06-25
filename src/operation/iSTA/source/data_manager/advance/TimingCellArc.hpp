@@ -17,6 +17,7 @@
 #pragma once
 
 #include "STAHeader.hpp"
+#include "liberty/Lib.hh"
 
 namespace ista {
 
@@ -29,11 +30,17 @@ class TimingCellArc
   std::string& get_source_port() { return _source_port; }
   std::string& get_sink_port() { return _sink_port; }
   double get_delay() const { return _delay; }
+  double get_delay_max() const { return _delay_max; }
+  double get_delay_min() const { return _delay_min; }
+  idb::LibArcSet* get_lib_arc_set() { return _lib_arc_set; }
   bool get_is_clock_arc() const { return _is_clock_arc; }
   // setter
   void set_source_port(const std::string& source_port) { _source_port = source_port; }
   void set_sink_port(const std::string& sink_port) { _sink_port = sink_port; }
   void set_delay(const double delay) { _delay = delay; }
+  void set_delay_max(const double delay_max) { _delay_max = delay_max; }
+  void set_delay_min(const double delay_min) { _delay_min = delay_min; }
+  void set_lib_arc_set(idb::LibArcSet* lib_arc_set) { _lib_arc_set = lib_arc_set; }
   void set_is_clock_arc(const bool is_clock_arc) { _is_clock_arc = is_clock_arc; }
   // function
 
@@ -41,6 +48,9 @@ class TimingCellArc
   std::string _source_port;
   std::string _sink_port;
   double _delay = 0.0;
+  double _delay_max = 0.0;
+  double _delay_min = 0.0;
+  idb::LibArcSet* _lib_arc_set = nullptr;
   bool _is_clock_arc = false;
 };
 

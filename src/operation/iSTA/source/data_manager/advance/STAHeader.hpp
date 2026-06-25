@@ -67,4 +67,4 @@
 
 #include "libfort/fort.hpp"
 
-#define STA_ERROR 1E-5
+#define STA_ERROR 1E-6

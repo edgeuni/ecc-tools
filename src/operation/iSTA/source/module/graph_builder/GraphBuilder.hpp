@@ -48,23 +48,37 @@ class GraphBuilder
   std::string getInstancePinName(Instance& instance, std::string& port_name);
   void addCellArc(Database& database, Instance& instance, TimingCellArc& timing_cell_arc);
   void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name,
-              const std::string& library_source_port, const std::string& library_sink_port, bool is_clock_arc);
+              const std::string& library_source_port, const std::string& library_sink_port, bool is_clock_arc, bool is_disable_arc,
+              TimingCellArc* timing_cell_arc);
   std::vector<std::string> collectInputPins(Database& database, Instance& instance);
   bool isInputLike(PinDirection direction);
   std::vector<std::string> collectOutputPins(Database& database, Instance& instance);
   bool isOutputLike(PinDirection direction);
   void buildNetArcs(Database& database);
   void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name);
+  bool shouldDisableNetArc(Database& database, const std::string& source_pin, const std::string& sink_pin);
+  bool isDisableArc(Arc& arc);
   void buildStartEndPointList(Database& database);
   bool isStartPoint(Database& database, const std::string& pin_name, Pin& pin);
+  bool isRegisterClockStartPoint(Database& database, const std::string& pin_name, Pin& pin);
   bool isClockPin(Database& database, const std::string& pin_name, Pin& pin);
   bool isClockSource(Database& database, const std::string& pin_name);
   bool hasIncomingArc(Database& database, const std::string& pin_name);
   bool isStartPort(Pin& pin);
   bool isEndPoint(Database& database, const std::string& pin_name, Pin& pin);
+  bool isTimingCheckEndPoint(Database& database, const std::string& pin_name, Pin& pin);
   bool hasOutgoingArc(Database& database, const std::string& pin_name);
   bool isEndPort(Pin& pin);
   void appendUnique(std::vector<std::string>& list, const std::string& value);
+  void breakLoopArcList(Database& database);
+  std::size_t breakLoopArcFromStart(Database& database);
+  bool traverseDataPath(Database& database, std::string& pin_name, bool is_forward, std::map<std::string, int32_t>& color_map,
+                        std::size_t& disabled_loop_num);
+  bool stopTraverse(Database& database, std::string& pin_name, bool is_forward);
+  bool isBlack(std::map<std::string, int32_t>& color_map, std::string& pin_name);
+  bool isGray(std::map<std::string, int32_t>& color_map, std::string& pin_name);
+  bool disableLoopArc(Arc& arc);
+  std::size_t breakLoopArcFromEnd(Database& database);
   void buildTimingOrder(Database& database);
   std::map<std::string, std::size_t> makeIndegreeMap(Database& database);
   void pushRootPinList(Database& database, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);

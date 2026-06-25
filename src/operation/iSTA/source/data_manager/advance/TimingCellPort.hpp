@@ -16,7 +16,9 @@
 // ***************************************************************************************
 #pragma once
 
+#include "AnalysisType.hpp"
 #include "STAHeader.hpp"
+#include "TransType.hpp"
 
 namespace ista {
 
@@ -28,12 +30,17 @@ class TimingCellPort
   // getter
   std::string& get_port_name() { return _port_name; }
   double get_capacitance() const { return _capacitance; }
+  std::map<AnalysisType, std::map<TransType, double>>& get_trans_capacitance_map() { return _trans_capacitance_map; }
   bool get_is_input() const { return _is_input; }
   bool get_is_output() const { return _is_output; }
   bool get_is_clock() const { return _is_clock; }
   // setter
   void set_port_name(const std::string& port_name) { _port_name = port_name; }
   void set_capacitance(const double capacitance) { _capacitance = capacitance; }
+  void set_trans_capacitance_map(const std::map<AnalysisType, std::map<TransType, double>>& trans_capacitance_map)
+  {
+    _trans_capacitance_map = trans_capacitance_map;
+  }
   void set_is_input(const bool is_input) { _is_input = is_input; }
   void set_is_output(const bool is_output) { _is_output = is_output; }
   void set_is_clock(const bool is_clock) { _is_clock = is_clock; }
@@ -42,6 +49,7 @@ class TimingCellPort
  private:
   std::string _port_name;
   double _capacitance = 0.0;
+  std::map<AnalysisType, std::map<TransType, double>> _trans_capacitance_map;
   bool _is_input = false;
   bool _is_output = false;
   bool _is_clock = false;

@@ -13,6 +13,7 @@ add_library(ista_timing_propagator
 target_link_libraries(ista_timing_propagator
     PUBLIC
     ista_data_manager
+    ista_delay_calculator
     ista_toolkit
 )
 
