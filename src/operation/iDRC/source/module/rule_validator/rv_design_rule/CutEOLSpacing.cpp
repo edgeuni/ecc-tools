@@ -14,6 +14,7 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+#include <set>
 #include "RuleValidator.hpp"
 
 namespace idrc {
@@ -261,13 +262,13 @@ void RuleValidator::verifyCutEOLSpacing(RVCluster& rv_cluster)
 
           std::vector<std::pair<GTLRectInt, int32_t>> window_overlap_rect_list;
           routing_layer_data.queryMaxRects(DRCUTIL.convertToGTLRectInt(back_side), std::back_inserter(window_overlap_rect_list));
+          std::set<int32_t> overlap_net_set;
 
           GTLPolySetInt neighbor_shape;
           neighbor_shape += DRCUTIL.convertToGTLRectInt(back_side);
           neighbor_shape -= all_neighboors;
 
           for (const auto& [gtl_rect_window, env_max_rect_id] : window_overlap_rect_list) {
-            (void) env_max_rect_id;
             if (DRCUTIL.isClosedOverlap(DRCUTIL.convertToPlanarRect(gtl_rect_window), routing_rect)) {
               neighbor_shape -= gtl_rect_window;
             }
@@ -296,6 +297,7 @@ void RuleValidator::verifyCutEOLSpacing(RVCluster& rv_cluster)
             if (DRCUTIL.isOpenOverlap(empty_region, env_rect)) {
               has_check_overlap = true;
               check_overlap_rect = env_rect;
+              overlap_net_set.insert(routing_layer_data.getNetIdxByMaxRectId(env_max_rect_id));
               break;
             }
           }
@@ -423,7 +425,9 @@ void RuleValidator::verifyCutEOLSpacing(RVCluster& rv_cluster)
               Violation violation;
               violation.set_violation_type(ViolationType::kCutEOLSpacing);
               violation.set_is_routing(true);
-              violation.set_violation_net_set({cut_net_idx, env_net_idx});
+              std::set<int32_t> violation_net_set = {cut_net_idx, env_net_idx};
+              violation_net_set.insert(overlap_net_set.begin(), overlap_net_set.end());
+              violation.set_violation_net_set(violation_net_set);
               violation.set_layer_idx(violation_routing_layer_idx);
               violation.set_rect(violation_rect);
               violation.set_required_size(required_size);

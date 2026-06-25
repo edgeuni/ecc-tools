@@ -25,6 +25,7 @@ catboost_info
 # .agents 
 .codex 
 # .trellis
+# AGENTS.md
 
 rpt*/
 target/

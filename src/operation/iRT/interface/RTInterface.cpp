@@ -1393,7 +1393,16 @@ idb::IdbRegularWireSegment* RTInterface::getIDBVia(int32_t net_idx, Segment<Laye
   if (below_layer_idx < 0 || below_layer_idx >= static_cast<int32_t>(layer_via_master_list.size())) {
     RTLOG.error(Loc::current(), "The via below_layer_idx is illegal!");
   }
-  std::string via_name = layer_via_master_list[below_layer_idx].front().get_via_name();
+  ViaMaster* via_master = &layer_via_master_list[below_layer_idx].front();
+  if (segment.hasValidViaMaster()) {
+    ViaMasterIdx& via_master_idx = segment.get_via_master_idx();
+    int32_t via_idx = via_master_idx.get_via_idx();
+    if (via_master_idx.get_below_layer_idx() == below_layer_idx && via_idx >= 0
+        && via_idx < static_cast<int32_t>(layer_via_master_list[below_layer_idx].size())) {
+      via_master = &layer_via_master_list[below_layer_idx][via_idx];
+    }
+  }
+  std::string via_name = via_master->get_via_name();
   idb::IdbVia* idb_via = lef_via_list->find_via(via_name);
   if (idb_via == nullptr) {
     idb_via = def_via_list->find_via(via_name);
