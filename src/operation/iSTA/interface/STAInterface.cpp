@@ -16,9 +16,7 @@
 // ***************************************************************************************
 #include "STAInterface.hpp"
 
-#include "ConstraintManager.hpp"
 #include "DataManager.hpp"
-#include "DelayCalculator.hpp"
 #include "DesignLoader.hpp"
 #include "GraphBuilder.hpp"
 #include "Logger.hpp"
@@ -87,22 +85,13 @@ void STAInterface::runSTA()
   STADL.build();
   DesignLoader::destroyInst();
 
-  ConstraintManager::initInst();
-  STACM.build();
-  ConstraintManager::destroyInst();
-
   GraphBuilder::initInst();
   STAGB.build();
   GraphBuilder::destroyInst();
 
-  DelayCalculator::initInst();
-  STADC.build();
-
   TimingPropagator::initInst();
   STATP.build();
   TimingPropagator::destroyInst();
-
-  DelayCalculator::destroyInst();
 
   TimingReporter::initInst();
   STATR.report();
