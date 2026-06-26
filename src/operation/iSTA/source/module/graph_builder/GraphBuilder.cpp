@@ -59,6 +59,8 @@ bool GraphBuilder::build()
 
   buildTimingPointList(database);
   buildCellArcs(database);
+  buildInoutPinDirectionByGraph(database);
+  buildNetDriverLoadList(database);
   buildNetArcs(database);
   buildStartEndPointList(database);
   breakLoopArcList(database);
@@ -195,6 +197,270 @@ std::vector<std::string> GraphBuilder::collectOutputPins(Database& database, Ins
 bool GraphBuilder::isOutputLike(PinDirection direction)
 {
   return direction == PinDirection::kOutput || direction == PinDirection::kInout;
+}
+
+void GraphBuilder::buildInoutPinDirectionByGraph(Database& database)
+{
+  std::map<std::string, PinDirection> inout_pin_direction_map = makeInoutPinDirectionMap(database);
+  for (std::pair<const std::string, PinDirection>& pin_direction_pair : inout_pin_direction_map) {
+    database.get_pin_map()[pin_direction_pair.first].set_direction(pin_direction_pair.second);
+  }
+  rebuildCellArcListByPinDirection(database);
+}
+
+std::map<std::string, PinDirection> GraphBuilder::makeInoutPinDirectionMap(Database& database)
+{
+  std::map<std::string, PinDirection> inout_pin_direction_map;
+  for (std::pair<const std::string, Pin>& pin_pair : database.get_pin_map()) {
+    Pin& pin = pin_pair.second;
+    if (pin.get_direction() != PinDirection::kInout) {
+      continue;
+    }
+    if (isFloatingInoutPin(database, pin)) {
+      continue;
+    }
+    PinDirection pin_direction = inferInoutPinDirection(database, pin_pair.first, pin, inout_pin_direction_map);
+    if (pin_direction == PinDirection::kNone || pin_direction == PinDirection::kInout) {
+      STALOG.error(Loc::current(), "Failed to infer inout pin direction: pin=", pin_pair.first, " net=", pin.get_net_name());
+    }
+    inout_pin_direction_map[pin_pair.first] = pin_direction;
+  }
+  return inout_pin_direction_map;
+}
+
+bool GraphBuilder::isFloatingInoutPin(Database& database, Pin& pin)
+{
+  return pin.get_net_name().empty() && inferInoutPinDirectionByTimingCell(database, pin) == PinDirection::kNone;
+}
+
+PinDirection GraphBuilder::inferInoutPinDirection(Database& database, const std::string& pin_name, Pin& pin,
+                                                  std::map<std::string, PinDirection>& inout_pin_direction_map)
+{
+  PinDirection timing_cell_direction = inferInoutPinDirectionByTimingCell(database, pin);
+  if (timing_cell_direction != PinDirection::kNone) {
+    return timing_cell_direction;
+  }
+
+  PinDirection timing_graph_direction = inferInoutPinDirectionByTimingGraph(database, pin_name);
+  if (timing_graph_direction != PinDirection::kNone) {
+    return timing_graph_direction;
+  }
+
+  return inferInoutPinDirectionByNet(database, pin, inout_pin_direction_map);
+}
+
+PinDirection GraphBuilder::inferInoutPinDirectionByTimingCell(Database& database, Pin& pin)
+{
+  TimingCellPort* timing_cell_port = getTimingCellPort(database, pin);
+  if (timing_cell_port == nullptr) {
+    return PinDirection::kNone;
+  }
+  if (timing_cell_port->get_is_output() && !timing_cell_port->get_is_input()) {
+    return PinDirection::kOutput;
+  }
+  if (timing_cell_port->get_is_input() && !timing_cell_port->get_is_output()) {
+    return PinDirection::kInput;
+  }
+  return PinDirection::kNone;
+}
+
+TimingCellPort* GraphBuilder::getTimingCellPort(Database& database, Pin& pin)
+{
+  if (pin.get_is_port()) {
+    return nullptr;
+  }
+  if (database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return nullptr;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  std::map<std::string, TimingCell>& timing_cell_map = database.get_timing_library().get_cell_map();
+  if (timing_cell_map.count(instance.get_cell_name()) == 0) {
+    return nullptr;
+  }
+  TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
+  if (timing_cell.get_port_map().count(pin.get_pin_name()) == 0) {
+    return nullptr;
+  }
+  return &timing_cell.get_port_map()[pin.get_pin_name()];
+}
+
+PinDirection GraphBuilder::inferInoutPinDirectionByTimingGraph(Database& database, const std::string& pin_name)
+{
+  const bool has_outgoing_cell_arc = hasOutgoingCellArc(database, pin_name);
+  const bool has_incoming_cell_arc = hasIncomingCellArc(database, pin_name);
+  if (has_outgoing_cell_arc && !has_incoming_cell_arc) {
+    return PinDirection::kInput;
+  }
+  if (has_incoming_cell_arc && !has_outgoing_cell_arc) {
+    return PinDirection::kOutput;
+  }
+  return PinDirection::kNone;
+}
+
+bool GraphBuilder::hasOutgoingCellArc(Database& database, const std::string& pin_name)
+{
+  for (std::size_t arc_idx : database.get_outgoing_arc_list_map()[pin_name]) {
+    if (database.get_arc_list()[arc_idx].get_type() == ArcType::kCell) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool GraphBuilder::hasIncomingCellArc(Database& database, const std::string& pin_name)
+{
+  for (std::size_t arc_idx : database.get_incoming_arc_list_map()[pin_name]) {
+    if (database.get_arc_list()[arc_idx].get_type() == ArcType::kCell) {
+      return true;
+    }
+  }
+  return false;
+}
+
+PinDirection GraphBuilder::inferInoutPinDirectionByNet(Database& database, Pin& pin, std::map<std::string, PinDirection>& inout_pin_direction_map)
+{
+  Net* net = getPinNet(database, pin);
+  if (net == nullptr) {
+    return PinDirection::kNone;
+  }
+  int32_t driver_pin_num = getDriverPinNum(database, *net, inout_pin_direction_map);
+  int32_t unresolved_inout_pin_num = getUnresolvedInoutPinNum(database, *net, inout_pin_direction_map);
+  if (driver_pin_num == 0 && unresolved_inout_pin_num == 1) {
+    return getDriverPinDirection(pin);
+  }
+  if (driver_pin_num == 1) {
+    return getLoadPinDirection(pin);
+  }
+  if (driver_pin_num > 1) {
+    std::vector<std::string> driver_pin_list = getDriverPinList(database, *net, inout_pin_direction_map);
+    STALOG.error(Loc::current(), "The net has multiple driver pins: net=", net->get_net_name(),
+                 " drivers=", getPinNameListString(driver_pin_list));
+  }
+  return PinDirection::kNone;
+}
+
+Net* GraphBuilder::getPinNet(Database& database, Pin& pin)
+{
+  if (pin.get_net_name().empty() || database.get_net_map().count(pin.get_net_name()) == 0) {
+    return nullptr;
+  }
+  return &database.get_net_map()[pin.get_net_name()];
+}
+
+std::vector<std::string> GraphBuilder::getDriverPinList(Database& database, Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map)
+{
+  std::vector<std::string> driver_pin_list;
+  for (std::string& pin_name : net.get_pin_name_list()) {
+    if (isResolvedDriverPin(database, pin_name, inout_pin_direction_map)) {
+      driver_pin_list.push_back(pin_name);
+    }
+  }
+  return driver_pin_list;
+}
+
+int32_t GraphBuilder::getDriverPinNum(Database& database, Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map)
+{
+  return static_cast<int32_t>(getDriverPinList(database, net, inout_pin_direction_map).size());
+}
+
+int32_t GraphBuilder::getUnresolvedInoutPinNum(Database& database, Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map)
+{
+  int32_t unresolved_inout_pin_num = 0;
+  for (std::string& pin_name : net.get_pin_name_list()) {
+    Pin& pin = database.get_pin_map()[pin_name];
+    if (pin.get_direction() == PinDirection::kInout && inout_pin_direction_map.count(pin_name) == 0) {
+      unresolved_inout_pin_num++;
+    }
+  }
+  return unresolved_inout_pin_num;
+}
+
+bool GraphBuilder::isResolvedDriverPin(Database& database, const std::string& pin_name, std::map<std::string, PinDirection>& inout_pin_direction_map)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  PinDirection direction = pin.get_direction();
+  if (direction == PinDirection::kInout && inout_pin_direction_map.count(pin_name) > 0) {
+    direction = inout_pin_direction_map[pin_name];
+  }
+  return isDriverDirection(pin, direction);
+}
+
+bool GraphBuilder::isDriverDirection(Pin& pin, PinDirection direction)
+{
+  if (pin.get_is_port()) {
+    return direction == PinDirection::kInput;
+  }
+  return direction == PinDirection::kOutput;
+}
+
+PinDirection GraphBuilder::getDriverPinDirection(Pin& pin)
+{
+  if (pin.get_is_port()) {
+    return PinDirection::kInput;
+  }
+  return PinDirection::kOutput;
+}
+
+PinDirection GraphBuilder::getLoadPinDirection(Pin& pin)
+{
+  if (pin.get_is_port()) {
+    return PinDirection::kOutput;
+  }
+  return PinDirection::kInput;
+}
+
+void GraphBuilder::rebuildCellArcListByPinDirection(Database& database)
+{
+  database.get_arc_list().clear();
+  database.get_outgoing_arc_list_map().clear();
+  database.get_incoming_arc_list_map().clear();
+  buildCellArcs(database);
+}
+
+void GraphBuilder::buildNetDriverLoadList(Database& database)
+{
+  for (std::pair<const std::string, Net>& net_pair : database.get_net_map()) {
+    makeNetDriverLoad(database, net_pair.second);
+  }
+}
+
+void GraphBuilder::makeNetDriverLoad(Database& database, Net& net)
+{
+  net.get_driver_pin().clear();
+  net.get_driver_pin_list().clear();
+  net.get_load_pin_list().clear();
+
+  for (std::string& pin_name : net.get_pin_name_list()) {
+    Pin& pin = database.get_pin_map()[pin_name];
+    if (isDriverPin(pin)) {
+      net.set_driver_pin(pin_name);
+      net.get_driver_pin_list().push_back(pin_name);
+    } else {
+      net.get_load_pin_list().push_back(pin_name);
+    }
+  }
+
+  if (net.get_driver_pin_list().size() > 1) {
+    STALOG.error(Loc::current(), "The net has multiple driver pins: net=", net.get_net_name(),
+                 " drivers=", getPinNameListString(net.get_driver_pin_list()));
+  }
+}
+
+bool GraphBuilder::isDriverPin(Pin& pin)
+{
+  return isDriverDirection(pin, pin.get_direction());
+}
+
+std::string GraphBuilder::getPinNameListString(std::vector<std::string>& pin_name_list)
+{
+  std::string pin_name_list_string;
+  for (std::string& pin_name : pin_name_list) {
+    if (!pin_name_list_string.empty()) {
+      pin_name_list_string += ", ";
+    }
+    pin_name_list_string += pin_name;
+  }
+  return pin_name_list_string;
 }
 
 void GraphBuilder::buildNetArcs(Database& database)

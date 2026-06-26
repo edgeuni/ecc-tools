@@ -91,10 +91,6 @@ class DataManager
   void buildNetList(Database& database);
   void makeNetList(Database& database);
   void makeNet(Database& database, const std::string& net_name, Net& net);
-  bool isDriverPin(Database& database, Pin& pin);
-  bool hasTimingCellPort(Database& database, Pin& pin);
-  bool isTimingCellOutputPin(Database& database, Pin& pin);
-  bool isOutputLikeDirection(PinDirection direction);
   void buildParasiticLibrary(Database& database);
   void buildParasiticNetMap(Database& database, spef::Net& spef_net);
   void makeParasiticConnection(ParasiticNet& parasitic_net, spef::ConnEntry& spef_conn);

@@ -407,68 +407,8 @@ void DataManager::makeNet(Database& database, const std::string& net_name, Net& 
   for (std::string& pin_name : net.get_pin_name_list()) {
     Pin& pin = database.get_pin_map()[pin_name];
     pin.set_net_name(net_name);
-    if (isDriverPin(database, pin)) {
-      if (net.get_driver_pin().empty()) {
-        net.set_driver_pin(pin_name);
-      }
-      makeUniqueName(net.get_driver_pin_list(), pin_name);
-    }
+    makeUniqueName(net.get_load_pin_list(), pin_name);
   }
-
-  for (std::string& pin_name : net.get_pin_name_list()) {
-    if (pin_name != net.get_driver_pin()) {
-      makeUniqueName(net.get_load_pin_list(), pin_name);
-    }
-  }
-}
-
-bool DataManager::isDriverPin(Database& database, Pin& pin)
-{
-  if (pin.get_is_port()) {
-    return pin.get_direction() == PinDirection::kInput || pin.get_direction() == PinDirection::kInout;
-  }
-  if (hasTimingCellPort(database, pin)) {
-    return isTimingCellOutputPin(database, pin);
-  }
-  return isOutputLikeDirection(pin.get_direction());
-}
-
-bool DataManager::hasTimingCellPort(Database& database, Pin& pin)
-{
-  std::map<std::string, Instance>& instance_map = database.get_instance_map();
-  if (instance_map.count(pin.get_instance_name()) == 0) {
-    return false;
-  }
-  Instance& instance = instance_map[pin.get_instance_name()];
-  std::map<std::string, TimingCell>& timing_cell_map = database.get_timing_library().get_cell_map();
-  if (timing_cell_map.count(instance.get_cell_name()) == 0) {
-    return false;
-  }
-  TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
-  return timing_cell.get_port_map().count(pin.get_pin_name()) > 0;
-}
-
-bool DataManager::isTimingCellOutputPin(Database& database, Pin& pin)
-{
-  std::map<std::string, Instance>& instance_map = database.get_instance_map();
-  if (instance_map.count(pin.get_instance_name()) == 0) {
-    return false;
-  }
-  Instance& instance = instance_map[pin.get_instance_name()];
-  std::map<std::string, TimingCell>& timing_cell_map = database.get_timing_library().get_cell_map();
-  if (timing_cell_map.count(instance.get_cell_name()) == 0) {
-    return false;
-  }
-  TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
-  if (timing_cell.get_port_map().count(pin.get_pin_name()) == 0) {
-    return false;
-  }
-  return timing_cell.get_port_map()[pin.get_pin_name()].get_is_output();
-}
-
-bool DataManager::isOutputLikeDirection(PinDirection direction)
-{
-  return direction == PinDirection::kOutput || direction == PinDirection::kInout;
 }
 
 void DataManager::buildParasiticLibrary(Database& database)
