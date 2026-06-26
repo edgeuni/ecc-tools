@@ -18,6 +18,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -45,6 +46,17 @@ auto directionName(spef::ConnectionDirection direction) -> std::string
       break;
   }
   return "";
+}
+
+auto nameMapIndex(const std::string& name) -> std::optional<std::size_t>
+{
+  if (name.size() < 2 || name.front() != '*' || !std::isdigit(static_cast<unsigned char>(name[1]))) {
+    return std::nullopt;
+  }
+
+  const std::size_t begin = 1;
+  const std::size_t colon = name.find(':', begin);
+  return static_cast<std::size_t>(std::strtoull(name.substr(begin, colon - begin).c_str(), nullptr, 10));
 }
 
 }  // namespace
@@ -177,7 +189,8 @@ auto SpefReader::read(const std::string& path, Data& data) const -> bool
     net.node_ground_caps.reserve(ground_cap_count);
     net.node_coupling_caps.reserve(coupling_cap_count);
 
-    for (const auto& conn : spef_net.conns) {
+    for (std::size_t conn_index = 0; conn_index < spef_net.conns.size(); ++conn_index) {
+      const auto& conn = spef_net.conns[conn_index];
       Pin pin;
       pin.name = name_expander.expand(conn.pin_port_name);
       pin.direction = directionName(conn.conn_direction);
@@ -186,6 +199,11 @@ auto SpefReader::read(const std::string& path, Data& data) const -> bool
       pin.x = conn.coordinate.x;
       pin.y = conn.coordinate.y;
       pin.has_coordinate = conn.coordinate.x >= 0.0 && conn.coordinate.y >= 0.0;
+      pin.connection_order = conn_index;
+      if (const auto index = nameMapIndex(conn.pin_port_name)) {
+        pin.name_map_index = *index;
+        pin.has_name_map_index = true;
+      }
       data.index.rememberNodeNet(pin.name, net.name);
       net.pins.push_back(std::move(pin));
     }
