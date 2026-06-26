@@ -35,8 +35,6 @@ class Config
   std::string log_file_path;  // building
   // **********    DataManager    ********** //
   std::string dm_temp_directory_path;  // building
-  // **********   DesignLoader    ********** //
-  std::string dl_temp_directory_path;  // building
   // **********   GraphBuilder    ********** //
   std::string gb_temp_directory_path;  // building
   // ********* TimingPropagator   ********* //

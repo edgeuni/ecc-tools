@@ -272,8 +272,11 @@ bool GraphBuilder::isStartPoint(Database& database, const std::string& pin_name,
   if (isRegisterClockStartPoint(database, pin_name, pin)) {
     return true;
   }
-  if (isClockPin(database, pin_name, pin) || isClockSource(database, pin_name)) {
+  if (isClockPin(database, pin_name, pin)) {
     return false;
+  }
+  if (isClockSource(database, pin_name)) {
+    return isStartPort(pin);
   }
   return !hasIncomingArc(database, pin_name) || isStartPort(pin);
 }

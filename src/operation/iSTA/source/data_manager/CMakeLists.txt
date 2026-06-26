@@ -15,6 +15,7 @@ target_link_libraries(ista_data_manager
     ista_toolkit
     idm
     liberty
+    spef
 )
 
 target_include_directories(ista_data_manager

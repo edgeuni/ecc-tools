@@ -284,6 +284,20 @@ bool TimingReporter::hasClockPoint(Database& database, std::string& pin_name)
   return database.get_timing_point_map().count(pin_name) > 0 && database.get_timing_point_map()[pin_name].get_is_clock_point();
 }
 
+bool TimingReporter::isClockSourceStartPoint(Database& database, std::string& pin_name)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  if (!pin.get_is_port()) {
+    return false;
+  }
+  for (std::pair<const std::string, TimingClock>& clock_pair : database.get_timing_constraint().get_clock_map()) {
+    if (STAUTIL.exist(clock_pair.second.get_source_list(), pin_name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool TimingReporter::isPowerGroundPin(Database& database, std::string& pin_name)
 {
   Pin& pin = database.get_pin_map()[pin_name];
@@ -317,6 +331,9 @@ std::string TimingReporter::getStartPointText(Database& database, TimingPath& ti
   std::string start_point = getPTPinName(timing_path.get_start_point());
   if (!start_pin.get_is_port()) {
     start_point = start_pin.get_instance_name();
+  }
+  if (isClockSourceStartPoint(database, timing_path.get_start_point())) {
+    return STAUTIL.getString(start_point, " (clock source '", clock_name, "')");
   }
   if (isPort(database, timing_path.get_start_point())) {
     return STAUTIL.getString(start_point, " (input port clocked by ", clock_name, ")");
@@ -443,8 +460,14 @@ void TimingReporter::outputLaunchClockInfo(std::ofstream* report_file, Database&
   std::string clock_name = getClockName(database, timing_path);
   double launch_time = timing_path.get_launch_time();
   double launch_clock_network_delay = timing_path.get_launch_clock_network_delay();
-  outputTimingLine(report_file, STAUTIL.getString("clock ", clock_name, " (rise edge)"), 0.0, 0.0, true, "", label_width);
-  outputTimingLine(report_file, "clock network delay (propagated)", launch_clock_network_delay, launch_time, true, "", label_width);
+  double launch_clock_edge = isClockSourceStartPoint(database, timing_path.get_start_point()) ? launch_time : 0.0;
+  outputTimingLine(report_file, STAUTIL.getString("clock ", clock_name, " (", getLaunchClockEdgeText(database, timing_path, delay_type), " edge)"),
+                   launch_clock_edge, launch_clock_edge, true, "", label_width);
+  if (isClockSourceStartPoint(database, timing_path.get_start_point())) {
+    outputTimingLine(report_file, "clock source latency", 0.0, launch_time, true, "", label_width);
+  } else {
+    outputTimingLine(report_file, "clock network delay (propagated)", launch_clock_network_delay, launch_time, true, "", label_width);
+  }
 
   std::string start_clock_pin = getStartClockPin(database, timing_path);
   if (!start_clock_pin.empty() && start_clock_pin != timing_path.get_start_point()) {
@@ -459,6 +482,14 @@ void TimingReporter::outputLaunchClockInfo(std::ofstream* report_file, Database&
   if (isPort(database, timing_path.get_start_point()) && has_input_delay) {
     outputTimingLine(report_file, "input external delay", input_delay, launch_time + input_delay, true, "r", label_width);
   }
+}
+
+std::string TimingReporter::getLaunchClockEdgeText(Database& database, TimingPath& timing_path, DelayType delay_type)
+{
+  if (isClockSourceStartPoint(database, timing_path.get_start_point()) && delay_type == DelayType::kMax && timing_path.get_trans_type() == TransType::kFall) {
+    return "fall";
+  }
+  return "rise";
 }
 
 std::string TimingReporter::getTransTypeName(TransType trans_type)

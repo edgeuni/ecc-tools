@@ -80,6 +80,8 @@ class TimingPropagator
   double getParasiticTotalResistance(ParasiticNet& parasitic_net);
   void propagateArrival(Database& database);
   bool isDisableArc(Arc& arc);
+  bool shouldStopDataPropagation(Database& database, Arc& arc);
+  bool isSequentialClockPin(Database& database, std::string& pin_name);
   void initTimingPointList(Database& database);
   void markClockPointList(Database& database);
   void markClockPoint(Database& database, std::string& clock_source);
@@ -117,12 +119,16 @@ class TimingPropagator
   double roundTime(double time);
   double getStartPointArrival(Database& database, std::string& start_point, AnalysisType analysis_type);
   double getStartPointArrival(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type);
+  bool isClockSourceStartPoint(Database& database, std::string& start_point);
+  TimingClock* getStartPointClock(Database& database, std::string& start_point);
+  double getStartPointClockEdge(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type);
   double getStartPointSlew(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type);
   double calcTimingCellArcDelay(Database& database, std::string& output_pin, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
                                 TransType input_trans_type, TransType output_trans_type, double input_slew);
   double calcTimingCellArcSlew(Database& database, std::string& output_pin, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
                                TransType input_trans_type, TransType output_trans_type, double input_slew);
   double getStartPointLaunchTime(Database& database, std::string& start_point, AnalysisType analysis_type);
+  double getStartPointLaunchTime(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type);
   TransType getClockTransType(TimingCellArc& timing_cell_arc);
   std::string getClockName(Database& database, std::string& pin_name);
   std::string getPathStateStartPoint(Database& database, std::string& start_point);
@@ -162,6 +168,7 @@ class TimingPropagator
                              TransType data_trans_type, double data_slew);
   double getEndPointRequired(Database& database, std::string& start_point, std::string& end_point, double default_required_time,
                              AnalysisType analysis_type, TransType data_trans_type, double data_slew);
+  bool isMatchCheckTransType(TimingCheckArc& timing_check_arc, TransType data_trans_type);
   double getEndPointCheckTime(Database& database, std::string& end_point, TimingCheckArc& timing_check_arc, AnalysisType analysis_type,
                               TransType data_trans_type, double data_slew);
   double calcTimingCheckArcTime(TimingCheckArc& timing_check_arc, AnalysisType analysis_type, TransType clock_trans_type, TransType data_trans_type,

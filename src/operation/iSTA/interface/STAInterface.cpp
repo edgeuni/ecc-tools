@@ -17,7 +17,6 @@
 #include "STAInterface.hpp"
 
 #include "DataManager.hpp"
-#include "DesignLoader.hpp"
 #include "GraphBuilder.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
@@ -80,10 +79,6 @@ void STAInterface::runSTA()
 {
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
-
-  DesignLoader::initInst();
-  STADL.build();
-  DesignLoader::destroyInst();
 
   GraphBuilder::initInst();
   STAGB.build();

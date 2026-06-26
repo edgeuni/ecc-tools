@@ -50,6 +50,7 @@
 #include <list>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <ostream>
 #include <queue>
 #include <regex>

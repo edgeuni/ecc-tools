@@ -416,9 +416,6 @@ double TimingPropagator::getNetOutputLoad(Database& database, Net& net, Analysis
   for (std::string& load_pin_name : net.get_load_pin_list()) {
     output_load += getPinCapacitance(database, load_pin_name, analysis_type, output_trans_type);
   }
-  if (net.get_driver_pin_list().size() > 1) {
-    output_load /= static_cast<double>(net.get_driver_pin_list().size());
-  }
   return output_load;
 }
 
@@ -523,6 +520,9 @@ void TimingPropagator::propagateArrival(Database& database)
       if (isDisableArc(database.get_arc_list()[arc_idx])) {
         continue;
       }
+      if (shouldStopDataPropagation(database, database.get_arc_list()[arc_idx])) {
+        continue;
+      }
       propagateArrivalArc(database, arc_idx);
     }
   }
@@ -531,6 +531,21 @@ void TimingPropagator::propagateArrival(Database& database)
 bool TimingPropagator::isDisableArc(Arc& arc)
 {
   return arc.get_is_disable_arc() || arc.get_is_loop_disable();
+}
+
+bool TimingPropagator::shouldStopDataPropagation(Database& database, Arc& arc)
+{
+  return arc.get_type() == ArcType::kNet && isSequentialClockPin(database, arc.get_sink_pin());
+}
+
+bool TimingPropagator::isSequentialClockPin(Database& database, std::string& pin_name)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return false;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  return instance.get_is_sequential() && pin_name == instance.get_clock_pin_name();
 }
 
 void TimingPropagator::initTimingPointList(Database& database)
@@ -802,6 +817,9 @@ void TimingPropagator::propagateDataSlewDelayArc(Database& database, std::size_t
   if (isDisableArc(arc)) {
     return;
   }
+  if (shouldStopDataPropagation(database, arc)) {
+    return;
+  }
   TimingPoint& source_point = database.get_timing_point_map()[arc.get_source_pin()];
   if (!hasDataSlew(source_point, analysis_type, input_trans_type)) {
     return;
@@ -898,6 +916,9 @@ double TimingPropagator::getStartPointArrival(Database& database, std::string& s
 
 double TimingPropagator::getStartPointArrival(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type)
 {
+  if (isClockSourceStartPoint(database, start_point)) {
+    return getStartPointClockEdge(database, start_point, analysis_type, trans_type);
+  }
   Pin& pin = database.get_pin_map()[start_point];
   if (pin.get_is_port()) {
     std::map<std::string, TimingPortConstraint>& port_constraint_map = database.get_timing_constraint().get_port_constraint_map();
@@ -925,6 +946,36 @@ double TimingPropagator::getStartPointArrival(Database& database, std::string& s
     return getClockArrival(database, instance.get_clock_pin_name(), analysis_type, clock_trans_type) + clock_to_q_delay;
   }
   return 0.0;
+}
+
+bool TimingPropagator::isClockSourceStartPoint(Database& database, std::string& start_point)
+{
+  Pin& pin = database.get_pin_map()[start_point];
+  return pin.get_is_port() && getStartPointClock(database, start_point) != nullptr;
+}
+
+TimingClock* TimingPropagator::getStartPointClock(Database& database, std::string& start_point)
+{
+  for (std::pair<const std::string, TimingClock>& clock_pair : database.get_timing_constraint().get_clock_map()) {
+    for (std::string& clock_source : clock_pair.second.get_source_list()) {
+      if (clock_source == start_point) {
+        return &clock_pair.second;
+      }
+    }
+  }
+  return nullptr;
+}
+
+double TimingPropagator::getStartPointClockEdge(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type)
+{
+  TimingClock* timing_clock = getStartPointClock(database, start_point);
+  if (timing_clock == nullptr) {
+    return 0.0;
+  }
+  if (analysis_type == AnalysisType::kMax && trans_type == TransType::kFall) {
+    return timing_clock->get_fall_edge();
+  }
+  return timing_clock->get_rise_edge();
 }
 
 double TimingPropagator::getStartPointSlew(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type)
@@ -971,6 +1022,14 @@ double TimingPropagator::calcTimingCellArcSlew(Database& database, std::string& 
 
 double TimingPropagator::getStartPointLaunchTime(Database& database, std::string& start_point, AnalysisType analysis_type)
 {
+  return getStartPointLaunchTime(database, start_point, analysis_type, TransType::kRise);
+}
+
+double TimingPropagator::getStartPointLaunchTime(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type)
+{
+  if (isClockSourceStartPoint(database, start_point)) {
+    return getStartPointClockEdge(database, start_point, analysis_type, trans_type);
+  }
   Pin& pin = database.get_pin_map()[start_point];
   if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
     return 0.0;
@@ -997,6 +1056,10 @@ TransType TimingPropagator::getClockTransType(TimingCellArc& timing_cell_arc)
 
 std::string TimingPropagator::getClockName(Database& database, std::string& pin_name)
 {
+  TimingClock* timing_clock = getStartPointClock(database, pin_name);
+  if (timing_clock != nullptr) {
+    return timing_clock->get_clock_name();
+  }
   Pin& pin = database.get_pin_map()[pin_name];
   std::map<std::string, TimingClock>& clock_map = database.get_timing_constraint().get_clock_map();
   if (pin.get_is_port()) {
@@ -1035,7 +1098,7 @@ void TimingPropagator::seedPathState(Database& database, std::string& start_poin
       = database.get_timing_point_map()[start_point].get_path_state_map()[analysis_type][source_type][TransType::kRise][path_state_start_point];
   rise_path_state.set_arrival(getStartPointArrival(database, start_point, analysis_type, TransType::kRise));
   rise_path_state.set_slew(getStartPointSlew(database, start_point, analysis_type, TransType::kRise));
-  rise_path_state.set_launch_time(getStartPointLaunchTime(database, start_point, analysis_type));
+  rise_path_state.set_launch_time(getStartPointLaunchTime(database, start_point, analysis_type, TransType::kRise));
   rise_path_state.set_start_point(path_state_start_point);
   rise_path_state.set_clock_name(getClockName(database, start_point));
   rise_path_state.get_predecessor().clear();
@@ -1047,7 +1110,7 @@ void TimingPropagator::seedPathState(Database& database, std::string& start_poin
       = database.get_timing_point_map()[start_point].get_path_state_map()[analysis_type][source_type][TransType::kFall][path_state_start_point];
   fall_path_state.set_arrival(getStartPointArrival(database, start_point, analysis_type, TransType::kFall));
   fall_path_state.set_slew(getStartPointSlew(database, start_point, analysis_type, TransType::kFall));
-  fall_path_state.set_launch_time(getStartPointLaunchTime(database, start_point, analysis_type));
+  fall_path_state.set_launch_time(getStartPointLaunchTime(database, start_point, analysis_type, TransType::kFall));
   fall_path_state.set_start_point(path_state_start_point);
   fall_path_state.set_clock_name(getClockName(database, start_point));
   fall_path_state.get_predecessor().clear();
@@ -1059,6 +1122,9 @@ void TimingPropagator::seedPathState(Database& database, std::string& start_poin
 
 PathSourceType TimingPropagator::getStartPointSourceType(Database& database, std::string& start_point, AnalysisType analysis_type)
 {
+  if (isClockSourceStartPoint(database, start_point)) {
+    return PathSourceType::kInput;
+  }
   if (isInputStartPoint(database, start_point) && hasInputDelay(database, start_point, analysis_type)) {
     return PathSourceType::kInput;
   }
@@ -1375,6 +1441,9 @@ void TimingPropagator::propagateRequired(Database& database)
       if (isDisableArc(database.get_arc_list()[arc_idx])) {
         continue;
       }
+      if (shouldStopDataPropagation(database, database.get_arc_list()[arc_idx])) {
+        continue;
+      }
       propagateRequiredArc(database, database.get_arc_list()[arc_idx]);
     }
   }
@@ -1438,7 +1507,7 @@ double TimingPropagator::getEndPointRequired(Database& database, std::string& st
   }
   Instance& instance = database.get_instance_map()[pin.get_instance_name()];
   TimingCheckArc* timing_check_arc = getEndPointCheckArc(database, end_point, analysis_type);
-  if (instance.get_is_sequential() && timing_check_arc != nullptr) {
+  if (instance.get_is_sequential() && timing_check_arc != nullptr && isMatchCheckTransType(*timing_check_arc, data_trans_type)) {
     std::string clock_name = getClockName(database, end_point);
     double check_time = getEndPointCheckTime(database, end_point, *timing_check_arc, analysis_type, data_trans_type, data_slew);
     std::string common_pin_name;
@@ -1449,6 +1518,21 @@ double TimingPropagator::getEndPointRequired(Database& database, std::string& st
     return roundTime(getEndPointCaptureTime(database, end_point, analysis_type) - check_time + cppr);
   }
   return default_required_time;
+}
+
+bool TimingPropagator::isMatchCheckTransType(TimingCheckArc& timing_check_arc, TransType data_trans_type)
+{
+  idb::LibArc* lib_arc = timing_check_arc.get_lib_arc();
+  if (lib_arc == nullptr && timing_check_arc.get_lib_arc_set() != nullptr) {
+    lib_arc = timing_check_arc.get_lib_arc_set()->front();
+  }
+  if (lib_arc == nullptr || lib_arc->get_table_model() == nullptr) {
+    return true;
+  }
+  if (data_trans_type == TransType::kFall) {
+    return lib_arc->get_table_model()->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kFallConstrain)) != nullptr;
+  }
+  return lib_arc->get_table_model()->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kRiseConstrain)) != nullptr;
 }
 
 double TimingPropagator::getEndPointCheckTime(Database& database, std::string& end_point, TimingCheckArc& timing_check_arc, AnalysisType analysis_type,
@@ -1501,7 +1585,7 @@ TransType TimingPropagator::getClockTransType(TimingCheckArc& timing_check_arc)
   if (lib_arc == nullptr) {
     return TransType::kRise;
   }
-  if (lib_arc->isFallingTriggerArc()) {
+  if (lib_arc->isFallingEdgeCheck()) {
     return TransType::kFall;
   }
   return TransType::kRise;
@@ -1688,6 +1772,9 @@ void TimingPropagator::propagateRequiredArc(Database& database, Arc& arc)
   if (isDisableArc(arc)) {
     return;
   }
+  if (shouldStopDataPropagation(database, arc)) {
+    return;
+  }
   TimingPoint& source_point = database.get_timing_point_map()[arc.get_source_pin()];
   TimingPoint& sink_point = database.get_timing_point_map()[arc.get_sink_pin()];
   if (isFinite(sink_point.get_required())) {
@@ -1823,7 +1910,8 @@ void TimingPropagator::buildPathDiversionList(Database& database, std::string& e
     TransType sink_trans_type = path_trans_type_list[sink_idx];
     std::size_t path_arc_idx = path_arc_idx_list[sink_idx - 1];
     for (std::size_t diversion_arc_idx : database.get_incoming_arc_list_map()[sink_pin]) {
-      if (diversion_arc_idx == path_arc_idx || isDisableArc(database.get_arc_list()[diversion_arc_idx])) {
+      if (diversion_arc_idx == path_arc_idx || isDisableArc(database.get_arc_list()[diversion_arc_idx])
+          || shouldStopDataPropagation(database, database.get_arc_list()[diversion_arc_idx])) {
         continue;
       }
       Arc& diversion_arc = database.get_arc_list()[diversion_arc_idx];
@@ -1928,6 +2016,10 @@ TimingPathState* TimingPropagator::getWorstSlackPathState(Database& database, st
     for (std::pair<const std::string, TimingPathState>& path_state_pair : path_state_map) {
       TimingPathState& path_state = path_state_pair.second;
       if (!isFinite(path_state.get_arrival())) {
+        continue;
+      }
+      TimingCheckArc* timing_check_arc = getEndPointCheckArc(database, end_point, analysis_type);
+      if (timing_check_arc != nullptr && !isMatchCheckTransType(*timing_check_arc, path_state.get_trans_type())) {
         continue;
       }
       double required_time = calcPathRequiredTime(database, end_point, path_state, analysis_type);

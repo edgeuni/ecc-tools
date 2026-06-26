@@ -78,6 +78,7 @@ class TimingReporter
   bool isRegisterStartPoint(Database& database, std::string& pin_name);
   bool isRegisterEndPoint(Database& database, std::string& pin_name);
   bool hasClockPoint(Database& database, std::string& pin_name);
+  bool isClockSourceStartPoint(Database& database, std::string& pin_name);
   bool isPowerGroundPin(Database& database, std::string& pin_name);
   void outputTimingPath(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
   void outputTimingPathHeader(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
@@ -90,6 +91,7 @@ class TimingReporter
   void updateTimingLineLabelWidth(std::size_t& label_width, std::string label);
   void outputTimingPointHeader(std::ofstream* report_file, std::size_t label_width);
   void outputLaunchClockInfo(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type, std::size_t label_width);
+  std::string getLaunchClockEdgeText(Database& database, TimingPath& timing_path, DelayType delay_type);
   std::string getTransTypeName(TransType trans_type);
   void outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr, std::string transition,
                         std::size_t label_width);
