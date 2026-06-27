@@ -1041,6 +1041,33 @@ double TimingPropagator::getStartPointLaunchTime(Database& database, std::string
   return getClockArrival(database, instance.get_clock_pin_name(), analysis_type, getClockTransType(instance.get_clock_to_q_arc()));
 }
 
+std::string TimingPropagator::getStartPointCrprClockPin(Database& database, std::string& start_point)
+{
+  Pin& pin = database.get_pin_map()[start_point];
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return "";
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  if (!instance.get_is_sequential() || (start_point != instance.get_output_pin_name() && start_point != instance.get_clock_pin_name())) {
+    return "";
+  }
+  std::string clock_pin_name = instance.get_clock_pin_name();
+  return clock_pin_name;
+}
+
+TransType TimingPropagator::getStartPointCrprClockTransType(Database& database, std::string& start_point)
+{
+  Pin& pin = database.get_pin_map()[start_point];
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return TransType::kNone;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  if (!instance.get_is_sequential() || (start_point != instance.get_output_pin_name() && start_point != instance.get_clock_pin_name())) {
+    return TransType::kNone;
+  }
+  return getClockTransType(instance.get_clock_to_q_arc());
+}
+
 TransType TimingPropagator::getClockTransType(TimingCellArc& timing_cell_arc)
 {
   idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
@@ -1101,11 +1128,13 @@ void TimingPropagator::seedPathState(Database& database, std::string& start_poin
   rise_path_state.set_launch_time(getStartPointLaunchTime(database, start_point, analysis_type, TransType::kRise));
   rise_path_state.set_start_point(path_state_start_point);
   rise_path_state.set_clock_name(getClockName(database, start_point));
+  rise_path_state.set_crpr_clock_pin(getStartPointCrprClockPin(database, start_point));
   rise_path_state.get_predecessor().clear();
   rise_path_state.set_predecessor_arc_idx(std::numeric_limits<std::size_t>::max());
   rise_path_state.set_predecessor_arc_delay(0.0);
   rise_path_state.set_trans_type(TransType::kRise);
   rise_path_state.set_predecessor_trans_type(TransType::kNone);
+  rise_path_state.set_crpr_clock_trans_type(getStartPointCrprClockTransType(database, start_point));
   TimingPathState& fall_path_state
       = database.get_timing_point_map()[start_point].get_path_state_map()[analysis_type][source_type][TransType::kFall][path_state_start_point];
   fall_path_state.set_arrival(getStartPointArrival(database, start_point, analysis_type, TransType::kFall));
@@ -1113,11 +1142,13 @@ void TimingPropagator::seedPathState(Database& database, std::string& start_poin
   fall_path_state.set_launch_time(getStartPointLaunchTime(database, start_point, analysis_type, TransType::kFall));
   fall_path_state.set_start_point(path_state_start_point);
   fall_path_state.set_clock_name(getClockName(database, start_point));
+  fall_path_state.set_crpr_clock_pin(getStartPointCrprClockPin(database, start_point));
   fall_path_state.get_predecessor().clear();
   fall_path_state.set_predecessor_arc_idx(std::numeric_limits<std::size_t>::max());
   fall_path_state.set_predecessor_arc_delay(0.0);
   fall_path_state.set_trans_type(TransType::kFall);
   fall_path_state.set_predecessor_trans_type(TransType::kNone);
+  fall_path_state.set_crpr_clock_trans_type(getStartPointCrprClockTransType(database, start_point));
 }
 
 PathSourceType TimingPropagator::getStartPointSourceType(Database& database, std::string& start_point, AnalysisType analysis_type)
@@ -1247,8 +1278,10 @@ void TimingPropagator::propagatePathStateArc(Database& database, std::size_t arc
       sink_path_state.set_predecessor_arc_delay(arc_delay);
       sink_path_state.set_launch_time(source_path_state.get_launch_time());
       sink_path_state.set_clock_name(source_path_state.get_clock_name());
+      sink_path_state.set_crpr_clock_pin(source_path_state.get_crpr_clock_pin());
       sink_path_state.set_trans_type(output_trans_type);
       sink_path_state.set_predecessor_trans_type(input_trans_type);
+      sink_path_state.set_crpr_clock_trans_type(source_path_state.get_crpr_clock_trans_type());
     }
   }
 }
@@ -1520,6 +1553,32 @@ double TimingPropagator::getEndPointRequired(Database& database, std::string& st
   return default_required_time;
 }
 
+double TimingPropagator::getEndPointRequired(Database& database, TimingPathState& end_path_state, std::string& end_point, double default_required_time,
+                                             AnalysisType analysis_type)
+{
+  Pin& pin = database.get_pin_map()[end_point];
+  if (pin.get_is_port()) {
+    return getEndPointRequired(database, end_path_state.get_start_point(), end_point, default_required_time, analysis_type,
+                               end_path_state.get_trans_type(), end_path_state.get_slew());
+  }
+  if (database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return default_required_time;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  TimingCheckArc* timing_check_arc = getEndPointCheckArc(database, end_point, analysis_type);
+  if (instance.get_is_sequential() && timing_check_arc != nullptr && isMatchCheckTransType(*timing_check_arc, end_path_state.get_trans_type())) {
+    double check_time = getEndPointCheckTime(database, end_point, *timing_check_arc, analysis_type, end_path_state.get_trans_type(),
+                                             end_path_state.get_slew());
+    std::string common_pin_name;
+    double cppr = getClockReconvergencePessimism(database, end_path_state, end_point, analysis_type, common_pin_name);
+    if (analysis_type == AnalysisType::kMin) {
+      return roundTime(getEndPointCaptureTime(database, end_point, analysis_type) + check_time - cppr);
+    }
+    return roundTime(getEndPointCaptureTime(database, end_point, analysis_type) - check_time + cppr);
+  }
+  return default_required_time;
+}
+
 bool TimingPropagator::isMatchCheckTransType(TimingCheckArc& timing_check_arc, TransType data_trans_type)
 {
   idb::LibArc* lib_arc = timing_check_arc.get_lib_arc();
@@ -1621,23 +1680,44 @@ double TimingPropagator::getEndPointClockArrival(Database& database, std::string
   return getClockArrival(database, instance.get_clock_pin_name(), analysis_type, trans_type);
 }
 
+double TimingPropagator::getClockReconvergencePessimism(Database& database, TimingPathState& end_path_state, std::string& end_point,
+                                                        AnalysisType analysis_type, std::string& common_pin_name)
+{
+  if (end_path_state.get_crpr_clock_pin().empty()) {
+    return getClockReconvergencePessimism(database, end_path_state.get_start_point(), end_point, analysis_type, common_pin_name);
+  }
+  std::pair<std::string, TransType> launch_crpr_pin(end_path_state.get_crpr_clock_pin(), end_path_state.get_crpr_clock_trans_type());
+  return getClockReconvergencePessimism(database, launch_crpr_pin, end_point, analysis_type, common_pin_name);
+}
+
 double TimingPropagator::getClockReconvergencePessimism(Database& database, std::string& start_point, std::string& end_point,
                                                         AnalysisType analysis_type, std::string& common_pin_name)
 {
-  if (!isRegisterStartPoint(database, start_point) || !isRegisterEndPoint(database, end_point)) {
+  if (!isRegisterStartPoint(database, start_point) || (!isRegisterEndPoint(database, end_point) && !isTimingCheckEndPoint(database, end_point))) {
     return 0.0;
   }
   Pin& start_pin = database.get_pin_map()[start_point];
-  Pin& end_pin = database.get_pin_map()[end_point];
   Instance& start_instance = database.get_instance_map()[start_pin.get_instance_name()];
+  TransType launch_trans_type = getClockTransType(start_instance.get_clock_to_q_arc());
+  std::pair<std::string, TransType> launch_crpr_pin(start_instance.get_clock_pin_name(), launch_trans_type);
+  return getClockReconvergencePessimism(database, launch_crpr_pin, end_point, analysis_type, common_pin_name);
+}
+
+double TimingPropagator::getClockReconvergencePessimism(Database& database, std::pair<std::string, TransType>& launch_crpr_pin,
+                                                        std::string& end_point, AnalysisType analysis_type, std::string& common_pin_name)
+{
+  if ((!isRegisterEndPoint(database, end_point) && !isTimingCheckEndPoint(database, end_point)) || database.get_pin_map().count(launch_crpr_pin.first) == 0) {
+    return 0.0;
+  }
+  Pin& end_pin = database.get_pin_map()[end_point];
   Instance& end_instance = database.get_instance_map()[end_pin.get_instance_name()];
   AnalysisType launch_analysis_type = analysis_type;
   AnalysisType capture_analysis_type = getCaptureAnalysisType(analysis_type);
-  TransType launch_trans_type = getClockTransType(start_instance.get_clock_to_q_arc());
+  TransType launch_trans_type = launch_crpr_pin.second == TransType::kNone ? TransType::kRise : launch_crpr_pin.second;
   TimingCheckArc* timing_check_arc = getEndPointCheckArc(database, end_point, analysis_type);
   TransType capture_trans_type = timing_check_arc == nullptr ? TransType::kRise : getClockTransType(*timing_check_arc);
   std::vector<std::pair<std::string, TransType>> launch_clock_path
-      = getClockPathPinList(database, start_instance.get_clock_pin_name(), launch_analysis_type, launch_trans_type);
+      = getClockPathPinList(database, launch_crpr_pin.first, launch_analysis_type, launch_trans_type);
   std::vector<std::pair<std::string, TransType>> capture_clock_path
       = getClockPathPinList(database, end_instance.get_clock_pin_name(), capture_analysis_type, capture_trans_type);
   shrinkClockPathToCrprPath(database, launch_clock_path);
@@ -1997,8 +2077,10 @@ bool TimingPropagator::updateDiversionPathState(Database& database, std::string&
   path_state.set_predecessor_arc_delay(predecessor_arc_delay);
   path_state.set_launch_time(source_path_state.get_launch_time());
   path_state.set_clock_name(source_path_state.get_clock_name());
+  path_state.set_crpr_clock_pin(source_path_state.get_crpr_clock_pin());
   path_state.set_trans_type(trans_type);
   path_state.set_predecessor_trans_type(predecessor_trans_type);
+  path_state.set_crpr_clock_trans_type(source_path_state.get_crpr_clock_trans_type());
   return true;
 }
 
@@ -2035,8 +2117,7 @@ TimingPathState* TimingPropagator::getWorstSlackPathState(Database& database, st
 
 double TimingPropagator::calcPathRequiredTime(Database& database, std::string& end_point, TimingPathState& end_path_state, AnalysisType analysis_type)
 {
-  return getEndPointRequired(database, end_path_state.get_start_point(), end_point, end_path_state.get_arrival(), analysis_type,
-                             end_path_state.get_trans_type(), end_path_state.get_slew());
+  return getEndPointRequired(database, end_path_state, end_point, end_path_state.get_arrival(), analysis_type);
 }
 
 double TimingPropagator::calcPathSlack(TimingPathState& end_path_state, double required_time, AnalysisType analysis_type)
@@ -2105,8 +2186,7 @@ TimingPath TimingPropagator::buildTimingPath(Database& database, std::string& en
   buildPathTrace(database, end_point, analysis_type, source_type, trans_type, start_point, path_pin_name_list, path_trans_type_list);
   std::vector<std::size_t> path_arc_idx_list = getPathArcIdxList(database, path_pin_name_list, path_trans_type_list, analysis_type, source_type, start_point);
   TimingPathState& end_path_state = getPathState(database.get_timing_point_map()[end_point], analysis_type, source_type, trans_type, start_point);
-  double required_time = getEndPointRequired(database, start_point, end_point, end_path_state.get_arrival(), analysis_type, trans_type,
-                                             end_path_state.get_slew());
+  double required_time = getEndPointRequired(database, end_path_state, end_point, end_path_state.get_arrival(), analysis_type);
   double slack = analysis_type == AnalysisType::kMin ? roundTime(end_path_state.get_arrival() - required_time)
                                                      : roundTime(required_time - end_path_state.get_arrival());
   TimingPath timing_path;
@@ -2196,7 +2276,7 @@ void TimingPropagator::updateClockInfo(Database& database, TimingPath& timing_pa
   timing_path.set_launch_time(end_path_state.get_launch_time());
   timing_path.set_clock_name(end_path_state.get_clock_name());
   std::string common_pin_name;
-  double cppr = getClockReconvergencePessimism(database, start_point, timing_path.get_end_point(), analysis_type, common_pin_name);
+  double cppr = getClockReconvergencePessimism(database, end_path_state, timing_path.get_end_point(), analysis_type, common_pin_name);
   if (analysis_type == AnalysisType::kMin) {
     cppr = -cppr;
   }

@@ -330,6 +330,11 @@ std::string TimingReporter::getStartPointText(Database& database, TimingPath& ti
   std::string clock_name = getClockName(database, timing_path);
   std::string start_point = getPTPinName(timing_path.get_start_point());
   if (!start_pin.get_is_port()) {
+    Instance& start_instance = database.get_instance_map()[start_pin.get_instance_name()];
+    if (start_instance.get_is_sequential() && isInternalStartPoint(database, timing_path)) {
+      start_point = getPTPinName(start_instance.get_clock_pin_name());
+      return STAUTIL.getString(start_point, " (internal path startpoint clocked by ", clock_name, ")");
+    }
     start_point = start_pin.get_instance_name();
   }
   if (isClockSourceStartPoint(database, timing_path.get_start_point())) {
@@ -339,6 +344,61 @@ std::string TimingReporter::getStartPointText(Database& database, TimingPath& ti
     return STAUTIL.getString(start_point, " (input port clocked by ", clock_name, ")");
   }
   return STAUTIL.getString(start_point, " (rising edge-triggered flip-flop clocked by ", clock_name, ")");
+}
+
+bool TimingReporter::isInternalStartPoint(Database& database, TimingPath& timing_path)
+{
+  Pin& start_pin = database.get_pin_map()[timing_path.get_start_point()];
+  Instance& start_instance = database.get_instance_map()[start_pin.get_instance_name()];
+  return timing_path.get_start_point() == start_instance.get_clock_pin_name()
+         || (timing_path.get_start_point() == start_instance.get_output_pin_name() && isTieDrivenConstantOutput(database, start_instance));
+}
+
+bool TimingReporter::isTieDrivenConstantOutput(Database& database, Instance& instance)
+{
+  std::optional<bool> data_value = getTieDriverValue(database, instance.get_data_pin_name());
+  if (!data_value.has_value()) {
+    return false;
+  }
+  if (instance.get_has_clear_arc() && *data_value) {
+    return false;
+  }
+  if (instance.get_has_preset_arc() && !*data_value) {
+    return false;
+  }
+  return true;
+}
+
+std::optional<bool> TimingReporter::getTieDriverValue(Database& database, std::string& pin_name)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  Net& net = database.get_net_map()[pin.get_net_name()];
+  for (std::string& driver_pin_name : net.get_driver_pin_list()) {
+    Pin& driver_pin = database.get_pin_map()[driver_pin_name];
+    if (driver_pin.get_is_port()) {
+      continue;
+    }
+    Instance& driver_instance = database.get_instance_map()[driver_pin.get_instance_name()];
+    if (isTieHighCell(driver_instance)) {
+      return true;
+    }
+    if (isTieLowCell(driver_instance)) {
+      return false;
+    }
+  }
+  return std::nullopt;
+}
+
+bool TimingReporter::isTieHighCell(Instance& instance)
+{
+  std::string& cell_name = instance.get_cell_name();
+  return cell_name.rfind("TIEHI", 0) == 0;
+}
+
+bool TimingReporter::isTieLowCell(Instance& instance)
+{
+  std::string& cell_name = instance.get_cell_name();
+  return cell_name.rfind("TIELO", 0) == 0;
 }
 
 std::string TimingReporter::getEndPointText(Database& database, TimingPath& timing_path)

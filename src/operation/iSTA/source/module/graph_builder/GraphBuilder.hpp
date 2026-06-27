@@ -103,6 +103,9 @@ class GraphBuilder
   bool isGray(std::map<std::string, int32_t>& color_map, std::string& pin_name);
   bool disableLoopArc(Arc& arc);
   std::size_t breakLoopArcFromEnd(Database& database);
+  std::size_t breakLoopArcFromFloating(Database& database);
+  void traverseFloatingDataPath(Database& database, std::string& pin_name, std::map<std::string, int32_t>& color_map,
+                                std::size_t& disabled_loop_num);
   void buildTimingOrder(Database& database);
   std::map<std::string, std::size_t> makeIndegreeMap(Database& database);
   void pushRootPinList(Database& database, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);

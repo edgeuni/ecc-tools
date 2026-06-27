@@ -129,6 +129,8 @@ class TimingPropagator
                                TransType input_trans_type, TransType output_trans_type, double input_slew);
   double getStartPointLaunchTime(Database& database, std::string& start_point, AnalysisType analysis_type);
   double getStartPointLaunchTime(Database& database, std::string& start_point, AnalysisType analysis_type, TransType trans_type);
+  std::string getStartPointCrprClockPin(Database& database, std::string& start_point);
+  TransType getStartPointCrprClockTransType(Database& database, std::string& start_point);
   TransType getClockTransType(TimingCellArc& timing_cell_arc);
   std::string getClockName(Database& database, std::string& pin_name);
   std::string getPathStateStartPoint(Database& database, std::string& start_point);
@@ -168,6 +170,8 @@ class TimingPropagator
                              TransType data_trans_type, double data_slew);
   double getEndPointRequired(Database& database, std::string& start_point, std::string& end_point, double default_required_time,
                              AnalysisType analysis_type, TransType data_trans_type, double data_slew);
+  double getEndPointRequired(Database& database, TimingPathState& end_path_state, std::string& end_point, double default_required_time,
+                             AnalysisType analysis_type);
   bool isMatchCheckTransType(TimingCheckArc& timing_check_arc, TransType data_trans_type);
   double getEndPointCheckTime(Database& database, std::string& end_point, TimingCheckArc& timing_check_arc, AnalysisType analysis_type,
                               TransType data_trans_type, double data_slew);
@@ -178,8 +182,12 @@ class TimingPropagator
   double getEndPointCaptureTime(Database& database, std::string& end_point, AnalysisType analysis_type);
   double getEndPointClockArrival(Database& database, std::string& end_point, AnalysisType analysis_type);
   double getEndPointClockArrival(Database& database, std::string& end_point, AnalysisType analysis_type, TransType trans_type);
+  double getClockReconvergencePessimism(Database& database, TimingPathState& end_path_state, std::string& end_point, AnalysisType analysis_type,
+                                        std::string& common_pin_name);
   double getClockReconvergencePessimism(Database& database, std::string& start_point, std::string& end_point, AnalysisType analysis_type,
                                         std::string& common_pin_name);
+  double getClockReconvergencePessimism(Database& database, std::pair<std::string, TransType>& launch_crpr_pin, std::string& end_point,
+                                        AnalysisType analysis_type, std::string& common_pin_name);
   void shrinkClockPathToCrprPath(Database& database, std::vector<std::pair<std::string, TransType>>& clock_path);
   bool isLeafClockDriverPin(Database& database, std::string& pin_name);
   std::vector<std::pair<std::string, TransType>> getClockPathPinList(Database& database, std::string& clock_pin_name, AnalysisType analysis_type,

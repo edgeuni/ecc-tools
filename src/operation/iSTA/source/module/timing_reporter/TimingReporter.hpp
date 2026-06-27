@@ -83,6 +83,11 @@ class TimingReporter
   void outputTimingPath(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
   void outputTimingPathHeader(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
   std::string getStartPointText(Database& database, TimingPath& timing_path);
+  bool isInternalStartPoint(Database& database, TimingPath& timing_path);
+  bool isTieDrivenConstantOutput(Database& database, Instance& instance);
+  std::optional<bool> getTieDriverValue(Database& database, std::string& pin_name);
+  bool isTieHighCell(Instance& instance);
+  bool isTieLowCell(Instance& instance);
   std::string getEndPointText(Database& database, TimingPath& timing_path);
   std::string getEndPointCheckText(std::string& end_point, std::string& clock_name, TimingPath& timing_path);
   std::size_t outputTimingPointList(std::ofstream* report_file, Database& database, TimingPath& timing_path, DelayType delay_type);

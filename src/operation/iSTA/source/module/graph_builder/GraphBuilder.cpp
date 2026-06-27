@@ -627,6 +627,7 @@ void GraphBuilder::breakLoopArcList(Database& database)
 {
   std::size_t disabled_loop_num = breakLoopArcFromStart(database);
   disabled_loop_num += breakLoopArcFromEnd(database);
+  disabled_loop_num += breakLoopArcFromFloating(database);
   if (disabled_loop_num > 0) {
     STALOG.info(Loc::current(), "Break iSTA loop arcs: disabled_arcs=", disabled_loop_num);
   }
@@ -729,6 +730,26 @@ std::size_t GraphBuilder::breakLoopArcFromEnd(Database& database)
     }
   }
   return disabled_loop_num;
+}
+
+std::size_t GraphBuilder::breakLoopArcFromFloating(Database& database)
+{
+  std::size_t disabled_loop_num = 0;
+  std::map<std::string, int32_t> color_map;
+  for (std::pair<const std::string, TimingPoint>& timing_pair : database.get_timing_point_map()) {
+    std::string pin_name = timing_pair.first;
+    traverseFloatingDataPath(database, pin_name, color_map, disabled_loop_num);
+  }
+  return disabled_loop_num;
+}
+
+void GraphBuilder::traverseFloatingDataPath(Database& database, std::string& pin_name, std::map<std::string, int32_t>& color_map,
+                                            std::size_t& disabled_loop_num)
+{
+  if (isBlack(color_map, pin_name)) {
+    return;
+  }
+  (void) traverseDataPath(database, pin_name, true, color_map, disabled_loop_num);
 }
 
 void GraphBuilder::buildTimingOrder(Database& database)

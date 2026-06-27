@@ -73,6 +73,7 @@ class DataManager
   void makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_port);
   void makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib_arc_set);
   TimingCellArc makeDelayArc(idb::LibArcSet* lib_arc_set);
+  void updateClearPresetArc(TimingCell& timing_cell, idb::LibArc* lib_arc);
   TimingCheckArc makeCheckArc(idb::LibArcSet* lib_arc_set);
   TimingCheckType getTimingCheckType(idb::LibArc* lib_arc);
   AnalysisType getAnalysisType(idb::AnalysisMode analysis_mode);

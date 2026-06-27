@@ -194,6 +194,8 @@ void DataManager::makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib
   idb::LibArc* lib_arc = lib_arc_set->front();
   if (lib_arc->isDelayArc()) {
     timing_cell.get_cell_arc_list().push_back(makeDelayArc(lib_arc_set));
+  } else if (lib_arc->isClearPresetArc()) {
+    updateClearPresetArc(timing_cell, lib_arc);
   } else if (lib_arc->isCheckArc()) {
     TimingCheckArc timing_check_arc = makeCheckArc(lib_arc_set);
     timing_cell.get_check_arc_list().push_back(timing_check_arc);
@@ -215,6 +217,15 @@ TimingCellArc DataManager::makeDelayArc(idb::LibArcSet* lib_arc_set)
   timing_cell_arc.set_lib_arc_set(lib_arc_set);
   timing_cell_arc.set_is_clock_arc(lib_arc->isRisingTriggerArc() || lib_arc->isFallingTriggerArc());
   return timing_cell_arc;
+}
+
+void DataManager::updateClearPresetArc(TimingCell& timing_cell, idb::LibArc* lib_arc)
+{
+  if (lib_arc->get_timing_type() == idb::LibArc::TimingType::kClear) {
+    timing_cell.set_has_clear_arc(true);
+  } else if (lib_arc->get_timing_type() == idb::LibArc::TimingType::kPreset) {
+    timing_cell.set_has_preset_arc(true);
+  }
 }
 
 TimingCheckArc DataManager::makeCheckArc(idb::LibArcSet* lib_arc_set)
@@ -310,6 +321,8 @@ void DataManager::makeInstanceTimingInfo(Database& database, Instance& instance)
 
   TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
   instance.set_is_sequential(timing_cell.get_is_sequential());
+  instance.set_has_clear_arc(timing_cell.get_has_clear_arc());
+  instance.set_has_preset_arc(timing_cell.get_has_preset_arc());
   TimingCellArc* clock_to_q_arc = findClockToQArc(timing_cell);
   if (clock_to_q_arc != nullptr) {
     instance.set_output_pin_name(getInstancePinName(instance, clock_to_q_arc->get_sink_port()));
