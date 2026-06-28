@@ -1726,7 +1726,7 @@ double TimingPropagator::getClockReconvergencePessimism(Database& database, std:
   std::pair<std::string, TransType> capture_common_pin;
   std::size_t path_size = std::min(launch_clock_path.size(), capture_clock_path.size());
   for (std::size_t i = 0; i < path_size; i++) {
-    if (launch_clock_path[i].first != capture_clock_path[i].first) {
+    if (launch_clock_path[i].first != capture_clock_path[i].first || launch_clock_path[i].second != capture_clock_path[i].second) {
       break;
     }
     launch_common_pin = launch_clock_path[i];
@@ -1736,9 +1736,17 @@ double TimingPropagator::getClockReconvergencePessimism(Database& database, std:
   if (common_pin_name.empty()) {
     return 0.0;
   }
-  double launch_common_arrival = getClockCommonPathArrival(database, launch_common_pin, launch_analysis_type);
-  double capture_common_arrival = getClockCommonPathArrival(database, capture_common_pin, capture_analysis_type);
-  return std::fabs(launch_common_arrival - capture_common_arrival);
+  double launch_delay_delta = getClockCommonPathDelayDelta(database, launch_common_pin, launch_analysis_type);
+  double capture_delay_delta = getClockCommonPathDelayDelta(database, capture_common_pin, capture_analysis_type);
+  return std::min(launch_delay_delta, capture_delay_delta);
+}
+
+double TimingPropagator::getClockCommonPathDelayDelta(Database& database, std::pair<std::string, TransType>& common_pin, AnalysisType analysis_type)
+{
+  AnalysisType other_analysis_type = getCaptureAnalysisType(analysis_type);
+  double common_arrival = getClockCommonPathArrival(database, common_pin, analysis_type);
+  double other_common_arrival = getClockCommonPathArrival(database, common_pin, other_analysis_type);
+  return std::fabs(common_arrival - other_common_arrival);
 }
 
 void TimingPropagator::shrinkClockPathToCrprPath(Database& database, std::vector<std::pair<std::string, TransType>>& clock_path)

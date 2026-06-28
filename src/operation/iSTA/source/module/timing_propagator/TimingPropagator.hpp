@@ -188,6 +188,7 @@ class TimingPropagator
                                         std::string& common_pin_name);
   double getClockReconvergencePessimism(Database& database, std::pair<std::string, TransType>& launch_crpr_pin, std::string& end_point,
                                         AnalysisType analysis_type, std::string& common_pin_name);
+  double getClockCommonPathDelayDelta(Database& database, std::pair<std::string, TransType>& common_pin, AnalysisType analysis_type);
   void shrinkClockPathToCrprPath(Database& database, std::vector<std::pair<std::string, TransType>>& clock_path);
   bool isLeafClockDriverPin(Database& database, std::string& pin_name);
   std::vector<std::pair<std::string, TransType>> getClockPathPinList(Database& database, std::string& clock_pin_name, AnalysisType analysis_type,

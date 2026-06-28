@@ -82,6 +82,9 @@ class TimingReporter
   bool isPowerGroundPin(Database& database, std::string& pin_name);
   void outputTimingPath(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
   void outputTimingPathHeader(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
+  void outputStartEndPoint(std::ofstream* report_file, std::string label, std::string text);
+  std::string getStartEndPointName(std::string& text);
+  std::string getStartEndPointDescription(std::string& text);
   std::string getStartPointText(Database& database, TimingPath& timing_path);
   bool isInternalStartPoint(Database& database, TimingPath& timing_path);
   bool isTieDrivenConstantOutput(Database& database, Instance& instance);

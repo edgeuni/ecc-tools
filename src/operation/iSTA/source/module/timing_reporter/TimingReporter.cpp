@@ -315,13 +315,46 @@ void TimingReporter::outputTimingPath(std::ofstream* report_file, Database& data
 void TimingReporter::outputTimingPathHeader(std::ofstream* report_file, Database& database, TimingPath& timing_path, std::string& path_group_name,
                                             DelayType delay_type)
 {
-  (*report_file) << "  Startpoint: " << getStartPointText(database, timing_path) << "\n";
-  (*report_file) << "  Endpoint: " << getEndPointText(database, timing_path) << "\n";
+  outputStartEndPoint(report_file, "Startpoint", getStartPointText(database, timing_path));
+  outputStartEndPoint(report_file, "Endpoint", getEndPointText(database, timing_path));
   if (isRegisterStartPoint(database, timing_path.get_start_point()) && isRegisterEndPoint(database, timing_path.get_end_point())) {
     (*report_file) << "  Last common pin: " << getPTPinName(timing_path.get_last_common_pin()) << "\n";
   }
   (*report_file) << "  Path Group: " << path_group_name << "\n";
   (*report_file) << "  Path Type: " << getDelayTypeName(delay_type) << "\n\n";
+}
+
+void TimingReporter::outputStartEndPoint(std::ofstream* report_file, std::string label, std::string text)
+{
+  std::string name = getStartEndPointName(text);
+  std::string description = getStartEndPointDescription(text);
+  (*report_file) << "  " << label << ": " << name;
+  if (!description.empty()) {
+    if (name.length() <= 10) {
+      (*report_file) << " " << description;
+    } else {
+      (*report_file) << "\n               " << description;
+    }
+  }
+  (*report_file) << "\n";
+}
+
+std::string TimingReporter::getStartEndPointName(std::string& text)
+{
+  std::size_t description_pos = text.find(" (");
+  if (description_pos == std::string::npos) {
+    return text;
+  }
+  return text.substr(0, description_pos);
+}
+
+std::string TimingReporter::getStartEndPointDescription(std::string& text)
+{
+  std::size_t description_pos = text.find(" (");
+  if (description_pos == std::string::npos) {
+    return "";
+  }
+  return text.substr(description_pos + 1);
 }
 
 std::string TimingReporter::getStartPointText(Database& database, TimingPath& timing_path)
