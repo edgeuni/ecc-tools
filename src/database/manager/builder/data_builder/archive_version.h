@@ -14,28 +14,19 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "ZHInterface.hpp"
-#include "tcl_zh.h"
-#include "tcl_util.h"
+#pragma once
 
-namespace tcl {
+#include <cstdint>
 
-TclZHFixFanout::TclZHFixFanout(const char* cmd_name) : TclCmd(cmd_name)
+namespace idb {
+namespace data_binary {
+
+constexpr uint32_t kArchiveVersion = 2;
+
+constexpr bool is_archive_version_supported(uint32_t version)
 {
-  _config_list.push_back(std::make_pair("-buffer_name", ValueType::kString));
-  _config_list.push_back(std::make_pair("-max_fanout", ValueType::kInt));
-
-  TclUtil::addOption(this, _config_list);
+  return version == kArchiveVersion;
 }
 
-unsigned TclZHFixFanout::exec()
-{
-  if (!check()) {
-    return 0;
-  }
-  std::map<std::string, std::any> config_map = TclUtil::getConfigMap(this, _config_list);
-  ZHI.fixFanout(config_map);
-  return 1;
-}
-
-}  // namespace tcl
+}  // namespace data_binary
+}  // namespace idb
