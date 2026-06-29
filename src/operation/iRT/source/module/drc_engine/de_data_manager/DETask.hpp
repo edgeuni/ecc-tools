@@ -45,10 +45,7 @@ class DETask
   void set_net_type(const DENetType& net_type) { _net_type = net_type; }
   void set_top_name(const std::string& top_name) { _top_name = top_name; }
   void set_env_shape_list(const std::vector<std::pair<EXTLayerRect*, bool>>& env_shape_list) { _env_shape_list = env_shape_list; }
-  void set_net_pin_shape_map(const std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>>& net_pin_shape_map)
-  {
-    _net_pin_shape_map = net_pin_shape_map;
-  }
+  void set_net_pin_shape_map(const std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>>& net_pin_shape_map) { _net_pin_shape_map = net_pin_shape_map; }
   void set_net_result_map(const std::map<int32_t, std::vector<Segment<LayerCoord>*>>& net_result_map) { _net_result_map = net_result_map; }
   void set_net_patch_map(const std::map<int32_t, std::vector<EXTLayerRect*>>& net_patch_map) { _net_patch_map = net_patch_map; }
   void set_need_checked_net_set(const std::set<int32_t>& need_checked_net_set) { _need_checked_net_set = need_checked_net_set; }

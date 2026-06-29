@@ -27,6 +27,7 @@
 #include "PAModel.hpp"
 #include "PANet.hpp"
 #include "PANode.hpp"
+#include "PAPattern.hpp"
 #include "RTHeader.hpp"
 #include "ViaMasterIdx.hpp"
 
@@ -61,7 +62,6 @@ class PinAccessor
   PinAccessor& operator=(PinAccessor&& other) = delete;
   // function
   PAModel initPAModel();
-  void buildFixedRect(PAModel& pa_model);
   std::vector<PANet> convertToPANetList(std::vector<Net>& net_list);
   PANet convertToPANet(Net& net);
   void setPAComParam(PAModel& pa_model);
@@ -79,7 +79,6 @@ class PinAccessor
   std::vector<std::pair<int32_t, PAPin*>> getReroutePinList(PAModel& pa_model, const std::vector<Violation>& extra_violation_list);
   bool updateRerouteAccessPointList(PAModel& pa_model, const std::vector<Violation>& ap_via_only_violation_list);
   void routePAModel(PAModel& pa_model);
-  bool checkAPViaOnlyViolation(PAModel& pa_model, int32_t iter, bool& checked_ap_via_only, std::vector<Violation>& ap_via_only_violation_list);
   void routePatternSeed(PAModel& pa_model);
   void initRoutingState(PAModel& pa_model);
   void setPAIterParam(PAModel& pa_model, int32_t iter, PAIterParam& pa_iter_param);
