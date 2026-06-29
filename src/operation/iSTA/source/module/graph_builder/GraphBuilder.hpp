@@ -76,6 +76,7 @@ class GraphBuilder
   void rebuildCellArcListByPinDirection(Database& database);
   void buildNetDriverLoadList(Database& database);
   void makeNetDriverLoad(Database& database, Net& net);
+  std::string selectDriverPin(std::vector<std::string>& driver_pin_list);
   bool isDriverPin(Pin& pin);
   std::string getPinNameListString(std::vector<std::string>& pin_name_list);
   void buildNetArcs(Database& database);
