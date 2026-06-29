@@ -23,7 +23,7 @@
 
 namespace python_interface {
 
-bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::any>& config_map)
+bool initStaConfigMapByJSON(const std::string& config, std::map<std::string, std::any>& config_map)
 {
   auto config_file = std::ifstream(config);
   if (!config_file.is_open()) {
@@ -44,7 +44,7 @@ bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::a
   return true;
 }
 
-void initConfigMapByDict(std::map<std::string, std::string>& config_dict, std::map<std::string, std::any>& config_map)
+void initStaConfigMapByDict(std::map<std::string, std::string>& config_dict, std::map<std::string, std::any>& config_map)
 {
   if (config_dict.count("-temp_directory_path") > 0 && !config_dict["-temp_directory_path"].empty()) {
     config_map["-temp_directory_path"] = config_dict["-temp_directory_path"];

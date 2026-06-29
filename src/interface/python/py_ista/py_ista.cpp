@@ -20,19 +20,19 @@
 
 namespace python_interface {
 
-bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::any>& config_map);
-void initConfigMapByDict(std::map<std::string, std::string>& config_dict, std::map<std::string, std::any>& config_map);
+bool initStaConfigMapByJSON(const std::string& config, std::map<std::string, std::any>& config_map);
+void initStaConfigMapByDict(std::map<std::string, std::string>& config_dict, std::map<std::string, std::any>& config_map);
 
 bool initSTA(std::string& config, std::map<std::string, std::string>& config_dict)
 {
   std::map<std::string, std::any> config_map;
 
   bool pass = false;
-  pass = config.empty() ? true : initConfigMapByJSON(config, config_map);
+  pass = config.empty() ? true : initStaConfigMapByJSON(config, config_map);
   if (!pass) {
     return false;
   }
-  initConfigMapByDict(config_dict, config_map);
+  initStaConfigMapByDict(config_dict, config_map);
   STAI.initSTA(config_map);
   return true;
 }
