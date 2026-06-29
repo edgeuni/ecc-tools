@@ -1758,6 +1758,10 @@ void TimingPropagator::shrinkClockPathToCrprPath(Database& database, std::vector
     clock_path.pop_back();
     clock_path.pop_back();
   }
+  while (clock_path.size() >= 3 && isLeafClockBufferDriverPin(database, clock_path)) {
+    clock_path.pop_back();
+    clock_path.pop_back();
+  }
 }
 
 bool TimingPropagator::isLeafClockDriverPin(Database& database, std::string& pin_name)
@@ -1784,6 +1788,163 @@ bool TimingPropagator::isLeafClockDriverPin(Database& database, std::string& pin
     }
   }
   return false;
+}
+
+bool TimingPropagator::isLeafClockBufferDriverPin(Database& database, std::vector<std::pair<std::string, TransType>>& clock_path)
+{
+  std::string& pin_name = clock_path.back().first;
+  std::string& parent_pin_name = clock_path[clock_path.size() - 3].first;
+  if (!isLeafClockBufferDriverPin(database, pin_name) || isClockRootBufferDriverPin(database, parent_pin_name)) {
+    return false;
+  }
+  if (hasSingleLeafClockBufferLoad(database, pin_name)) {
+    return true;
+  }
+  return shouldShrinkLeafClockBufferLoad(database, pin_name);
+}
+
+bool TimingPropagator::hasSingleLeafClockBufferLoad(Database& database, std::string& pin_name)
+{
+  Pin& pin = database.get_pin_map()[pin_name];
+  Net& net = database.get_net_map()[pin.get_net_name()];
+  return net.get_load_pin_list().size() == 1 && isLeafClockBufferLoadPin(database, net.get_load_pin_list().front());
+}
+
+bool TimingPropagator::isClockRootBufferDriverPin(Database& database, std::string& pin_name)
+{
+  if (database.get_pin_map().count(pin_name) == 0) {
+    return false;
+  }
+  Pin& pin = database.get_pin_map()[pin_name];
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return false;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  std::string input_pin_name;
+  for (std::string& instance_pin_name : instance.get_pin_name_list()) {
+    if (database.get_pin_map().count(instance_pin_name) == 0) {
+      continue;
+    }
+    Pin& instance_pin = database.get_pin_map()[instance_pin_name];
+    if (instance_pin.get_direction() == PinDirection::kInput) {
+      input_pin_name = instance_pin_name;
+      break;
+    }
+  }
+  if (input_pin_name.empty()) {
+    return false;
+  }
+  Pin& input_pin = database.get_pin_map()[input_pin_name];
+  if (input_pin.get_net_name().empty() || database.get_net_map().count(input_pin.get_net_name()) == 0) {
+    return false;
+  }
+  Net& input_net = database.get_net_map()[input_pin.get_net_name()];
+  if (input_net.get_driver_pin().empty() || database.get_pin_map().count(input_net.get_driver_pin()) == 0) {
+    return false;
+  }
+  Pin& driver_pin = database.get_pin_map()[input_net.get_driver_pin()];
+  return driver_pin.get_is_port() && getStartPointClock(database, input_net.get_driver_pin()) != nullptr;
+}
+
+bool TimingPropagator::isLeafClockBufferDriverPin(Database& database, std::string& pin_name)
+{
+  if (database.get_pin_map().count(pin_name) == 0) {
+    return false;
+  }
+  Pin& pin = database.get_pin_map()[pin_name];
+  if (pin.get_net_name().empty() || database.get_net_map().count(pin.get_net_name()) == 0) {
+    return false;
+  }
+  Net& net = database.get_net_map()[pin.get_net_name()];
+  bool has_leaf_clock_buffer_load = false;
+  for (std::string& load_pin_name : net.get_load_pin_list()) {
+    if (!isLeafClockBufferLoadPin(database, load_pin_name)) {
+      return false;
+    }
+    has_leaf_clock_buffer_load = true;
+  }
+  return has_leaf_clock_buffer_load;
+}
+
+bool TimingPropagator::isLeafClockBufferLoadPin(Database& database, std::string& pin_name)
+{
+  if (database.get_pin_map().count(pin_name) == 0) {
+    return false;
+  }
+  Pin& pin = database.get_pin_map()[pin_name];
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return false;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  if (instance.get_is_sequential()) {
+    return false;
+  }
+  std::string output_pin_name;
+  for (std::string& instance_pin_name : instance.get_pin_name_list()) {
+    if (database.get_pin_map().count(instance_pin_name) == 0) {
+      continue;
+    }
+    Pin& instance_pin = database.get_pin_map()[instance_pin_name];
+    if (instance_pin.get_direction() == PinDirection::kOutput) {
+      output_pin_name = instance_pin_name;
+      break;
+    }
+  }
+  return !output_pin_name.empty() && isLeafClockDriverPin(database, output_pin_name);
+}
+
+bool TimingPropagator::shouldShrinkLeafClockBufferLoad(Database& database, std::string& pin_name)
+{
+  double drive_resistance = getBufferDriveResistance(database, pin_name);
+  if (drive_resistance <= 0.0) {
+    return false;
+  }
+  Pin& pin = database.get_pin_map()[pin_name];
+  Net& net = database.get_net_map()[pin.get_net_name()];
+  bool has_leaf_clock_buffer_load = false;
+  bool has_stronger_leaf_clock_buffer_load = false;
+  bool has_weaker_leaf_clock_buffer_load = false;
+  for (std::string& load_pin_name : net.get_load_pin_list()) {
+    Pin& load_pin = database.get_pin_map()[load_pin_name];
+    if (load_pin.get_is_port() || database.get_instance_map().count(load_pin.get_instance_name()) == 0) {
+      continue;
+    }
+    Instance& load_instance = database.get_instance_map()[load_pin.get_instance_name()];
+    std::string output_pin_name = load_instance.get_output_pin_name();
+    double load_drive_resistance = getBufferDriveResistance(database, output_pin_name);
+    if (load_drive_resistance <= 0.0) {
+      continue;
+    }
+    has_leaf_clock_buffer_load = true;
+    if (load_drive_resistance < drive_resistance) {
+      has_stronger_leaf_clock_buffer_load = true;
+    }
+    if (load_drive_resistance > drive_resistance) {
+      has_weaker_leaf_clock_buffer_load = true;
+    }
+  }
+  return has_leaf_clock_buffer_load && (!has_stronger_leaf_clock_buffer_load || has_weaker_leaf_clock_buffer_load);
+}
+
+double TimingPropagator::getBufferDriveResistance(Database& database, std::string& pin_name)
+{
+  if (database.get_pin_map().count(pin_name) == 0) {
+    return 0.0;
+  }
+  Pin& pin = database.get_pin_map()[pin_name];
+  if (pin.get_is_port() || database.get_instance_map().count(pin.get_instance_name()) == 0) {
+    return 0.0;
+  }
+  Instance& instance = database.get_instance_map()[pin.get_instance_name()];
+  std::map<std::string, TimingCell>& timing_cell_map = database.get_timing_library().get_cell_map();
+  if (timing_cell_map.count(instance.get_cell_name()) == 0) {
+    return 0.0;
+  }
+  TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
+  if (timing_cell.get_port_map().count(pin.get_pin_name()) == 0) {
+    return 0.0;
+  }
+  return timing_cell.get_port_map()[pin.get_pin_name()].get_drive_resistance();
 }
 
 std::vector<std::pair<std::string, TransType>> TimingPropagator::getClockPathPinList(Database& database, std::string& clock_pin_name,

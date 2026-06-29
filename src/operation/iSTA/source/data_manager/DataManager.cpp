@@ -175,6 +175,7 @@ void DataManager::makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_
   TimingCellPort timing_cell_port;
   timing_cell_port.set_port_name(lib_port->get_port_name());
   timing_cell_port.set_capacitance(lib_port->get_port_cap());
+  timing_cell_port.set_drive_resistance(lib_port->driveResistance());
   for (idb::AnalysisMode analysis_mode : {idb::AnalysisMode::kMax, idb::AnalysisMode::kMin}) {
     for (idb::TransType trans_type : {idb::TransType::kRise, idb::TransType::kFall}) {
       std::optional<double> port_cap = lib_port->get_port_cap(analysis_mode, trans_type);

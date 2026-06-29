@@ -191,6 +191,13 @@ class TimingPropagator
   double getClockCommonPathDelayDelta(Database& database, std::pair<std::string, TransType>& common_pin, AnalysisType analysis_type);
   void shrinkClockPathToCrprPath(Database& database, std::vector<std::pair<std::string, TransType>>& clock_path);
   bool isLeafClockDriverPin(Database& database, std::string& pin_name);
+  bool isLeafClockBufferDriverPin(Database& database, std::vector<std::pair<std::string, TransType>>& clock_path);
+  bool hasSingleLeafClockBufferLoad(Database& database, std::string& pin_name);
+  bool isClockRootBufferDriverPin(Database& database, std::string& pin_name);
+  bool isLeafClockBufferDriverPin(Database& database, std::string& pin_name);
+  bool isLeafClockBufferLoadPin(Database& database, std::string& pin_name);
+  bool shouldShrinkLeafClockBufferLoad(Database& database, std::string& pin_name);
+  double getBufferDriveResistance(Database& database, std::string& pin_name);
   std::vector<std::pair<std::string, TransType>> getClockPathPinList(Database& database, std::string& clock_pin_name, AnalysisType analysis_type,
                                                                      TransType trans_type);
   double getClockCommonPathArrival(Database& database, std::pair<std::string, TransType>& common_pin, AnalysisType analysis_type);
