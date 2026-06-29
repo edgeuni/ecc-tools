@@ -44,4 +44,14 @@ bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::a
   return true;
 }
 
+void initConfigMapByDict(std::map<std::string, std::string>& config_dict, std::map<std::string, std::any>& config_map)
+{
+  if (config_dict.count("-temp_directory_path") > 0 && !config_dict["-temp_directory_path"].empty()) {
+    config_map["-temp_directory_path"] = config_dict["-temp_directory_path"];
+  }
+  if (config_dict.count("-thread_number") > 0 && !config_dict["-thread_number"].empty()) {
+    config_map["-thread_number"] = std::stoi(config_dict["-thread_number"]);
+  }
+}
+
 }  // namespace python_interface

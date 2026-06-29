@@ -21,23 +21,18 @@
 namespace python_interface {
 
 bool initConfigMapByJSON(const std::string& config, std::map<std::string, std::any>& config_map);
-
-bool destroySTA()
-{
-  STAI.destroySTA();
-  return true;
-}
+void initConfigMapByDict(std::map<std::string, std::string>& config_dict, std::map<std::string, std::any>& config_map);
 
 bool initSTA(std::string& config, std::map<std::string, std::string>& config_dict)
 {
-  (void) config_dict;
   std::map<std::string, std::any> config_map;
 
   bool pass = false;
-  pass = !pass ? initConfigMapByJSON(config, config_map) : pass;
+  pass = config.empty() ? true : initConfigMapByJSON(config, config_map);
   if (!pass) {
     return false;
   }
+  initConfigMapByDict(config_dict, config_map);
   STAI.initSTA(config_map);
   return true;
 }
@@ -45,6 +40,12 @@ bool initSTA(std::string& config, std::map<std::string, std::string>& config_dic
 bool runSTA()
 {
   STAI.runSTA();
+  return true;
+}
+
+bool destroySTA()
+{
+  STAI.destroySTA();
   return true;
 }
 

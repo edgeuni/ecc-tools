@@ -20,8 +20,8 @@
 
 namespace python_interface {
 
-bool destroySTA();
 bool initSTA(std::string& config, std::map<std::string, std::string>& config_dict);
 bool runSTA();
+bool destroySTA();
 
 }  // namespace python_interface
