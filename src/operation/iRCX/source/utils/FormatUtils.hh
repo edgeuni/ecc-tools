@@ -53,6 +53,15 @@ inline auto significant(double value, int digits = 3) -> std::string
   return oss.str();
 }
 
+inline auto unit_symbol(std::string_view unit_name) -> std::string_view
+{
+  const auto space = unit_name.rfind(' ');
+  if (space == std::string_view::npos || space + 1 >= unit_name.size()) {
+    return unit_name;
+  }
+  return unit_name.substr(space + 1);
+}
+
 inline auto with_unit(double value, std::string_view unit_name, int digits = 3) -> std::string
 {
   std::string result = significant(value, digits);

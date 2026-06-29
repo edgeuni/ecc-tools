@@ -23,12 +23,14 @@ namespace ircx::plot_spef {
 struct Config
 {
   std::string spef_file;
-  std::string output_file;
+  std::string output_dir;
+  std::string net_name;
   int dbu = 1000;
   bool output_resistance = false;
   bool output_coupling_cap = false;
   bool output_ground_cap = false;
 
+  auto hasNetFilter() const -> bool { return !net_name.empty(); }
   auto hasOutputFilter() const -> bool { return output_resistance || output_coupling_cap || output_ground_cap; }
   auto plotResistance() const -> bool { return !hasOutputFilter() || output_resistance; }
   auto plotCouplingCap() const -> bool { return !hasOutputFilter() || output_coupling_cap; }

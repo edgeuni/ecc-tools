@@ -17,6 +17,7 @@
 #pragma once
 
 #include <filesystem>
+#include <string>
 #include <string_view>
 #include <system_error>
 
@@ -110,6 +111,19 @@ inline auto ensure_dir(const std::filesystem::path& dir, std::string_view field_
   LOG_ERROR << "Failed to create RCX directory for " << field_name
             << " " << dir_string;
   return false;
+}
+
+inline auto file_under_dir(const std::filesystem::path& dir, std::string_view stem, std::string_view extension) -> std::filesystem::path
+{
+  std::string file_name(stem);
+  if (file_name.empty()) {
+    file_name = "output";
+  }
+  if (!extension.empty() && extension.front() != '.') {
+    file_name.push_back('.');
+  }
+  file_name.append(extension);
+  return dir / file_name;
 }
 
 }  // namespace path
