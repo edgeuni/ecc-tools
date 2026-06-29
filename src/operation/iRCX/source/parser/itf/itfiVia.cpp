@@ -85,6 +85,7 @@ itfiVia::itfiVia()
   _etch_cg(),
   _etch_vws(),
   _etch_vwl(),
+  _etch_vwl_type(),
   _capacitive_only_etch(0)
 { }
 
@@ -115,6 +116,7 @@ itfiVia& itfiVia::operator=(const itfiVia& rhs)
   _etch_cg = rhs._etch_cg;
   _etch_vws = rhs._etch_vws;
   _etch_vwl = rhs._etch_vwl;
+  _etch_vwl_type = rhs._etch_vwl_type;
   _capacitive_only_etch = rhs._capacitive_only_etch;
   
   return *this;
@@ -140,6 +142,7 @@ itfiVia::operator==(const itfiVia& rhs) const
     && _etch_cg == rhs._etch_cg
     && _etch_vws == rhs._etch_vws
     && _etch_vwl == rhs._etch_vwl
+    && _etch_vwl_type == rhs._etch_vwl_type
     && _capacitive_only_etch == rhs._capacitive_only_etch
   ;
 }
@@ -165,6 +168,7 @@ itfiVia::clear() {
   _etch_cg.clear();
   _etch_vws.clear();
   _etch_vwl.clear();
+  _etch_vwl_type.clear();
   _capacitive_only_etch = 0;
 }
 
@@ -252,6 +256,36 @@ itfiVia::get_to() const
   return _to;
 }
 
+const itf2DLUT<float, float, std::pair<float, float>>&
+itfiVia::get_etch_vwl() const
+{
+  return _etch_vwl;
+}
+
+const std::string&
+itfiVia::get_etch_vwl_type() const
+{
+  return _etch_vwl_type;
+}
+
+bool
+itfiVia::has_etch_vwl() const
+{
+  return !_etch_vwl.get_rows().empty() && !_etch_vwl.get_cols().empty();
+}
+
+bool
+itfiVia::use_etch_vwl_for_resistance() const
+{
+  return has_etch_vwl() && _etch_vwl_type != "CAPACITIVE_ONLY";
+}
+
+bool
+itfiVia::use_etch_vwl_for_capacitance() const
+{
+  return has_etch_vwl() && _etch_vwl_type != "RESISTIVE_ONLY";
+}
+
 void
 itfiVia::set_via_name(const char* name)
 {
@@ -328,8 +362,10 @@ itfiVia::set_etch_vws(const char* title, const itf2DLUT<float, float, float>& lu
 
 void
 itfiVia::set_etch_vwl(
+  const char* type,
   const itf2DLUT<float, float, std::pair<float, float>>& lut)
 {
+  _etch_vwl_type = type ? type : "";
   _etch_vwl = lut;
 }
 

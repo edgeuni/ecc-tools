@@ -18,6 +18,7 @@
 
 #include <omp.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <iterator>
@@ -25,6 +26,7 @@
 #include <numeric>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -65,6 +67,106 @@ void reserveRows(Result& result, const std::vector<Result>& thread_results)
   result.p2p_rows.reserve(p2p_count);
   result.reference_only_nets.reserve(reference_only_net_count);
 }
+
+auto hasDisconnectedPinComponents(const Net& net) -> bool
+{
+  std::unordered_map<std::string, std::size_t> node_to_index;
+  node_to_index.reserve(net.resistors.size() * 2);
+  auto node_index = [&](const std::string& node) -> std::size_t {
+    const auto [it, inserted] = node_to_index.emplace(node, node_to_index.size());
+    return it->second;
+  };
+
+  std::vector<std::pair<std::size_t, std::size_t>> edges;
+  edges.reserve(net.resistors.size());
+  for (const auto& resistor : net.resistors) {
+    if (resistor.resistance <= math::kEpsilon || resistor.node1.empty() || resistor.node2.empty()) {
+      continue;
+    }
+    edges.emplace_back(node_index(resistor.node1), node_index(resistor.node2));
+  }
+
+  std::vector<std::size_t> pin_indices;
+  pin_indices.reserve(net.pins.size());
+  for (const auto& pin : net.pins) {
+    if (pin.name.empty() || pin.direction == "N") {
+      continue;
+    }
+    const auto node_it = node_to_index.find(pin.name);
+    if (node_it == node_to_index.end()) {
+      return true;
+    }
+    pin_indices.push_back(node_it->second);
+  }
+  if (pin_indices.size() <= 1) {
+    return false;
+  }
+
+  std::vector<std::vector<std::size_t>> adjacency(node_to_index.size());
+  for (const auto& [node1, node2] : edges) {
+    adjacency[node1].push_back(node2);
+    adjacency[node2].push_back(node1);
+  }
+
+  std::vector<int> component(node_to_index.size(), -1);
+  int next_component = 0;
+  std::vector<std::size_t> stack;
+  for (std::size_t index = 0; index < component.size(); ++index) {
+    if (component[index] >= 0) {
+      continue;
+    }
+    component[index] = next_component;
+    stack.push_back(index);
+    while (!stack.empty()) {
+      const std::size_t node = stack.back();
+      stack.pop_back();
+      for (std::size_t adjacent : adjacency[node]) {
+        if (component[adjacent] < 0) {
+          component[adjacent] = next_component;
+          stack.push_back(adjacent);
+        }
+      }
+    }
+    next_component++;
+  }
+
+  const int first_component = component[pin_indices.front()];
+  return std::any_of(pin_indices.begin() + 1, pin_indices.end(), [&](std::size_t index) { return component[index] != first_component; });
+}
+
+// Use reference SPEF name-map order for default report orientation. Explicit
+// user-configured from/to directions are preserved.
+class ReferenceNameMapOrder
+{
+ public:
+  explicit ReferenceNameMapOrder(const Net& reference_net)
+  {
+    _pin_by_name.reserve(reference_net.pins.size());
+    for (const auto& pin : reference_net.pins) {
+      _pin_by_name.try_emplace(pin.name, &pin);
+    }
+  }
+
+  auto reportPair(const NodePair& pair) const -> NodePair
+  {
+    const auto first_it = _pin_by_name.find(pair.first);
+    const auto second_it = _pin_by_name.find(pair.second);
+    if (first_it == _pin_by_name.end() || second_it == _pin_by_name.end()) {
+      return pair;
+    }
+
+    const Pin& first_pin = *first_it->second;
+    const Pin& second_pin = *second_it->second;
+    if (!first_pin.has_name_map_index || !second_pin.has_name_map_index || first_pin.name_map_index == second_pin.name_map_index) {
+      return pair;
+    }
+
+    return first_pin.name_map_index < second_pin.name_map_index ? pair : NodePair{pair.second, pair.first};
+  }
+
+ private:
+  std::unordered_map<std::string, const Pin*> _pin_by_name;
+};
 
 }  // namespace
 
@@ -175,6 +277,10 @@ void Comparator::addGroundCapRow(const std::string& net_name, const Net& referen
 
 void Comparator::addResistanceRows(const std::string& net_name, const Net& reference_net, const Net& test_net, Result& result) const
 {
+  if (hasDisconnectedPinComponents(test_net)) {
+    return;
+  }
+
   const auto pairs = _path_pair_generator.generate(reference_net);
   const auto reference_resistances = _resistance_solver.equivalentResistances(reference_net, pairs);
   std::vector<std::size_t> compared_indices;
@@ -187,17 +293,21 @@ void Comparator::addResistanceRows(const std::string& net_name, const Net& refer
   }
 
   const auto test_resistances = _resistance_solver.equivalentResistances(test_net, pairs, compared_indices);
+  const bool configured_paths = !_config.from_pin.empty() || !_config.to_pin.empty() || !_config.from_pins.empty() || !_config.to_pins.empty()
+                                || !_config.from_to_pins.empty();
+  const ReferenceNameMapOrder reference_name_map_order(reference_net);
 
   for (std::size_t output_index = 0; output_index < compared_indices.size(); ++output_index) {
     const std::size_t index = compared_indices[output_index];
     const auto& pair = pairs[index];
     const auto& reference_res = reference_resistances[index];
     const auto& test_res = test_resistances[output_index];
+    const NodePair report_pair = configured_paths ? pair : reference_name_map_order.reportPair(pair);
 
     ResistanceRow row;
     row.net = net_name;
-    row.from_pin = pair.first;
-    row.to_pin = pair.second;
+    row.from_pin = report_pair.first;
+    row.to_pin = report_pair.second;
     row.reference_valid = true;
     row.reference = *reference_res;
     row.test_valid = test_res.has_value();

@@ -18,6 +18,8 @@
 
 #include <cerrno>
 #include <charconv>
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -82,6 +84,32 @@ inline auto contains(std::string_view value, std::string_view pattern) -> bool
   return value.find(pattern) != std::string_view::npos;
 }
 
+inline auto to_lower(Str value) -> Str
+{
+  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+  return value;
+}
+
+inline auto identifier(std::string_view value, std::string_view fallback = "id") -> Str
+{
+  Str text;
+  text.reserve(value.size());
+  for (char ch : value) {
+    if (std::isalnum(static_cast<unsigned char>(ch)) || ch == '_' || ch == '$') {
+      text.push_back(ch);
+    } else {
+      text.push_back('_');
+    }
+  }
+  if (text.empty()) {
+    text = fallback.empty() ? "id" : Str(fallback);
+  }
+  if (std::isdigit(static_cast<unsigned char>(text.front()))) {
+    text.insert(text.begin(), 'n');
+  }
+  return text;
+}
+
 inline auto after_prefix(std::string_view value, std::string_view prefix) -> std::optional<std::string_view>
 {
   if (!starts_with(value, prefix)) {
@@ -141,6 +169,16 @@ inline auto parse_int_after_prefix(std::string_view value, std::string_view pref
 inline auto parse_double_after_prefix(std::string_view value, std::string_view prefix) -> std::optional<double>
 {
   return parse_after_prefix<double>(value, prefix);
+}
+
+template <typename T = int>
+inline auto parse_prefixed_index(std::string_view value, char prefix = '*') -> std::optional<T>
+{
+  static_assert(std::is_integral_v<T>, "parse_prefixed_index requires an integral result type");
+  if (value.size() < 2 || value.front() != prefix || !std::isdigit(static_cast<unsigned char>(value[1]))) {
+    return std::nullopt;
+  }
+  return parse_number<T>(value.substr(1));
 }
 
 inline auto require_non_empty(std::string_view value, std::string_view field_name) -> bool

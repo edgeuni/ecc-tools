@@ -230,7 +230,8 @@ double
 LayerVia::query_rpv_vs_area(double area) const
 {
   auto& table = get_rpv_vs_area();
-  if (table.size() <= 1) return 0; // lack of information to interpolate
+  if (table.empty()) return 0; // lack of information
+  if (table.size() == 1) return table.front().rpv;
 
   auto it = std::upper_bound(table.begin(), table.end(), area,
     [](double area, const itfiAreaRpv& e) {

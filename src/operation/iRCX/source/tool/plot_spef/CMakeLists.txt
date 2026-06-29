@@ -1,8 +1,10 @@
 add_library(ircx_tool_plot_spef
   PlotSpefTool.cc
+  builder/PlotSpefModelBuilder.cc
   config/PlotSpefConfig.cc
   gds/PlotSpefGdsWriter.cc
   lyp/PlotSpefLypWriter.cc
+  resolver/PlotSpefCapResolver.cc
 )
 
 target_link_libraries(ircx_tool_plot_spef
