@@ -16,8 +16,6 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-
 #include "config/PlotSpefConfig.hh"
 #include "model/PlotSpefModel.hh"
 
@@ -29,7 +27,6 @@ class GdsWriter
   auto write(const Model& model, const Config& config) const -> bool;
 
  private:
-  static auto safeStructName(const std::string& name) -> std::string;
   static auto formatValue(double value, const std::string& unit) -> std::string;
 };
 

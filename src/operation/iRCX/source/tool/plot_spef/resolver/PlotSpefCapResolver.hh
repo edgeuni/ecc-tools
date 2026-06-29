@@ -16,17 +16,11 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-
 #include "config/PlotSpefConfig.hh"
 #include "model/PlotSpefModel.hh"
 
 namespace ircx::plot_spef {
 
-class LypWriter
-{
- public:
-  auto write(const Model& model, const Config& config) const -> bool;
-};
+auto resolveCapacitorEdges(Model& model, const Config& config) -> void;
 
 }  // namespace ircx::plot_spef

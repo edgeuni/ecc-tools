@@ -16,8 +16,6 @@
 // ***************************************************************************************
 #include "config/PlotSpefConfig.hh"
 
-#include <filesystem>
-
 #include "PathUtils.hh"
 #include "log/Log.hh"
 
@@ -29,8 +27,8 @@ auto ConfigValidator::validate(const Config& config) const -> bool
     return false;
   }
 
-  if (config.output_file.empty()) {
-    LOG_ERROR << "plot_spef requires an output GDS file.";
+  if (config.output_dir.empty()) {
+    LOG_ERROR << "plot_spef requires an output directory.";
     return false;
   }
 
@@ -39,8 +37,7 @@ auto ConfigValidator::validate(const Config& config) const -> bool
     return false;
   }
 
-  const auto output_parent = std::filesystem::path(config.output_file).parent_path();
-  if (!output_parent.empty() && !path::ensure_dir(output_parent, "plot_spef output directory")) {
+  if (!path::ensure_dir(config.output_dir, "plot_spef output directory")) {
     return false;
   }
 

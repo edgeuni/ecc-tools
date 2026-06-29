@@ -625,5 +625,35 @@ inline auto rects_to_bbox(const std::vector<Rect>& rects) -> std::optional<Rect>
   return make_rect<Rect>(minx, miny, maxx, maxy);
 }
 
+template <typename T>
+struct RectRelation
+{
+  T overlap_x = 0;
+  T overlap_y = 0;
+  T gap_x = 0;
+  T gap_y = 0;
+};
+
+template <typename T>
+inline auto rect_relation(T a_llx, T a_lly, T a_urx, T a_ury, T b_llx, T b_lly, T b_urx, T b_ury) -> RectRelation<T>
+{
+  RectRelation<T> relation;
+  relation.overlap_x = std::max(T{}, std::min(a_urx, b_urx) - std::max(a_llx, b_llx));
+  relation.overlap_y = std::max(T{}, std::min(a_ury, b_ury) - std::max(a_lly, b_lly));
+  relation.gap_x = std::max(T{}, std::max(a_llx, b_llx) - std::min(a_urx, b_urx));
+  relation.gap_y = std::max(T{}, std::max(a_lly, b_lly) - std::min(a_ury, b_ury));
+  return relation;
+}
+
+template <typename PointT, typename RectT>
+inline auto point_to_rect_distance2(PointT px, PointT py, RectT llx, RectT lly, RectT urx, RectT ury) -> double
+{
+  const auto clamped_x = std::clamp(static_cast<double>(px), static_cast<double>(std::min(llx, urx)), static_cast<double>(std::max(llx, urx)));
+  const auto clamped_y = std::clamp(static_cast<double>(py), static_cast<double>(std::min(lly, ury)), static_cast<double>(std::max(lly, ury)));
+  const double dx = static_cast<double>(px) - clamped_x;
+  const double dy = static_cast<double>(py) - clamped_y;
+  return dx * dx + dy * dy;
+}
+
 }  // namespace geom
 }  // namespace ircx

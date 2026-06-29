@@ -73,6 +73,9 @@ struct Pin
   double x = 0.0;
   double y = 0.0;
   bool has_coordinate = false;
+  std::size_t connection_order = 0;
+  std::size_t name_map_index = 0;
+  bool has_name_map_index = false;
 };
 
 struct Resistor

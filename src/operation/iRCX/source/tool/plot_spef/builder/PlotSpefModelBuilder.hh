@@ -16,17 +16,16 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-
+#include "SpefParser.hh"
 #include "config/PlotSpefConfig.hh"
 #include "model/PlotSpefModel.hh"
 
 namespace ircx::plot_spef {
 
-class LypWriter
+class ModelBuilder
 {
  public:
-  auto write(const Model& model, const Config& config) const -> bool;
+  auto build(const spef::Exchange& exchange, const Config& config) const -> Model;
 };
 
 }  // namespace ircx::plot_spef

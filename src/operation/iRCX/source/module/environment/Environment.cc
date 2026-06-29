@@ -194,11 +194,11 @@ bool Environment::buildPixels()
     Dbu ny = ti.ny;
     Dbu dx = ti.dx;
     Dbu dy = ti.dy;
-    if (layer.is_prefer_horz()) {
-      dx = layer.layer_width();
-    } else {
-      dy = layer.layer_width();
-    }
+    // if (layer.is_prefer_horz()) {
+    //   dx = layer.layer_width();
+    // } else {
+    //   dy = layer.layer_width();
+    // }
 
     const auto x_axis = coverAxis(x0, nx, dx, die_x0, die_x1);
     const auto y_axis = coverAxis(y0, ny, dy, die_y0, die_y1);

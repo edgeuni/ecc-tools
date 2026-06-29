@@ -159,7 +159,7 @@ void addRow(const Config& config, const NetMetaIndex& reference_meta, const std:
   row.test = test_cap;
   row.delta = row.test - row.reference;
   row.reference_victim_total_cap = reference_victim_tcap;
-  row.relative_delta = math::couplingRelativeDelta(row.test, row.reference, row.reference_victim_total_cap);
+  row.relative_delta = math::couplingRelativeDelta(row.test, row.reference, row.reference);
   result.ccap_rows.push_back(std::move(row));
 }
 

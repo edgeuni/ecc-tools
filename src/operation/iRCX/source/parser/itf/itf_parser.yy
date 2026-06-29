@@ -1401,7 +1401,7 @@ etch_vs_width_and_length :
   {
     v_etch_wlv_lut.set_names("WIDTHS", "LENGTHS", "VALUES");
   }
-  K_CAPACITIVE_ONLY '{'
+  etch_width_length_effect_type '{'
     K_LENGTHS '{' float_list '}'
     {
       v_etch_wlv_lut.set_data_list<float>("LENGTHS", v_float_list);
@@ -1419,9 +1419,17 @@ etch_vs_width_and_length :
     }
   '}'
   {
-    itfData->via.set_etch_vwl(v_etch_wlv_lut);
+    itfData->via.set_etch_vwl(v_etch_effect_type, v_etch_wlv_lut);
+    ITF_FREE(v_etch_effect_type);
     v_etch_wlv_lut.clear();
   }
+;
+
+etch_width_length_effect_type :
+  K_RESISTIVE_ONLY  { ITF_STR_CPY(v_etch_effect_type, "RESISTIVE_ONLY"); }
+| K_CAPACITIVE_ONLY { ITF_STR_CPY(v_etch_effect_type, "CAPACITIVE_ONLY"); }
+|
+  { ITF_FREE(v_etch_effect_type); }
 ;
 
 rpv_vs_width_and_length :

@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "utils/CompareMath.hh"
@@ -45,6 +46,7 @@ class NetResistanceContext
       addNode(resistor.node2);
       resistors_.push_back(&resistor);
     }
+    buildComponents();
   }
 
   auto solve(const std::string& from_node, const std::string& to_node) -> std::optional<double>
@@ -56,6 +58,9 @@ class NetResistanceContext
     const auto from_it = node_to_index_.find(from_node);
     const auto to_it = node_to_index_.find(to_node);
     if (from_it == node_to_index_.end() || to_it == node_to_index_.end()) {
+      return std::nullopt;
+    }
+    if (!sameComponent(from_it->second, to_it->second)) {
       return std::nullopt;
     }
 
@@ -130,6 +135,9 @@ class NetResistanceContext
       if (first_it == node_to_index_.end() || second_it == node_to_index_.end()) {
         continue;
       }
+      if (!sameComponent(first_it->second, second_it->second)) {
+        continue;
+      }
 
       const std::size_t first_count = endpoint_counts.at(pair.first);
       const std::size_t second_count = endpoint_counts.at(pair.second);
@@ -202,11 +210,66 @@ class NetResistanceContext
     }
   }
 
+  void buildComponents()
+  {
+    component_by_node_.assign(node_to_index_.size(), -1);
+    if (node_to_index_.empty()) {
+      return;
+    }
+
+    std::vector<std::vector<std::size_t>> adjacency(node_to_index_.size());
+    for (const auto* resistor : resistors_) {
+      const std::size_t idx1 = node_to_index_.at(resistor->node1);
+      const std::size_t idx2 = node_to_index_.at(resistor->node2);
+      adjacency[idx1].push_back(idx2);
+      adjacency[idx2].push_back(idx1);
+    }
+
+    int next_component = 0;
+    std::vector<std::size_t> stack;
+    for (std::size_t index = 0; index < component_by_node_.size(); ++index) {
+      if (component_by_node_[index] >= 0) {
+        continue;
+      }
+
+      component_by_node_[index] = next_component;
+      stack.push_back(index);
+      while (!stack.empty()) {
+        const std::size_t node = stack.back();
+        stack.pop_back();
+        for (std::size_t adjacent : adjacency[node]) {
+          if (component_by_node_[adjacent] < 0) {
+            component_by_node_[adjacent] = next_component;
+            stack.push_back(adjacent);
+          }
+        }
+      }
+      next_component++;
+    }
+  }
+
+  auto sameComponent(std::size_t node1, std::size_t node2) const -> bool
+  {
+    return node1 < component_by_node_.size() && node2 < component_by_node_.size() && component_by_node_[node1] >= 0
+           && component_by_node_[node1] == component_by_node_[node2];
+  }
+
   auto buildGroundSolve(std::size_t ground) const -> GroundSolve
   {
     GroundSolve solve;
-    solve.matrix_size = node_to_index_.size() - 1;
     solve.unknown_index.assign(node_to_index_.size(), -1);
+    if (ground >= component_by_node_.size() || component_by_node_[ground] < 0) {
+      return solve;
+    }
+
+    const int ground_component = component_by_node_[ground];
+    std::size_t component_node_count = 0;
+    for (int component : component_by_node_) {
+      if (component == ground_component) {
+        component_node_count++;
+      }
+    }
+    solve.matrix_size = component_node_count - 1;
     if (solve.matrix_size == 0) {
       solve.invertible = true;
       return solve;
@@ -214,7 +277,7 @@ class NetResistanceContext
 
     int next_unknown = 0;
     for (std::size_t index = 0; index < node_to_index_.size(); ++index) {
-      if (index != ground) {
+      if (index != ground && component_by_node_[index] == ground_component) {
         solve.unknown_index[index] = next_unknown++;
       }
     }
@@ -224,6 +287,9 @@ class NetResistanceContext
     for (const auto* resistor : resistors_) {
       const std::size_t idx1 = node_to_index_.at(resistor->node1);
       const std::size_t idx2 = node_to_index_.at(resistor->node2);
+      if (component_by_node_[idx1] != ground_component || component_by_node_[idx2] != ground_component) {
+        continue;
+      }
       const double g = 1.0 / resistor->resistance;
       const int u = solve.unknown_index[idx1];
       const int v = solve.unknown_index[idx2];
@@ -250,6 +316,7 @@ class NetResistanceContext
 
   std::unordered_map<std::string, std::size_t> node_to_index_;
   std::vector<const Resistor*> resistors_;
+  std::vector<int> component_by_node_;
 };
 
 }  // namespace
