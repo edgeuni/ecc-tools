@@ -29,7 +29,7 @@ class TimingPropagator
   static TimingPropagator& getInst();
   static void destroyInst();
   // function
-  bool build();
+  bool propagate();
 
  private:
   // self
@@ -63,17 +63,22 @@ class TimingPropagator
                                 TransType output_trans_type, double input_slew, double output_load);
   double calcTimingCellArcSlew(Database& database, TimingCellArc& timing_cell_arc, AnalysisType analysis_type, TransType input_trans_type,
                                TransType output_trans_type, double input_slew, double output_load);
-  double recoverTableSlew(idb::LibArcSet* lib_arc_set, double output_slew);
-  idb::TransType getIDBTransType(TransType trans_type);
-  TransType getTransType(idb::TransType trans_type);
-  idb::TransType getOutputTransType(idb::LibArcSet* lib_arc_set, idb::TransType input_trans_type);
+  TransType getOutputTransType(TimingCellArc& timing_cell_arc, TransType input_trans_type);
   std::vector<TransType> getOutputTransTypeList(TimingCellArc& timing_cell_arc, TransType input_trans_type);
-  double convertOutputLoad(idb::LibArcSet* lib_arc_set, double output_load);
+  std::vector<TimingArc*> getCandidateTimingArcList(TimingCellArc& timing_cell_arc, TransType input_trans_type, TransType output_trans_type);
+  std::vector<TimingArc*> getCandidateTimingCheckArcList(TimingCheckArc& timing_check_arc, TransType clock_trans_type, TransType data_trans_type);
+  bool isMatchTimingType(TimingArc& timing_arc, TransType trans_type);
+  bool isPositiveArc(TimingArc& timing_arc);
+  bool isNegativeArc(TimingArc& timing_arc);
+  bool isUnateArc(TimingCellArc& timing_cell_arc);
+  bool isNegativeArc(TimingCellArc& timing_cell_arc);
+  bool isTwoTypeSenseArcSet(TimingCellArc& timing_cell_arc);
+  bool isMatchTimingType(TimingCellArc& timing_cell_arc, TransType trans_type);
+  double convertOutputLoad(TimingArc& timing_arc, double output_load);
   double getArcOutputLoad(Database& database, Arc& arc, AnalysisType analysis_type, TransType output_trans_type);
   double getOutputPinLoad(Database& database, std::string& output_pin, AnalysisType analysis_type, TransType output_trans_type);
   double getNetOutputLoad(Database& database, Net& net, AnalysisType analysis_type, TransType output_trans_type);
   double getPinCapacitance(Database& database, std::string& pin_name, AnalysisType analysis_type, TransType trans_type);
-  double convertCheckSlewForLookup(TimingCheckArc& timing_check_arc, double data_slew);
   double calcNetArcDelay(Database& database, Arc& arc);
   double calcParasiticDelay(Database& database, Arc& arc);
   double getParasiticNodeCapacitance(ParasiticNet& parasitic_net, std::string& pin_name);

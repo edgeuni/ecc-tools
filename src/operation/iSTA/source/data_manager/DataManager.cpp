@@ -129,21 +129,27 @@ void DataManager::buildDesign(Database& database)
 
 void DataManager::buildTimingLibrary(Database& database)
 {
-  database.get_timing_library().get_lib_list().clear();
+  Monitor monitor;
+  STALOG.info(Loc::current(), "Starting...");
+  bool old_silent_output = idb::Lib::isSilentOutput();
+  idb::Lib::setSilentOutput(true);
+  std::vector<std::unique_ptr<idb::LibLibrary>> lib_list;
   for (idb::LibertyReader& liberty_reader : dmInst->get_lib_readers()) {
     liberty_reader.linkLib();
     idb::LibBuilder* lib_builder = liberty_reader.get_library_builder();
-    database.get_timing_library().get_lib_list().push_back(lib_builder->takeLib());
+    lib_list.push_back(lib_builder->takeLib());
     delete lib_builder;
     liberty_reader.set_library_builder(nullptr);
   }
-  buildTimingCellMap(database);
+  buildTimingCellMap(database, lib_list);
+  idb::Lib::setSilentOutput(old_silent_output);
+  STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void DataManager::buildTimingCellMap(Database& database)
+void DataManager::buildTimingCellMap(Database& database, std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list)
 {
   database.get_timing_library().get_cell_map().clear();
-  for (std::unique_ptr<idb::LibLibrary>& lib : database.get_timing_library().get_lib_list()) {
+  for (std::unique_ptr<idb::LibLibrary>& lib : lib_list) {
     for (std::unique_ptr<idb::LibCell>& lib_cell : lib->get_cells()) {
       makeTimingCell(database, lib_cell.get());
     }
@@ -180,7 +186,9 @@ void DataManager::makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_
     for (idb::TransType trans_type : {idb::TransType::kRise, idb::TransType::kFall}) {
       std::optional<double> port_cap = lib_port->get_port_cap(analysis_mode, trans_type);
       if (port_cap) {
-        timing_cell_port.get_trans_capacitance_map()[getAnalysisType(analysis_mode)][getTransType(trans_type)] = *port_cap;
+        AnalysisType sta_analysis_type = analysis_mode == idb::AnalysisMode::kMin ? AnalysisType::kMin : AnalysisType::kMax;
+        TransType sta_trans_type = trans_type == idb::TransType::kFall ? TransType::kFall : TransType::kRise;
+        timing_cell_port.get_trans_capacitance_map()[sta_analysis_type][sta_trans_type] = *port_cap;
       }
     }
   }
@@ -215,8 +223,9 @@ TimingCellArc DataManager::makeDelayArc(idb::LibArcSet* lib_arc_set)
   timing_cell_arc.set_delay(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
   timing_cell_arc.set_delay_max(timing_cell_arc.get_delay());
   timing_cell_arc.set_delay_min(timing_cell_arc.get_delay());
-  timing_cell_arc.set_lib_arc_set(lib_arc_set);
+  timing_cell_arc.set_timing_arc_list(makeTimingArcList(lib_arc_set));
   timing_cell_arc.set_is_clock_arc(lib_arc->isRisingTriggerArc() || lib_arc->isFallingTriggerArc());
+  timing_cell_arc.set_is_disable_arc(lib_arc->isDisableArc());
   return timing_cell_arc;
 }
 
@@ -237,12 +246,169 @@ TimingCheckArc DataManager::makeCheckArc(idb::LibArcSet* lib_arc_set)
   timing_check_arc.set_data_port(lib_arc->get_snk_port());
   timing_check_arc.set_check_type(getTimingCheckType(lib_arc));
   timing_check_arc.set_check_time(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
-  timing_check_arc.set_lib_arc(lib_arc);
-  timing_check_arc.set_lib_arc_set(lib_arc_set);
+  timing_check_arc.set_timing_arc_list(makeTimingArcList(lib_arc_set));
+  timing_check_arc.set_clock_trans_type(getCheckTransType(lib_arc));
   if (timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
     timing_check_arc.set_setup_time(timing_check_arc.get_check_time());
   }
   return timing_check_arc;
+}
+
+std::vector<TimingArc> DataManager::makeTimingArcList(idb::LibArcSet* lib_arc_set)
+{
+  std::vector<TimingArc> timing_arc_list;
+  for (std::unique_ptr<idb::LibArc>& lib_arc : lib_arc_set->get_arcs()) {
+    if (lib_arc->isDisableArc()) {
+      continue;
+    }
+    timing_arc_list.push_back(makeTimingArc(lib_arc.get()));
+  }
+  return timing_arc_list;
+}
+
+TimingArc DataManager::makeTimingArc(idb::LibArc* lib_arc)
+{
+  TimingArc timing_arc;
+  idb::LibLibrary* lib_library = lib_arc->get_owner_cell()->get_owner_lib();
+  timing_arc.set_sense(getTimingArcSense(lib_arc));
+  timing_arc.set_trigger_trans_type(getTriggerTransType(lib_arc));
+  timing_arc.set_check_trans_type(getCheckTransType(lib_arc));
+  timing_arc.set_time_unit_scale(getLibTimeUnitScale(lib_library));
+  timing_arc.set_cap_unit_scale(getLibCapUnitScale(lib_library));
+  timing_arc.set_slew_derate(lib_library->get_slew_derate_from_library());
+  makeTimingArcTable(timing_arc, lib_arc);
+  return timing_arc;
+}
+
+void DataManager::makeTimingArcTable(TimingArc& timing_arc, idb::LibArc* lib_arc)
+{
+  idb::LibTableModel* table_model = lib_arc->get_table_model();
+  if (table_model == nullptr) {
+    return;
+  }
+  if (lib_arc->isDelayArc()) {
+    idb::LibTable* rise_delay_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kCellRise));
+    idb::LibTable* fall_delay_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kCellFall));
+    idb::LibTable* rise_slew_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kRiseTransition));
+    idb::LibTable* fall_slew_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kFallTransition));
+    if (rise_delay_table != nullptr) {
+      timing_arc.get_delay_table_map()[TransType::kRise] = makeTimingTable(rise_delay_table);
+    }
+    if (fall_delay_table != nullptr) {
+      timing_arc.get_delay_table_map()[TransType::kFall] = makeTimingTable(fall_delay_table);
+    }
+    if (rise_slew_table != nullptr) {
+      timing_arc.get_slew_table_map()[TransType::kRise] = makeTimingTable(rise_slew_table);
+    }
+    if (fall_slew_table != nullptr) {
+      timing_arc.get_slew_table_map()[TransType::kFall] = makeTimingTable(fall_slew_table);
+    }
+    return;
+  }
+  idb::LibTable* rise_check_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kRiseConstrain));
+  idb::LibTable* fall_check_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kFallConstrain));
+  if (rise_check_table != nullptr) {
+    timing_arc.get_check_table_map()[TransType::kRise] = makeTimingTable(rise_check_table);
+  }
+  if (fall_check_table != nullptr) {
+    timing_arc.get_check_table_map()[TransType::kFall] = makeTimingTable(fall_check_table);
+  }
+}
+
+TimingTable DataManager::makeTimingTable(idb::LibTable* lib_table)
+{
+  TimingTable timing_table;
+  timing_table.set_variable_type1(getTimingTableVariableType(lib_table, true));
+  timing_table.set_variable_type2(getTimingTableVariableType(lib_table, false));
+  std::vector<std::vector<double>> axis_list;
+  for (std::unique_ptr<idb::LibAxis>& lib_axis : lib_table->get_axes()) {
+    std::vector<double> axis_value_list;
+    for (std::unique_ptr<idb::LibAttrValue>& axis_value : lib_axis->get_axis_values()) {
+      axis_value_list.push_back(axis_value->getFloatValue());
+    }
+    axis_list.push_back(axis_value_list);
+  }
+  std::vector<double> value_list;
+  for (std::unique_ptr<idb::LibAttrValue>& lib_value : lib_table->get_table_values()) {
+    value_list.push_back(lib_value->getFloatValue());
+  }
+  timing_table.set_axis_list(axis_list);
+  timing_table.set_value_list(value_list);
+  return timing_table;
+}
+
+TimingTableVariableType DataManager::getTimingTableVariableType(idb::LibTable* lib_table, bool is_first_variable)
+{
+  idb::LibLutTableTemplate* table_template = lib_table->get_table_template();
+  if (table_template == nullptr) {
+    return TimingTableVariableType::kNone;
+  }
+  std::optional<idb::LibLutTableTemplate::Variable> variable
+      = is_first_variable ? table_template->get_template_variable1() : table_template->get_template_variable2();
+  if (!variable) {
+    return TimingTableVariableType::kNone;
+  }
+  if (*variable == idb::LibLutTableTemplate::Variable::TOTAL_OUTPUT_NET_CAPACITANCE) {
+    return TimingTableVariableType::kOutputCapacitance;
+  }
+  if (*variable == idb::LibLutTableTemplate::Variable::CONSTRAINED_PIN_TRANSITION) {
+    return TimingTableVariableType::kConstrainedTransition;
+  }
+  if (*variable == idb::LibLutTableTemplate::Variable::INPUT_NET_TRANSITION
+      || *variable == idb::LibLutTableTemplate::Variable::RELATED_PIN_TRANSITION
+      || *variable == idb::LibLutTableTemplate::Variable::INPUT_TRANSITION_TIME) {
+    return TimingTableVariableType::kInputTransition;
+  }
+  return TimingTableVariableType::kNone;
+}
+
+double DataManager::getLibTimeUnitScale(idb::LibLibrary* lib_library)
+{
+  if (lib_library->get_time_unit() == idb::TimeUnit::kPS) {
+    return 1e3;
+  }
+  if (lib_library->get_time_unit() == idb::TimeUnit::kFS) {
+    return 1e6;
+  }
+  return 1.0;
+}
+
+double DataManager::getLibCapUnitScale(idb::LibLibrary* lib_library)
+{
+  if (lib_library->get_cap_unit() == idb::CapacitiveUnit::kFF) {
+    return static_cast<double>(idb::g_pf2ff);
+  }
+  return 1.0;
+}
+
+TimingArcSense DataManager::getTimingArcSense(idb::LibArc* lib_arc)
+{
+  if (lib_arc->isNegativeArc()) {
+    return TimingArcSense::kNegative;
+  }
+  if (lib_arc->isNonUnateArc()) {
+    return TimingArcSense::kNonUnate;
+  }
+  return TimingArcSense::kPositive;
+}
+
+TransType DataManager::getTriggerTransType(idb::LibArc* lib_arc)
+{
+  if (lib_arc->isFallingTriggerArc()) {
+    return TransType::kFall;
+  }
+  if (lib_arc->isRisingTriggerArc()) {
+    return TransType::kRise;
+  }
+  return TransType::kNone;
+}
+
+TransType DataManager::getCheckTransType(idb::LibArc* lib_arc)
+{
+  if (lib_arc->isFallingEdgeCheck()) {
+    return TransType::kFall;
+  }
+  return TransType::kRise;
 }
 
 TimingCheckType DataManager::getTimingCheckType(idb::LibArc* lib_arc)
@@ -260,22 +426,6 @@ TimingCheckType DataManager::getTimingCheckType(idb::LibArc* lib_arc)
     return TimingCheckType::kRemoval;
   }
   return TimingCheckType::kNone;
-}
-
-AnalysisType DataManager::getAnalysisType(idb::AnalysisMode analysis_mode)
-{
-  if (analysis_mode == idb::AnalysisMode::kMin) {
-    return AnalysisType::kMin;
-  }
-  return AnalysisType::kMax;
-}
-
-TransType DataManager::getTransType(idb::TransType trans_type)
-{
-  if (trans_type == idb::TransType::kFall) {
-    return TransType::kFall;
-  }
-  return TransType::kRise;
 }
 
 void DataManager::updateTimingCell(TimingCell& timing_cell)
@@ -354,8 +504,8 @@ TimingCheckArc DataManager::makeInstanceTimingCheckArc(Instance& instance, Timin
   instance_timing_check_arc.set_setup_time(timing_check_arc.get_setup_time());
   instance_timing_check_arc.set_check_type(timing_check_arc.get_check_type());
   instance_timing_check_arc.set_check_time(timing_check_arc.get_check_time());
-  instance_timing_check_arc.set_lib_arc(timing_check_arc.get_lib_arc());
-  instance_timing_check_arc.set_lib_arc_set(timing_check_arc.get_lib_arc_set());
+  instance_timing_check_arc.set_timing_arc_list(timing_check_arc.get_timing_arc_list());
+  instance_timing_check_arc.set_clock_trans_type(timing_check_arc.get_clock_trans_type());
   return instance_timing_check_arc;
 }
 
@@ -542,7 +692,198 @@ std::vector<std::vector<std::string>> DataManager::readCommandList(std::string& 
   if (!command_token_list.empty()) {
     command_list.push_back(command_token_list);
   }
-  return command_list;
+  return resolveCommandList(command_list);
+}
+
+std::vector<std::vector<std::string>> DataManager::resolveCommandList(std::vector<std::vector<std::string>>& command_list)
+{
+  std::map<std::string, std::string> variable_map;
+  std::vector<std::vector<std::string>> resolved_command_list;
+  for (std::vector<std::string>& token_list : command_list) {
+    if (token_list.empty()) {
+      continue;
+    }
+    if (token_list.front() == "set") {
+      updateVariableMap(token_list, variable_map);
+      continue;
+    }
+    std::vector<std::string> resolved_token_list = resolveCommandTokenList(token_list, variable_map);
+    if (!resolved_token_list.empty()) {
+      resolved_command_list.push_back(resolved_token_list);
+    }
+  }
+  return resolved_command_list;
+}
+
+std::vector<std::string> DataManager::resolveCommandTokenList(std::vector<std::string>& token_list, std::map<std::string, std::string>& variable_map)
+{
+  std::vector<std::string> resolved_token_list;
+  for (std::size_t i = 0; i < token_list.size(); i++) {
+    if (token_list[i].empty()) {
+      continue;
+    }
+    if (token_list[i].front() == '[') {
+      resolved_token_list.push_back(resolveBracketCommand(token_list, i, variable_map));
+      continue;
+    }
+    resolved_token_list.push_back(resolveVariableToken(token_list[i], variable_map));
+  }
+  return resolved_token_list;
+}
+
+void DataManager::updateVariableMap(std::vector<std::string>& token_list, std::map<std::string, std::string>& variable_map)
+{
+  if (token_list.size() < 3) {
+    return;
+  }
+  std::string variable_name = token_list[1];
+  std::string variable_value;
+  if (!token_list[2].empty() && token_list[2].front() == '[') {
+    std::size_t token_idx = 2;
+    variable_value = resolveBracketCommand(token_list, token_idx, variable_map);
+  } else {
+    variable_value = getTokenListString(token_list, 2);
+    variable_value = resolveVariableToken(variable_value, variable_map);
+  }
+  variable_map[variable_name] = variable_value;
+}
+
+std::string DataManager::resolveBracketCommand(std::vector<std::string>& token_list, std::size_t& token_idx, std::map<std::string, std::string>& variable_map)
+{
+  std::vector<std::string> bracket_token_list = getBracketTokenList(token_list, token_idx, variable_map);
+  if (bracket_token_list.empty()) {
+    return "";
+  }
+  if (bracket_token_list.front() == "expr") {
+    return evalExpr(bracket_token_list);
+  }
+  if (bracket_token_list.front() == "get_ports" || bracket_token_list.front() == "get_pins" || bracket_token_list.front() == "get_clocks") {
+    return getTokenListString(bracket_token_list, 1);
+  }
+  return getTokenListString(bracket_token_list, 0);
+}
+
+std::vector<std::string> DataManager::getBracketTokenList(std::vector<std::string>& token_list, std::size_t& token_idx,
+                                                          std::map<std::string, std::string>& variable_map)
+{
+  std::vector<std::string> bracket_token_list;
+  for (std::size_t i = token_idx; i < token_list.size(); i++) {
+    std::string token = token_list[i];
+    bool is_end = !token.empty() && token.back() == ']';
+    if (i == token_idx && !token.empty() && token.front() == '[') {
+      token.erase(token.begin());
+    }
+    if (is_end) {
+      token.pop_back();
+    }
+    if (!token.empty()) {
+      bracket_token_list.push_back(resolveVariableToken(token, variable_map));
+    }
+    token_idx = i;
+    if (is_end) {
+      break;
+    }
+  }
+  return bracket_token_list;
+}
+
+std::string DataManager::evalExpr(std::vector<std::string>& expr_token_list)
+{
+  return getExprValueString(calcExprValue(expr_token_list));
+}
+
+double DataManager::calcExprValue(std::vector<std::string>& expr_token_list)
+{
+  std::vector<double> value_list;
+  std::vector<std::string> operator_list;
+  for (std::size_t i = 1; i < expr_token_list.size(); i++) {
+    if (isExprOperator(expr_token_list[i])) {
+      operator_list.push_back(expr_token_list[i]);
+    } else {
+      value_list.push_back(std::stod(expr_token_list[i]));
+    }
+  }
+  calcExprMulDiv(value_list, operator_list);
+  if (value_list.empty()) {
+    return 0.0;
+  }
+  double result = value_list.front();
+  for (std::size_t i = 0; i < operator_list.size() && i + 1 < value_list.size(); i++) {
+    if (operator_list[i] == "+") {
+      result += value_list[i + 1];
+    } else if (operator_list[i] == "-") {
+      result -= value_list[i + 1];
+    }
+  }
+  return result;
+}
+
+void DataManager::calcExprMulDiv(std::vector<double>& value_list, std::vector<std::string>& operator_list)
+{
+  for (std::size_t i = 0; i < operator_list.size() && i + 1 < value_list.size();) {
+    if (operator_list[i] == "*" || operator_list[i] == "/") {
+      if (operator_list[i] == "*") {
+        value_list[i] *= value_list[i + 1];
+      } else {
+        value_list[i] /= value_list[i + 1];
+      }
+      value_list.erase(value_list.begin() + i + 1);
+      operator_list.erase(operator_list.begin() + i);
+      continue;
+    }
+    i++;
+  }
+}
+
+std::string DataManager::getExprValueString(const double value)
+{
+  std::ostringstream oss;
+  oss << std::setprecision(15) << value;
+  return oss.str();
+}
+
+bool DataManager::isExprOperator(std::string& token)
+{
+  return token == "+" || token == "-" || token == "*" || token == "/";
+}
+
+std::string DataManager::resolveVariableToken(std::string token, std::map<std::string, std::string>& variable_map)
+{
+  if (token.empty()) {
+    return token;
+  }
+  std::string resolved_token;
+  for (std::size_t i = 0; i < token.size(); i++) {
+    if (token[i] != '$') {
+      resolved_token.push_back(token[i]);
+      continue;
+    }
+    std::string variable_name;
+    i++;
+    while (i < token.size() && (std::isalnum(static_cast<unsigned char>(token[i])) || token[i] == '_')) {
+      variable_name.push_back(token[i]);
+      i++;
+    }
+    i--;
+    if (variable_map.count(variable_name) > 0) {
+      resolved_token += variable_map[variable_name];
+    } else {
+      resolved_token += "$" + variable_name;
+    }
+  }
+  return resolved_token;
+}
+
+std::string DataManager::getTokenListString(std::vector<std::string>& token_list, std::size_t begin_idx)
+{
+  std::string token_list_string;
+  for (std::size_t i = begin_idx; i < token_list.size(); i++) {
+    if (!token_list_string.empty()) {
+      token_list_string += " ";
+    }
+    token_list_string += token_list[i];
+  }
+  return token_list_string;
 }
 
 std::vector<std::string> DataManager::tokenizeSdc(std::string& content)

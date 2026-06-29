@@ -68,7 +68,6 @@ TimingReporter* TimingReporter::_tr_instance = nullptr;
 void TimingReporter::reportTiming(Database& database)
 {
   outputTimingReportList(database);
-  STALOG.info(Loc::current(), "Output iSTA timing report: ", STADM.getConfig().tr_temp_directory_path);
 }
 
 void TimingReporter::outputTimingReportList(Database& database)

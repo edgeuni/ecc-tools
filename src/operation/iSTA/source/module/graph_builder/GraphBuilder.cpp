@@ -137,10 +137,7 @@ void GraphBuilder::addCellArc(Database& database, Instance& instance, TimingCell
   if (database.get_pin_map().count(source_pin) == 0 || database.get_pin_map().count(sink_pin) == 0) {
     return;
   }
-  bool is_disable_arc = false;
-  if (timing_cell_arc.get_lib_arc_set() != nullptr && timing_cell_arc.get_lib_arc_set()->front() != nullptr) {
-    is_disable_arc = timing_cell_arc.get_lib_arc_set()->front()->isDisableArc();
-  }
+  bool is_disable_arc = timing_cell_arc.get_is_disable_arc();
   addArc(database, source_pin, sink_pin, ArcType::kCell, instance.get_instance_name(), timing_cell_arc.get_source_port(), timing_cell_arc.get_sink_port(),
          timing_cell_arc.get_is_clock_arc(), is_disable_arc, &timing_cell_arc);
 }
@@ -333,8 +330,8 @@ PinDirection GraphBuilder::inferInoutPinDirectionByNet(Database& database, Pin& 
   }
   if (driver_pin_num > 1) {
     std::vector<std::string> driver_pin_list = getDriverPinList(database, *net, inout_pin_direction_map);
-    STALOG.warn(Loc::current(), "The net has multiple driver pins: net=", net->get_net_name(), " drivers=", getPinNameListString(driver_pin_list));
-    return getLoadPinDirection(pin);
+    STALOG.error(Loc::current(), "The net has multiple driver pins: net=", net->get_net_name(),
+                 " drivers=", getPinNameListString(driver_pin_list));
   }
   return PinDirection::kNone;
 }
@@ -441,32 +438,9 @@ void GraphBuilder::makeNetDriverLoad(Database& database, Net& net)
   }
 
   if (net.get_driver_pin_list().size() > 1) {
-    std::vector<std::string> driver_pin_list = net.get_driver_pin_list();
-    std::string selected_driver_pin = selectDriverPin(driver_pin_list);
-    STALOG.warn(Loc::current(), "The net has multiple driver pins: net=", net.get_net_name(), " drivers=", getPinNameListString(driver_pin_list),
-                " selected_driver=", selected_driver_pin);
-
-    net.set_driver_pin(selected_driver_pin);
-    net.get_driver_pin_list().clear();
-    net.get_driver_pin_list().push_back(selected_driver_pin);
-    net.get_load_pin_list().clear();
-    for (std::string& pin_name : net.get_pin_name_list()) {
-      if (pin_name != selected_driver_pin) {
-        net.get_load_pin_list().push_back(pin_name);
-      }
-    }
+    STALOG.error(Loc::current(), "The net has multiple driver pins: net=", net.get_net_name(),
+                 " drivers=", getPinNameListString(net.get_driver_pin_list()));
   }
-}
-
-std::string GraphBuilder::selectDriverPin(std::vector<std::string>& driver_pin_list)
-{
-  if (driver_pin_list.empty()) {
-    return "";
-  }
-  static std::random_device random_device;
-  static std::mt19937 generator(random_device());
-  std::uniform_int_distribution<std::size_t> distribution(0, driver_pin_list.size() - 1);
-  return driver_pin_list[distribution(generator)];
 }
 
 bool GraphBuilder::isDriverPin(Pin& pin)

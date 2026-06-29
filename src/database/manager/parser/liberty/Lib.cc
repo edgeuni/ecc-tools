@@ -40,6 +40,8 @@
 
 namespace idb {
 
+bool Lib::_silent_output = false;
+
 namespace {
 
 bool shouldTraceLibCheckLookup()
@@ -239,7 +241,7 @@ double LibTable::findValue(double slew, double constrain_slew_or_load)
     auto min_val = getAxis(axis_index)[0];
     auto max_val = getAxis(axis_index)[num_val - 1];
 
-    if ((val < min_val) || (val > max_val)) {
+    if (!Lib::isSilentOutput() && ((val < min_val) || (val > max_val))) {
       LOG_ERROR_FIRST_N(10) << "Warning: val outside table ranges:  "
                             << "val = " << val << "; min_val = " << min_val << "; max_val = " << max_val << std::endl;
     }

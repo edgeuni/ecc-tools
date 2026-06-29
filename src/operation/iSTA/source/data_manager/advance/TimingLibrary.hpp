@@ -18,7 +18,6 @@
 
 #include "STAHeader.hpp"
 #include "TimingCell.hpp"
-#include "liberty/Lib.hh"
 
 namespace ista {
 
@@ -28,14 +27,12 @@ class TimingLibrary
   TimingLibrary() = default;
   ~TimingLibrary() = default;
   // getter
-  std::vector<std::unique_ptr<idb::LibLibrary>>& get_lib_list() { return _lib_list; }
   std::map<std::string, TimingCell>& get_cell_map() { return _cell_map; }
   // setter
   void set_cell_map(const std::map<std::string, TimingCell>& cell_map) { _cell_map = cell_map; }
   // function
 
  private:
-  std::vector<std::unique_ptr<idb::LibLibrary>> _lib_list;
   std::map<std::string, TimingCell> _cell_map;
 };
 

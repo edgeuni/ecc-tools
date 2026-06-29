@@ -85,7 +85,7 @@ void STAInterface::runSTA()
   GraphBuilder::destroyInst();
 
   TimingPropagator::initInst();
-  STATP.build();
+  STATP.propagate();
   TimingPropagator::destroyInst();
 
   TimingReporter::initInst();

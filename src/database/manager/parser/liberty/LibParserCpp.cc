@@ -702,7 +702,7 @@ unsigned LibertyReader::visitComplexAttri(
   } else if (Str::startWith(attri_name, "index") ||
              Str::equal(attri_name, "values")) {
     is_ok = visitAxisOrValues(attri);
-  } else {
+  } else if (!Lib::isSilentOutput()) {
     LOG_INFO_EVERY_N(10) << "unkown attri name: " << attri_name << " in "
                          << attri->file_name << " line no " << attri->line_no;
   }
@@ -892,7 +892,7 @@ unsigned LibertyReader::visitComplexAttri(
   } else if (Str::startWith(attri_name, "index") ||
              Str::equal(attri_name, "values")) {
     is_ok = visitAxisOrValues(attri);
-  } else {
+  } else if (!Lib::isSilentOutput()) {
     LOG_INFO_EVERY_N(10) << "unkown attri name: " << attri_name << " in "
                          << attri->getSourceFile() << " line no "
                          << attri->getSourceLine();
@@ -1483,7 +1483,7 @@ unsigned LibertyReader::visitGroup(LibertyGroupStmt* group) {
     is_ok = visitTable(group);
   } else if (power_table_names.contains(group_name)) {
     is_ok = visitPowerTable(group);
-  } else {
+  } else if (!Lib::isSilentOutput()) {
     DLOG_INFO_EVERY_N(100000) << "group " << group_name << " is not supported.";
   }
 
@@ -1950,7 +1950,7 @@ unsigned LibertyReader::visitGroup(liberty_ast::LibGroup* group) {
     is_ok = visitTable(group);
   } else if (power_table_names.contains(group_name)) {
     is_ok = visitPowerTable(group);
-  } else {
+  } else if (!Lib::isSilentOutput()) {
     DLOG_INFO_EVERY_N(100000) << "group " << group_name << " is not supported.";
   }
 
@@ -1984,7 +1984,9 @@ unsigned LibertyReader::readLib() {
  * @return unsigned
  */
 unsigned LibertyReader::linkLib() {
-  LOG_INFO << "link liberty file " << _file_name << " start.";
+  if (!Lib::isSilentOutput()) {
+    LOG_INFO << "link liberty file " << _file_name << " start.";
+  }
   if (_lib_file) {
     auto* driver = reinterpret_cast<liberty_ast::LibertyDriver*>(_lib_file);
     auto* lib_group = driver ? driver->getParseResult() : nullptr;
@@ -1994,7 +1996,9 @@ unsigned LibertyReader::linkLib() {
     liberty_free_lib_group(_lib_file);
     _lib_file = nullptr;
 
-    LOG_INFO << "link liberty file " << _file_name << " success.";
+    if (!Lib::isSilentOutput()) {
+      LOG_INFO << "link liberty file " << _file_name << " success.";
+    }
     return result;
   }
 

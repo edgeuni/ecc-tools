@@ -1852,9 +1852,14 @@ class Lib
   Lib() = default;
   ~Lib() = default;
 
+  static void setSilentOutput(bool silent_output) { _silent_output = silent_output; }
+  static bool isSilentOutput() { return _silent_output; }
+
   LibertyReader loadLibertyWithCppParser(const char* file_name);
 
  private:
+  static bool _silent_output;
+
   FORBIDDEN_COPY(Lib);
 };
 

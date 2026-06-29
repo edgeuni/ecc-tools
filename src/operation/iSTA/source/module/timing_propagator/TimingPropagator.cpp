@@ -49,7 +49,7 @@ void TimingPropagator::destroyInst()
 
 // function
 
-bool TimingPropagator::build()
+bool TimingPropagator::propagate()
 {
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
@@ -83,10 +83,8 @@ void TimingPropagator::buildArcDelay(Database& database, Arc& arc)
 {
   buildAnalysisArcDelay(database, arc, AnalysisType::kMax);
   buildAnalysisArcDelay(database, arc, AnalysisType::kMin);
-  arc.set_delay_max(std::max(arc.get_trans_delay_map()[AnalysisType::kMax][TransType::kRise],
-                             arc.get_trans_delay_map()[AnalysisType::kMax][TransType::kFall]));
-  arc.set_delay_min(std::min(arc.get_trans_delay_map()[AnalysisType::kMin][TransType::kRise],
-                             arc.get_trans_delay_map()[AnalysisType::kMin][TransType::kFall]));
+  arc.set_delay_max(std::max(arc.get_trans_delay_map()[AnalysisType::kMax][TransType::kRise], arc.get_trans_delay_map()[AnalysisType::kMax][TransType::kFall]));
+  arc.set_delay_min(std::min(arc.get_trans_delay_map()[AnalysisType::kMin][TransType::kRise], arc.get_trans_delay_map()[AnalysisType::kMin][TransType::kFall]));
   arc.set_delay(arc.get_delay_max());
 }
 
@@ -107,7 +105,7 @@ void TimingPropagator::buildTransArcDelay(Database& database, Arc& arc, Analysis
   }
 
   TimingCellArc* timing_cell_arc = getTimingCellArc(database, arc);
-  if (timing_cell_arc == nullptr || timing_cell_arc->get_lib_arc_set() == nullptr) {
+  if (timing_cell_arc == nullptr || timing_cell_arc->get_timing_arc_list().empty()) {
     double delay = calcCellArcDelay(database, arc, analysis_type, input_trans_type);
     arc.get_input_output_delay_map()[analysis_type][input_trans_type][input_trans_type] = delay;
     arc.get_trans_delay_map()[analysis_type][input_trans_type] = delay;
@@ -135,13 +133,15 @@ bool TimingPropagator::isClockArcTriggerTrans(TimingCellArc& timing_cell_arc, Tr
   if (!timing_cell_arc.get_is_clock_arc()) {
     return true;
   }
-  idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
-  if (lib_arc_set == nullptr || lib_arc_set->front() == nullptr) {
+  if (timing_cell_arc.get_timing_arc_list().empty()) {
     return true;
   }
-  idb::LibArc* lib_arc = lib_arc_set->front();
-  if (lib_arc->isFallingTriggerArc()) {
+  TimingArc& timing_arc = timing_cell_arc.get_timing_arc_list().front();
+  if (timing_arc.get_trigger_trans_type() == TransType::kFall) {
     return input_trans_type == TransType::kFall;
+  }
+  if (timing_arc.get_trigger_trans_type() == TransType::kRise) {
+    return input_trans_type == TransType::kRise;
   }
   return input_trans_type == TransType::kRise;
 }
@@ -206,25 +206,33 @@ double TimingPropagator::calcTimingCellArcDelay(Database& database, Arc& arc, Ti
 double TimingPropagator::calcTimingCellArcDelay(Database& database, Arc& arc, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
                                                 TransType input_trans_type)
 {
-  idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
-  if (lib_arc_set == nullptr) {
+  if (timing_cell_arc.get_timing_arc_list().empty()) {
     arc.get_trans_type_map()[input_trans_type] = input_trans_type;
     if (analysis_type == AnalysisType::kMin) {
       return timing_cell_arc.get_delay_min();
     }
     return timing_cell_arc.get_delay_max();
   }
-  idb::TransType idb_input_trans_type = getIDBTransType(input_trans_type);
-  idb::TransType idb_output_trans_type = getOutputTransType(lib_arc_set, idb_input_trans_type);
-  TransType output_trans_type = getTransType(idb_output_trans_type);
+  TransType output_trans_type = getOutputTransType(timing_cell_arc, input_trans_type);
   arc.get_trans_type_map()[input_trans_type] = output_trans_type;
-  if (!lib_arc_set->isMatchTimingType(idb_output_trans_type)) {
+  if (!isMatchTimingType(timing_cell_arc, output_trans_type)) {
     return timing_cell_arc.get_delay();
   }
   double input_slew = 0.0;
   double raw_output_load = getArcOutputLoad(database, arc, analysis_type, output_trans_type);
-  double output_load = convertOutputLoad(lib_arc_set, raw_output_load);
-  std::vector<double> delay_list = lib_arc_set->getDelayOrConstrainCheckNs(idb_input_trans_type, idb_output_trans_type, input_slew, output_load);
+  std::vector<double> delay_list;
+  for (TimingArc* timing_arc : getCandidateTimingArcList(timing_cell_arc, input_trans_type, output_trans_type)) {
+    if (timing_arc->get_delay_table_map().count(output_trans_type) == 0) {
+      continue;
+    }
+    double output_load = convertOutputLoad(*timing_arc, raw_output_load);
+    double delay = timing_arc->get_delay_table_map()[output_trans_type].findValue(input_slew * timing_arc->get_time_unit_scale(), output_load);
+    delay_list.push_back(delay / timing_arc->get_time_unit_scale());
+  }
+  if (delay_list.empty()) {
+    return timing_cell_arc.get_delay();
+  }
+  std::ranges::sort(delay_list, std::greater<double>());
   if (analysis_type == AnalysisType::kMin) {
     return delay_list.back();
   }
@@ -240,20 +248,29 @@ double TimingPropagator::calcTimingCellArcDelay(Database& database, Arc& arc, Ti
 double TimingPropagator::calcTimingCellArcDelay(Database& database, Arc& arc, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
                                                 TransType input_trans_type, TransType output_trans_type, double input_slew)
 {
-  idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
-  if (lib_arc_set == nullptr) {
+  if (timing_cell_arc.get_timing_arc_list().empty()) {
     if (analysis_type == AnalysisType::kMin) {
       return timing_cell_arc.get_delay_min();
     }
     return timing_cell_arc.get_delay_max();
   }
-  idb::TransType idb_input_trans_type = getIDBTransType(input_trans_type);
-  idb::TransType idb_output_trans_type = getIDBTransType(output_trans_type);
-  if (!lib_arc_set->isMatchTimingType(idb_output_trans_type)) {
+  if (!isMatchTimingType(timing_cell_arc, output_trans_type)) {
     return timing_cell_arc.get_delay();
   }
-  double output_load = convertOutputLoad(lib_arc_set, getArcOutputLoad(database, arc, analysis_type, output_trans_type));
-  std::vector<double> delay_list = lib_arc_set->getDelayOrConstrainCheckNs(idb_input_trans_type, idb_output_trans_type, input_slew, output_load);
+  double raw_output_load = getArcOutputLoad(database, arc, analysis_type, output_trans_type);
+  std::vector<double> delay_list;
+  for (TimingArc* timing_arc : getCandidateTimingArcList(timing_cell_arc, input_trans_type, output_trans_type)) {
+    if (timing_arc->get_delay_table_map().count(output_trans_type) == 0) {
+      continue;
+    }
+    double output_load = convertOutputLoad(*timing_arc, raw_output_load);
+    double delay = timing_arc->get_delay_table_map()[output_trans_type].findValue(input_slew * timing_arc->get_time_unit_scale(), output_load);
+    delay_list.push_back(delay / timing_arc->get_time_unit_scale());
+  }
+  if (delay_list.empty()) {
+    return timing_cell_arc.get_delay();
+  }
+  std::ranges::sort(delay_list, std::greater<double>());
   if (analysis_type == AnalysisType::kMin) {
     return delay_list.back();
   }
@@ -263,12 +280,10 @@ double TimingPropagator::calcTimingCellArcDelay(Database& database, Arc& arc, Ti
 double TimingPropagator::calcTimingCellArcSlew(Database& database, Arc& arc, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
                                                TransType input_trans_type, TransType output_trans_type, double input_slew)
 {
-  idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
-  if (lib_arc_set == nullptr) {
+  if (timing_cell_arc.get_timing_arc_list().empty()) {
     return input_slew;
   }
-  idb::TransType idb_output_trans_type = getIDBTransType(output_trans_type);
-  if (!lib_arc_set->isMatchTimingType(idb_output_trans_type)) {
+  if (!isMatchTimingType(timing_cell_arc, output_trans_type)) {
     return input_slew;
   }
   double output_load = getArcOutputLoad(database, arc, analysis_type, output_trans_type);
@@ -276,111 +291,191 @@ double TimingPropagator::calcTimingCellArcSlew(Database& database, Arc& arc, Tim
   return output_slew;
 }
 
-double TimingPropagator::calcTimingCellArcDelay(Database& database, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
-                                                TransType input_trans_type, TransType output_trans_type, double input_slew, double output_load)
+double TimingPropagator::calcTimingCellArcDelay(Database& database, TimingCellArc& timing_cell_arc, AnalysisType analysis_type, TransType input_trans_type,
+                                                TransType output_trans_type, double input_slew, double output_load)
 {
-  idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
-  if (lib_arc_set == nullptr) {
+  if (timing_cell_arc.get_timing_arc_list().empty()) {
     if (analysis_type == AnalysisType::kMin) {
       return timing_cell_arc.get_delay_min();
     }
     return timing_cell_arc.get_delay_max();
   }
-  idb::TransType idb_input_trans_type = getIDBTransType(input_trans_type);
-  idb::TransType idb_output_trans_type = getIDBTransType(output_trans_type);
-  if (!lib_arc_set->isMatchTimingType(idb_output_trans_type)) {
+  if (!isMatchTimingType(timing_cell_arc, output_trans_type)) {
     return timing_cell_arc.get_delay();
   }
-  double converted_output_load = convertOutputLoad(lib_arc_set, output_load);
-  std::vector<double> delay_list = lib_arc_set->getDelayOrConstrainCheckNs(idb_input_trans_type, idb_output_trans_type, input_slew, converted_output_load);
+  std::vector<double> delay_list;
+  for (TimingArc* timing_arc : getCandidateTimingArcList(timing_cell_arc, input_trans_type, output_trans_type)) {
+    if (timing_arc->get_delay_table_map().count(output_trans_type) == 0) {
+      continue;
+    }
+    double converted_output_load = convertOutputLoad(*timing_arc, output_load);
+    double delay = timing_arc->get_delay_table_map()[output_trans_type].findValue(input_slew * timing_arc->get_time_unit_scale(), converted_output_load);
+    delay_list.push_back(delay / timing_arc->get_time_unit_scale());
+  }
+  if (delay_list.empty()) {
+    return timing_cell_arc.get_delay();
+  }
+  std::ranges::sort(delay_list, std::greater<double>());
   if (analysis_type == AnalysisType::kMin) {
     return delay_list.back();
   }
   return delay_list.front();
 }
 
-double TimingPropagator::calcTimingCellArcSlew(Database& database, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
-                                               TransType input_trans_type, TransType output_trans_type, double input_slew, double output_load)
+double TimingPropagator::calcTimingCellArcSlew(Database& database, TimingCellArc& timing_cell_arc, AnalysisType analysis_type, TransType input_trans_type,
+                                               TransType output_trans_type, double input_slew, double output_load)
 {
-  idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
-  if (lib_arc_set == nullptr) {
+  if (timing_cell_arc.get_timing_arc_list().empty()) {
     return input_slew;
   }
-  idb::TransType idb_input_trans_type = getIDBTransType(input_trans_type);
-  idb::TransType idb_output_trans_type = getIDBTransType(output_trans_type);
-  if (!lib_arc_set->isMatchTimingType(idb_output_trans_type)) {
+  if (!isMatchTimingType(timing_cell_arc, output_trans_type)) {
     return input_slew;
   }
-  double converted_output_load = convertOutputLoad(lib_arc_set, output_load);
-  std::vector<double> slew_list = lib_arc_set->getSlewNs(idb_input_trans_type, idb_output_trans_type, input_slew, converted_output_load);
+  std::vector<TimingArc*> candidate_arc_list = getCandidateTimingArcList(timing_cell_arc, input_trans_type, output_trans_type);
+  std::vector<double> slew_list;
+  for (TimingArc* timing_arc : candidate_arc_list) {
+    if (timing_arc->get_slew_table_map().count(output_trans_type) == 0) {
+      continue;
+    }
+    double converted_output_load = convertOutputLoad(*timing_arc, output_load);
+    double slew = timing_arc->get_slew_table_map()[output_trans_type].findValue(input_slew * timing_arc->get_time_unit_scale(), converted_output_load);
+    slew_list.push_back(slew / timing_arc->get_time_unit_scale());
+  }
+  if (slew_list.empty()) {
+    return input_slew;
+  }
+  std::ranges::sort(slew_list, std::greater<double>());
   if (analysis_type == AnalysisType::kMin) {
-    return recoverTableSlew(lib_arc_set, slew_list.back());
+    return slew_list.back();
   }
-  return recoverTableSlew(lib_arc_set, slew_list.front());
+  return slew_list.front();
 }
 
-double TimingPropagator::recoverTableSlew(idb::LibArcSet* lib_arc_set, double output_slew)
+TransType TimingPropagator::getOutputTransType(TimingCellArc& timing_cell_arc, TransType input_trans_type)
 {
-  idb::LibArc* lib_arc = lib_arc_set->front();
-  idb::LibLibrary* lib_library = lib_arc->get_owner_cell()->get_owner_lib();
-  return output_slew / lib_library->get_slew_derate_from_library();
-}
-
-idb::TransType TimingPropagator::getIDBTransType(TransType trans_type)
-{
-  if (trans_type == TransType::kFall) {
-    return idb::TransType::kFall;
-  }
-  return idb::TransType::kRise;
-}
-
-TransType TimingPropagator::getTransType(idb::TransType trans_type)
-{
-  if (trans_type == idb::TransType::kFall) {
-    return TransType::kFall;
-  }
-  return TransType::kRise;
-}
-
-idb::TransType TimingPropagator::getOutputTransType(idb::LibArcSet* lib_arc_set, idb::TransType input_trans_type)
-{
-  if (lib_arc_set->isNegativeArc()) {
-    return input_trans_type == idb::TransType::kRise ? idb::TransType::kFall : idb::TransType::kRise;
+  if (isNegativeArc(timing_cell_arc)) {
+    return input_trans_type == TransType::kRise ? TransType::kFall : TransType::kRise;
   }
   return input_trans_type;
 }
 
 std::vector<TransType> TimingPropagator::getOutputTransTypeList(TimingCellArc& timing_cell_arc, TransType input_trans_type)
 {
-  idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
   std::vector<TransType> output_trans_type_list;
-  if (!lib_arc_set->isUnateArc() || lib_arc_set->isTwoTypeSenseArcSet() || timing_cell_arc.get_is_clock_arc()) {
+  if (!isUnateArc(timing_cell_arc) || isTwoTypeSenseArcSet(timing_cell_arc) || timing_cell_arc.get_is_clock_arc()) {
     for (TransType output_trans_type : {TransType::kRise, TransType::kFall}) {
-      if (lib_arc_set->isMatchTimingType(getIDBTransType(output_trans_type))) {
+      if (isMatchTimingType(timing_cell_arc, output_trans_type)) {
         output_trans_type_list.push_back(output_trans_type);
       }
     }
     return output_trans_type_list;
   }
 
-  TransType output_trans_type = getTransType(getOutputTransType(lib_arc_set, getIDBTransType(input_trans_type)));
-  if (lib_arc_set->isMatchTimingType(getIDBTransType(output_trans_type))) {
+  TransType output_trans_type = getOutputTransType(timing_cell_arc, input_trans_type);
+  if (isMatchTimingType(timing_cell_arc, output_trans_type)) {
     output_trans_type_list.push_back(output_trans_type);
   }
   return output_trans_type_list;
 }
 
-double TimingPropagator::convertOutputLoad(idb::LibArcSet* lib_arc_set, double output_load)
+std::vector<TimingArc*> TimingPropagator::getCandidateTimingArcList(TimingCellArc& timing_cell_arc, TransType input_trans_type, TransType output_trans_type)
 {
-  idb::LibArc* lib_arc = lib_arc_set->front();
-  idb::LibLibrary* lib_library = lib_arc->get_owner_cell()->get_owner_lib();
-  if (lib_library->get_cap_unit() == idb::CapacitiveUnit::kFF) {
-    return static_cast<int>(std::ceil(output_load * static_cast<int64_t>(idb::g_pf2ff)));
+  bool is_flip = input_trans_type != output_trans_type;
+  std::vector<TimingArc*> candidate_arc_list;
+  for (TimingArc& timing_arc : timing_cell_arc.get_timing_arc_list()) {
+    if (is_flip && isPositiveArc(timing_arc)) {
+      continue;
+    }
+    if (!is_flip && isNegativeArc(timing_arc)) {
+      continue;
+    }
+    if (!isMatchTimingType(timing_arc, output_trans_type)) {
+      continue;
+    }
+    candidate_arc_list.push_back(&timing_arc);
   }
-  if (lib_library->get_cap_unit() == idb::CapacitiveUnit::kPF) {
+  return candidate_arc_list;
+}
+
+std::vector<TimingArc*> TimingPropagator::getCandidateTimingCheckArcList(TimingCheckArc& timing_check_arc, TransType clock_trans_type,
+                                                                         TransType data_trans_type)
+{
+  std::vector<TimingArc*> candidate_arc_list;
+  for (TimingArc& timing_arc : timing_check_arc.get_timing_arc_list()) {
+    if (!isMatchTimingType(timing_arc, data_trans_type)) {
+      continue;
+    }
+    candidate_arc_list.push_back(&timing_arc);
+  }
+  return candidate_arc_list;
+}
+
+bool TimingPropagator::isMatchTimingType(TimingArc& timing_arc, TransType trans_type)
+{
+  return timing_arc.get_delay_table_map().count(trans_type) > 0 || timing_arc.get_slew_table_map().count(trans_type) > 0
+         || timing_arc.get_check_table_map().count(trans_type) > 0;
+}
+
+bool TimingPropagator::isPositiveArc(TimingArc& timing_arc)
+{
+  return timing_arc.get_sense() == TimingArcSense::kPositive || timing_arc.get_sense() == TimingArcSense::kNone;
+}
+
+bool TimingPropagator::isNegativeArc(TimingArc& timing_arc)
+{
+  return timing_arc.get_sense() == TimingArcSense::kNegative;
+}
+
+bool TimingPropagator::isUnateArc(TimingCellArc& timing_cell_arc)
+{
+  for (TimingArc& timing_arc : timing_cell_arc.get_timing_arc_list()) {
+    if (timing_arc.get_sense() == TimingArcSense::kNonUnate) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool TimingPropagator::isNegativeArc(TimingCellArc& timing_cell_arc)
+{
+  for (TimingArc& timing_arc : timing_cell_arc.get_timing_arc_list()) {
+    if (!isNegativeArc(timing_arc)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool TimingPropagator::isTwoTypeSenseArcSet(TimingCellArc& timing_cell_arc)
+{
+  bool has_positive = false;
+  bool has_negative = false;
+  for (TimingArc& timing_arc : timing_cell_arc.get_timing_arc_list()) {
+    if (isPositiveArc(timing_arc)) {
+      has_positive = true;
+    } else if (isNegativeArc(timing_arc)) {
+      has_negative = true;
+    }
+  }
+  return has_positive && has_negative;
+}
+
+bool TimingPropagator::isMatchTimingType(TimingCellArc& timing_cell_arc, TransType trans_type)
+{
+  for (TimingArc& timing_arc : timing_cell_arc.get_timing_arc_list()) {
+    if (isMatchTimingType(timing_arc, trans_type)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+double TimingPropagator::convertOutputLoad(TimingArc& timing_arc, double output_load)
+{
+  if (std::abs(timing_arc.get_cap_unit_scale() - 1.0) < STA_ERROR) {
     return output_load;
   }
-  return output_load;
+  return static_cast<int>(std::ceil(output_load * timing_arc.get_cap_unit_scale()));
 }
 
 double TimingPropagator::getArcOutputLoad(Database& database, Arc& arc, AnalysisType analysis_type, TransType output_trans_type)
@@ -447,25 +542,6 @@ double TimingPropagator::getPinCapacitance(Database& database, std::string& pin_
     return timing_cell_port.get_trans_capacitance_map()[analysis_type][trans_type];
   }
   return timing_cell_port.get_capacitance();
-}
-
-double TimingPropagator::convertCheckSlewForLookup(TimingCheckArc& timing_check_arc, double data_slew)
-{
-  idb::LibArc* lib_arc = timing_check_arc.get_lib_arc();
-  if (lib_arc == nullptr && timing_check_arc.get_lib_arc_set() != nullptr) {
-    lib_arc = timing_check_arc.get_lib_arc_set()->front();
-  }
-  if (lib_arc == nullptr) {
-    return data_slew;
-  }
-  idb::LibLibrary* lib_library = lib_arc->get_owner_cell()->get_owner_lib();
-  if (lib_library->get_time_unit() == idb::TimeUnit::kPS) {
-    return data_slew * 1e3;
-  }
-  if (lib_library->get_time_unit() == idb::TimeUnit::kFS) {
-    return data_slew * 1e6;
-  }
-  return data_slew;
 }
 
 double TimingPropagator::calcNetArcDelay(Database& database, Arc& arc)
@@ -680,8 +756,8 @@ void TimingPropagator::propagateClockArrivalArc(Database& database, std::size_t 
   }
 }
 
-void TimingPropagator::updateClockPathState(Database& database, Arc& arc, TimingPoint& source_point, TimingPoint& sink_point,
-                                            AnalysisType analysis_type, TransType input_trans_type, TransType output_trans_type)
+void TimingPropagator::updateClockPathState(Database& database, Arc& arc, TimingPoint& source_point, TimingPoint& sink_point, AnalysisType analysis_type,
+                                            TransType input_trans_type, TransType output_trans_type)
 {
   double source_slew = source_point.get_clock_slew_map()[analysis_type][input_trans_type];
   double arc_delay = calcArcDelay(database, arc, analysis_type, input_trans_type, output_trans_type, source_slew);
@@ -690,15 +766,14 @@ void TimingPropagator::updateClockPathState(Database& database, Arc& arc, Timing
       || isBetterArrival(candidate_arrival, getClockArrival(sink_point, analysis_type, output_trans_type), analysis_type)) {
     updateClockArrival(sink_point, analysis_type, output_trans_type, candidate_arrival);
     updateClockPredecessor(sink_point, analysis_type, output_trans_type, input_trans_type, arc, arc_delay);
-    sink_point.get_clock_slew_map()[analysis_type][output_trans_type] = calcArcSlew(database, arc, analysis_type, input_trans_type, output_trans_type,
-                                                                                    source_slew);
+    sink_point.get_clock_slew_map()[analysis_type][output_trans_type]
+        = calcArcSlew(database, arc, analysis_type, input_trans_type, output_trans_type, source_slew);
   }
 }
 
 bool TimingPropagator::hasClockArrival(TimingPoint& timing_point, AnalysisType analysis_type, TransType trans_type)
 {
-  return timing_point.get_clock_arrival_map().count(analysis_type) > 0
-         && timing_point.get_clock_arrival_map()[analysis_type].count(trans_type) > 0;
+  return timing_point.get_clock_arrival_map().count(analysis_type) > 0 && timing_point.get_clock_arrival_map()[analysis_type].count(trans_type) > 0;
 }
 
 double TimingPropagator::getClockArrival(TimingPoint& timing_point, AnalysisType analysis_type, TransType trans_type)
@@ -714,8 +789,8 @@ void TimingPropagator::updateClockArrival(TimingPoint& timing_point, AnalysisTyp
   timing_point.get_clock_arrival_map()[analysis_type][trans_type] = clock_arrival;
 }
 
-void TimingPropagator::updateClockPredecessor(TimingPoint& timing_point, AnalysisType analysis_type, TransType trans_type,
-                                              TransType predecessor_trans_type, Arc& arc, double arc_delay)
+void TimingPropagator::updateClockPredecessor(TimingPoint& timing_point, AnalysisType analysis_type, TransType trans_type, TransType predecessor_trans_type,
+                                              Arc& arc, double arc_delay)
 {
   timing_point.get_clock_predecessor_map()[analysis_type][trans_type] = arc.get_source_pin();
   timing_point.get_clock_predecessor_arc_delay_map()[analysis_type][trans_type] = arc_delay;
@@ -836,19 +911,14 @@ void TimingPropagator::propagateDataSlewDelayArc(Database& database, std::size_t
 
 bool TimingPropagator::isClockArcTriggerTrans(Arc& arc, TransType input_trans_type)
 {
-  if (!arc.get_is_clock_arc() || arc.get_timing_cell_arc() == nullptr || arc.get_timing_cell_arc()->get_lib_arc_set() == nullptr
-      || arc.get_timing_cell_arc()->get_lib_arc_set()->front() == nullptr) {
+  if (!arc.get_is_clock_arc() || arc.get_timing_cell_arc() == nullptr) {
     return true;
   }
-  idb::LibArc* lib_arc = arc.get_timing_cell_arc()->get_lib_arc_set()->front();
-  if (lib_arc->isFallingTriggerArc()) {
-    return input_trans_type == TransType::kFall;
-  }
-  return input_trans_type == TransType::kRise;
+  return isClockArcTriggerTrans(*arc.get_timing_cell_arc(), input_trans_type);
 }
 
-void TimingPropagator::updateDataSlewDelay(Database& database, Arc& arc, TimingPoint& source_point, TimingPoint& sink_point,
-                                           AnalysisType analysis_type, TransType input_trans_type, TransType output_trans_type)
+void TimingPropagator::updateDataSlewDelay(Database& database, Arc& arc, TimingPoint& source_point, TimingPoint& sink_point, AnalysisType analysis_type,
+                                           TransType input_trans_type, TransType output_trans_type)
 {
   double input_slew = getDataSlew(source_point, analysis_type, input_trans_type);
   double arc_delay = calcArcDelay(database, arc, analysis_type, input_trans_type, output_trans_type, input_slew);
@@ -857,8 +927,7 @@ void TimingPropagator::updateDataSlewDelay(Database& database, Arc& arc, TimingP
   updateDataSlew(sink_point, analysis_type, output_trans_type, output_slew);
 }
 
-void TimingPropagator::updateGraphArcDelay(Arc& arc, AnalysisType analysis_type, TransType input_trans_type, TransType output_trans_type,
-                                           double arc_delay)
+void TimingPropagator::updateGraphArcDelay(Arc& arc, AnalysisType analysis_type, TransType input_trans_type, TransType output_trans_type, double arc_delay)
 {
   if (arc.get_graph_delay_map().count(analysis_type) == 0 || arc.get_graph_delay_map()[analysis_type].count(input_trans_type) == 0
       || arc.get_graph_delay_map()[analysis_type][input_trans_type].count(output_trans_type) == 0
@@ -1004,17 +1073,15 @@ double TimingPropagator::getStartPointSlew(Database& database, std::string& star
   return 0.0;
 }
 
-double TimingPropagator::calcTimingCellArcDelay(Database& database, std::string& output_pin, TimingCellArc& timing_cell_arc,
-                                                AnalysisType analysis_type, TransType input_trans_type, TransType output_trans_type,
-                                                double input_slew)
+double TimingPropagator::calcTimingCellArcDelay(Database& database, std::string& output_pin, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
+                                                TransType input_trans_type, TransType output_trans_type, double input_slew)
 {
   return calcTimingCellArcDelay(database, timing_cell_arc, analysis_type, input_trans_type, output_trans_type, input_slew,
                                 getOutputPinLoad(database, output_pin, analysis_type, output_trans_type));
 }
 
-double TimingPropagator::calcTimingCellArcSlew(Database& database, std::string& output_pin, TimingCellArc& timing_cell_arc,
-                                               AnalysisType analysis_type, TransType input_trans_type, TransType output_trans_type,
-                                               double input_slew)
+double TimingPropagator::calcTimingCellArcSlew(Database& database, std::string& output_pin, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
+                                               TransType input_trans_type, TransType output_trans_type, double input_slew)
 {
   return calcTimingCellArcSlew(database, timing_cell_arc, analysis_type, input_trans_type, output_trans_type, input_slew,
                                getOutputPinLoad(database, output_pin, analysis_type, output_trans_type));
@@ -1070,13 +1137,12 @@ TransType TimingPropagator::getStartPointCrprClockTransType(Database& database, 
 
 TransType TimingPropagator::getClockTransType(TimingCellArc& timing_cell_arc)
 {
-  idb::LibArcSet* lib_arc_set = timing_cell_arc.get_lib_arc_set();
-  if (lib_arc_set == nullptr) {
+  if (timing_cell_arc.get_timing_arc_list().empty()) {
     return TransType::kRise;
   }
-  idb::LibArc* lib_arc = lib_arc_set->front();
-  if (lib_arc->isFallingTriggerArc()) {
-    return TransType::kFall;
+  TimingArc& timing_arc = timing_cell_arc.get_timing_arc_list().front();
+  if (timing_arc.get_trigger_trans_type() != TransType::kNone) {
+    return timing_arc.get_trigger_trans_type();
   }
   return TransType::kRise;
 }
@@ -1289,8 +1355,7 @@ void TimingPropagator::propagatePathStateArc(Database& database, std::size_t arc
 std::vector<TransType> TimingPropagator::getOutputTransTypeList(Arc& arc, AnalysisType analysis_type, TransType input_trans_type)
 {
   std::vector<TransType> output_trans_type_list;
-  if (arc.get_input_output_delay_map().count(analysis_type) == 0
-      || arc.get_input_output_delay_map()[analysis_type].count(input_trans_type) == 0) {
+  if (arc.get_input_output_delay_map().count(analysis_type) == 0 || arc.get_input_output_delay_map()[analysis_type].count(input_trans_type) == 0) {
     output_trans_type_list.push_back(getOutputTransType(arc, input_trans_type));
     return output_trans_type_list;
   }
@@ -1370,8 +1435,7 @@ double TimingPropagator::calcArcSlew(Database& database, Arc& arc, AnalysisType 
 
 bool TimingPropagator::hasPathState(TimingPoint& timing_point, AnalysisType analysis_type, PathSourceType source_type)
 {
-  return hasPathState(timing_point, analysis_type, source_type, TransType::kRise)
-         || hasPathState(timing_point, analysis_type, source_type, TransType::kFall);
+  return hasPathState(timing_point, analysis_type, source_type, TransType::kRise) || hasPathState(timing_point, analysis_type, source_type, TransType::kFall);
 }
 
 bool TimingPropagator::hasPathState(TimingPoint& timing_point, AnalysisType analysis_type, PathSourceType source_type, TransType trans_type)
@@ -1381,14 +1445,14 @@ bool TimingPropagator::hasPathState(TimingPoint& timing_point, AnalysisType anal
          && !timing_point.get_path_state_map()[analysis_type][source_type][trans_type].empty();
 }
 
-std::map<std::string, TimingPathState>& TimingPropagator::getPathStateMap(TimingPoint& timing_point, AnalysisType analysis_type,
-                                                                          PathSourceType source_type, TransType trans_type)
+std::map<std::string, TimingPathState>& TimingPropagator::getPathStateMap(TimingPoint& timing_point, AnalysisType analysis_type, PathSourceType source_type,
+                                                                          TransType trans_type)
 {
   return timing_point.get_path_state_map()[analysis_type][source_type][trans_type];
 }
 
-TimingPathState& TimingPropagator::getPathState(TimingPoint& timing_point, AnalysisType analysis_type, PathSourceType source_type,
-                                                TransType trans_type, std::string& start_point)
+TimingPathState& TimingPropagator::getPathState(TimingPoint& timing_point, AnalysisType analysis_type, PathSourceType source_type, TransType trans_type,
+                                                std::string& start_point)
 {
   return timing_point.get_path_state_map()[analysis_type][source_type][trans_type][start_point];
 }
@@ -1408,8 +1472,7 @@ TimingPathState* TimingPropagator::getWorstPathState(TimingPoint& timing_point, 
   return best_path_state;
 }
 
-TimingPathState* TimingPropagator::getWorstPathState(TimingPoint& timing_point, AnalysisType analysis_type, PathSourceType source_type,
-                                                     TransType trans_type)
+TimingPathState* TimingPropagator::getWorstPathState(TimingPoint& timing_point, AnalysisType analysis_type, PathSourceType source_type, TransType trans_type)
 {
   if (!hasPathState(timing_point, analysis_type, source_type, trans_type)) {
     return nullptr;
@@ -1438,8 +1501,8 @@ TransType TimingPropagator::getEndPointTransType(TimingPoint& timing_point, Anal
       continue;
     }
     if (best_trans_type == TransType::kNone
-        || isBetterArrival(path_state->get_arrival(),
-                           getWorstPathState(timing_point, analysis_type, source_type, best_trans_type)->get_arrival(), analysis_type)) {
+        || isBetterArrival(path_state->get_arrival(), getWorstPathState(timing_point, analysis_type, source_type, best_trans_type)->get_arrival(),
+                           analysis_type)) {
       best_trans_type = trans_type;
     }
   }
@@ -1558,8 +1621,8 @@ double TimingPropagator::getEndPointRequired(Database& database, TimingPathState
 {
   Pin& pin = database.get_pin_map()[end_point];
   if (pin.get_is_port()) {
-    return getEndPointRequired(database, end_path_state.get_start_point(), end_point, default_required_time, analysis_type,
-                               end_path_state.get_trans_type(), end_path_state.get_slew());
+    return getEndPointRequired(database, end_path_state.get_start_point(), end_point, default_required_time, analysis_type, end_path_state.get_trans_type(),
+                               end_path_state.get_slew());
   }
   if (database.get_instance_map().count(pin.get_instance_name()) == 0) {
     return default_required_time;
@@ -1567,8 +1630,7 @@ double TimingPropagator::getEndPointRequired(Database& database, TimingPathState
   Instance& instance = database.get_instance_map()[pin.get_instance_name()];
   TimingCheckArc* timing_check_arc = getEndPointCheckArc(database, end_point, analysis_type);
   if (instance.get_is_sequential() && timing_check_arc != nullptr && isMatchCheckTransType(*timing_check_arc, end_path_state.get_trans_type())) {
-    double check_time = getEndPointCheckTime(database, end_point, *timing_check_arc, analysis_type, end_path_state.get_trans_type(),
-                                             end_path_state.get_slew());
+    double check_time = getEndPointCheckTime(database, end_point, *timing_check_arc, analysis_type, end_path_state.get_trans_type(), end_path_state.get_slew());
     std::string common_pin_name;
     double cppr = getClockReconvergencePessimism(database, end_path_state, end_point, analysis_type, common_pin_name);
     if (analysis_type == AnalysisType::kMin) {
@@ -1581,17 +1643,15 @@ double TimingPropagator::getEndPointRequired(Database& database, TimingPathState
 
 bool TimingPropagator::isMatchCheckTransType(TimingCheckArc& timing_check_arc, TransType data_trans_type)
 {
-  idb::LibArc* lib_arc = timing_check_arc.get_lib_arc();
-  if (lib_arc == nullptr && timing_check_arc.get_lib_arc_set() != nullptr) {
-    lib_arc = timing_check_arc.get_lib_arc_set()->front();
-  }
-  if (lib_arc == nullptr || lib_arc->get_table_model() == nullptr) {
+  if (timing_check_arc.get_timing_arc_list().empty()) {
     return true;
   }
-  if (data_trans_type == TransType::kFall) {
-    return lib_arc->get_table_model()->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kFallConstrain)) != nullptr;
+  for (TimingArc& timing_arc : timing_check_arc.get_timing_arc_list()) {
+    if (timing_arc.get_check_table_map().count(data_trans_type) > 0) {
+      return true;
+    }
   }
-  return lib_arc->get_table_model()->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kRiseConstrain)) != nullptr;
+  return false;
 }
 
 double TimingPropagator::getEndPointCheckTime(Database& database, std::string& end_point, TimingCheckArc& timing_check_arc, AnalysisType analysis_type,
@@ -1608,18 +1668,25 @@ double TimingPropagator::getEndPointCheckTime(Database& database, std::string& e
 double TimingPropagator::calcTimingCheckArcTime(TimingCheckArc& timing_check_arc, AnalysisType analysis_type, TransType clock_trans_type,
                                                 TransType data_trans_type, double clock_slew, double data_slew)
 {
-  idb::LibArcSet* lib_arc_set = timing_check_arc.get_lib_arc_set();
-  if (lib_arc_set != nullptr) {
-    std::vector<double> delay_list = lib_arc_set->getDelayOrConstrainCheckNs(
-        getIDBTransType(clock_trans_type), getIDBTransType(data_trans_type), clock_slew, convertCheckSlewForLookup(timing_check_arc, data_slew));
+  std::vector<TimingArc*> candidate_arc_list = getCandidateTimingCheckArcList(timing_check_arc, clock_trans_type, data_trans_type);
+  if (!candidate_arc_list.empty()) {
+    std::vector<double> delay_list;
+    for (TimingArc* timing_arc : candidate_arc_list) {
+      if (timing_arc->get_check_table_map().count(data_trans_type) == 0) {
+        continue;
+      }
+      double delay = timing_arc->get_check_table_map()[data_trans_type].findValue(clock_slew * timing_arc->get_time_unit_scale(),
+                                                                                  data_slew * timing_arc->get_time_unit_scale());
+      delay_list.push_back(delay / timing_arc->get_time_unit_scale());
+    }
+    if (delay_list.empty()) {
+      return timing_check_arc.get_check_time();
+    }
+    std::ranges::sort(delay_list, std::greater<double>());
     if (analysis_type == AnalysisType::kMin) {
       return delay_list.back();
     }
     return delay_list.front();
-  }
-  idb::LibArc* lib_arc = timing_check_arc.get_lib_arc();
-  if (lib_arc != nullptr) {
-    return lib_arc->getDelayOrConstrainCheckNs(getIDBTransType(data_trans_type), clock_slew, convertCheckSlewForLookup(timing_check_arc, data_slew));
   }
   return timing_check_arc.get_check_time();
 }
@@ -1637,17 +1704,7 @@ AnalysisType TimingPropagator::getCaptureAnalysisType(AnalysisType analysis_type
 
 TransType TimingPropagator::getClockTransType(TimingCheckArc& timing_check_arc)
 {
-  idb::LibArc* lib_arc = timing_check_arc.get_lib_arc();
-  if (lib_arc == nullptr && timing_check_arc.get_lib_arc_set() != nullptr) {
-    lib_arc = timing_check_arc.get_lib_arc_set()->front();
-  }
-  if (lib_arc == nullptr) {
-    return TransType::kRise;
-  }
-  if (lib_arc->isFallingEdgeCheck()) {
-    return TransType::kFall;
-  }
-  return TransType::kRise;
+  return timing_check_arc.get_clock_trans_type();
 }
 
 double TimingPropagator::getEndPointCaptureTime(Database& database, std::string& end_point, AnalysisType analysis_type)
@@ -1680,8 +1737,8 @@ double TimingPropagator::getEndPointClockArrival(Database& database, std::string
   return getClockArrival(database, instance.get_clock_pin_name(), analysis_type, trans_type);
 }
 
-double TimingPropagator::getClockReconvergencePessimism(Database& database, TimingPathState& end_path_state, std::string& end_point,
-                                                        AnalysisType analysis_type, std::string& common_pin_name)
+double TimingPropagator::getClockReconvergencePessimism(Database& database, TimingPathState& end_path_state, std::string& end_point, AnalysisType analysis_type,
+                                                        std::string& common_pin_name)
 {
   if (end_path_state.get_crpr_clock_pin().empty()) {
     return getClockReconvergencePessimism(database, end_path_state.get_start_point(), end_point, analysis_type, common_pin_name);
@@ -1690,8 +1747,8 @@ double TimingPropagator::getClockReconvergencePessimism(Database& database, Timi
   return getClockReconvergencePessimism(database, launch_crpr_pin, end_point, analysis_type, common_pin_name);
 }
 
-double TimingPropagator::getClockReconvergencePessimism(Database& database, std::string& start_point, std::string& end_point,
-                                                        AnalysisType analysis_type, std::string& common_pin_name)
+double TimingPropagator::getClockReconvergencePessimism(Database& database, std::string& start_point, std::string& end_point, AnalysisType analysis_type,
+                                                        std::string& common_pin_name)
 {
   if (!isRegisterStartPoint(database, start_point) || (!isRegisterEndPoint(database, end_point) && !isTimingCheckEndPoint(database, end_point))) {
     return 0.0;
@@ -1703,8 +1760,8 @@ double TimingPropagator::getClockReconvergencePessimism(Database& database, std:
   return getClockReconvergencePessimism(database, launch_crpr_pin, end_point, analysis_type, common_pin_name);
 }
 
-double TimingPropagator::getClockReconvergencePessimism(Database& database, std::pair<std::string, TransType>& launch_crpr_pin,
-                                                        std::string& end_point, AnalysisType analysis_type, std::string& common_pin_name)
+double TimingPropagator::getClockReconvergencePessimism(Database& database, std::pair<std::string, TransType>& launch_crpr_pin, std::string& end_point,
+                                                        AnalysisType analysis_type, std::string& common_pin_name)
 {
   if ((!isRegisterEndPoint(database, end_point) && !isTimingCheckEndPoint(database, end_point)) || database.get_pin_map().count(launch_crpr_pin.first) == 0) {
     return 0.0;
@@ -1948,7 +2005,7 @@ double TimingPropagator::getBufferDriveResistance(Database& database, std::strin
 }
 
 std::vector<std::pair<std::string, TransType>> TimingPropagator::getClockPathPinList(Database& database, std::string& clock_pin_name,
-                                                                                    AnalysisType analysis_type, TransType trans_type)
+                                                                                     AnalysisType analysis_type, TransType trans_type)
 {
   std::vector<std::pair<std::string, TransType>> clock_path_pin_list;
   std::string pin_name = clock_pin_name;
@@ -2072,10 +2129,6 @@ void TimingPropagator::analyzeEndPointList(Database& database)
   updateSummary(database, timing_path_group, checked_end_point_num, unconstrained_end_point_num, violation_num, worst_slack, total_negative_slack,
                 worst_end_point);
   database.get_timing_path_group_list().push_back(timing_path_group);
-
-  STALOG.info(Loc::current(), "Analyze iSTA timing: timing_paths=", getTimingPathNum(timing_path_group), " checked_end_points=", checked_end_point_num,
-              " unconstrained_end_points=", unconstrained_end_point_num, " violating_end_points=", violation_num, " worst_slack=", worst_slack,
-              " total_negative_slack=", total_negative_slack, " end_point=", worst_end_point);
 }
 
 TimingPathGroup TimingPropagator::initTimingPathGroup(Database& database)
@@ -2106,8 +2159,8 @@ std::vector<TimingPath> TimingPropagator::buildTimingPathList(Database& database
   if (hasPathState(database.get_timing_point_map()[end_point], AnalysisType::kMax, PathSourceType::kRegister)) {
     TimingPathState* path_state = getWorstSlackPathState(database, end_point, AnalysisType::kMax, PathSourceType::kRegister);
     if (path_state != nullptr) {
-      timing_path_list.push_back(buildTimingPath(database, end_point, AnalysisType::kMax, PathSourceType::kRegister, path_state->get_trans_type(),
-                                                path_state->get_start_point()));
+      timing_path_list.push_back(
+          buildTimingPath(database, end_point, AnalysisType::kMax, PathSourceType::kRegister, path_state->get_trans_type(), path_state->get_start_point()));
     }
   }
   if (hasPathState(database.get_timing_point_map()[end_point], AnalysisType::kMin, PathSourceType::kInput)) {
@@ -2120,8 +2173,8 @@ std::vector<TimingPath> TimingPropagator::buildTimingPathList(Database& database
   if (hasPathState(database.get_timing_point_map()[end_point], AnalysisType::kMin, PathSourceType::kRegister)) {
     TimingPathState* path_state = getWorstSlackPathState(database, end_point, AnalysisType::kMin, PathSourceType::kRegister);
     if (path_state != nullptr) {
-      timing_path_list.push_back(buildTimingPath(database, end_point, AnalysisType::kMin, PathSourceType::kRegister, path_state->get_trans_type(),
-                                                path_state->get_start_point()));
+      timing_path_list.push_back(
+          buildTimingPath(database, end_point, AnalysisType::kMin, PathSourceType::kRegister, path_state->get_trans_type(), path_state->get_start_point()));
     }
   }
   return timing_path_list;
@@ -2228,8 +2281,7 @@ bool TimingPropagator::isOutputTransType(Arc& arc, AnalysisType analysis_type, T
 
 bool TimingPropagator::updateDiversionPathState(Database& database, std::string& pin_name, AnalysisType analysis_type, PathSourceType source_type,
                                                 TransType trans_type, TimingPathState& source_path_state, std::string& predecessor,
-                                                std::size_t predecessor_arc_idx, double predecessor_arc_delay, TransType predecessor_trans_type,
-                                                double arrival)
+                                                std::size_t predecessor_arc_idx, double predecessor_arc_delay, TransType predecessor_trans_type, double arrival)
 {
   TimingPoint& timing_point = database.get_timing_point_map()[pin_name];
   std::string& start_point = source_path_state.get_start_point();
@@ -2253,8 +2305,7 @@ bool TimingPropagator::updateDiversionPathState(Database& database, std::string&
   return true;
 }
 
-TimingPathState* TimingPropagator::getWorstSlackPathState(Database& database, std::string& end_point, AnalysisType analysis_type,
-                                                          PathSourceType source_type)
+TimingPathState* TimingPropagator::getWorstSlackPathState(Database& database, std::string& end_point, AnalysisType analysis_type, PathSourceType source_type)
 {
   TimingPoint& timing_point = database.get_timing_point_map()[end_point];
   TimingPathState* worst_path_state = nullptr;
@@ -2356,8 +2407,8 @@ TimingPath TimingPropagator::buildTimingPath(Database& database, std::string& en
   std::vector<std::size_t> path_arc_idx_list = getPathArcIdxList(database, path_pin_name_list, path_trans_type_list, analysis_type, source_type, start_point);
   TimingPathState& end_path_state = getPathState(database.get_timing_point_map()[end_point], analysis_type, source_type, trans_type, start_point);
   double required_time = getEndPointRequired(database, end_path_state, end_point, end_path_state.get_arrival(), analysis_type);
-  double slack = analysis_type == AnalysisType::kMin ? roundTime(end_path_state.get_arrival() - required_time)
-                                                     : roundTime(required_time - end_path_state.get_arrival());
+  double slack
+      = analysis_type == AnalysisType::kMin ? roundTime(end_path_state.get_arrival() - required_time) : roundTime(required_time - end_path_state.get_arrival());
   TimingPath timing_path;
   timing_path.set_start_point(start_point);
   timing_path.set_end_point(end_point);
@@ -2386,8 +2437,7 @@ TimingPath TimingPropagator::buildTimingPath(Database& database, std::string& en
       updatePathDelay(timing_path, arc, arc_delay);
     }
     timing_path.get_point_list().push_back(makeTimingPathPoint(database, path_pin_name_list[i], arc, analysis_type, source_type,
-                                                               i > 0 ? path_trans_type_list[i - 1] : TransType::kNone, path_trans_type_list[i],
-                                                               start_point));
+                                                               i > 0 ? path_trans_type_list[i - 1] : TransType::kNone, path_trans_type_list[i], start_point));
     if (i > 0) {
       timing_path.get_point_list().back().set_arc_delay(arc_delay);
     }
@@ -2395,9 +2445,8 @@ TimingPath TimingPropagator::buildTimingPath(Database& database, std::string& en
   return timing_path;
 }
 
-void TimingPropagator::buildPathTrace(Database& database, std::string& end_point, AnalysisType analysis_type, PathSourceType source_type,
-                                      TransType trans_type, std::string& start_point, std::vector<std::string>& path_pin_name_list,
-                                      std::vector<TransType>& path_trans_type_list)
+void TimingPropagator::buildPathTrace(Database& database, std::string& end_point, AnalysisType analysis_type, PathSourceType source_type, TransType trans_type,
+                                      std::string& start_point, std::vector<std::string>& path_pin_name_list, std::vector<TransType>& path_trans_type_list)
 {
   std::string pin_name = end_point;
   TransType current_trans_type = trans_type;
@@ -2470,8 +2519,7 @@ void TimingPropagator::updateClockInfo(Database& database, TimingPath& timing_pa
 }
 
 TimingPathPoint TimingPropagator::makeTimingPathPoint(Database& database, std::string& pin_name, Arc* arc, AnalysisType analysis_type,
-                                                      PathSourceType source_type, TransType input_trans_type, TransType trans_type,
-                                                      std::string& start_point)
+                                                      PathSourceType source_type, TransType input_trans_type, TransType trans_type, std::string& start_point)
 {
   Pin& pin = database.get_pin_map()[pin_name];
   TimingPoint& timing_point = database.get_timing_point_map()[pin_name];
