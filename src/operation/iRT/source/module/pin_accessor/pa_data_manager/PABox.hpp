@@ -42,6 +42,8 @@ class PABox
   PAIterParam* get_pa_iter_param() { return _pa_iter_param; }
   bool get_initial_routing() const { return _initial_routing; }
   bool get_hard() const { return _hard; }
+  bool get_has_pattern_local_rect() const { return _has_pattern_local_rect; }
+  PlanarRect& get_pattern_local_rect() { return _pattern_local_rect; }
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::vector<std::pair<EXTLayerRect*, bool>>& get_env_shape_list() { return _env_shape_list; }
   std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>>& get_net_pin_shape_map() { return _net_pin_shape_map; }
@@ -69,6 +71,8 @@ class PABox
   void set_pa_iter_param(PAIterParam* pa_iter_param) { _pa_iter_param = pa_iter_param; }
   void set_initial_routing(const bool initial_routing) { _initial_routing = initial_routing; }
   void set_hard(const bool hard) { _hard = hard; }
+  void set_has_pattern_local_rect(const bool has_pattern_local_rect) { _has_pattern_local_rect = has_pattern_local_rect; }
+  void set_pattern_local_rect(const PlanarRect& pattern_local_rect) { _pattern_local_rect = pattern_local_rect; }
   void set_type_layer_net_fixed_rect_map(const std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& type_layer_net_fixed_rect_map)
   {
     _type_layer_net_fixed_rect_map = type_layer_net_fixed_rect_map;
@@ -164,6 +168,8 @@ class PABox
   PAIterParam* _pa_iter_param = nullptr;
   bool _initial_routing = true;
   bool _hard = false;
+  bool _has_pattern_local_rect = false;
+  PlanarRect _pattern_local_rect;
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
   // 缓存fix/pin_shape避免drc check重复从gcell构建
   std::vector<std::pair<EXTLayerRect*, bool>> _env_shape_list;
