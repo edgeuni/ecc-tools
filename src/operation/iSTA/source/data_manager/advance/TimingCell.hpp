@@ -30,6 +30,7 @@ class TimingCell
   ~TimingCell() = default;
   // getter
   std::string& get_cell_name() { return _cell_name; }
+  double get_area() const { return _area; }
   std::map<std::string, TimingCellPort>& get_port_map() { return _port_map; }
   std::vector<TimingCellArc>& get_cell_arc_list() { return _cell_arc_list; }
   std::vector<TimingCheckArc>& get_setup_arc_list() { return _setup_arc_list; }
@@ -41,6 +42,7 @@ class TimingCell
   bool get_has_preset_arc() const { return _has_preset_arc; }
   // setter
   void set_cell_name(const std::string& cell_name) { _cell_name = cell_name; }
+  void set_area(const double area) { _area = area; }
   void set_port_map(const std::map<std::string, TimingCellPort>& port_map) { _port_map = port_map; }
   void set_cell_arc_list(const std::vector<TimingCellArc>& cell_arc_list) { _cell_arc_list = cell_arc_list; }
   void set_setup_arc_list(const std::vector<TimingCheckArc>& setup_arc_list) { _setup_arc_list = setup_arc_list; }
@@ -54,6 +56,7 @@ class TimingCell
 
  private:
   std::string _cell_name;
+  double _area = 0.0;
   std::map<std::string, TimingCellPort> _port_map;
   std::vector<TimingCellArc> _cell_arc_list;
   std::vector<TimingCheckArc> _setup_arc_list;

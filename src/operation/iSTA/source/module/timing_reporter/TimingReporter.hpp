@@ -17,6 +17,8 @@
 #pragma once
 
 #include "Database.hpp"
+#include "DelayType.hpp"
+#include "StartEndType.hpp"
 
 namespace ista {
 
@@ -24,21 +26,6 @@ namespace ista {
 
 class TimingReporter
 {
- private:
-  enum class DelayType
-  {
-    kMax,
-    kMin
-  };
-
-  enum class StartEndType
-  {
-    kInToOut,
-    kInToReg,
-    kRegToOut,
-    kRegToReg
-  };
-
  public:
   static void initInst();
   static TimingReporter& getInst();

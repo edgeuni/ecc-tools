@@ -141,6 +141,7 @@ void DataManager::buildTimingLibrary()
     liberty_reader.set_library_builder(nullptr);
   }
   buildTimingCellMap(lib_list);
+  buildTimingLibraryInfo(lib_list);
   idb::Lib::setSilentOutput(old_silent_output);
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -156,11 +157,115 @@ void DataManager::buildTimingCellMap(std::vector<std::unique_ptr<idb::LibLibrary
   }
 }
 
+void DataManager::buildTimingLibraryInfo(std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list)
+{
+  Database& database = _database;
+  idb::LibLibrary* reference_lib = getReferenceLib(lib_list);
+  if (reference_lib == nullptr) {
+    return;
+  }
+  TimingLibrary& timing_library = database.get_timing_library();
+  timing_library.set_has_library_info(true);
+  timing_library.set_comment(reference_lib->get_comment());
+  timing_library.set_simulation(reference_lib->get_simulation());
+  timing_library.set_library_feature_list(reference_lib->get_library_features());
+  timing_library.set_leakage_power_unit(reference_lib->get_leakage_power_unit());
+  timing_library.set_current_unit_name(reference_lib->get_current_unit_name());
+  timing_library.set_voltage_unit_name(reference_lib->get_voltage_unit_name());
+  timing_library.set_cap_unit(getTimingCapacitiveUnit(reference_lib));
+  timing_library.set_resistance_unit(getTimingResistanceUnit(reference_lib));
+  timing_library.set_time_unit(getTimingTimeUnit(reference_lib));
+  timing_library.set_default_max_transition(reference_lib->get_default_max_transition());
+  timing_library.set_default_max_fanout(reference_lib->get_default_max_fanout());
+  timing_library.set_default_fanout_load(reference_lib->get_default_fanout_load());
+  timing_library.set_nom_process(reference_lib->get_nom_process());
+  timing_library.set_nom_voltage(reference_lib->get_nom_voltage());
+  timing_library.set_nom_temperature(reference_lib->get_nom_temperature());
+  timing_library.set_slew_lower_threshold_pct_rise(reference_lib->get_slew_lower_threshold_pct_rise());
+  timing_library.set_slew_upper_threshold_pct_rise(reference_lib->get_slew_upper_threshold_pct_rise());
+  timing_library.set_slew_lower_threshold_pct_fall(reference_lib->get_slew_lower_threshold_pct_fall());
+  timing_library.set_slew_upper_threshold_pct_fall(reference_lib->get_slew_upper_threshold_pct_fall());
+  timing_library.set_input_threshold_pct_rise(reference_lib->get_input_threshold_pct_rise());
+  timing_library.set_output_threshold_pct_rise(reference_lib->get_output_threshold_pct_rise());
+  timing_library.set_input_threshold_pct_fall(reference_lib->get_input_threshold_pct_fall());
+  timing_library.set_output_threshold_pct_fall(reference_lib->get_output_threshold_pct_fall());
+  timing_library.set_slew_derate_from_library(reference_lib->get_slew_derate_from_library());
+}
+
+idb::LibLibrary* DataManager::getReferenceLib(std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list)
+{
+  Database& database = _database;
+  std::map<idb::LibLibrary*, std::pair<int32_t, int32_t>> lib_usage_map;
+  for (std::pair<const std::string, Instance>& instance_pair : database.get_instance_map()) {
+    Instance& instance = instance_pair.second;
+    for (std::unique_ptr<idb::LibLibrary>& lib : lib_list) {
+      idb::LibCell* lib_cell = lib->findCell(instance.get_cell_name().c_str());
+      if (lib_cell == nullptr) {
+        continue;
+      }
+      lib_usage_map[lib.get()].first++;
+      if (!lib_cell->isMacroCell()) {
+        lib_usage_map[lib.get()].second++;
+      }
+    }
+  }
+
+  idb::LibLibrary* reference_lib = nullptr;
+  std::tuple<int32_t, int32_t, std::string> reference_key;
+  for (std::pair<idb::LibLibrary* const, std::pair<int32_t, int32_t>>& usage_pair : lib_usage_map) {
+    idb::LibLibrary* lib = usage_pair.first;
+    std::pair<int32_t, int32_t>& usage = usage_pair.second;
+    std::tuple<int32_t, int32_t, std::string> lib_key = std::make_tuple(usage.second, usage.first, lib->get_lib_name());
+    if (reference_lib == nullptr || lib_key > reference_key) {
+      reference_lib = lib;
+      reference_key = lib_key;
+    }
+  }
+  if (reference_lib != nullptr) {
+    return reference_lib;
+  }
+  if (!lib_list.empty()) {
+    return lib_list.front().get();
+  }
+  return nullptr;
+}
+
+TimingCapacitiveUnit DataManager::getTimingCapacitiveUnit(idb::LibLibrary* lib_library)
+{
+  if (lib_library->get_cap_unit() == idb::CapacitiveUnit::kFF) {
+    return TimingCapacitiveUnit::kFF;
+  }
+  if (lib_library->get_cap_unit() == idb::CapacitiveUnit::kF) {
+    return TimingCapacitiveUnit::kF;
+  }
+  return TimingCapacitiveUnit::kPF;
+}
+
+TimingResistanceUnit DataManager::getTimingResistanceUnit(idb::LibLibrary* lib_library)
+{
+  if (lib_library->get_resistance_unit() == idb::ResistanceUnit::kOHM) {
+    return TimingResistanceUnit::kOHM;
+  }
+  return TimingResistanceUnit::kkOHM;
+}
+
+TimingTimeUnit DataManager::getTimingTimeUnit(idb::LibLibrary* lib_library)
+{
+  if (lib_library->get_time_unit() == idb::TimeUnit::kPS) {
+    return TimingTimeUnit::kPS;
+  }
+  if (lib_library->get_time_unit() == idb::TimeUnit::kFS) {
+    return TimingTimeUnit::kFS;
+  }
+  return TimingTimeUnit::kNS;
+}
+
 void DataManager::makeTimingCell(idb::LibCell* lib_cell)
 {
   Database& database = _database;
   TimingCell timing_cell;
   timing_cell.set_cell_name(lib_cell->get_cell_name());
+  timing_cell.set_area(lib_cell->get_cell_area());
   timing_cell.set_is_sequential(lib_cell->isSequentialCell());
   timing_cell.set_is_clock_gating(lib_cell->isICG());
   timing_cell.set_is_macro(lib_cell->isMacroCell());

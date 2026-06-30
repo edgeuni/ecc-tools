@@ -70,6 +70,11 @@ class DataManager
   void buildDatabase();
   void buildTimingLibrary();
   void buildTimingCellMap(std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list);
+  void buildTimingLibraryInfo(std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list);
+  idb::LibLibrary* getReferenceLib(std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list);
+  TimingCapacitiveUnit getTimingCapacitiveUnit(idb::LibLibrary* lib_library);
+  TimingResistanceUnit getTimingResistanceUnit(idb::LibLibrary* lib_library);
+  TimingTimeUnit getTimingTimeUnit(idb::LibLibrary* lib_library);
   void makeTimingCell(idb::LibCell* lib_cell);
   void makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_port);
   void makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib_arc_set);

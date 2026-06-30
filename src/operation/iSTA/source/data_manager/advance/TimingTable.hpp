@@ -17,16 +17,9 @@
 #pragma once
 
 #include "STAHeader.hpp"
+#include "TimingTableVariableType.hpp"
 
 namespace ista {
-
-enum class TimingTableVariableType
-{
-  kNone,
-  kInputTransition,
-  kOutputCapacitance,
-  kConstrainedTransition
-};
 
 class TimingTable
 {

@@ -17,18 +17,11 @@
 #pragma once
 
 #include "STAHeader.hpp"
+#include "TimingArcSense.hpp"
 #include "TimingTable.hpp"
 #include "TransType.hpp"
 
 namespace ista {
-
-enum class TimingArcSense
-{
-  kNone,
-  kPositive,
-  kNegative,
-  kNonUnate
-};
 
 class TimingArc
 {
