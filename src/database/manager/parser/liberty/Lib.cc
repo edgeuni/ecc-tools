@@ -35,10 +35,12 @@
 #include <utility>
 
 #include "json/json.hpp"
-#include "solver/Interpolation.hh"
+#include "Interpolation.hh"
 #include "string/StrMap.hh"
 
-namespace ista {
+namespace idb {
+
+bool Lib::_silent_output = false;
 
 namespace {
 
@@ -81,55 +83,6 @@ bool libCheckTraceMatchesFilter(const char* cell_name, const char* src_port,
   }
 
   return false;
-}
-
-bool isSameTimingSenseBundle(const std::vector<LibArc*>& candidate_arcs)
-{
-  if (candidate_arcs.size() <= 1) {
-    return false;
-  }
-
-  auto* first_arc = candidate_arcs.front();
-  return first_arc &&
-         std::ranges::all_of(candidate_arcs, [&](LibArc* lib_arc) {
-           return lib_arc &&
-                  lib_arc->get_timing_type() == first_arc->get_timing_type() &&
-                  lib_arc->isPositiveArc() == first_arc->isPositiveArc() &&
-                  lib_arc->isNegativeArc() == first_arc->isNegativeArc() &&
-                  lib_arc->isNonUnateArc() == first_arc->isNonUnateArc();
-         });
-}
-
-LibArc* findDeclaredFallbackArc(const std::vector<LibArc*>& candidate_arcs)
-{
-  if (candidate_arcs.size() <= 1) {
-    return nullptr;
-  }
-
-  LibArc* fallback_arc = nullptr;
-  for (auto* lib_arc : candidate_arcs) {
-    if (!lib_arc) {
-      return nullptr;
-    }
-
-    if (lib_arc->get_when().empty()) {
-      if (fallback_arc) {
-        return nullptr;
-      }
-      fallback_arc = lib_arc;
-    }
-  }
-
-  if (!fallback_arc) {
-    return nullptr;
-  }
-
-  return std::ranges::all_of(candidate_arcs, [fallback_arc](LibArc* lib_arc) {
-           return lib_arc &&
-                  (lib_arc == fallback_arc || !lib_arc->get_when().empty());
-         })
-             ? fallback_arc
-             : nullptr;
 }
 
 }  // namespace
@@ -288,7 +241,7 @@ double LibTable::findValue(double slew, double constrain_slew_or_load)
     auto min_val = getAxis(axis_index)[0];
     auto max_val = getAxis(axis_index)[num_val - 1];
 
-    if ((val < min_val) || (val > max_val)) {
+    if (!Lib::isSilentOutput() && ((val < min_val) || (val > max_val))) {
       LOG_ERROR_FIRST_N(10) << "Warning: val outside table ranges:  "
                             << "val = " << val << "; min_val = " << min_val << "; max_val = " << max_val << std::endl;
     }
@@ -1491,16 +1444,6 @@ std::vector<double> LibArcSet::getDelayOrConstrainCheckNs(TransType input_trans_
     candidate_arcs.push_back(lib_arc.get());
   }
 
-  // Same-sense bundles should only collapse when they contain one real
-  // unconditional fallback arc for otherwise-conditional declarations.
-  auto* declared_default_arc = isSameTimingSenseBundle(candidate_arcs)
-                                   ? findDeclaredFallbackArc(candidate_arcs)
-                                   : nullptr;
-
-  if (declared_default_arc) {
-    candidate_arcs = {declared_default_arc};
-  }
-
   for (auto* lib_arc : candidate_arcs) {
 
     double find_value =
@@ -1545,16 +1488,6 @@ std::vector<double> LibArcSet::getSlewNs(TransType input_trans_type, TransType o
     }
 
     candidate_arcs.push_back(lib_arc.get());
-  }
-
-  // Same-sense bundles should only collapse when they contain one real
-  // unconditional fallback arc for otherwise-conditional declarations.
-  auto* declared_default_arc = isSameTimingSenseBundle(candidate_arcs)
-                                   ? findDeclaredFallbackArc(candidate_arcs)
-                                   : nullptr;
-
-  if (declared_default_arc) {
-    candidate_arcs = {declared_default_arc};
   }
 
   for (auto* lib_arc : candidate_arcs) {
@@ -2136,4 +2069,4 @@ LibertyReader Lib::loadLibertyWithCppParser(const char* file_name)
   return liberty_reader;
 }
 
-}  // namespace ista
+}  // namespace idb

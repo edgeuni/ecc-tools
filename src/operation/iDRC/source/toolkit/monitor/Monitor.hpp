@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include <optional>
+
 #include "DRCHeader.hpp"
 
 namespace idrc {
@@ -30,6 +32,7 @@ class Monitor
   // setter
 
   // function
+  static std::optional<Monitor> create();
   std::string getStatsInfo();
   std::string getElapsedTime();
   std::string getCPUTime();
