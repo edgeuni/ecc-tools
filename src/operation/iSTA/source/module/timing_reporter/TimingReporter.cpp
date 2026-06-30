@@ -79,6 +79,7 @@ void TimingReporter::outputTimingReportList()
   outputTimingReport(DelayType::kMin, StartEndType::kInToReg);
   outputTimingReport(DelayType::kMin, StartEndType::kRegToOut);
   outputTimingReport(DelayType::kMin, StartEndType::kRegToReg);
+  outputQorSummaryReport();
 }
 
 void TimingReporter::outputTimingReport(DelayType delay_type, StartEndType start_end_type)
@@ -89,7 +90,6 @@ void TimingReporter::outputTimingReport(DelayType delay_type, StartEndType start
   outputPathGroupList(report_file, delay_type, start_end_type);
   outputReportFooter(report_file);
   STAUTIL.closeFileStream(report_file);
-  outputJsonReport(report_file_path, delay_type, start_end_type);
 }
 
 std::string TimingReporter::getReportFilePath(DelayType delay_type, StartEndType start_end_type)
@@ -229,198 +229,259 @@ std::vector<TimingPath*> TimingReporter::getEndpointWorstTimingPathList(std::vec
   return endpoint_worst_timing_path_list;
 }
 
-void TimingReporter::outputJsonReport(std::string& report_file_path, DelayType delay_type, StartEndType start_end_type)
+void TimingReporter::outputQorSummaryReport()
 {
   Database& database = STADM.getDatabase();
-  nlohmann::json summary_json = nlohmann::json::array();
-  nlohmann::json slack_json = nlohmann::json::array();
-  nlohmann::json detail_json = nlohmann::json::array();
+  std::map<std::string, double> setup_wns_map;
+  std::map<std::string, double> setup_tns_map;
+  std::map<std::string, int32_t> setup_nvp_map;
+  std::map<std::string, double> setup_frequency_map;
+  std::map<std::string, double> hold_wns_map;
+  std::map<std::string, double> hold_tns_map;
+  std::map<std::string, int32_t> hold_nvp_map;
 
   for (TimingPathGroup& timing_path_group : database.get_timing_path_group_list()) {
-    std::vector<TimingPath*> timing_path_list = getReportTimingPathList(timing_path_group, delay_type, start_end_type);
-    buildSummaryJson(summary_json, timing_path_group, timing_path_list, delay_type);
-    buildSlackJson(slack_json, timing_path_group, timing_path_list, delay_type);
-    buildDetailJson(detail_json, timing_path_group, timing_path_list, delay_type);
+    std::string& group_name = timing_path_group.get_group_name();
+    std::vector<TimingPath*> setup_timing_path_list = getQorTimingPathList(timing_path_group, DelayType::kMax);
+    if (!setup_timing_path_list.empty()) {
+      setup_wns_map[group_name] = setup_timing_path_list.front()->get_slack();
+      setup_tns_map[group_name] = 0.0;
+      setup_nvp_map[group_name] = 0;
+      setup_frequency_map[group_name] = getQorFrequency(*setup_timing_path_list.front());
+      for (TimingPath* timing_path : setup_timing_path_list) {
+        if (timing_path->get_slack() < 0.0) {
+          setup_tns_map[group_name] += timing_path->get_slack();
+          setup_nvp_map[group_name]++;
+        }
+      }
+    }
+
+    std::vector<TimingPath*> hold_timing_path_list = getQorTimingPathList(timing_path_group, DelayType::kMin);
+    if (!hold_timing_path_list.empty()) {
+      hold_wns_map[group_name] = hold_timing_path_list.front()->get_slack();
+      hold_tns_map[group_name] = 0.0;
+      hold_nvp_map[group_name] = 0;
+      for (TimingPath* timing_path : hold_timing_path_list) {
+        if (timing_path->get_slack() < 0.0) {
+          hold_tns_map[group_name] += timing_path->get_slack();
+          hold_nvp_map[group_name]++;
+        }
+      }
+    }
   }
 
-  nlohmann::json report_json;
-  report_json["summary"] = summary_json;
-  report_json["slack"] = slack_json;
-  report_json["detail"] = detail_json;
-
-  std::string json_report_file_path = getJsonReportFilePath(report_file_path);
-  std::ofstream* json_report_file = STAUTIL.getOutputFileStream(json_report_file_path);
-  (*json_report_file) << report_json.dump(4);
-  STAUTIL.closeFileStream(json_report_file);
-}
-
-std::string TimingReporter::getJsonReportFilePath(std::string& report_file_path)
-{
-  std::string json_report_file_path = report_file_path;
-  std::string report_suffix = ".rpt";
-  json_report_file_path.replace(json_report_file_path.length() - report_suffix.length(), report_suffix.length(), ".json");
-  return json_report_file_path;
-}
-
-void TimingReporter::buildSummaryJson(nlohmann::json& summary_json, TimingPathGroup& timing_path_group,
-                                      std::vector<TimingPath*>& timing_path_list, DelayType delay_type)
-{
-  for (TimingPath* timing_path : timing_path_list) {
-    summary_json.push_back(makeSummaryJson(*timing_path, timing_path_group.get_group_name(), delay_type));
+  std::set<std::string> group_set;
+  for (std::pair<const std::string, double>& setup_wns_pair : setup_wns_map) {
+    group_set.insert(setup_wns_pair.first);
   }
+  for (std::pair<const std::string, double>& hold_wns_pair : hold_wns_map) {
+    group_set.insert(hold_wns_pair.first);
+  }
+
+  int32_t max_group_length = 20;
+  for (std::string group_name : group_set) {
+    max_group_length = std::max(max_group_length, static_cast<int32_t>(group_name.length()) + 2);
+  }
+  std::string bar(max_group_length + 71, '-');
+
+  double total_setup_tns = 0.0;
+  int32_t total_setup_nvp = 0;
+  double total_hold_tns = 0.0;
+  int32_t total_hold_nvp = 0;
+  for (std::string group_name : group_set) {
+    if (setup_tns_map.count(group_name) > 0) {
+      total_setup_tns += setup_tns_map[group_name];
+    }
+    if (setup_nvp_map.count(group_name) > 0) {
+      total_setup_nvp += setup_nvp_map[group_name];
+    }
+    if (hold_tns_map.count(group_name) > 0) {
+      total_hold_tns += hold_tns_map[group_name];
+    }
+    if (hold_nvp_map.count(group_name) > 0) {
+      total_hold_nvp += hold_nvp_map[group_name];
+    }
+  }
+
+  std::string worst_setup_wns = getQorNilString(10);
+  std::vector<std::string> setup_group_list = getQorSortedGroupList(setup_wns_map);
+  if (!setup_group_list.empty()) {
+    worst_setup_wns = getQorDoubleString(setup_wns_map[setup_group_list.front()], 10, 3);
+  }
+  std::string worst_hold_wns = getQorNilString(10);
+  std::vector<std::string> hold_group_list = getQorSortedGroupList(hold_wns_map);
+  if (!hold_group_list.empty()) {
+    worst_hold_wns = getQorDoubleString(hold_wns_map[hold_group_list.front()], 10, 3);
+  }
+
+  std::string worst_frequency = getQorFrequencyString(0.0);
+  if (!setup_group_list.empty() && setup_frequency_map.count(setup_group_list.front()) > 0) {
+    worst_frequency = getQorFrequencyString(setup_frequency_map[setup_group_list.front()]);
+  }
+
+  std::string report_file_path = getQorSummaryReportFilePath();
+  std::ofstream* report_file = STAUTIL.getOutputFileStream(report_file_path);
+  if (group_set.empty()) {
+    STAUTIL.closeFileStream(report_file);
+    return;
+  }
+  (*report_file) << std::left << std::setw(max_group_length) << "Path Group" << std::right << std::setw(11) << "WNS" << std::setw(11) << "TNS"
+                 << std::setw(8) << "NVP" << std::setw(10) << "FREQ" << "    " << std::setw(8) << "WNS(H)" << std::setw(11) << "TNS(H)"
+                 << std::setw(8) << "NVP(H)" << "\n";
+  (*report_file) << bar << "\n";
+
+  std::set<std::string> printed_group_set;
+  for (std::string& group_name : setup_group_list) {
+    (*report_file) << std::left << std::setw(max_group_length) << group_name << std::right << " "
+                   << getQorDoubleString(setup_wns_map[group_name], 10, 3) << " " << getQorDoubleString(setup_tns_map[group_name], 10, 1) << " "
+                   << getQorIntString(setup_nvp_map[group_name], 7) << " " << getQorFrequencyString(setup_frequency_map[group_name]) << " ";
+    if (hold_wns_map.count(group_name) > 0) {
+      (*report_file) << getQorDoubleString(hold_wns_map[group_name], 10, 3) << " " << getQorDoubleString(hold_tns_map[group_name], 10, 1) << " "
+                     << getQorIntString(hold_nvp_map[group_name], 7);
+    } else {
+      (*report_file) << getQorNilString(10) << " " << getQorNilString(10) << " " << getQorNilString(7);
+    }
+    (*report_file) << "\n";
+    printed_group_set.insert(group_name);
+  }
+
+  for (std::string& group_name : hold_group_list) {
+    if (printed_group_set.count(group_name) > 0) {
+      continue;
+    }
+    (*report_file) << std::left << std::setw(max_group_length) << group_name << std::right << " " << getQorNilString(10) << " "
+                   << getQorNilString(10) << " " << getQorNilString(7) << " " << getQorNilString(10) << " "
+                   << getQorDoubleString(hold_wns_map[group_name], 10, 3) << " " << getQorDoubleString(hold_tns_map[group_name], 10, 1) << " "
+                   << getQorIntString(hold_nvp_map[group_name], 7) << "\n";
+  }
+
+  (*report_file) << bar << "\n";
+  (*report_file) << std::left << std::setw(max_group_length) << "Summary" << std::right << " " << worst_setup_wns << " "
+                 << getQorDoubleString(total_setup_tns, 10, 1) << " " << getQorIntString(total_setup_nvp, 7) << " " << worst_frequency << " "
+                 << worst_hold_wns << " " << getQorDoubleString(total_hold_tns, 10, 1) << " " << getQorIntString(total_hold_nvp, 7) << "\n";
+  (*report_file) << bar << "\n";
+  int32_t drc_column_width = std::max(7, max_group_length - 13);
+  (*report_file) << std::setw(7) << "CAP" << std::setw(8) << "FANOUT" << std::setw(8) << "TRAN" << std::setw(drc_column_width + 1) << "TDRC"
+                 << std::setw(11) << "CELLA" << std::setw(8) << "BUFS" << std::setw(10) << "LEAFS" << std::setw(12) << "TNETS"
+                 << std::setw(11) << "CTBUF" << std::setw(8) << "REGS" << "\n";
+  (*report_file) << bar << "\n";
+  (*report_file) << std::setw(7) << 0 << std::setw(8) << 0 << std::setw(8) << 0 << std::setw(drc_column_width + 1) << 0 << std::setw(11)
+                 << getQorCellArea() << getQorNilString(7) << "K" << getQorKString(getQorLeafCellK(), 10)
+                 << getQorNilString(11) << "K" << getQorNilString(11) << getQorNilString(8) << "\n";
+  (*report_file) << bar << "\n";
+  (*report_file) << "\n";
+  (*report_file) << "NVP    - No. of Violating Paths\n";
+  (*report_file) << "FREQ   - Estimated Frequency, not accurate in some cases, multi/half-cycle, etc\n";
+  (*report_file) << "WNS(H) - Hold WNS\n";
+  (*report_file) << "TNS(H) - Hold TNS\n";
+  (*report_file) << "NVP(H) - Hold NVP\n";
+  STAUTIL.closeFileStream(report_file);
 }
 
-nlohmann::json TimingReporter::makeSummaryJson(TimingPath& timing_path, std::string& path_group_name, DelayType delay_type)
+std::string TimingReporter::getQorSummaryReportFilePath()
 {
-  nlohmann::json timing_path_json;
-  timing_path_json["endpoint"] = getPTPinName(timing_path.get_end_point());
-  timing_path_json["clock_group"] = path_group_name;
-  timing_path_json["delay_type"] = getDelayTypeName(delay_type);
-  timing_path_json["path_delay"] = getPathDelayJsonValue(timing_path);
-  timing_path_json["path_required"] = getNumberString(timing_path.get_required_time());
-  timing_path_json["cppr"] = getNumberString(timing_path.get_clock_reconvergence_pessimism());
-  timing_path_json["slack"] = getNumberString(timing_path.get_slack());
-  timing_path_json["freq"] = getFrequencyJsonValue(timing_path, delay_type);
-  return timing_path_json;
+  return STAUTIL.getString(STADM.getConfig().tr_temp_directory_path, "qor_summary.rpt");
 }
 
-std::string TimingReporter::getPathDelayJsonValue(TimingPath& timing_path)
+std::vector<TimingPath*> TimingReporter::getQorTimingPathList(TimingPathGroup& timing_path_group, DelayType delay_type)
 {
-  return STAUTIL.getString(getNumberString(timing_path.get_path_delay()), getTransTypeName(timing_path.get_trans_type()));
+  std::vector<TimingPath*> timing_path_list;
+  for (std::pair<const std::string, TimingPathEnd>& timing_path_end_pair : timing_path_group.get_timing_path_end_map()) {
+    for (TimingPath& timing_path : timing_path_end_pair.second.get_timing_path_list()) {
+      if (isMatchAnalysisType(timing_path, delay_type)) {
+        timing_path_list.push_back(&timing_path);
+      }
+    }
+  }
+  timing_path_list = getEndpointWorstTimingPathList(timing_path_list);
+  std::sort(timing_path_list.begin(), timing_path_list.end(), [](TimingPath* left, TimingPath* right) { return left->get_slack() < right->get_slack(); });
+  return timing_path_list;
 }
 
-std::string TimingReporter::getFrequencyJsonValue(TimingPath& timing_path, DelayType delay_type)
+std::vector<std::string> TimingReporter::getQorSortedGroupList(std::map<std::string, double>& value_map)
+{
+  std::vector<std::string> group_list;
+  for (std::pair<const std::string, double>& value_pair : value_map) {
+    group_list.push_back(value_pair.first);
+  }
+  std::sort(group_list.begin(), group_list.end(), [&value_map](std::string& left, std::string& right) {
+    if (std::fabs(value_map[left] - value_map[right]) > STA_ERROR) {
+      return value_map[left] < value_map[right];
+    }
+    return left < right;
+  });
+  return group_list;
+}
+
+double TimingReporter::getQorFrequency(TimingPath& timing_path)
 {
   std::string clock_name = getClockName(timing_path);
   double clock_period = getClockPeriod(clock_name);
-  if (delay_type != DelayType::kMax || clock_period <= STA_ERROR) {
-    return "NA";
-  }
   double effective_period = clock_period - timing_path.get_slack();
   if (effective_period <= STA_ERROR) {
-    return "NA";
+    return 0.0;
   }
-  return getNumberString(1000.0 / effective_period);
+  return 1000.0 / effective_period;
 }
 
-void TimingReporter::buildSlackJson(nlohmann::json& slack_json, TimingPathGroup& timing_path_group,
-                                    std::vector<TimingPath*>& timing_path_list, DelayType delay_type)
+std::string TimingReporter::getQorDoubleString(double value, int32_t width, int32_t precision)
 {
-  if (timing_path_list.empty()) {
-    return;
+  if (std::fabs(value) < STA_ERROR) {
+    value = 0.0;
   }
-  slack_json.push_back(makeSlackJson(timing_path_group, timing_path_list, delay_type));
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(precision) << std::setw(width) << value;
+  return oss.str();
 }
 
-nlohmann::json TimingReporter::makeSlackJson(TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list,
-                                             DelayType delay_type)
+std::string TimingReporter::getQorIntString(int32_t value, int32_t width)
 {
-  double worst_slack = 0.0;
-  double total_negative_slack = 0.0;
-  bool has_slack = false;
-  for (TimingPath* timing_path : timing_path_list) {
-    double slack = timing_path->get_slack();
-    if (!has_slack || slack < worst_slack) {
-      worst_slack = slack;
-      has_slack = true;
-    }
-    if (slack < 0.0) {
-      total_negative_slack += slack;
-    }
-  }
-
-  nlohmann::json slack_json;
-  slack_json["clock"] = timing_path_group.get_group_name();
-  slack_json["delay_type"] = getDelayTypeName(delay_type);
-  slack_json["TNS"] = getNumberString(total_negative_slack);
-  slack_json["WNS"] = getNumberString(worst_slack);
-  return slack_json;
+  std::ostringstream oss;
+  oss << std::setw(width) << value;
+  return oss.str();
 }
 
-void TimingReporter::buildDetailJson(nlohmann::json& detail_json, TimingPathGroup& timing_path_group,
-                                     std::vector<TimingPath*>& timing_path_list, DelayType delay_type)
+std::string TimingReporter::getQorNilString(int32_t width)
 {
-  for (TimingPath* timing_path : timing_path_list) {
-    detail_json.push_back(makeDetailJson(*timing_path, timing_path_group.get_group_name(), delay_type));
-  }
+  std::ostringstream oss;
+  oss << std::setw(width) << "~";
+  return oss.str();
 }
 
-nlohmann::json TimingReporter::makeDetailJson(TimingPath& timing_path, std::string& path_group_name, DelayType delay_type)
+std::string TimingReporter::getQorFrequencyString(double frequency)
 {
-  nlohmann::json timing_path_json;
-  timing_path_json["clock_field"] = path_group_name;
-  timing_path_json["type"] = getDelayTypeName(delay_type);
-  timing_path_json["slack"] = getNumberString(timing_path.get_slack());
-  timing_path_json["summary"] = makeModuleSummaryJson(timing_path);
-  timing_path_json["detail"] = nlohmann::json::array();
+  if (frequency <= STA_ERROR) {
+    return getQorNilString(10);
+  }
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(0) << std::setw(7) << frequency << "MHz";
+  return oss.str();
+}
 
-  bool is_first_point = true;
-  double last_arrival = 0.0;
-  for (TimingPathPoint& path_point : timing_path.get_point_list()) {
-    if (shouldOutputTimingPoint(timing_path, path_point)) {
-      if (is_first_point) {
-        timing_path_json["start_point"] = getPointLabel(path_point);
-        is_first_point = false;
-      }
-      double incr_delay = path_point.get_arrival() - last_arrival;
-      last_arrival = path_point.get_arrival();
-      double path_delay = path_point.get_arrival() + timing_path.get_launch_time();
-      timing_path_json["detail"].push_back(makeTimingPointJson(path_point, incr_delay, path_delay));
-      timing_path_json["end_point"] = getPointLabel(path_point);
+std::string TimingReporter::getQorKString(int32_t value, int32_t width)
+{
+  std::ostringstream oss;
+  oss << std::setw(width - 1) << value << "K";
+  return oss.str();
+}
+
+int32_t TimingReporter::getQorCellArea()
+{
+  Database& database = STADM.getDatabase();
+  double cell_area = 0.0;
+  for (std::pair<const std::string, Instance>& instance_pair : database.get_instance_map()) {
+    Instance& instance = database.get_instance_map()[instance_pair.first];
+    std::map<std::string, TimingCell>& timing_cell_map = database.get_timing_library().get_cell_map();
+    if (timing_cell_map.count(instance.get_cell_name()) > 0) {
+      cell_area += timing_cell_map[instance.get_cell_name()].get_area();
     }
   }
-  return timing_path_json;
+  return static_cast<int32_t>(cell_area);
 }
 
-nlohmann::json TimingReporter::makeTimingPointJson(TimingPathPoint& path_point, double incr_delay, double path_delay)
+int32_t TimingReporter::getQorLeafCellK()
 {
-  nlohmann::json timing_point_json;
-  timing_point_json["name"] = getPointLabel(path_point);
-  timing_point_json["incr_delay"] = getNumberString(incr_delay);
-  timing_point_json["path_delay"] = STAUTIL.getString(getNumberString(path_delay), getTransTypeName(path_point.get_trans_type()));
-  return timing_point_json;
-}
-
-nlohmann::json TimingReporter::makeModuleSummaryJson(TimingPath& timing_path)
-{
-  std::map<std::string, std::pair<int32_t, double>> module_summary_map;
-  bool is_failed_extract_module_name = false;
-  double last_arrival = 0.0;
-  for (TimingPathPoint& path_point : timing_path.get_point_list()) {
-    if (!shouldOutputTimingPoint(timing_path, path_point)) {
-      continue;
-    }
-    std::string point_name = getPTPinName(path_point.get_pin_name());
-    std::string module_name = getJsonModuleName(point_name);
-    if (module_name.empty()) {
-      is_failed_extract_module_name = true;
-      break;
-    }
-    double incr_delay = path_point.get_arrival() - last_arrival;
-    last_arrival = path_point.get_arrival();
-    module_summary_map[module_name].first++;
-    module_summary_map[module_name].second += incr_delay;
-  }
-
-  nlohmann::json module_summary_json = nlohmann::json::array();
-  if (is_failed_extract_module_name) {
-    return module_summary_json;
-  }
-  for (std::pair<const std::string, std::pair<int32_t, double>>& module_summary_pair : module_summary_map) {
-    module_summary_json.push_back({{"module", module_summary_pair.first},
-                                   {"count", module_summary_pair.second.first},
-                                   {"total_delay", module_summary_pair.second.second}});
-  }
-  return module_summary_json;
-}
-
-std::string TimingReporter::getJsonModuleName(std::string& point_name)
-{
-  std::size_t split_pos = point_name.find('/');
-  if (split_pos == std::string::npos) {
-    return "";
-  }
-  return point_name.substr(0, split_pos);
+  return static_cast<int32_t>(STADM.getDatabase().get_instance_map().size() / 1000);
 }
 
 bool TimingReporter::isMatchAnalysisType(TimingPath& timing_path, DelayType delay_type)

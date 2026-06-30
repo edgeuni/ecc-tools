@@ -61,22 +61,18 @@ class TimingReporter
   std::vector<TimingPath*> getSortedTimingPathList(TimingPathGroup& timing_path_group, DelayType delay_type,
                                                    StartEndType start_end_type);
   std::vector<TimingPath*> getEndpointWorstTimingPathList(std::vector<TimingPath*>& timing_path_list);
-  void outputJsonReport(std::string& report_file_path, DelayType delay_type, StartEndType start_end_type);
-  std::string getJsonReportFilePath(std::string& report_file_path);
-  void buildSummaryJson(nlohmann::json& summary_json, TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list,
-                        DelayType delay_type);
-  nlohmann::json makeSummaryJson(TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
-  std::string getPathDelayJsonValue(TimingPath& timing_path);
-  std::string getFrequencyJsonValue(TimingPath& timing_path, DelayType delay_type);
-  void buildSlackJson(nlohmann::json& slack_json, TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list,
-                      DelayType delay_type);
-  nlohmann::json makeSlackJson(TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list, DelayType delay_type);
-  void buildDetailJson(nlohmann::json& detail_json, TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list,
-                       DelayType delay_type);
-  nlohmann::json makeDetailJson(TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
-  nlohmann::json makeTimingPointJson(TimingPathPoint& path_point, double incr_delay, double path_delay);
-  nlohmann::json makeModuleSummaryJson(TimingPath& timing_path);
-  std::string getJsonModuleName(std::string& point_name);
+  void outputQorSummaryReport();
+  std::string getQorSummaryReportFilePath();
+  std::vector<TimingPath*> getQorTimingPathList(TimingPathGroup& timing_path_group, DelayType delay_type);
+  std::vector<std::string> getQorSortedGroupList(std::map<std::string, double>& value_map);
+  double getQorFrequency(TimingPath& timing_path);
+  std::string getQorDoubleString(double value, int32_t width, int32_t precision);
+  std::string getQorIntString(int32_t value, int32_t width);
+  std::string getQorNilString(int32_t width);
+  std::string getQorFrequencyString(double frequency);
+  std::string getQorKString(int32_t value, int32_t width);
+  int32_t getQorCellArea();
+  int32_t getQorLeafCellK();
   bool isMatchAnalysisType(TimingPath& timing_path, DelayType delay_type);
   bool isMatchStartEndType(TimingPath& timing_path, StartEndType start_end_type);
   bool isPort(std::string& pin_name);
