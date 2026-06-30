@@ -71,6 +71,7 @@ class PAModel
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_curr_net_pin_access_result_map() { return _curr_net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_curr_net_pin_access_patch_map() { return _curr_net_pin_access_patch_map; }
   GridMap<PAResultPatchGCell>& get_result_patch_gcell_map() { return _result_patch_gcell_map; }
+  std::vector<PlanarRect>& get_dirty_region_list() { return _dirty_region_list; }
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_best_net_pin_access_result_map() { return _best_net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_best_net_pin_access_patch_map() { return _best_net_pin_access_patch_map; }
   std::vector<Violation>& get_best_route_violation_list() { return _best_route_violation_list; }
@@ -110,6 +111,7 @@ class PAModel
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _curr_net_pin_access_result_map;
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _curr_net_pin_access_patch_map;
   GridMap<PAResultPatchGCell> _result_patch_gcell_map;
+  std::vector<PlanarRect> _dirty_region_list;
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _best_net_pin_access_result_map;
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _best_net_pin_access_patch_map;
   std::vector<Violation> _best_route_violation_list;
