@@ -174,28 +174,23 @@ void CouplingCapComparator::compare(const Data& test, const Data& reference, Res
   const NetMetaIndex reference_meta(reference, _net_selector);
   const NetMetaIndex test_meta(test, _net_selector);
 
-  if (!reference.coupling_caps.lookup.empty()) {
-    const std::size_t reference_bucket_count = reference.coupling_caps.lookup.bucket_count();
-    const int reference_thread_count = parallel::threadCount(_config, reference_bucket_count);
+  if (!reference.coupling_caps.empty()) {
+    const int reference_thread_count = parallel::threadCount(_config, reference.coupling_caps.size());
     std::vector<Result> reference_thread_results(reference_thread_count);
 #pragma omp parallel for schedule(dynamic, 256) num_threads(reference_thread_count)
-    for (std::size_t bucket_index = 0; bucket_index < reference_bucket_count; ++bucket_index) {
-      for (auto coupling_it = reference.coupling_caps.lookup.begin(bucket_index);
-           coupling_it != reference.coupling_caps.lookup.end(bucket_index);
-           ++coupling_it) {
-        const auto& [key, reference_cap] = *coupling_it;
-        const auto test_cap_it = test.coupling_caps.find(key);
-        if (test_cap_it == test.coupling_caps.end()) {
-          reference_thread_results[omp_get_thread_num()].reference_only_couplings.push_back(
-              makeCcapMismatch(reference_meta, key, reference_cap));
-          continue;
-        }
-
-        addRow(_config, reference_meta, key.first, key.second, reference_cap, test_cap_it->second,
-               reference_thread_results[omp_get_thread_num()]);
-        addRow(_config, reference_meta, key.second, key.first, reference_cap, test_cap_it->second,
-               reference_thread_results[omp_get_thread_num()]);
+    for (std::size_t entry_index = 0; entry_index < reference.coupling_caps.entries.size(); ++entry_index) {
+      const auto& entry = reference.coupling_caps.entries[entry_index];
+      const auto* test_cap = test.coupling_caps.find(entry.nets);
+      if (test_cap == nullptr) {
+        reference_thread_results[omp_get_thread_num()].reference_only_couplings.push_back(
+            makeCcapMismatch(reference_meta, entry.nets, entry.capacitance));
+        continue;
       }
+
+      addRow(_config, reference_meta, entry.nets.first, entry.nets.second, entry.capacitance, test_cap->capacitance,
+             reference_thread_results[omp_get_thread_num()]);
+      addRow(_config, reference_meta, entry.nets.second, entry.nets.first, entry.capacitance, test_cap->capacitance,
+             reference_thread_results[omp_get_thread_num()]);
     }
 
     reserveRows(result, reference_thread_results);
@@ -204,19 +199,15 @@ void CouplingCapComparator::compare(const Data& test, const Data& reference, Res
     }
   }
 
-  if (!test.coupling_caps.lookup.empty()) {
-    const std::size_t test_bucket_count = test.coupling_caps.lookup.bucket_count();
-    const int test_thread_count = parallel::threadCount(_config, test_bucket_count);
+  if (!test.coupling_caps.empty()) {
+    const int test_thread_count = parallel::threadCount(_config, test.coupling_caps.size());
     std::vector<Result> test_thread_results(test_thread_count);
 #pragma omp parallel for schedule(dynamic, 256) num_threads(test_thread_count)
-    for (std::size_t bucket_index = 0; bucket_index < test_bucket_count; ++bucket_index) {
-      for (auto coupling_it = test.coupling_caps.lookup.begin(bucket_index);
-           coupling_it != test.coupling_caps.lookup.end(bucket_index);
-           ++coupling_it) {
-        const auto& [key, test_cap] = *coupling_it;
-        if (!reference.coupling_caps.contains(key)) {
-          test_thread_results[omp_get_thread_num()].test_only_couplings.push_back(makeCcapMismatch(test_meta, key, test_cap));
-        }
+    for (std::size_t entry_index = 0; entry_index < test.coupling_caps.entries.size(); ++entry_index) {
+      const auto& entry = test.coupling_caps.entries[entry_index];
+      if (!reference.coupling_caps.contains(entry.nets)) {
+        test_thread_results[omp_get_thread_num()].test_only_couplings.push_back(
+            makeCcapMismatch(test_meta, entry.nets, entry.capacitance));
       }
     }
 

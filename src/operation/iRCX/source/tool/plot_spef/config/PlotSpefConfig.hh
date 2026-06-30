@@ -26,6 +26,7 @@ struct Config
   std::string output_dir;
   std::string net_name;
   int dbu = 1000;
+  int cores = 1;
   bool output_resistance = false;
   bool output_coupling_cap = false;
   bool output_ground_cap = false;

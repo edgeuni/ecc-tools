@@ -37,6 +37,11 @@ auto ConfigValidator::validate(const Config& config) const -> bool
     return false;
   }
 
+  if (config.cores <= 0) {
+    LOG_ERROR << "plot_spef -cores must be a positive integer.";
+    return false;
+  }
+
   if (!path::ensure_dir(config.output_dir, "plot_spef output directory")) {
     return false;
   }
