@@ -55,9 +55,7 @@ void DRCInterface::destroyInst()
 void DRCInterface::initDRC(std::map<std::string, std::any> config_map, bool enable_quiet)
 {
   Logger::initInst();
-  if (enable_quiet) {
-    DRCLOG.enableQuiet();
-  }
+  DRCLOG.setQuiet(enable_quiet);
   // clang-format off
   DRCLOG.info(Loc::current(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
   DRCLOG.info(Loc::current(), "______________________________   _____________________________________   ");
@@ -71,7 +69,7 @@ void DRCInterface::initDRC(std::map<std::string, std::any> config_map, bool enab
   //////////////////////////////////////////////////////
   //////////////////////////////////////////////////////
   //////////////////////////////////////////////////////
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   DataManager::initInst();
@@ -80,11 +78,14 @@ void DRCInterface::initDRC(std::map<std::string, std::any> config_map, bool enab
   DRCGP.init();
   RuleValidator::initInst();
 
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
 }
 
 void DRCInterface::checkDef()
 {
+  bool origin_quiet = DRCLOG.isQuiet();
+  DRCLOG.disableQuiet();
+
   std::map<std::string, std::vector<ids::Violation>> type_violation_map;
   for (ids::Violation& ids_violation : getViolationList(buildEnvShapeList(), buildResultShapeList(), {}, {})) {
     type_violation_map[ids_violation.violation_type].push_back(ids_violation);
@@ -93,11 +94,15 @@ void DRCInterface::checkDef()
   outputViolationJson(type_violation_map);
   outputViolationFile(type_violation_map);
   outputTofeature(type_violation_map);
+
+  if (origin_quiet) {
+    DRCLOG.enableQuiet();
+  }
 }
 
 void DRCInterface::destroyDRC()
 {
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   RuleValidator::destroyInst();
@@ -106,7 +111,7 @@ void DRCInterface::destroyDRC()
   DRCDM.output();
   DataManager::destroyInst();
 
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
 
   DRCLOG.printLogFilePath();
   // clang-format off
@@ -887,7 +892,7 @@ void DRCInterface::output()
 std::vector<ids::Shape> DRCInterface::buildEnvShapeList()
 {
   std::vector<ids::Shape> env_shape_list;
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   std::vector<idb::IdbInstance*>& idb_instance_list = dmInst->get_idb_def_service()->get_design()->get_instance_list()->get_instance_list();
@@ -1063,7 +1068,7 @@ std::vector<ids::Shape> DRCInterface::buildEnvShapeList()
       }
     }
   }
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
   return env_shape_list;
 }
 
@@ -1107,7 +1112,7 @@ bool DRCInterface::isSkipping(idb::IdbNet* idb_net)
 std::vector<ids::Shape> DRCInterface::buildResultShapeList()
 {
   std::vector<ids::Shape> result_shape_list;
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   std::vector<idb::IdbNet*>& idb_net_list = dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list();
@@ -1265,7 +1270,7 @@ std::vector<ids::Shape> DRCInterface::buildResultShapeList()
       }
     }
   }
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
   return result_shape_list;
 }
 
@@ -1333,7 +1338,7 @@ void DRCInterface::outputViolationJson(std::map<std::string, std::vector<ids::Vi
 
 void DRCInterface::outputViolationFile(std::map<std::string, std::vector<ids::Violation>>& type_violation_map)
 {
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   std::vector<RoutingLayer>& routing_layer_list = DRCDM.getDatabase().get_routing_layer_list();
@@ -1376,7 +1381,7 @@ void DRCInterface::outputViolationFile(std::map<std::string, std::vector<ids::Vi
     DRCUTIL.closeFileStream(violation_file);
   }
 
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
 }
 
 void DRCInterface::outputTofeature(std::map<std::string, std::vector<ids::Violation>>& type_violation_map)
