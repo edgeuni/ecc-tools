@@ -21,6 +21,7 @@
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "STAHeader.hpp"
+#include "TimingCharacterizer.hpp"
 #include "TimingPropagator.hpp"
 #include "TimingReporter.hpp"
 #include "Utility.hpp"
@@ -91,6 +92,26 @@ void STAInterface::runSTA()
   TimingReporter::initInst();
   STATR.report();
   TimingReporter::destroyInst();
+
+  STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void STAInterface::extractLib()
+{
+  Monitor monitor;
+  STALOG.info(Loc::current(), "Starting...");
+
+  GraphBuilder::initInst();
+  STAGB.build();
+  GraphBuilder::destroyInst();
+
+  TimingPropagator::initInst();
+  STATP.propagate();
+  TimingPropagator::destroyInst();
+
+  TimingCharacterizer::initInst();
+  STATC.characterize();
+  TimingCharacterizer::destroyInst();
 
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }

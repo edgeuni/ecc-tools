@@ -50,6 +50,20 @@ class TclRunSTA : public TclCmd
   std::vector<std::pair<std::string, ValueType>> _config_list;
 };
 
+class TclExtractLib : public TclCmd
+{
+ public:
+  explicit TclExtractLib(const char* cmd_name);
+  ~TclExtractLib() override = default;
+
+  unsigned check() override { return 1; };
+
+  unsigned exec() override;
+
+ private:
+  std::vector<std::pair<std::string, ValueType>> _config_list;
+};
+
 class TclDestroySTA : public TclCmd
 {
  public:

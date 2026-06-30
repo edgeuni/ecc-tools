@@ -56,6 +56,7 @@ class STAInterface
 #if 1  // iSTA
   void initSTA(std::map<std::string, std::any> config_map);
   void runSTA();
+  void extractLib();
   void destroySTA();
 #endif
 

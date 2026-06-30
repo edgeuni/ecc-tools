@@ -39,6 +39,8 @@ class Config
   std::string gb_temp_directory_path;  // building
   // ********* TimingPropagator   ********* //
   std::string tp_temp_directory_path;  // building
+  // ******* TimingCharacterizer ******* //
+  std::string tc_temp_directory_path;  // building
   // **********  TimingReporter   ********** //
   std::string tr_temp_directory_path;  // building
   /////////////////////////////////////////////

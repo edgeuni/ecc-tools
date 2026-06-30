@@ -22,6 +22,7 @@ namespace python_interface {
 
 bool initSTA(std::string& config, std::map<std::string, std::string>& config_dict);
 bool runSTA();
+bool extractLib();
 bool destroySTA();
 
 }  // namespace python_interface

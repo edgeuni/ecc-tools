@@ -43,6 +43,12 @@ bool runSTA()
   return true;
 }
 
+bool extractLib()
+{
+  STAI.extractLib();
+  return true;
+}
+
 bool destroySTA()
 {
   STAI.destroySTA();

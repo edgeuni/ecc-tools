@@ -14,22 +14,22 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#pragma once
-
+#include "STAInterface.hpp"
 #include "tcl_sta.h"
-
-using namespace ieda;
 
 namespace tcl {
 
-int registerCmdSTA()
+TclExtractLib::TclExtractLib(const char* cmd_name) : TclCmd(cmd_name)
 {
-  // sta
-  registerTclCmd(TclInitSTA, "init_sta");
-  registerTclCmd(TclRunSTA, "run_sta");
-  registerTclCmd(TclExtractLib, "extract_lib");
-  registerTclCmd(TclDestroySTA, "destroy_sta");
-  return EXIT_SUCCESS;
+}
+
+unsigned TclExtractLib::exec()
+{
+  if (!check()) {
+    return 0;
+  }
+  STAI.extractLib();
+  return 1;
 }
 
 }  // namespace tcl
