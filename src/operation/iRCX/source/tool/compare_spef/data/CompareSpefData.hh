@@ -153,20 +153,47 @@ struct DataIndex
   }
 };
 
+struct CouplingCapEntry
+{
+  NodePair nets;
+  double capacitance = 0.0;
+};
+
 struct CouplingCapStore
 {
-  NetCouplingCapMap lookup;
+  std::vector<CouplingCapEntry> entries;
+  std::unordered_map<NodePair, std::size_t, NodePairHash> index_by_pair;
 
-  void clear() { lookup.clear(); }
+  void clear()
+  {
+    entries.clear();
+    index_by_pair.clear();
+  }
 
-  void reserve(std::size_t count) { lookup.reserve(count); }
+  void reserve(std::size_t count)
+  {
+    entries.reserve(count);
+    index_by_pair.reserve(count);
+  }
 
-  void add(NodePair pair, double capacitance) { lookup[std::move(pair)] += capacitance; }
+  void add(NodePair pair, double capacitance)
+  {
+    const auto [it, inserted] = index_by_pair.emplace(pair, entries.size());
+    if (inserted) {
+      entries.push_back(CouplingCapEntry{.nets = std::move(pair), .capacitance = capacitance});
+      return;
+    }
+    entries[it->second].capacitance += capacitance;
+  }
 
-  auto size() const -> std::size_t { return lookup.size(); }
-  auto contains(const NodePair& pair) const -> bool { return lookup.contains(pair); }
-  auto find(const NodePair& pair) const -> NetCouplingCapMap::const_iterator { return lookup.find(pair); }
-  auto end() const -> NetCouplingCapMap::const_iterator { return lookup.end(); }
+  auto empty() const -> bool { return entries.empty(); }
+  auto size() const -> std::size_t { return entries.size(); }
+  auto contains(const NodePair& pair) const -> bool { return index_by_pair.contains(pair); }
+  auto find(const NodePair& pair) const -> const CouplingCapEntry*
+  {
+    const auto it = index_by_pair.find(pair);
+    return it == index_by_pair.end() ? nullptr : &entries[it->second];
+  }
 };
 
 struct Data

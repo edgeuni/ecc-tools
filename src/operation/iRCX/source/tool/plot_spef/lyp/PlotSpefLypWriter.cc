@@ -56,6 +56,16 @@ constexpr const char* kMacaronColors[] = {
 
 constexpr std::size_t kMacaronColorCount = sizeof(kMacaronColors) / sizeof(kMacaronColors[0]);
 
+auto resistorPlotLayer(const Model& model, const Resistor& resistor) -> int
+{
+  if (resistor.has_layer) {
+    return resistor.layer;
+  }
+
+  const auto node_it = model.nodes_by_name.find(resistor.node1);
+  return node_it == model.nodes_by_name.end() ? 0 : node_it->second->layer;
+}
+
 auto collectLayers(const Model& model) -> std::vector<int>
 {
   std::set<int> layers;
@@ -64,11 +74,14 @@ auto collectLayers(const Model& model) -> std::vector<int>
       continue;
     }
     for (const auto& node : net.nodes) {
+      if (!node.visible) {
+        continue;
+      }
       layers.insert(node.layer);
     }
     for (const auto& resistor : net.resistors) {
-      if (resistor.has_layer) {
-        layers.insert(resistor.layer);
+      if (resistor.visible) {
+        layers.insert(resistorPlotLayer(model, resistor));
       }
     }
   }
@@ -105,6 +118,21 @@ auto edgeColor(std::size_t color_index) -> std::string
   return macaronColor(color_index * 2 + 1);
 }
 
+auto hasVisibleContextEdgeOnLayer(const Model& model, int layer) -> bool
+{
+  for (const auto& net : model.nets) {
+    if (!net.visible || !net.context_only) {
+      continue;
+    }
+    for (const auto& resistor : net.resistors) {
+      if (resistor.visible && resistorPlotLayer(model, resistor) == layer) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 auto makePropertiesForLayer(const Model& model, const Config& config, int layer, std::size_t color_index) -> std::vector<LayerProperty>
 {
   const std::string prefix = layerName(model, layer) + "_";
@@ -115,11 +143,12 @@ auto makePropertiesForLayer(const Model& model, const Config& config, int layer,
        .frame_color = nodeColor(color_index),
        .fill_color = nodeColor(color_index),
        .line_style = 0,
-       .width = 2,
+       .width = 1,
        .filled = false},
       {.layer = layer, .data_type = kTextNode, .name = prefix + "TextNode", .frame_color = "#0050d8", .fill_color = "#0050d8"},
   };
-  if (config.plotResistance()) {
+  const bool plot_edge = config.plotResistance() || hasVisibleContextEdgeOnLayer(model, layer);
+  if (plot_edge) {
     properties.push_back({.layer = layer,
                           .data_type = kEdge,
                           .name = prefix + "Edge",
@@ -128,6 +157,8 @@ auto makePropertiesForLayer(const Model& model, const Config& config, int layer,
                           .line_style = 0,
                           .width = 1,
                           .filled = true});
+  }
+  if (config.plotResistance()) {
     properties.push_back(
         {.layer = layer, .data_type = kTextRes, .name = prefix + "TextRes", .frame_color = "#b000e8", .fill_color = "#b000e8"});
   }

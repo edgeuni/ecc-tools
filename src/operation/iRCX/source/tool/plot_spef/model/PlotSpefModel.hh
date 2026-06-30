@@ -35,6 +35,7 @@ struct Node
   int ury = 0;
   bool has_point = false;
   bool has_box = false;
+  bool visible = true;
 };
 
 struct Resistor
@@ -56,6 +57,7 @@ struct Resistor
   bool has_layer = false;
   bool has_direction = false;
   bool has_box = false;
+  bool visible = true;
 };
 
 inline auto resistorLength(const Resistor& resistor) -> double
@@ -108,6 +110,7 @@ struct Net
 {
   std::string name;
   bool visible = true;
+  bool context_only = false;
   std::vector<Node> nodes;
   std::unordered_map<std::string, Node*> nodes_by_name;
   std::vector<Resistor> resistors;

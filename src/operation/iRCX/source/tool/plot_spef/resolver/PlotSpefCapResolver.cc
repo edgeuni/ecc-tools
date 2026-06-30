@@ -16,8 +16,11 @@
 // ***************************************************************************************
 #include "resolver/PlotSpefCapResolver.hh"
 
+#include <omp.h>
+
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <string>
 #include <unordered_map>
@@ -32,6 +35,15 @@ namespace {
 
 constexpr double kScoreEpsilon = 1e-12;
 
+auto threadCount(const Config& config, std::size_t work_items) -> int
+{
+  if (work_items == 0) {
+    return 1;
+  }
+  const int requested = config.cores > 0 ? config.cores : 1;
+  return std::min<int>({requested, omp_get_max_threads(), static_cast<int>(work_items)});
+}
+
 struct EdgeCandidate
 {
   EdgeRef ref;
@@ -39,6 +51,8 @@ struct EdgeCandidate
 };
 
 using IncidentEdges = std::unordered_map<std::string, std::vector<EdgeCandidate>>;
+using VoteList = std::vector<std::pair<std::string, double>>;
+using NetVotes = std::vector<VoteList>;
 
 enum class CapResolveMode
 {
@@ -62,6 +76,22 @@ auto detectResolveMode(const Model& model) -> CapResolveMode
 auto edgeTieValue(const EdgeCandidate& candidate) -> std::size_t
 {
   return edgeRefTieValue(candidate.ref);
+}
+
+auto mergeVotes(const NetVotes& net_votes, std::unordered_map<std::string, double>& coupling_votes) -> void
+{
+  // Merge in net order so floating-point accumulation and tie behavior remain
+  // deterministic after parallel edge resolution.
+  std::size_t vote_count = 0;
+  for (const auto& votes : net_votes) {
+    vote_count += votes.size();
+  }
+  coupling_votes.reserve(vote_count);
+  for (const auto& votes : net_votes) {
+    for (const auto& [key, value] : votes) {
+      coupling_votes[key] += value;
+    }
+  }
 }
 
 class IncidentEdgeIndex
@@ -96,23 +126,33 @@ class IncidentEdgeIndex
 class IrcxResolver
 {
  public:
-  IrcxResolver(const Model& model, const IncidentEdgeIndex& incident_edges) : model_(model), incident_edges_(incident_edges) {}
+  IrcxResolver(const Model& model, const Config& config, const IncidentEdgeIndex& incident_edges)
+      : model_(model), config_(config), incident_edges_(incident_edges)
+  {
+  }
 
   auto resolve(Model& model) const -> void
   {
     std::unordered_map<std::string, double> coupling_votes;
-    for (auto& net : model.nets) {
+    NetVotes net_votes(model.nets.size());
+    const int threads = threadCount(config_, model.nets.size());
+#pragma omp parallel for schedule(dynamic, 32) num_threads(threads)
+    for (std::ptrdiff_t net_index = 0; net_index < static_cast<std::ptrdiff_t>(model.nets.size()); ++net_index) {
+      auto& net = model.nets[net_index];
+      auto& votes = net_votes[net_index];
+      votes.reserve(net.coupling_caps.size() * 2);
       for (auto& cap : net.coupling_caps) {
         cap.edge1 = chooseEdgeForNode(cap.node1);
         cap.edge2 = chooseEdgeForNode(cap.node2);
         if (cap.edge1.valid) {
-          coupling_votes[nodeEdgeVoteKey(cap.node1, cap.edge1)] += cap.value;
+          votes.emplace_back(nodeEdgeVoteKey(cap.node1, cap.edge1), cap.value);
         }
         if (cap.edge2.valid) {
-          coupling_votes[nodeEdgeVoteKey(cap.node2, cap.edge2)] += cap.value;
+          votes.emplace_back(nodeEdgeVoteKey(cap.node2, cap.edge2), cap.value);
         }
       }
     }
+    mergeVotes(net_votes, coupling_votes);
 
     for (auto& net : model.nets) {
       for (auto& cap : net.ground_caps) {
@@ -156,6 +196,30 @@ class IrcxResolver
 
   auto chooseEdgeForNode(const std::string& node_name) const -> EdgeRef
   {
+    EdgeRef cached_edge;
+    bool cache_hit = false;
+#pragma omp critical(plot_spef_ircx_edge_cache)
+    {
+      const auto cache_it = edge_cache_.find(node_name);
+      if (cache_it != edge_cache_.end()) {
+        cached_edge = cache_it->second;
+        cache_hit = true;
+      }
+    }
+    if (cache_hit) {
+      return cached_edge;
+    }
+
+    const EdgeRef edge_ref = selectEdgeForNode(node_name);
+#pragma omp critical(plot_spef_ircx_edge_cache)
+    {
+      edge_cache_.try_emplace(node_name, edge_ref);
+    }
+    return edge_ref;
+  }
+
+  auto selectEdgeForNode(const std::string& node_name) const -> EdgeRef
+  {
     const auto& candidates = incident_edges_.candidatesFor(node_name);
     if (candidates.empty()) {
       return {};
@@ -188,30 +252,42 @@ class IrcxResolver
   }
 
   const Model& model_;
+  const Config& config_;
   const IncidentEdgeIndex& incident_edges_;
+  mutable std::unordered_map<std::string, EdgeRef> edge_cache_;
 };
 
 class StarRcResolver
 {
  public:
-  StarRcResolver(int dbu, const IncidentEdgeIndex& incident_edges) : dbu_(dbu), incident_edges_(incident_edges) {}
+  StarRcResolver(const Config& config, const IncidentEdgeIndex& incident_edges)
+      : dbu_(config.dbu), config_(config), incident_edges_(incident_edges)
+  {
+  }
 
   auto resolve(Model& model) const -> void
   {
     std::unordered_map<std::string, double> coupling_votes;
-    for (auto& net : model.nets) {
+    NetVotes net_votes(model.nets.size());
+    const int threads = threadCount(config_, model.nets.size());
+#pragma omp parallel for schedule(dynamic, 32) num_threads(threads)
+    for (std::ptrdiff_t net_index = 0; net_index < static_cast<std::ptrdiff_t>(model.nets.size()); ++net_index) {
+      auto& net = model.nets[net_index];
+      auto& votes = net_votes[net_index];
+      votes.reserve(net.coupling_caps.size() * 2);
       for (auto& cap : net.coupling_caps) {
         const auto [edge1, edge2] = chooseCouplingEdgePair(incident_edges_.candidatesFor(cap.node1), incident_edges_.candidatesFor(cap.node2));
         cap.edge1 = edge1;
         cap.edge2 = edge2;
         if (edge1.valid) {
-          coupling_votes[nodeEdgeVoteKey(cap.node1, edge1)] += cap.value;
+          votes.emplace_back(nodeEdgeVoteKey(cap.node1, edge1), cap.value);
         }
         if (edge2.valid) {
-          coupling_votes[nodeEdgeVoteKey(cap.node2, edge2)] += cap.value;
+          votes.emplace_back(nodeEdgeVoteKey(cap.node2, edge2), cap.value);
         }
       }
     }
+    mergeVotes(net_votes, coupling_votes);
 
     for (auto& net : model.nets) {
       for (auto& cap : net.ground_caps) {
@@ -379,6 +455,7 @@ class StarRcResolver
   }
 
   int dbu_ = 1000;
+  const Config& config_;
   const IncidentEdgeIndex& incident_edges_;
 };
 
@@ -393,10 +470,10 @@ auto resolveCapacitorEdges(Model& model, const Config& config) -> void
   const IncidentEdgeIndex incident_edges(model);
   switch (detectResolveMode(model)) {
     case CapResolveMode::kIrcx:
-      IrcxResolver(model, incident_edges).resolve(model);
+      IrcxResolver(model, config, incident_edges).resolve(model);
       break;
     case CapResolveMode::kStarRc:
-      StarRcResolver(config.dbu, incident_edges).resolve(model);
+      StarRcResolver(config, incident_edges).resolve(model);
       break;
   }
 }
