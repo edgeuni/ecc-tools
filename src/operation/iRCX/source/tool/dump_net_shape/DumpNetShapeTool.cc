@@ -45,16 +45,14 @@ enum class ShapeCode : std::size_t
 
 constexpr std::array<char, 6> kShapeCodeNames = {'A', 'B', 'C', 'D', 'E', 'F'};
 
-struct LayerShapes
-{
-  std::array<std::vector<GtlRectI>, kShapeCodeNames.size()> rects;
-};
-
-using NetShapesByLayer = std::map<Size, LayerShapes>;
-
 auto shapeIndex(ShapeCode code) -> std::size_t
 {
   return static_cast<std::size_t>(code);
+}
+
+auto shapeCodeName(ShapeCode code) -> char
+{
+  return kShapeCodeNames[shapeIndex(code)];
 }
 
 auto validLayer(Size layer_id) -> bool
@@ -75,12 +73,43 @@ auto layerName(const LayoutData& layout, const LayerTable& layer_table, Size lay
   }
 }
 
-void addRect(NetShapesByLayer& shapes, Size layer_id, ShapeCode code, const GtlRectI& rect)
+void writeQuoted(std::ostream& os, const Str& value)
 {
-  if (!validLayer(layer_id)) {
+  os << '"';
+  for (char ch : value) {
+    if (ch == '\\' || ch == '"') {
+      os << '\\' << ch;
+    } else if (ch == '\n') {
+      os << "\\n";
+    } else {
+      os << ch;
+    }
+  }
+  os << '"';
+}
+
+void writeBool(std::ostream& os, bool value)
+{
+  os << (value ? "true" : "false");
+}
+
+void writeSize(std::ostream& os, Size value)
+{
+  if (value == kMaxSize) {
+    os << "NA";
     return;
   }
-  shapes[layer_id].rects[shapeIndex(code)].push_back(rect);
+  os << value;
+}
+
+void writePoint(std::ostream& os, const GtlPointI& point)
+{
+  os << '[' << geom::x(point) << ' ' << geom::y(point) << ']';
+}
+
+void writeRect(std::ostream& os, const GtlRectI& rect)
+{
+  os << '[' << geom::min_x(rect) << ' ' << geom::min_y(rect) << ' ' << geom::max_x(rect) << ' ' << geom::max_y(rect) << ']';
 }
 
 auto isCutLayer(Size layer_id, const std::set<Size>& cut_layer_ids) -> bool
@@ -200,84 +229,126 @@ auto buildLayerOrder(const LayoutData& layout) -> std::vector<Size>
   return ordered;
 }
 
-auto collectNetShapes(const Net& net, const std::set<Size>& cut_layer_ids) -> NetShapesByLayer
-{
-  NetShapesByLayer shapes;
-
-  for (const Segment& segment : net.segments) {
-    addRect(shapes, segment.layer_id, ShapeCode::kSegment, segment.rect);
-  }
-  for (const Patch& patch : net.patches) {
-    addRect(shapes, patch.layer_id, ShapeCode::kPatch, patch.rect);
-  }
-  for (const Via& via : net.vias) {
-    addRect(shapes, via.layer_rect_btm.first, ShapeCode::kViaNonCut, via.layer_rect_btm.second);
-    addRect(shapes, via.layer_rect_top.first, ShapeCode::kViaNonCut, via.layer_rect_top.second);
-    addRect(shapes, via.layer_rect_cut.first, ShapeCode::kViaCut, via.layer_rect_cut.second);
-  }
-  for (const Pin& pin : net.pins) {
-    for (const auto& [layer_id, rect] : pin.layer_id_rects) {
-      addRect(shapes, layer_id, isCutLayer(layer_id, cut_layer_ids) ? ShapeCode::kPinCut : ShapeCode::kPinNonCut, rect);
-    }
-  }
-
-  return shapes;
-}
-
-auto hasShapes(const LayerShapes& shapes) -> bool
-{
-  return std::any_of(shapes.rects.begin(), shapes.rects.end(), [](const auto& rects) { return !rects.empty(); });
-}
-
 auto outputFileName(const LayoutData& layout) -> Str
 {
   return (layout.design_name.empty() ? "design" : layout.design_name) + ".shape";
 }
 
-void writeRect(std::ostream& os, const GtlRectI& rect)
-{
-  os << '[' << geom::min_x(rect) << ' ' << geom::min_y(rect) << ' ' << geom::max_x(rect) << ' ' << geom::max_y(rect) << ']';
-}
-
 void writeHeader(std::ostream& os, const LayoutData& layout, const LayerTable& layer_table, const std::vector<Size>& layer_order)
 {
   os << "# dump_net_shape\n";
+  os << "# format_version: 2\n";
+  os << "# design_name: ";
+  writeQuoted(os, layout.design_name);
+  os << '\n';
+  os << "# dbu_per_micron: " << layout.dbu_per_micron << '\n';
+  os << "# purpose: AI-readable dump of DEF/LEF-derived raw net shapes; compare with StarRC topology from 8_spef_topology_starrc.py\n";
+  os << "# shape_code: A=Segment B=Patch C=Via_non_cut_layer D=Via_cut_layer E=Pin_non_cut_layer F=Pin_cut_layer\n";
+  os << "# shape_code_note: C/E are non-cut shape types on the current layer; they do not imply upper/lower layer direction\n";
+  os << "# shape_code_note: D/F are cut-layer shape types on the current layer\n";
+  os << "# coordinate_format: point=[x y], rect=[llx lly urx ury], all in DBU\n";
+  os << "# records:\n";
+  os << "#   NET <id|NA> <name> <regular|special> <segment_count> <patch_count> <via_count> <pin_count>\n";
+  os << "#   S  <id> <layer> <rect>\n";
+  os << "#   P  <id> <layer> <rect>\n";
+  os << "#   V  <id> <name> <point>\n";
+  os << "#   VS <via_id> <shape_id> <code:C|D> <layer> <rect>\n";
+  os << "#   PN <id> <name> <is_port> <is_driver> <is_input> <is_output>\n";
+  os << "#   PS <pin_id> <shape_id> <code:E|F> <layer> <rect>\n";
   os << "# layer_order low_to_high: index layer_id design_layer_name\n";
   for (std::size_t i = 0; i < layer_order.size(); ++i) {
-    os << "# L " << i << ' ' << layer_order[i] << ' ' << layerName(layout, layer_table, layer_order[i]) << '\n';
+    os << "# L " << i << ' ' << layer_order[i] << ' ';
+    writeQuoted(os, layerName(layout, layer_table, layer_order[i]));
+    os << '\n';
   }
-  os << "# shape_code: A=Segment B=Patch C=Via_non_cut_layer D=Via_cut_layer E=Pin_non_cut_layer F=Pin_cut_layer\n";
-  os << "# rect format: [llx lly urx ury] in DBU\n";
 }
 
-void writeNet(std::ostream& os, const Net& net, const LayoutData& layout, const LayerTable& layer_table,
-              const std::vector<Size>& layer_order, const std::set<Size>& cut_layer_ids)
+void writeNetShapes(std::ostream& os, const Net& net, const std::set<Size>& cut_layer_ids)
 {
-  const NetShapesByLayer net_shapes = collectNetShapes(net, cut_layer_ids);
+  for (std::size_t i = 0; i < net.segments.size(); ++i) {
+    const Segment& segment = net.segments[i];
+    os << "S " << i << ' ';
+    writeSize(os, segment.layer_id);
+    os << ' ';
+    writeRect(os, segment.rect);
+    os << '\n';
+  }
 
-  os << "NET " << net.name << '\n';
-  for (Size layer_id : layer_order) {
-    const auto it = net_shapes.find(layer_id);
-    if (it == net_shapes.end() || !hasShapes(it->second)) {
-      continue;
-    }
+  for (std::size_t i = 0; i < net.patches.size(); ++i) {
+    const Patch& patch = net.patches[i];
+    os << "P " << i << ' ';
+    writeSize(os, patch.layer_id);
+    os << ' ';
+    writeRect(os, patch.rect);
+    os << '\n';
+  }
 
-    os << "L " << layer_id << ' ' << layerName(layout, layer_table, layer_id) << '\n';
-    for (std::size_t i = 0; i < kShapeCodeNames.size(); ++i) {
-      const auto& rects = it->second.rects[i];
-      if (rects.empty()) {
-        continue;
-      }
+  for (std::size_t i = 0; i < net.vias.size(); ++i) {
+    const Via& via = net.vias[i];
+    os << "V " << i << ' ';
+    writeQuoted(os, via.name);
+    os << ' ';
+    writePoint(os, via.point);
+    os << '\n';
 
-      os << kShapeCodeNames[i];
-      for (const GtlRectI& rect : rects) {
-        os << ' ';
-        writeRect(os, rect);
-      }
+    auto write_via_shape = [&](std::size_t shape_id, ShapeCode code, const std::pair<Size, GtlRectI>& layer_rect) {
+      os << "VS " << i << ' ' << shape_id << ' ' << shapeCodeName(code) << ' ';
+      writeSize(os, layer_rect.first);
+      os << ' ';
+      writeRect(os, layer_rect.second);
+      os << '\n';
+    };
+    write_via_shape(0, ShapeCode::kViaNonCut, via.layer_rect_btm);
+    write_via_shape(1, ShapeCode::kViaCut, via.layer_rect_cut);
+    write_via_shape(2, ShapeCode::kViaNonCut, via.layer_rect_top);
+  }
+
+  for (std::size_t i = 0; i < net.pins.size(); ++i) {
+    const Pin& pin = net.pins[i];
+    os << "PN " << i << ' ';
+    writeQuoted(os, pin.name);
+    os << ' ';
+    writeBool(os, pin.is_port());
+    os << ' ';
+    writeBool(os, pin.is_driver);
+    os << ' ';
+    writeBool(os, pin.is_input);
+    os << ' ';
+    writeBool(os, pin.is_output);
+    os << '\n';
+
+    for (std::size_t shape_id = 0; shape_id < pin.layer_id_rects.size(); ++shape_id) {
+      const auto& [layer_id, rect] = pin.layer_id_rects[shape_id];
+      const ShapeCode code = isCutLayer(layer_id, cut_layer_ids) ? ShapeCode::kPinCut : ShapeCode::kPinNonCut;
+      os << "PS " << i << ' ' << shape_id << ' ' << shapeCodeName(code) << ' ';
+      writeSize(os, layer_id);
+      os << ' ';
+      writeRect(os, rect);
       os << '\n';
     }
   }
+}
+
+void writeRegularNet(std::ostream& os, const Net& net, const std::set<Size>& cut_layer_ids)
+{
+  os << "NET " << net.id << ' ';
+  writeQuoted(os, net.name);
+  os << " regular " << net.segments.size() << ' ' << net.patches.size() << ' ' << net.vias.size() << ' ' << net.pins.size() << '\n';
+  writeNetShapes(os, net, cut_layer_ids);
   os << "END_NET\n";
+}
+
+void writeSpecialNet(std::ostream& os, const Net& net, const std::set<Size>& cut_layer_ids)
+{
+  os << "NET NA \"__SPECIAL_NET__\" special " << net.segments.size() << ' ' << net.patches.size() << ' ' << net.vias.size() << ' '
+     << net.pins.size() << '\n';
+  writeNetShapes(os, net, cut_layer_ids);
+  os << "END_NET\n";
+}
+
+auto hasSpecialNetShapes(const Net& net) -> bool
+{
+  return !net.segments.empty() || !net.patches.empty() || !net.vias.empty() || !net.pins.empty();
 }
 
 }  // namespace
@@ -308,14 +379,11 @@ auto DumpNetShapeTool::run() -> bool
   writeHeader(ofs, layout, data.layer_table(), layer_order);
 
   for (const Net& net : layout.net_vec) {
-    writeNet(ofs, net, layout, data.layer_table(), layer_order, cut_layer_ids);
+    writeRegularNet(ofs, net, cut_layer_ids);
   }
 
-  if (!layout.special_net.segments.empty() || !layout.special_net.patches.empty() || !layout.special_net.vias.empty()
-      || !layout.special_net.pins.empty()) {
-    Net special_net = layout.special_net;
-    special_net.name = "__SPECIAL_NET__";
-    writeNet(ofs, special_net, layout, data.layer_table(), layer_order, cut_layer_ids);
+  if (hasSpecialNetShapes(layout.special_net)) {
+    writeSpecialNet(ofs, layout.special_net, cut_layer_ids);
   }
   if (!ofs) {
     LOG_ERROR << "dump_net_shape failed: cannot write output file " << output_file;

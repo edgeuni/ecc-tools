@@ -16,8 +16,11 @@
 // ***************************************************************************************
 #include "gds/PlotSpefGdsWriter.hh"
 
+#include <omp.h>
+
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -40,7 +43,6 @@
 namespace ircx::plot_spef {
 namespace {
 
-constexpr int kNodeOutlineWidth = 2;
 constexpr int kEdgeWidth = 1;
 constexpr int kCcWidth = 1;
 
@@ -70,6 +72,21 @@ struct CouplingCapPlot
   double value = 0.0;
 };
 
+struct NetGdsJob
+{
+  const Net* net = nullptr;
+  std::string struct_name;
+};
+
+auto threadCount(const Config& config, std::size_t work_items) -> int
+{
+  if (work_items == 0) {
+    return 1;
+  }
+  const int requested = config.cores > 0 ? config.cores : 1;
+  return std::min<int>({requested, omp_get_max_threads(), static_cast<int>(work_items)});
+}
+
 auto findNode(const Model& model, const std::string& name) -> const Node*
 {
   const auto it = model.nodes_by_name.find(name);
@@ -88,20 +105,6 @@ auto findEdge(const Model& model, const EdgeRef& ref) -> const Resistor*
   return &net.resistors[ref.resistor_index];
 }
 
-auto addBoxOutline(idb::GdsStruct& gds_net, int layer, int data_type, int width, int llx, int lly, int urx, int ury) -> void
-{
-  idb::GdsPath path;
-  path.layer = layer;
-  path.data_type = data_type;
-  path.width = width;
-  path.add_coord(llx, lly);
-  path.add_coord(urx, lly);
-  path.add_coord(urx, ury);
-  path.add_coord(llx, ury);
-  path.add_coord(llx, lly);
-  gds_net.add_element(path);
-}
-
 auto addBoxBoundary(idb::GdsStruct& gds_net, int layer, int data_type, int llx, int lly, int urx, int ury) -> void
 {
   idb::GdsBoundary boundary;
@@ -118,7 +121,7 @@ auto addBoxBoundary(idb::GdsStruct& gds_net, int layer, int data_type, int llx, 
 auto addRect(idb::GdsStruct& gds_net, const Node& node) -> void
 {
   if (node.has_box) {
-    addBoxOutline(gds_net, node.layer, kNode, kNodeOutlineWidth, node.llx, node.lly, node.urx, node.ury);
+    addBoxBoundary(gds_net, node.layer, kNode, node.llx, node.lly, node.urx, node.ury);
   }
 }
 
@@ -222,7 +225,14 @@ auto capPoint(const Model& model, const EdgeRef& edge, const std::string& node_n
 
 auto isVisibleEdge(const Model& model, const EdgeRef& ref) -> bool
 {
-  return !ref.valid || ref.net_index >= model.nets.size() || model.nets[ref.net_index].visible;
+  if (!ref.valid) {
+    return true;
+  }
+  if (ref.net_index >= model.nets.size()) {
+    return false;
+  }
+  const auto& net = model.nets[ref.net_index];
+  return net.visible && ref.resistor_index < net.resistors.size() && net.resistors[ref.resistor_index].visible;
 }
 
 auto couplingKey(const Capacitor& cap) -> std::string
@@ -295,16 +305,156 @@ auto addTopReference(idb::GdsData& gds_data, const std::string& name) -> void
   gds_data.get_top_struct()->add_element(sref);
 }
 
-}  // namespace
+auto formatResistance(double value) -> std::string
+{
+  return "R=" + format::significant(value, 3) + "Ω";
+}
 
-auto GdsWriter::formatValue(double value, const std::string& unit) -> std::string
+auto formatCapacitance(double value, const std::string& unit) -> std::string
 {
   return format::with_unit(value, format::unit_symbol(unit), 3);
 }
 
-auto formatResistance(double value) -> std::string
+auto collectNetGdsJobs(const Model& model) -> std::vector<NetGdsJob>
 {
-  return "R=" + format::significant(value, 3) + "Ω";
+  std::unordered_map<std::string, int> struct_name_count;
+  struct_name_count.reserve(model.nets.size());
+
+  std::vector<NetGdsJob> jobs;
+  jobs.reserve(model.nets.size());
+  for (const auto& net : model.nets) {
+    if (!net.visible) {
+      continue;
+    }
+    std::string struct_name = string::identifier(net.name, "net");
+    const int count = struct_name_count[struct_name]++;
+    if (count > 0) {
+      struct_name += "_" + std::to_string(count);
+    }
+    jobs.push_back({.net = &net, .struct_name = std::move(struct_name)});
+  }
+  return jobs;
+}
+
+class NetGdsWriter
+{
+ public:
+  NetGdsWriter(const Model& model, const Config& config) : model_(model), config_(config) {}
+
+  auto write(idb::GdsStruct& gds_net, const Net& net) const -> void
+  {
+    writeNodes(gds_net, net);
+    writeResistors(gds_net, net);
+    writeCouplingCaps(gds_net, net);
+    writeGroundCaps(gds_net, net);
+  }
+
+ private:
+  auto writeNodes(idb::GdsStruct& gds_net, const Net& net) const -> void
+  {
+    for (const auto& node : net.nodes) {
+      if (!node.visible) {
+        continue;
+      }
+      addRect(gds_net, node);
+      if (node.has_point) {
+        addText(gds_net, node.layer, kTextNode, node.x, node.y, node.name);
+      }
+    }
+  }
+
+  auto writeResistors(idb::GdsStruct& gds_net, const Net& net) const -> void
+  {
+    if (!config_.plotResistance() && !net.context_only) {
+      return;
+    }
+
+    for (const auto& resistor : net.resistors) {
+      if (!resistor.visible) {
+        continue;
+      }
+      const Node* node1 = findNode(model_, resistor.node1);
+      const Node* node2 = findNode(model_, resistor.node2);
+      if (node1 == nullptr || node2 == nullptr || !node1->has_point || !node2->has_point) {
+        continue;
+      }
+
+      const int layer = resistor.has_layer ? resistor.layer : node1->layer;
+      if (resistor.has_box) {
+        addRect(gds_net, resistor, layer);
+      } else {
+        addPath(gds_net, layer, kEdge, kEdgeWidth, *node1, *node2);
+      }
+      if (config_.plotResistance()) {
+        addText(gds_net, layer, kTextRes, (node1->x + node2->x) / 2, (node1->y + node2->y) / 2, formatResistance(resistor.value),
+                idb::GdsPresentation::kTopRight);
+      }
+    }
+  }
+
+  auto writeCouplingCaps(idb::GdsStruct& gds_net, const Net& net) const -> void
+  {
+    if (net.context_only || !config_.plotCouplingCap()) {
+      return;
+    }
+
+    for (const auto& cap : collectCouplingCapPlots(model_, net)) {
+      const PlotPoint point1 = capPoint(model_, cap.edge1, cap.node1);
+      const PlotPoint point2 = capPoint(model_, cap.edge2, cap.node2);
+      if (!point1.valid || !point2.valid) {
+        continue;
+      }
+
+      const int layer = point1.layer;
+      addPath(gds_net, layer, kCc, kCcWidth, point1, point2);
+      addText(gds_net, layer, kTextCc, (point1.x + point2.x) / 2, (point1.y + point2.y) / 2,
+              formatCapacitance(cap.value, model_.cap_unit), idb::GdsPresentation::kTopRight);
+    }
+  }
+
+  auto writeGroundCaps(idb::GdsStruct& gds_net, const Net& net) const -> void
+  {
+    if (net.context_only || !config_.plotGroundCap()) {
+      return;
+    }
+
+    for (const auto& cap : collectGroundCapPlots(model_, net)) {
+      PlotPoint point = capPoint(model_, cap.edge, cap.node);
+      if (!point.valid) {
+        continue;
+      }
+      addText(gds_net, point.layer, kTextCg, point.x, point.y, formatCapacitance(cap.value, model_.cap_unit),
+              idb::GdsPresentation::kTopRight);
+    }
+  }
+
+  const Model& model_;
+  const Config& config_;
+};
+
+auto buildNetGdsStructs(const Model& model, const Config& config, const std::vector<NetGdsJob>& jobs)
+    -> std::vector<std::unique_ptr<idb::GdsStruct>>
+{
+  // Threads build private structs only. GdsData and the file writer are updated
+  // later on the main thread because their ownership model is not thread-safe.
+  std::vector<std::unique_ptr<idb::GdsStruct>> structs(jobs.size());
+  const NetGdsWriter net_writer(model, config);
+  const int threads = threadCount(config, jobs.size());
+#pragma omp parallel for schedule(dynamic, 16) num_threads(threads)
+  for (std::ptrdiff_t index = 0; index < static_cast<std::ptrdiff_t>(jobs.size()); ++index) {
+    const auto& job = jobs[index];
+    auto gds_net = std::make_unique<idb::GdsStruct>(job.struct_name);
+    net_writer.write(*gds_net, *job.net);
+    structs[index] = std::move(gds_net);
+  }
+  return structs;
+}
+
+}  // namespace
+
+auto GdsWriter::formatValue(double value, const std::string& unit) -> std::string
+{
+  return formatCapacitance(value, unit);
 }
 
 auto GdsWriter::write(const Model& model, const Config& config) const -> bool
@@ -317,8 +467,8 @@ auto GdsWriter::write(const Model& model, const Config& config) const -> bool
   gds_data.set_unit(1.0 / model.dbu, 1e-6 / model.dbu);
   gds_data.set_top_struct(new idb::GdsStruct(gds_name));
 
-  std::unordered_map<std::string, int> struct_name_count;
-  struct_name_count.reserve(model.nets.size());
+  const auto jobs = collectNetGdsJobs(model);
+  auto net_structs = buildNetGdsStructs(model, config, jobs);
 
   idb::GdsiiTextWriter writer;
   if (!writer.init(gds_file.string(), &gds_data)) {
@@ -330,71 +480,9 @@ auto GdsWriter::write(const Model& model, const Config& config) const -> bool
     return false;
   }
 
-  for (const auto& net : model.nets) {
-    if (!net.visible) {
-      continue;
-    }
-    std::string struct_name = string::identifier(net.name, "net");
-    const int count = struct_name_count[struct_name]++;
-    if (count > 0) {
-      struct_name += "_" + std::to_string(count);
-    }
-
-    addTopReference(gds_data, struct_name);
-    idb::GdsStruct gds_net(struct_name);
-
-    for (const auto& node : net.nodes) {
-      addRect(gds_net, node);
-      if (node.has_point) {
-        addText(gds_net, node.layer, kTextNode, node.x, node.y, node.name);
-      }
-    }
-
-    if (config.plotResistance()) {
-      for (const auto& resistor : net.resistors) {
-        const Node* node1 = findNode(model, resistor.node1);
-        const Node* node2 = findNode(model, resistor.node2);
-        if (node1 == nullptr || node2 == nullptr || !node1->has_point || !node2->has_point) {
-          continue;
-        }
-
-        const int layer = resistor.has_layer ? resistor.layer : node1->layer;
-        if (resistor.has_box) {
-          addRect(gds_net, resistor, layer);
-        } else {
-          addPath(gds_net, layer, kEdge, kEdgeWidth, *node1, *node2);
-        }
-        addText(gds_net, layer, kTextRes, (node1->x + node2->x) / 2, (node1->y + node2->y) / 2, formatResistance(resistor.value),
-                idb::GdsPresentation::kTopRight);
-      }
-    }
-
-    if (config.plotCouplingCap()) {
-      for (const auto& cap : collectCouplingCapPlots(model, net)) {
-        const PlotPoint point1 = capPoint(model, cap.edge1, cap.node1);
-        const PlotPoint point2 = capPoint(model, cap.edge2, cap.node2);
-        if (!point1.valid || !point2.valid) {
-          continue;
-        }
-
-        const int layer = point1.layer;
-        addPath(gds_net, layer, kCc, kCcWidth, point1, point2);
-        addText(gds_net, layer, kTextCc, (point1.x + point2.x) / 2, (point1.y + point2.y) / 2, formatValue(cap.value, model.cap_unit),
-                idb::GdsPresentation::kTopRight);
-      }
-    }
-
-    if (config.plotGroundCap()) {
-      for (const auto& cap : collectGroundCapPlots(model, net)) {
-        PlotPoint point = capPoint(model, cap.edge, cap.node);
-        if (!point.valid) {
-          continue;
-        }
-        addText(gds_net, point.layer, kTextCg, point.x, point.y, formatValue(cap.value, model.cap_unit), idb::GdsPresentation::kTopRight);
-      }
-    }
-
-    gds_data.add_struct(gds_net);
+  for (std::size_t index = 0; index < jobs.size(); ++index) {
+    addTopReference(gds_data, jobs[index].struct_name);
+    gds_data.add_struct(net_structs[index].release());
   }
   if (!writer.finish()) {
     return false;

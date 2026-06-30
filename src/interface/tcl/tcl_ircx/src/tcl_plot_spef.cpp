@@ -21,6 +21,8 @@
  * @version 0.1
  * @date 2026-06-01
  */
+#include <cstdlib>
+#include <limits>
 #include <utility>
 
 #include "RCXAPI.hh"
@@ -46,6 +48,36 @@ auto isOptionSet(TclOption* option) -> bool
   return option != nullptr && option->is_set_val();
 }
 
+auto parseInt(const char* text, int& value) -> bool
+{
+  if (text == nullptr || *text == '\0') {
+    return false;
+  }
+
+  char* end = nullptr;
+  const long parsed = std::strtol(text, &end, 10);
+  if (end == text || *end != '\0' || parsed < static_cast<long>(std::numeric_limits<int>::min())
+      || parsed > static_cast<long>(std::numeric_limits<int>::max())) {
+    return false;
+  }
+
+  value = static_cast<int>(parsed);
+  return true;
+}
+
+auto setIntOption(TclOption* option, const char* option_name, int& value) -> bool
+{
+  if (!isOptionSet(option)) {
+    return true;
+  }
+  if (parseInt(option->getStringVal(), value)) {
+    return true;
+  }
+
+  LOG_ERROR << "plot_spef " << option_name << " requires an integer value.";
+  return false;
+}
+
 }  // namespace
 
 TclPlotSpef::TclPlotSpef(const char* cmd_name) : TclCmd(cmd_name)
@@ -53,6 +85,7 @@ TclPlotSpef::TclPlotSpef(const char* cmd_name) : TclCmd(cmd_name)
   addOption(new TclStringOption(kSpefArg, 1, nullptr));
   addOption(new TclStringOption(kOutputDirArg, 1, nullptr));
   addOption(new TclStringOption("-net", 1, nullptr));
+  addOption(new TclStringOption("-cores", 1, nullptr));
   addOption(new TclSwitchOption("-R"));
   addOption(new TclSwitchOption("-Cc"));
   addOption(new TclSwitchOption("-Cg"));
@@ -78,6 +111,9 @@ unsigned TclPlotSpef::exec()
   config.output_dir = getStringValue(getOptionOrArg(kOutputDirArg));
   if (const char* net_name = getStringValue(getOptionOrArg("-net")); net_name != nullptr) {
     config.net_name = net_name;
+  }
+  if (!setIntOption(getOptionOrArg("-cores"), "-cores", config.cores)) {
+    return 0;
   }
   config.output_resistance = isOptionSet(getOptionOrArg("-R"));
   config.output_coupling_cap = isOptionSet(getOptionOrArg("-Cc"));
