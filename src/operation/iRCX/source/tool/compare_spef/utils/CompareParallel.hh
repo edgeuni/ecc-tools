@@ -28,7 +28,7 @@ namespace parallel {
 inline auto threadCount(const Config& config, std::size_t work_items) -> int
 {
   if (work_items == 0) {
-    return 0;
+    return 1;
   }
   const int requested = config.cores > 0 ? config.cores : 1;
   return std::min<int>(requested, static_cast<int>(work_items));
