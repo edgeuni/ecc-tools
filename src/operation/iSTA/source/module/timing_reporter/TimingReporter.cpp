@@ -94,22 +94,8 @@ void TimingReporter::outputTimingReport(DelayType delay_type, StartEndType start
 
 std::string TimingReporter::getReportFilePath(DelayType delay_type, StartEndType start_end_type)
 {
-  return STAUTIL.getString(STADM.getConfig().tr_temp_directory_path, "timing_", getDelayTypeName(delay_type), "_", getReportStartEndTypeName(start_end_type),
-                           ".rpt");
-}
-
-std::string TimingReporter::getReportStartEndTypeName(StartEndType start_end_type)
-{
-  if (start_end_type == StartEndType::kInToOut) {
-    return "in2out";
-  }
-  if (start_end_type == StartEndType::kInToReg) {
-    return "in2reg";
-  }
-  if (start_end_type == StartEndType::kRegToOut) {
-    return "reg2out";
-  }
-  return "reg2reg";
+  return STAUTIL.getString(STADM.getConfig().tr_temp_directory_path, "timing_", GetDelayTypeName()(delay_type), "_",
+                           GetStartEndTypeReportName()(start_end_type), ".rpt");
 }
 
 void TimingReporter::outputReportHeader(std::ofstream* report_file, DelayType delay_type, StartEndType start_end_type)
@@ -117,34 +103,12 @@ void TimingReporter::outputReportHeader(std::ofstream* report_file, DelayType de
   Database& database = STADM.getDatabase();
   (*report_file) << "****************************************\n";
   (*report_file) << "Design : " << database.get_design_name() << "\n";
-  (*report_file) << "DelayType : " << getDelayTypeName(delay_type) << "\n";
-  (*report_file) << "StartEndType : " << getStartEndTypeName(start_end_type) << "\n";
+  (*report_file) << "DelayType : " << GetDelayTypeName()(delay_type) << "\n";
+  (*report_file) << "StartEndType : " << GetStartEndTypeName()(start_end_type) << "\n";
   (*report_file) << "MaxSlack : 1000\n";
   (*report_file) << "MaxPaths : " << STADM.getConfig().path_report_number << "\n";
   (*report_file) << "SortBy : slack\n";
   (*report_file) << "****************************************\n\n";
-}
-
-std::string TimingReporter::getDelayTypeName(DelayType delay_type)
-{
-  if (delay_type == DelayType::kMax) {
-    return "max";
-  }
-  return "min";
-}
-
-std::string TimingReporter::getStartEndTypeName(StartEndType start_end_type)
-{
-  if (start_end_type == StartEndType::kInToOut) {
-    return "in_to_out";
-  }
-  if (start_end_type == StartEndType::kInToReg) {
-    return "in_to_reg";
-  }
-  if (start_end_type == StartEndType::kRegToOut) {
-    return "reg_to_out";
-  }
-  return "reg_to_reg";
 }
 
 void TimingReporter::outputPathGroupList(std::ofstream* report_file, DelayType delay_type, StartEndType start_end_type)
@@ -486,6 +450,9 @@ int32_t TimingReporter::getQorLeafCellK()
 
 bool TimingReporter::isMatchAnalysisType(TimingPath& timing_path, DelayType delay_type)
 {
+  if (delay_type == DelayType::kNone) {
+    return false;
+  }
   if (delay_type == DelayType::kMin) {
     return timing_path.get_analysis_type() == AnalysisType::kMin;
   }
@@ -508,7 +475,10 @@ bool TimingReporter::isMatchStartEndType(TimingPath& timing_path, StartEndType s
   if (start_end_type == StartEndType::kRegToOut) {
     return isRegisterStartPoint(timing_path.get_start_point()) && end_is_port;
   }
-  return isRegisterStartPoint(timing_path.get_start_point()) && isRegisterEndPoint(timing_path.get_end_point());
+  if (start_end_type == StartEndType::kRegToReg) {
+    return isRegisterStartPoint(timing_path.get_start_point()) && isRegisterEndPoint(timing_path.get_end_point());
+  }
+  return false;
 }
 
 bool TimingReporter::isPort(std::string& pin_name)
@@ -592,7 +562,7 @@ void TimingReporter::outputTimingPathHeader(std::ofstream* report_file, TimingPa
     (*report_file) << "  Last common pin: " << getPTPinName(timing_path.get_last_common_pin()) << "\n";
   }
   (*report_file) << "  Path Group: " << path_group_name << "\n";
-  (*report_file) << "  Path Type: " << getDelayTypeName(delay_type) << "\n\n";
+  (*report_file) << "  Path Type: " << GetDelayTypeName()(delay_type) << "\n\n";
 }
 
 void TimingReporter::outputStartEndPoint(std::ofstream* report_file, std::string label, std::string text)
@@ -858,20 +828,9 @@ void TimingReporter::outputLaunchClockInfo(std::ofstream* report_file, TimingPat
 std::string TimingReporter::getLaunchClockEdgeText(TimingPath& timing_path, DelayType delay_type)
 {
   if (isClockSourceStartPoint(timing_path.get_start_point()) && delay_type == DelayType::kMax && timing_path.get_trans_type() == TransType::kFall) {
-    return "fall";
+    return GetTransTypeName()(TransType::kFall);
   }
-  return "rise";
-}
-
-std::string TimingReporter::getTransTypeName(TransType trans_type)
-{
-  if (trans_type == TransType::kFall) {
-    return "f";
-  }
-  if (trans_type == TransType::kRise) {
-    return "r";
-  }
-  return "";
+  return GetTransTypeName()(TransType::kRise);
 }
 
 void TimingReporter::outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr, std::string transition,
@@ -955,7 +914,7 @@ void TimingReporter::outputTimingPoint(std::ofstream* report_file, TimingPath& t
   if (is_first_point && !database.get_pin_map()[path_point.get_pin_name()].get_is_port()) {
     arc_delay = path_point.get_arrival() - timing_path.get_launch_time();
   }
-  outputTimingLine(report_file, getPointLabel(path_point), arc_delay, path_point.get_arrival(), true, getTransTypeName(path_point.get_trans_type()),
+  outputTimingLine(report_file, getPointLabel(path_point), arc_delay, path_point.get_arrival(), true, GetTransTypeInitial()(path_point.get_trans_type()),
                    label_width);
 }
 

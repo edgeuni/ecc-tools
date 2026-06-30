@@ -48,10 +48,7 @@ class TimingReporter
   void outputTimingReportList();
   void outputTimingReport(DelayType delay_type, StartEndType start_end_type);
   std::string getReportFilePath(DelayType delay_type, StartEndType start_end_type);
-  std::string getReportStartEndTypeName(StartEndType start_end_type);
   void outputReportHeader(std::ofstream* report_file, DelayType delay_type, StartEndType start_end_type);
-  std::string getDelayTypeName(DelayType delay_type);
-  std::string getStartEndTypeName(StartEndType start_end_type);
   void outputPathGroupList(std::ofstream* report_file, DelayType delay_type, StartEndType start_end_type);
   void outputReportFooter(std::ofstream* report_file);
   void outputTimingPathGroup(std::ofstream* report_file, TimingPathGroup& timing_path_group, DelayType delay_type,
@@ -101,7 +98,6 @@ class TimingReporter
   void outputTimingPointHeader(std::ofstream* report_file, std::size_t label_width);
   void outputLaunchClockInfo(std::ofstream* report_file, TimingPath& timing_path, DelayType delay_type, std::size_t label_width);
   std::string getLaunchClockEdgeText(TimingPath& timing_path, DelayType delay_type);
-  std::string getTransTypeName(TransType trans_type);
   void outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr, std::string transition,
                         std::size_t label_width);
   void outputTimingSummaryLine(std::ofstream* report_file, std::string label, double value, std::size_t label_width);

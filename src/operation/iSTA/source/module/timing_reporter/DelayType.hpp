@@ -16,12 +16,38 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
+
 namespace ista {
 
 enum class DelayType
 {
+  kNone,
   kMax,
   kMin
+};
+
+struct GetDelayTypeName
+{
+  std::string operator()(const DelayType& delay_type) const
+  {
+    std::string delay_type_name;
+    switch (delay_type) {
+      case DelayType::kNone:
+        delay_type_name = "none";
+        break;
+      case DelayType::kMax:
+        delay_type_name = "max";
+        break;
+      case DelayType::kMin:
+        delay_type_name = "min";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return delay_type_name;
+  }
 };
 
 }  // namespace ista

@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
+
 namespace ista {
 
 enum class TransType
@@ -23,6 +25,98 @@ enum class TransType
   kNone,
   kRise,
   kFall
+};
+
+struct GetTransTypeName
+{
+  std::string operator()(const TransType& trans_type) const
+  {
+    std::string trans_type_name;
+    switch (trans_type) {
+      case TransType::kNone:
+        trans_type_name = "none";
+        break;
+      case TransType::kRise:
+        trans_type_name = "rise";
+        break;
+      case TransType::kFall:
+        trans_type_name = "fall";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return trans_type_name;
+  }
+};
+
+struct GetTransTypeInitial
+{
+  std::string operator()(const TransType& trans_type) const
+  {
+    std::string trans_type_initial;
+    switch (trans_type) {
+      case TransType::kNone:
+        trans_type_initial = "";
+        break;
+      case TransType::kRise:
+        trans_type_initial = "r";
+        break;
+      case TransType::kFall:
+        trans_type_initial = "f";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return trans_type_initial;
+  }
+};
+
+struct GetTransTypeLibName
+{
+  std::string operator()(const TransType& trans_type) const
+  {
+    std::string trans_type_lib_name;
+    switch (trans_type) {
+      case TransType::kNone:
+        trans_type_lib_name = "none";
+        break;
+      case TransType::kRise:
+        trans_type_lib_name = "rising";
+        break;
+      case TransType::kFall:
+        trans_type_lib_name = "falling";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return trans_type_lib_name;
+  }
+};
+
+struct GetTransTypeLibEdgeName
+{
+  std::string operator()(const TransType& trans_type) const
+  {
+    std::string trans_type_lib_edge_name;
+    switch (trans_type) {
+      case TransType::kNone:
+        trans_type_lib_edge_name = "none";
+        break;
+      case TransType::kRise:
+        trans_type_lib_edge_name = "rising_edge";
+        break;
+      case TransType::kFall:
+        trans_type_lib_edge_name = "falling_edge";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return trans_type_lib_edge_name;
+  }
 };
 
 }  // namespace ista

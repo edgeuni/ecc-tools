@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
+
 namespace ista {
 
 enum class AnalysisType
@@ -23,6 +25,29 @@ enum class AnalysisType
   kNone,
   kMax,
   kMin
+};
+
+struct GetAnalysisTypeName
+{
+  std::string operator()(const AnalysisType& analysis_type) const
+  {
+    std::string analysis_type_name;
+    switch (analysis_type) {
+      case AnalysisType::kNone:
+        analysis_type_name = "none";
+        break;
+      case AnalysisType::kMax:
+        analysis_type_name = "max";
+        break;
+      case AnalysisType::kMin:
+        analysis_type_name = "min";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return analysis_type_name;
+  }
 };
 
 }  // namespace ista
