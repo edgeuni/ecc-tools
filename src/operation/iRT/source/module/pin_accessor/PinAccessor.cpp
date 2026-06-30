@@ -14,8 +14,6 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "PinAccessor.hpp"
-
 #include "DRCEngine.hpp"
 #include "GDSPlotter.hpp"
 #include "Monitor.hpp"
@@ -67,9 +65,9 @@ void PinAccessor::access()
   uploadAccessPointList(pa_model);
   // debugPlotPAModel(pa_model, "init");
   routePAModel(pa_model);
-  uploadAccessPoint(pa_model, true);
-  uploadAccessResult(pa_model, true);
-  uploadAccessPatch(pa_model, true);
+  uploadAccessPoint(pa_model);
+  uploadAccessResult(pa_model);
+  uploadAccessPatch(pa_model);
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -122,7 +120,7 @@ void PinAccessor::setPAComParam(PAModel& pa_model)
   // 默认使用CX55，不需要额外的via类型
   PAComParam cx55_param(15, 0, 10, false);
   PAComParam custom_param(15, 2, 8, true);
-  bool use_cx55_param = true;
+  bool use_cx55_param = false;
   PAComParam pa_com_param = (use_cx55_param ? cx55_param : custom_param);
   RTLOG.info(Loc::current(), "max_candidate_point_num: ", pa_com_param.get_max_candidate_point_num());
   RTLOG.info(Loc::current(), "extra_via_master_num: ", pa_com_param.get_extra_via_master_num());
@@ -135,6 +133,13 @@ void PinAccessor::initAccessPointList(PAModel& pa_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
+  std::vector<std::pair<int32_t, PAPin*>> net_pin_pair_list = getAllNetPinPairList(pa_model);
+  updateAccessPointList(pa_model, net_pin_pair_list, false);
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+std::vector<std::pair<int32_t, PAPin*>> PinAccessor::getAllNetPinPairList(PAModel& pa_model)
+{
   std::vector<PANet>& pa_net_list = pa_model.get_pa_net_list();
   std::vector<std::pair<int32_t, PAPin*>> net_pin_pair_list;
   for (PANet& pa_net : pa_net_list) {
@@ -142,33 +147,16 @@ void PinAccessor::initAccessPointList(PAModel& pa_model)
       net_pin_pair_list.emplace_back(pa_net.get_net_idx(), &pa_pin);
     }
   }
-  // try default via master only
-  updateAccessPointList(pa_model, net_pin_pair_list, false);
-  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  return net_pin_pair_list;
 }
 
 void PinAccessor::updateAccessPointList(PAModel& pa_model, std::vector<std::pair<int32_t, PAPin*>>& net_pin_pair_list, bool enable_via_candidate)
 {
 
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  Die& die = RTDM.getDatabase().get_die();
   int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
   int32_t bottom_routing_layer_idx = RTDM.getConfig().bottom_routing_layer_idx;
   int32_t top_routing_layer_idx = RTDM.getConfig().top_routing_layer_idx;
-  std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> net_access_point_map = RTDM.getNetAccessPointMap(die);
-
-  for (auto& [net_idx, pa_pin] : net_pin_pair_list) {
-    for (AccessPoint& access_point : pa_pin->get_access_point_list()) {
-      RTDM.updateNetAccessPointToGCellMap(ChangeType::kDel, net_idx, &access_point);
-    }
-    if (RTUTIL.exist(net_access_point_map, net_idx)) {
-      for (AccessPoint* access_point : net_access_point_map[net_idx]) {
-        if (access_point->get_pin_idx() == pa_pin->get_pin_idx()) {
-          RTDM.updateNetAccessPointToGCellMap(ChangeType::kDel, net_idx, access_point);
-        }
-      }
-    }
-  }
 
   std::map<int32_t, std::vector<ViaMaster*>> selected_via_master_list_map;
   if (enable_via_candidate) {
@@ -196,11 +184,13 @@ void PinAccessor::updateAccessPointList(PAModel& pa_model, std::vector<std::pair
       via_candidate_generated = !access_point_list.empty();
     }
     if (!via_candidate_generated) {
+      // init时使用deafult via master
       std::vector<PALegalShape> legal_shape_list = getLegalShapeList(pa_model, net_pin_pair.first, pa_pin, empty_via_master_list_map);
       for (AccessPoint& access_point : getAccessPointList(pa_model, pa_pin->get_pin_idx(), legal_shape_list)) {
         access_point_list.push_back(access_point);
       }
     }
+    // 保留init时选择的那些AP
     if (enable_via_candidate && selected_access_point.get_real_coord() != PlanarCoord(-1, -1)) {
       bool exist_selected_access_point = false;
       for (AccessPoint& access_point : access_point_list) {
@@ -749,6 +739,9 @@ PlanarRect PinAccessor::getViaEnclosure(ViaMaster& via_master, int32_t routing_l
 
 void PinAccessor::uniformSampleCoordList(PAModel& pa_model, std::vector<LayerCoord>& layer_coord_list)
 {
+  if (layer_coord_list.empty()) {
+    return;
+  }
   int32_t max_candidate_point_num = pa_model.get_pa_com_param().get_max_candidate_point_num();
 
   PlanarRect bounding_box = RTUTIL.getBoundingBox(layer_coord_list);
@@ -778,13 +771,8 @@ void PinAccessor::uploadAccessPointList(PAModel& pa_model)
   RTLOG.info(Loc::current(), "Starting...");
 
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  Die& die = RTDM.getDatabase().get_die();
 
-  for (auto& [net_idx, access_point_set] : RTDM.getNetAccessPointMap(die)) {
-    for (AccessPoint* access_point : access_point_set) {
-      RTDM.updateNetAccessPointToGCellMap(ChangeType::kDel, net_idx, access_point);
-    }
-  }
+  clearAccessPointGCellMap();
   std::vector<PANet>& pa_net_list = pa_model.get_pa_net_list();
 #pragma omp parallel for
   for (PANet& pa_net : pa_net_list) {
@@ -812,137 +800,6 @@ void PinAccessor::uploadAccessPointList(PAModel& pa_model)
     }
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
-}
-
-std::vector<std::pair<int32_t, PAPin*>> PinAccessor::getReroutePinList(PAModel& pa_model, const std::vector<Violation>& extra_violation_list)
-{
-  Die& die = RTDM.getDatabase().get_die();
-
-  // reroute current violation pins and via_only violation
-  std::map<int32_t, std::map<int32_t, std::vector<PlanarRect>>> net_layer_violation_rect_map;
-  for (Violation* violation : RTDM.getViolationSet(die)) {
-    EXTLayerRect& violation_shape = violation->get_violation_shape();
-    for (int32_t net_idx : violation->get_violation_net_set()) {
-      net_layer_violation_rect_map[net_idx][violation_shape.get_layer_idx()].push_back(violation_shape.get_real_rect());
-    }
-  }
-  for (const Violation& violation : extra_violation_list) {
-    const EXTLayerRect& violation_shape = violation.get_violation_shape();
-    for (int32_t net_idx : violation.get_violation_net_set()) {
-      net_layer_violation_rect_map[net_idx][violation_shape.get_layer_idx()].push_back(violation_shape.get_real_rect());
-    }
-  }
-
-  std::set<std::pair<int32_t, int32_t>> net_pin_set;
-  for (auto& [net_idx, pin_access_result_map] : pa_model.get_curr_net_pin_access_result_map()) {
-    if (!RTUTIL.exist(net_layer_violation_rect_map, net_idx)) {
-      continue;
-    }
-    for (auto& [pin_idx, segment_list] : pin_access_result_map) {
-      bool overlap = false;
-      for (Segment<LayerCoord>& segment : segment_list) {
-        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
-          if (!RTUTIL.exist(net_layer_violation_rect_map[net_idx], net_shape.get_layer_idx())) {
-            continue;
-          }
-          PlanarRect shape_rect = net_shape.get_rect();
-          for (PlanarRect& violation_rect : net_layer_violation_rect_map[net_idx][net_shape.get_layer_idx()]) {
-            if (RTUTIL.isClosedOverlap(shape_rect, violation_rect)) {
-              overlap = true;
-              break;
-            }
-          }
-          if (overlap) {
-            break;
-          }
-        }
-        if (overlap) {
-          break;
-        }
-      }
-      if (overlap) {
-        net_pin_set.emplace(net_idx, pin_idx);
-      }
-    }
-  }
-  for (auto& [net_idx, pin_access_patch_map] : pa_model.get_curr_net_pin_access_patch_map()) {
-    if (!RTUTIL.exist(net_layer_violation_rect_map, net_idx)) {
-      continue;
-    }
-    for (auto& [pin_idx, patch_list] : pin_access_patch_map) {
-      bool overlap = false;
-      for (EXTLayerRect& patch : patch_list) {
-        if (!RTUTIL.exist(net_layer_violation_rect_map[net_idx], patch.get_layer_idx())) {
-          continue;
-        }
-        PlanarRect patch_rect = patch.get_real_rect();
-        for (PlanarRect& violation_rect : net_layer_violation_rect_map[net_idx][patch.get_layer_idx()]) {
-          if (RTUTIL.isClosedOverlap(patch_rect, violation_rect)) {
-            overlap = true;
-            break;
-          }
-        }
-        if (overlap) {
-          break;
-        }
-      }
-      if (overlap) {
-        net_pin_set.emplace(net_idx, pin_idx);
-      }
-    }
-  }
-
-  std::vector<PANet>& pa_net_list = pa_model.get_pa_net_list();
-  std::vector<std::pair<int32_t, PAPin*>> net_pin_pair_list;
-  for (auto& [net_idx, pin_idx] : net_pin_set) {
-    if (net_idx < 0 || net_idx >= static_cast<int32_t>(pa_net_list.size())) {
-      continue;
-    }
-    std::vector<PAPin>& pa_pin_list = pa_net_list[net_idx].get_pa_pin_list();
-    if (pin_idx < 0 || pin_idx >= static_cast<int32_t>(pa_pin_list.size())) {
-      continue;
-    }
-    net_pin_pair_list.emplace_back(net_idx, &pa_pin_list[pin_idx]);
-  }
-  return net_pin_pair_list;
-}
-
-bool PinAccessor::updateRerouteAccessPointList(PAModel& pa_model, const std::vector<Violation>& ap_via_only_violation_list)
-{
-  Monitor monitor;
-  RTLOG.info(Loc::current(), "Starting...");
-
-  std::vector<std::pair<int32_t, PAPin*>> net_pin_pair_list = getReroutePinList(pa_model, ap_via_only_violation_list);
-  if (net_pin_pair_list.empty()) {
-    RTLOG.info(Loc::current(), "No reroute access point needs update", monitor.getStatsInfo());
-    return false;
-  }
-
-  int32_t del_result_num = 0;
-  int32_t del_patch_num = 0;
-  int32_t pattern_seed_reroute_pin_num = 0;
-  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& curr_result_map = pa_model.get_curr_net_pin_access_result_map();
-  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& curr_patch_map = pa_model.get_curr_net_pin_access_patch_map();
-  for (auto& [net_idx, pa_pin] : net_pin_pair_list) {
-    int32_t pin_idx = pa_pin->get_pin_idx();
-    pa_model.get_reroute_pin_set().emplace(net_idx, pin_idx);
-    if (pa_model.get_pattern_seeded_pin_set().erase(std::make_pair(net_idx, pin_idx)) > 0) {
-      pattern_seed_reroute_pin_num++;
-    }
-    if (RTUTIL.exist(curr_result_map, net_idx) && RTUTIL.exist(curr_result_map[net_idx], pin_idx)) {
-      del_result_num += static_cast<int32_t>(curr_result_map[net_idx][pin_idx].size());
-      clearPAModelAccessResult(pa_model, net_idx, pin_idx);
-    }
-    if (RTUTIL.exist(curr_patch_map, net_idx) && RTUTIL.exist(curr_patch_map[net_idx], pin_idx)) {
-      del_patch_num += static_cast<int32_t>(curr_patch_map[net_idx][pin_idx].size());
-      clearPAModelAccessPatch(pa_model, net_idx, pin_idx);
-    }
-  }
-  updateAccessPointList(pa_model, net_pin_pair_list, true);
-  uploadAccessPointList(pa_model);
-  RTLOG.info(Loc::current(), "Updated ", net_pin_pair_list.size(), " reroute pins, deleted ", del_result_num, " access results and ", del_patch_num,
-             " access patches, pattern_seed_reroute=", pattern_seed_reroute_pin_num, monitor.getStatsInfo());
-  return true;
 }
 
 void PinAccessor::routePAModel(PAModel& pa_model)
@@ -975,10 +832,8 @@ void PinAccessor::routePAModel(PAModel& pa_model)
   }
   constexpr int32_t kPatternFallbackCleanupIter = 1;
   constexpr int32_t kExtraViaCandidateUpdateIter = 1;
-  constexpr int32_t kPendingRerouteCleanupBeginIter = 4;
   for (int32_t i = 0, iter = 1; i < static_cast<int32_t>(pa_iter_param_list.size()); i++, iter++) {
     bool need_clear_pattern_fallback = (iter == kPatternFallbackCleanupIter);
-    bool need_clear_pending_reroute = (iter >= kPendingRerouteCleanupBeginIter);
     bool need_update_extra_via_candidate = (iter == kExtraViaCandidateUpdateIter);
     Monitor iter_monitor;
     RTLOG.info(Loc::current(), "***** Begin iteration ", iter, "/", pa_iter_param_list.size(), "(", RTUTIL.getPercentage(iter, pa_iter_param_list.size()),
@@ -1001,19 +856,14 @@ void PinAccessor::routePAModel(PAModel& pa_model)
     outputJson(pa_model);
     RTLOG.info(Loc::current(), "***** End Iteration ", iter, "/", pa_iter_param_list.size(), "(", RTUTIL.getPercentage(iter, pa_iter_param_list.size()), ")",
                iter_monitor.getStatsInfo(), "*****");
-    if (!pa_model.get_reroute_pin_set().empty() && (need_clear_pattern_fallback || need_clear_pending_reroute)) {
-      pa_model.get_reroute_pin_set().clear();
+    if (!pa_model.get_pattern_fallback_pin_set().empty() && need_clear_pattern_fallback) {
+      pa_model.get_pattern_fallback_pin_set().clear();
     }
     if (stopIteration(pa_model, pa_iter_param_list)) {
       break;
     }
     if (need_update_extra_via_candidate) {
-      std::vector<std::pair<int32_t, PAPin*>> net_pin_pair_list;
-      for (PANet& pa_net : pa_model.get_pa_net_list()) {
-        for (PAPin& pa_pin : pa_net.get_pa_pin_list()) {
-          net_pin_pair_list.emplace_back(pa_net.get_net_idx(), &pa_pin);
-        }
-      }
+      std::vector<std::pair<int32_t, PAPin*>> net_pin_pair_list = getAllNetPinPairList(pa_model);
       updateAccessPointList(pa_model, net_pin_pair_list, true);
       uploadAccessPointList(pa_model);
     }
@@ -1118,6 +968,7 @@ bool isPatternable(PAPin& pa_pin)
 
 std::map<PAPatternKey, std::vector<PAPatternInst>> buildPatternInstMap(PAModel& pa_model)
 {
+  Monitor collect_monitor;
   std::map<std::string, PAPatternInst> inst_pattern_map;
   for (PANet& pa_net : pa_model.get_pa_net_list()) {
     for (PAPin& pa_pin : pa_net.get_pa_pin_list()) {
@@ -1129,18 +980,32 @@ std::map<PAPatternKey, std::vector<PAPatternInst>> buildPatternInstMap(PAModel& 
       pattern_inst.net_pin_pair_list.emplace_back(pa_net.get_net_idx(), &pa_pin);
     }
   }
+  RTLOG.info(Loc::current(), "PA pattern inst collection completed, inst_num=", inst_pattern_map.size(), collect_monitor.getStatsInfo());
 
-  std::map<PAPatternKey, std::vector<PAPatternInst>> pattern_inst_map;
+  Monitor key_monitor;
+  std::vector<std::pair<PAPatternKey, PAPatternInst*>> pattern_key_inst_list(inst_pattern_map.size());
+  std::vector<PAPatternInst*> inst_list;
+  inst_list.reserve(inst_pattern_map.size());
   for (auto& [inst_name, pattern_inst] : inst_pattern_map) {
     (void) inst_name;
+    inst_list.push_back(&pattern_inst);
+  }
+#pragma omp parallel for schedule(dynamic, 32)
+  for (size_t i = 0; i < inst_list.size(); i++) {
+    PAPatternInst* pattern_inst = inst_list[i];
     std::vector<PAPin*> pa_pin_list;
-    pa_pin_list.reserve(pattern_inst.net_pin_pair_list.size());
-    for (auto& [net_idx, pa_pin] : pattern_inst.net_pin_pair_list) {
+    pa_pin_list.reserve(pattern_inst->net_pin_pair_list.size());
+    for (auto& [net_idx, pa_pin] : pattern_inst->net_pin_pair_list) {
       (void) net_idx;
       pa_pin_list.push_back(pa_pin);
     }
-    pattern_inst_map[getPatternKey(pa_pin_list)].push_back(pattern_inst);
+    pattern_key_inst_list[i] = {getPatternKey(pa_pin_list), pattern_inst};
   }
+  std::map<PAPatternKey, std::vector<PAPatternInst>> pattern_inst_map;
+  for (auto& [pattern_key, pattern_inst] : pattern_key_inst_list) {
+    pattern_inst_map[pattern_key].push_back(*pattern_inst);
+  }
+  RTLOG.info(Loc::current(), "PA pattern key grouping completed, pattern_num=", pattern_inst_map.size(), key_monitor.getStatsInfo());
   return pattern_inst_map;
 }
 
@@ -1232,7 +1097,6 @@ void PinAccessor::routePatternSeed(PAModel& pa_model)
     pa_box.set_iter(1);
     pa_box.set_pa_iter_param(&pattern_iter_param);
     pa_box.set_initial_routing(true);
-    pa_box.set_hard(true);
     if (!access_coord_list.empty()) {
       pa_box.set_has_pattern_local_rect(true);
       pa_box.set_pattern_local_rect(RTUTIL.getEnlargedRect(RTUTIL.getBoundingBox(access_coord_list), RTDM.getOnlyPitch()));
@@ -1311,7 +1175,6 @@ void PinAccessor::routePatternSeed(PAModel& pa_model)
           addPAModelAccessPatch(pa_model, net_idx, pa_pin->get_pin_idx(), getShiftedPatch(patch, delta));
         }
         seeded_pin_set.emplace(net_idx, pa_pin->get_pin_idx());
-        pa_model.get_pattern_seeded_pin_set().emplace(net_idx, pa_pin->get_pin_idx());
         seed_inst = true;
       }
       if (seed_inst) {
@@ -1328,7 +1191,7 @@ void PinAccessor::routePatternSeed(PAModel& pa_model)
     for (PAPin& pa_pin : pa_net.get_pa_pin_list()) {
       std::pair<int32_t, int32_t> net_pin_pair(pa_net.get_net_idx(), pa_pin.get_pin_idx());
       if (!RTUTIL.exist(seeded_pin_set, net_pin_pair)) {
-        pa_model.get_reroute_pin_set().insert(net_pin_pair);
+        pa_model.get_pattern_fallback_pin_set().insert(net_pin_pair);
       }
     }
   }
@@ -1336,15 +1199,14 @@ void PinAccessor::routePatternSeed(PAModel& pa_model)
   uploadViolation(pa_model, false);
   updateBestResult(pa_model, true);
   RTLOG.info(Loc::current(), "PA pattern seed uploaded ", seeded_pin_set.size(), " pins in ", seeded_inst_num, " instances, fallback pins ",
-             pa_model.get_reroute_pin_set().size(), monitor.getStatsInfo());
+             pa_model.get_pattern_fallback_pin_set().size(), monitor.getStatsInfo());
 }
 
 void PinAccessor::initRoutingState(PAModel& pa_model)
 {
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
   pa_model.set_initial_routing(true);
-  pa_model.get_reroute_pin_set().clear();
-  pa_model.get_pattern_seeded_pin_set().clear();
+  pa_model.get_pattern_fallback_pin_set().clear();
   pa_model.get_curr_net_pin_access_result_map().clear();
   pa_model.get_curr_net_pin_access_patch_map().clear();
   pa_model.get_result_patch_gcell_map().init(gcell_map.get_x_size(), gcell_map.get_y_size());
@@ -1441,7 +1303,6 @@ void PinAccessor::initPABoxMap(PAModel& pa_model)
       pa_box.set_iter(pa_model.get_iter());
       pa_box.set_pa_iter_param(&pa_iter_param);
       pa_box.set_initial_routing(pa_model.get_initial_routing());
-      pa_box.set_hard(true);
     }
   }
 
@@ -1506,49 +1367,47 @@ void PinAccessor::routePABoxMap(PAModel& pa_model)
       buildFixedRect(pa_box);
       buildAccessPoint(pa_box);
       initPATaskList(pa_model, pa_box);
-      pa_box.get_reroute_task_idx_set().clear();
-      // 前3轮或者early stop之后将reroute相关的segment和patch都删了，违例找不到pin，所以强制reroute这个box
+      pa_box.get_pattern_fallback_task_idx_set().clear();
       for (PATask* pa_task : pa_box.get_pa_task_list()) {
         std::pair<int32_t, int32_t> net_pin_pair(pa_task->get_net_idx(), pa_task->get_pa_pin()->get_pin_idx());
-        if (RTUTIL.exist(pa_model.get_reroute_pin_set(), net_pin_pair)) {
-          pa_box.get_reroute_task_idx_set().insert(pa_task->get_task_idx());
+        if (RTUTIL.exist(pa_model.get_pattern_fallback_pin_set(), net_pin_pair)) {
+          pa_box.get_pattern_fallback_task_idx_set().insert(pa_task->get_task_idx());
         }
       }
       buildRouteViolation(pa_box);
-      bool need_route = needRouting(pa_box);
-      if (need_route) {
-#pragma omp critical(pa_dirty_region)
-        {
-          pa_model.get_dirty_region_list().push_back(pa_box.get_box_rect().get_real_rect());
-        }
-#pragma omp critical(pa_model_access_state)
-        {
-          claimAccessResultPatch(pa_model, pa_box);
-        }
-        buildBoxTrackAxis(pa_box);
-        buildLayerNodeMap(pa_box);
-        buildLayerShadowMap(pa_box);
-        buildPANodeNeighbor(pa_box);
-        buildOrientNetMap(pa_box);
-        buildNetShadowMap(pa_box);
-        exemptPinShape(pa_model, pa_box);
-        // debugCheckPABox(pa_box);
-        // debugPlotPABox(pa_box, "before");
-        routePABox(pa_box);
-        // debugPlotPABox(pa_box, "after");
-        updateBestResult(pa_box);
-        upload_pa_box_list[i] = &pa_box;
-        freePABoxRoutingData(pa_box);
-      } else {
+      if (!needRouting(pa_box)) {
         freePABox(pa_box);
-      }
-    }
-    for (PABox* pa_box : upload_pa_box_list) {
-      if (pa_box == nullptr) {
         continue;
       }
-      uploadBestResult(pa_model, *pa_box);
-      freePABox(*pa_box);
+#pragma omp critical(pa_dirty_region)
+      {
+        pa_model.get_dirty_region_list().push_back(pa_box.get_box_rect().get_real_rect());
+      }
+#pragma omp critical(pa_model_access_state)
+      {
+        claimAccessResultPatch(pa_model, pa_box);
+      }
+      buildBoxTrackAxis(pa_box);
+      buildLayerNodeMap(pa_box);
+      buildLayerShadowMap(pa_box);
+      buildPANodeNeighbor(pa_box);
+      buildOrientNetMap(pa_box);
+      buildNetShadowMap(pa_box);
+      exemptPinShape(pa_model, pa_box);
+      // debugCheckPABox(pa_box);
+      // debugPlotPABox(pa_box, "before");
+      routePABox(pa_box);
+      // debugPlotPABox(pa_box, "after");
+      updateBestResult(pa_box);
+      upload_pa_box_list[i] = &pa_box;
+      freePABoxRoutingData(pa_box);
+    }
+    for (PABox* upload_pa_box : upload_pa_box_list) {
+      if (upload_pa_box == nullptr) {
+        continue;
+      }
+      uploadBestResult(pa_model, *upload_pa_box);
+      freePABox(*upload_pa_box);
     }
     routed_box_num += pa_box_id_list.size();
     RTLOG.info(Loc::current(), "Routed ", routed_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(routed_box_num, total_box_num), ") boxes with ",
@@ -2033,7 +1892,7 @@ bool PinAccessor::needRouting(PABox& pa_box)
   if (pa_box.get_pa_task_list().empty()) {
     return false;
   }
-  if (pa_box.get_initial_routing() == false && pa_box.get_route_violation_list().empty() && pa_box.get_reroute_task_idx_set().empty()) {
+  if (pa_box.get_initial_routing() == false && pa_box.get_route_violation_list().empty() && pa_box.get_pattern_fallback_task_idx_set().empty()) {
     return false;
   }
   return true;
@@ -3199,10 +3058,10 @@ std::vector<Violation> PinAccessor::getPatchViolationList(PABox& pa_box, const s
   de_task.set_proc_type(DEProcType::kGet);
   de_task.set_net_type(DENetType::kPatchHybrid);
   de_task.set_top_name(top_name);
-  de_task.set_env_shape_list(env_shape_list);
-  de_task.set_net_pin_shape_map(net_pin_shape_map);
-  de_task.set_net_result_map(net_result_map);
-  de_task.set_net_patch_map(net_patch_map);
+  de_task.set_env_shape_list(std::move(env_shape_list));
+  de_task.set_net_pin_shape_map(std::move(net_pin_shape_map));
+  de_task.set_net_result_map(std::move(net_result_map));
+  de_task.set_net_patch_map(std::move(net_patch_map));
   de_task.set_need_checked_net_set(need_checked_net_set);
   de_task.set_check_type_set(check_type_set);
   de_task.set_check_region_list(check_region_list);
@@ -3579,13 +3438,11 @@ void PinAccessor::updateRouteViolationList(PABox& pa_box)
       pa_box.get_route_violation_list().push_back(new_violation);
     }
   }
-  if (pa_box.get_hard()) {
-    for (Violation new_violation : getRouteViolationList(pa_box, true)) {
-      if (RTUTIL.isClosedOverlap(pa_box.get_box_rect().get_real_rect(),
-                               RTUTIL.getEnlargedRect(new_violation.get_violation_shape().get_real_rect(), RTDM.getOnlyPitch()))
-          && route_violation_set.insert(new_violation).second) {
-        pa_box.get_route_violation_list().push_back(new_violation);
-      }
+  for (Violation new_violation : getRouteViolationList(pa_box, true)) {
+    if (RTUTIL.isClosedOverlap(pa_box.get_box_rect().get_real_rect(),
+                             RTUTIL.getEnlargedRect(new_violation.get_violation_shape().get_real_rect(), RTDM.getOnlyPitch()))
+        && route_violation_set.insert(new_violation).second) {
+      pa_box.get_route_violation_list().push_back(new_violation);
     }
   }
   // 新结果添加到graph
@@ -3671,26 +3528,14 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PABox& pa_box, bool ap
   de_task.set_proc_type(DEProcType::kGet);
   de_task.set_net_type(DENetType::kRouteHybrid);
   de_task.set_top_name(top_name);
-  de_task.set_env_shape_list(env_shape_list);
-  de_task.set_net_pin_shape_map(net_pin_shape_map);
-  de_task.set_net_result_map(net_result_map);
-  de_task.set_net_patch_map(net_patch_map);
+  de_task.set_env_shape_list(std::move(env_shape_list));
+  de_task.set_net_pin_shape_map(std::move(net_pin_shape_map));
+  de_task.set_net_result_map(std::move(net_result_map));
+  de_task.set_net_patch_map(std::move(net_patch_map));
   de_task.set_need_checked_net_set(need_checked_net_set);
   de_task.set_skip_single_net_violation(ap_via_only);
 
-  std::vector<Violation> route_violation_list = RTDE.getViolationList(de_task);
-  if (!ap_via_only) {
-    return route_violation_list;
-  }
-  std::vector<Violation> result_violations;
-  result_violations.reserve(route_violation_list.size());
-  for (Violation& violation : route_violation_list) {
-    if (violation.get_violation_net_set().size() <= 1) {
-      continue;
-    }
-    result_violations.push_back(violation);
-  }
-  return result_violations;
+  return RTDE.getViolationList(de_task);
 }
 
 int32_t PinAccessor::getViolationWeight(ViolationType violation_type)
@@ -3836,7 +3681,7 @@ void PinAccessor::updateTaskSchedule(PABox& pa_box, std::vector<PATask*>& routin
     }
   }
   for (PATask* pa_task : pa_box.get_pa_task_list()) {
-    if (!RTUTIL.exist(pa_box.get_reroute_task_idx_set(), pa_task->get_task_idx())) {
+    if (!RTUTIL.exist(pa_box.get_pattern_fallback_task_idx_set(), pa_task->get_task_idx())) {
       continue;
     }
     if (pa_task->get_routed_times() > 0 || pa_task->get_routed_times() >= max_routed_times || RTUTIL.exist(visited_routing_task_set, pa_task)) {
@@ -3880,7 +3725,7 @@ void PinAccessor::uploadBestResult(PAModel& pa_model, PABox& pa_box)
 
 void PinAccessor::freePABoxRoutingData(PABox& pa_box)
 {
-  pa_box.get_reroute_task_idx_set().clear();
+  pa_box.get_pattern_fallback_task_idx_set().clear();
   pa_box.get_env_shape_list().clear();
   pa_box.get_net_pin_shape_map().clear();
   pa_box.get_net_access_point_map().clear();
@@ -3927,14 +3772,16 @@ void PinAccessor::uploadViolation(PAModel& pa_model, bool include_ap_via_only)
 
   Die& die = RTDM.getDatabase().get_die();
 
+  std::vector<PlanarRect> dirty_region_list;
   std::vector<LayerRect> check_region_list;
   std::set<PlanarCoord, CmpPlanarCoordByXASC> dirty_gcell_set;
   int32_t dirty_check_region_threshold = 20000;
   int32_t dirty_gcell_threshold = 100000;
   bool enable_dirty_drc = false;
   if (include_ap_via_only && !pa_model.get_dirty_region_list().empty()) {
-    check_region_list = getDirtyCheckRegionList(pa_model);
-    dirty_gcell_set = getDirtyGCellSet(pa_model);
+    dirty_region_list = getMergedDirtyRegionList(pa_model);
+    check_region_list = getDirtyCheckRegionList(dirty_region_list);
+    dirty_gcell_set = getDirtyGCellSet(dirty_region_list);
     enable_dirty_drc = (!check_region_list.empty() && static_cast<int32_t>(check_region_list.size()) <= dirty_check_region_threshold
                         && static_cast<int32_t>(dirty_gcell_set.size()) <= dirty_gcell_threshold);
   }
@@ -3950,14 +3797,14 @@ void PinAccessor::uploadViolation(PAModel& pa_model, bool include_ap_via_only)
     drc_check_region_list = check_region_list;
   }
   std::vector<Violation> route_violation_list;
-  route_violation_list = getRouteViolationList(pa_model, false, drc_check_region_list, enable_dirty_drc);
+  route_violation_list = getRouteViolationList(pa_model, false, drc_check_region_list, enable_dirty_drc, dirty_region_list, dirty_gcell_set);
   if (enable_dirty_drc) {
     route_violation_list = filterViolationListByCheckRegion(route_violation_list, check_region_list);
   }
   uploadRouteViolationList(route_violation_set, route_violation_list);
   std::vector<Violation> ap_via_violation_list;
   if (include_ap_via_only) {
-    ap_via_violation_list = getRouteViolationList(pa_model, true, drc_check_region_list, enable_dirty_drc);
+    ap_via_violation_list = getRouteViolationList(pa_model, true, drc_check_region_list, enable_dirty_drc, dirty_region_list, dirty_gcell_set);
     if (enable_dirty_drc) {
       ap_via_violation_list = filterViolationListByCheckRegion(ap_via_violation_list, check_region_list);
     }
@@ -4021,12 +3868,12 @@ std::vector<PlanarRect> PinAccessor::getMergedDirtyRegionList(PAModel& pa_model)
   return dirty_region_list;
 }
 
-std::vector<LayerRect> PinAccessor::getDirtyCheckRegionList(PAModel& pa_model)
+std::vector<LayerRect> PinAccessor::getDirtyCheckRegionList(const std::vector<PlanarRect>& dirty_region_list)
 {
   std::vector<LayerRect> check_region_list;
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   std::set<LayerRect, CmpLayerRectByXASC> check_region_set;
-  for (PlanarRect real_rect : getMergedDirtyRegionList(pa_model)) {
+  for (PlanarRect real_rect : dirty_region_list) {
     for (RoutingLayer& routing_layer : routing_layer_list) {
       LayerRect check_region(real_rect, routing_layer.get_layer_idx());
       if (check_region_set.insert(check_region).second) {
@@ -4037,11 +3884,11 @@ std::vector<LayerRect> PinAccessor::getDirtyCheckRegionList(PAModel& pa_model)
   return check_region_list;
 }
 
-std::set<PlanarCoord, CmpPlanarCoordByXASC> PinAccessor::getDirtyGCellSet(PAModel& pa_model)
+std::set<PlanarCoord, CmpPlanarCoordByXASC> PinAccessor::getDirtyGCellSet(const std::vector<PlanarRect>& dirty_region_list)
 {
   std::set<PlanarCoord, CmpPlanarCoordByXASC> dirty_gcell_set;
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  for (PlanarRect real_rect : getMergedDirtyRegionList(pa_model)) {
+  for (PlanarRect real_rect : dirty_region_list) {
     PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
     for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
       for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
@@ -4081,22 +3928,19 @@ std::vector<Violation> PinAccessor::filterViolationListByCheckRegion(std::vector
 }
 
 std::vector<Violation> PinAccessor::getRouteViolationList(PAModel& pa_model, bool ap_via_only, const std::vector<LayerRect>& check_region_list,
-                                                          bool use_dirty_input)
+                                                          bool use_dirty_input, const std::vector<PlanarRect>& dirty_region_list,
+                                                          const std::set<PlanarCoord, CmpPlanarCoordByXASC>& dirty_gcell_set)
 {
   DETask de_task;
   {
     std::string top_name = RTUTIL.getString("pa_model");
     std::vector<std::pair<EXTLayerRect*, bool>> env_shape_list;
     std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>> net_pin_shape_map;
-    std::set<PlanarCoord, CmpPlanarCoordByXASC> dirty_gcell_set;
-    if (use_dirty_input) {
-      dirty_gcell_set = getDirtyGCellSet(pa_model);
-    }
     {
       if (use_dirty_input) {
         ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
         std::set<EXTLayerRect*> fixed_rect_set;
-        for (PlanarRect real_rect : getMergedDirtyRegionList(pa_model)) {
+        for (PlanarRect real_rect : dirty_region_list) {
           EXTPlanarRect region;
           region.set_real_rect(real_rect);
           region.set_grid_rect(RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis));
@@ -4234,27 +4078,15 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PAModel& pa_model, boo
     de_task.set_proc_type(DEProcType::kGet);
     de_task.set_net_type(DENetType::kRouteHybrid);
     de_task.set_top_name(top_name);
-    de_task.set_env_shape_list(env_shape_list);
-    de_task.set_net_pin_shape_map(net_pin_shape_map);
-    de_task.set_net_result_map(net_result_map);
-    de_task.set_net_patch_map(net_patch_map);
+    de_task.set_env_shape_list(std::move(env_shape_list));
+    de_task.set_net_pin_shape_map(std::move(net_pin_shape_map));
+    de_task.set_net_result_map(std::move(net_result_map));
+    de_task.set_net_patch_map(std::move(net_patch_map));
     de_task.set_need_checked_net_set(need_checked_net_set);
     de_task.set_check_region_list(check_region_list);
     de_task.set_skip_single_net_violation(ap_via_only);
   }
-  std::vector<Violation> route_violation_list = RTDE.getViolationList(de_task);
-  if (!ap_via_only) {
-    return route_violation_list;
-  }
-  std::vector<Violation> result_violations;
-  result_violations.reserve(route_violation_list.size());
-  for (Violation& violation : route_violation_list) {
-    if (violation.get_violation_net_set().size() <= 1) {
-      continue;
-    }
-    result_violations.push_back(violation);
-  }
-  return result_violations;
+  return RTDE.getViolationList(de_task);
 }
 
 void PinAccessor::updateBestResult(PAModel& pa_model, bool force_update)
@@ -4413,14 +4245,12 @@ int32_t PinAccessor::clearAccessPointGCellMap()
   return access_point_num;
 }
 
-void PinAccessor::uploadAccessPoint(PAModel& pa_model, bool use_best)
+void PinAccessor::uploadAccessPoint(PAModel& pa_model)
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  int32_t skipped_pin_num = 0;
-
   clearAccessPointGCellMap();
   for (PANet& pa_net : pa_model.get_pa_net_list()) {
     Net* origin_net = pa_net.get_origin_net();
@@ -4429,7 +4259,7 @@ void PinAccessor::uploadAccessPoint(PAModel& pa_model, bool use_best)
     }
     std::vector<PlanarCoord> coord_list;
     for (PAPin& pa_pin : pa_net.get_pa_pin_list()) {
-      AccessPoint& access_point = use_best ? pa_pin.get_best_access_point() : pa_pin.get_access_point();
+      AccessPoint& access_point = pa_pin.get_best_access_point();
       if (access_point.get_real_coord() == PlanarCoord(-1, -1)) {
         continue;
       }
@@ -4447,9 +4277,8 @@ void PinAccessor::uploadAccessPoint(PAModel& pa_model, bool use_best)
       if (origin_pin.get_pin_idx() != pa_pin.get_pin_idx()) {
         RTLOG.error(Loc::current(), "The pin idx is not equal!");
       }
-      AccessPoint& access_point = use_best ? pa_pin.get_best_access_point() : pa_pin.get_access_point();
+      AccessPoint& access_point = pa_pin.get_best_access_point();
       if (access_point.get_real_coord() == PlanarCoord(-1, -1)) {
-        skipped_pin_num++;
         continue;
       }
       access_point.set_grid_coord(RTUTIL.getGCellGridCoordByBBox(access_point.get_real_coord(), gcell_axis, bounding_box));
@@ -4457,64 +4286,40 @@ void PinAccessor::uploadAccessPoint(PAModel& pa_model, bool use_best)
       RTDM.updateNetAccessPointToGCellMap(ChangeType::kAdd, pa_net.get_net_idx(), &origin_pin.get_access_point());
     }
   }
-  // TODO for debug, 暂时运行不完整的解
-  if (skipped_pin_num > 0) {
-    RTLOG.warn(Loc::current(), "Skipped ", skipped_pin_num, " pins without valid access point");
-  }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void PinAccessor::uploadAccessResult(PAModel& pa_model, bool use_best)
+void PinAccessor::uploadAccessResult(PAModel& pa_model)
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  std::vector<std::pair<int32_t, Segment<LayerCoord>>> result_list;
-  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& access_result_map
-      = use_best ? pa_model.get_best_net_pin_access_result_map() : pa_model.get_curr_net_pin_access_result_map();
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& access_result_map = pa_model.get_best_net_pin_access_result_map();
   for (auto& [net_idx, pin_access_result_map] : access_result_map) {
     for (auto& [pin_idx, segment_list] : pin_access_result_map) {
       (void) pin_idx;
       for (Segment<LayerCoord>& segment : segment_list) {
-        result_list.push_back({net_idx, segment});
+        RTDM.updateNetDetailedResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(segment));
       }
     }
-  }
-  std::vector<std::pair<int32_t, Segment<LayerCoord>*>> upload_result_list;
-  upload_result_list.reserve(result_list.size());
-  for (auto& [net_idx, segment] : result_list) {
-    upload_result_list.push_back({net_idx, new Segment<LayerCoord>(segment)});
-  }
-  for (auto& [net_idx, segment] : upload_result_list) {
-    RTDM.updateNetDetailedResultToGCellMap(ChangeType::kAdd, net_idx, segment);
   }
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void PinAccessor::uploadAccessPatch(PAModel& pa_model, bool use_best)
+void PinAccessor::uploadAccessPatch(PAModel& pa_model)
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  std::vector<std::pair<int32_t, EXTLayerRect>> patch_list;
-  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& access_patch_map
-      = use_best ? pa_model.get_best_net_pin_access_patch_map() : pa_model.get_curr_net_pin_access_patch_map();
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& access_patch_map = pa_model.get_best_net_pin_access_patch_map();
   for (auto& [net_idx, pin_access_patch_map] : access_patch_map) {
     for (auto& [pin_idx, patch_list_ref] : pin_access_patch_map) {
       (void) pin_idx;
       for (EXTLayerRect& patch : patch_list_ref) {
-        patch_list.push_back({net_idx, patch});
+        RTDM.updateNetDetailedPatchToGCellMap(ChangeType::kAdd, net_idx, new EXTLayerRect(patch));
       }
     }
-  }
-  std::vector<std::pair<int32_t, EXTLayerRect*>> upload_patch_list;
-  upload_patch_list.reserve(patch_list.size());
-  for (auto& [net_idx, patch] : patch_list) {
-    upload_patch_list.push_back({net_idx, new EXTLayerRect(patch)});
-  }
-  for (auto& [net_idx, patch] : upload_patch_list) {
-    RTDM.updateNetDetailedPatchToGCellMap(ChangeType::kAdd, net_idx, patch);
   }
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());

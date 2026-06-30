@@ -66,6 +66,7 @@ class PinAccessor
   PANet convertToPANet(Net& net);
   void setPAComParam(PAModel& pa_model);
   void initAccessPointList(PAModel& pa_model);
+  std::vector<std::pair<int32_t, PAPin*>> getAllNetPinPairList(PAModel& pa_model);
   void updateAccessPointList(PAModel& pa_model, std::vector<std::pair<int32_t, PAPin*>>& net_pin_pair_list, bool enable_via_candidate);
   std::vector<PALegalShape> getLegalShapeList(PAModel& pa_model, int32_t net_idx, PAPin* pa_pin,
                                               const std::map<int32_t, std::vector<ViaMaster*>>& selected_via_master_list_map);
@@ -76,8 +77,6 @@ class PinAccessor
   PlanarRect getViaEnclosure(ViaMaster& via_master, int32_t routing_layer_idx);
   void uniformSampleCoordList(PAModel& pa_model, std::vector<LayerCoord>& layer_coord_list);
   void uploadAccessPointList(PAModel& pa_model);
-  std::vector<std::pair<int32_t, PAPin*>> getReroutePinList(PAModel& pa_model, const std::vector<Violation>& extra_violation_list);
-  bool updateRerouteAccessPointList(PAModel& pa_model, const std::vector<Violation>& ap_via_only_violation_list);
   void routePAModel(PAModel& pa_model);
   void routePatternSeed(PAModel& pa_model);
   void initRoutingState(PAModel& pa_model);
@@ -169,20 +168,21 @@ class PinAccessor
   void uploadViolation(PAModel& pa_model, bool include_ap_via_only);
   int32_t uploadRouteViolationList(std::set<Violation, CmpViolation>& route_violation_set, const std::vector<Violation>& route_violation_list);
   std::vector<PlanarRect> getMergedDirtyRegionList(PAModel& pa_model);
-  std::vector<LayerRect> getDirtyCheckRegionList(PAModel& pa_model);
-  std::set<PlanarCoord, CmpPlanarCoordByXASC> getDirtyGCellSet(PAModel& pa_model);
+  std::vector<LayerRect> getDirtyCheckRegionList(const std::vector<PlanarRect>& dirty_region_list);
+  std::set<PlanarCoord, CmpPlanarCoordByXASC> getDirtyGCellSet(const std::vector<PlanarRect>& dirty_region_list);
   bool isViolationInCheckRegion(Violation& violation, const std::vector<LayerRect>& check_region_list);
   std::vector<Violation> filterViolationListByCheckRegion(std::vector<Violation>& violation_list, const std::vector<LayerRect>& check_region_list);
   std::vector<Violation> getRouteViolationList(PAModel& pa_model, bool ap_via_only, const std::vector<LayerRect>& check_region_list = {},
-                                               bool use_dirty_input = false);
+                                               bool use_dirty_input = false, const std::vector<PlanarRect>& dirty_region_list = {},
+                                               const std::set<PlanarCoord, CmpPlanarCoordByXASC>& dirty_gcell_set = {});
   void updateBestResult(PAModel& pa_model, bool force_update = false);
   bool stopIteration(PAModel& pa_model, std::vector<PAIterParam>& pa_iter_param_list);
   void selectBestResult(PAModel& pa_model);
   void uploadBestResult(PAModel& pa_model);
   int32_t clearAccessPointGCellMap();
-  void uploadAccessPoint(PAModel& pa_model, bool use_best = false);
-  void uploadAccessResult(PAModel& pa_model, bool use_best = false);
-  void uploadAccessPatch(PAModel& pa_model, bool use_best = false);
+  void uploadAccessPoint(PAModel& pa_model);
+  void uploadAccessResult(PAModel& pa_model);
+  void uploadAccessPatch(PAModel& pa_model);
 
 #if 1  // update env
   void updateFixedRectToGraph(PABox& pa_box, ChangeType change_type, int32_t net_idx, EXTLayerRect* fixed_rect, bool is_routing);

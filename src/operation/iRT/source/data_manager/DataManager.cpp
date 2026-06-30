@@ -636,15 +636,20 @@ std::vector<NetShape> DataManager::getNetDetailedShapeList(int32_t net_idx, Laye
 
 int32_t DataManager::getOnlyOffset()
 {
-  std::vector<RoutingLayer>& routing_layer_list = _database.get_routing_layer_list();
+  int32_t x_offset = getOnlyOffset(Direction::kVertical);
+  int32_t y_offset = getOnlyOffset(Direction::kHorizontal);
+  (void) y_offset;
+  return x_offset;
+}
 
+int32_t DataManager::getOnlyOffset(Direction direction)
+{
+  std::vector<RoutingLayer>& routing_layer_list = _database.get_routing_layer_list();
   std::vector<int32_t> offset_list;
   for (RoutingLayer& routing_layer : routing_layer_list) {
-    for (ScaleGrid& x_grid : routing_layer.get_track_axis().get_x_grid_list()) {
-      offset_list.push_back(x_grid.get_start_line());
-    }
-    for (ScaleGrid& y_grid : routing_layer.get_track_axis().get_y_grid_list()) {
-      offset_list.push_back(y_grid.get_start_line());
+    std::vector<ScaleGrid>& grid_list = (direction == Direction::kVertical ? routing_layer.getXTrackGridList() : routing_layer.getYTrackGridList());
+    for (ScaleGrid& grid : grid_list) {
+      offset_list.push_back(grid.get_start_line());
     }
   }
   for (int32_t offset : offset_list) {
@@ -1017,7 +1022,7 @@ std::vector<ScaleGrid> DataManager::makeGCellGridList(Direction direction)
   Die& die = _database.get_die();
   Row& row = _database.get_row();
   int32_t row_height = row.get_height();
-  int32_t only_offset = getOnlyOffset();
+  int32_t only_offset = getOnlyOffset(direction);
   int32_t only_pitch = getOnlyPitch();
 
   int32_t die_start_scale = (direction == Direction::kVertical ? die.get_real_ll_x() : die.get_real_ll_y());
