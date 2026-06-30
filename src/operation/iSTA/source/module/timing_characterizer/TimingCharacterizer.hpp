@@ -42,7 +42,7 @@ class TimingCharacterizer
   TimingCharacterizer& operator=(const TimingCharacterizer& other) = delete;
   TimingCharacterizer& operator=(TimingCharacterizer&& other) = delete;
   // function
-  void outputLibFileList(Database& database);
+  void outputLibFileList();
   void outputLibFile(std::string& design_name, std::string analysis_type);
   std::string getLibFilePath(std::string& design_name, std::string analysis_type);
 };

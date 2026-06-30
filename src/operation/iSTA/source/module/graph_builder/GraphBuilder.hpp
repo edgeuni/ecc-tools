@@ -29,7 +29,7 @@ class GraphBuilder
   static GraphBuilder& getInst();
   static void destroyInst();
   // function
-  bool build();
+  void build();
 
  private:
   // self
@@ -42,76 +42,76 @@ class GraphBuilder
   GraphBuilder& operator=(const GraphBuilder& other) = delete;
   GraphBuilder& operator=(GraphBuilder&& other) = delete;
   // function
-  void buildTimingPointList(Database& database);
-  void buildCellArcs(Database& database);
-  bool buildLibraryCellArcs(Database& database, Instance& instance);
+  void buildTimingPointList();
+  void buildCellArcs();
+  bool buildLibraryCellArcs(Instance& instance);
   std::string getInstancePinName(Instance& instance, std::string& port_name);
-  void addCellArc(Database& database, Instance& instance, TimingCellArc& timing_cell_arc);
-  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name,
+  void addCellArc(Instance& instance, TimingCellArc& timing_cell_arc);
+  void addArc(const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name,
               const std::string& library_source_port, const std::string& library_sink_port, bool is_clock_arc, bool is_disable_arc,
               TimingCellArc* timing_cell_arc);
-  std::vector<std::string> collectInputPins(Database& database, Instance& instance);
+  std::vector<std::string> collectInputPins(Instance& instance);
   bool isInputLike(PinDirection direction);
-  std::vector<std::string> collectOutputPins(Database& database, Instance& instance);
+  std::vector<std::string> collectOutputPins(Instance& instance);
   bool isOutputLike(PinDirection direction);
-  void buildInoutPinDirectionByGraph(Database& database);
-  std::map<std::string, PinDirection> makeInoutPinDirectionMap(Database& database);
-  bool isFloatingInoutPin(Database& database, Pin& pin);
-  PinDirection inferInoutPinDirection(Database& database, const std::string& pin_name, Pin& pin,
+  void buildInoutPinDirectionByGraph();
+  std::map<std::string, PinDirection> makeInoutPinDirectionMap();
+  bool isFloatingInoutPin(Pin& pin);
+  PinDirection inferInoutPinDirection(const std::string& pin_name, Pin& pin,
                                       std::map<std::string, PinDirection>& inout_pin_direction_map);
-  PinDirection inferInoutPinDirectionByTimingCell(Database& database, Pin& pin);
-  TimingCellPort* getTimingCellPort(Database& database, Pin& pin);
-  PinDirection inferInoutPinDirectionByTimingGraph(Database& database, const std::string& pin_name);
-  bool hasOutgoingCellArc(Database& database, const std::string& pin_name);
-  bool hasIncomingCellArc(Database& database, const std::string& pin_name);
-  PinDirection inferInoutPinDirectionByNet(Database& database, Pin& pin, std::map<std::string, PinDirection>& inout_pin_direction_map);
-  Net* getPinNet(Database& database, Pin& pin);
-  std::vector<std::string> getDriverPinList(Database& database, Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map);
-  int32_t getDriverPinNum(Database& database, Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map);
-  int32_t getUnresolvedInoutPinNum(Database& database, Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map);
-  bool isResolvedDriverPin(Database& database, const std::string& pin_name, std::map<std::string, PinDirection>& inout_pin_direction_map);
+  PinDirection inferInoutPinDirectionByTimingCell(Pin& pin);
+  TimingCellPort* getTimingCellPort(Pin& pin);
+  PinDirection inferInoutPinDirectionByTimingGraph(const std::string& pin_name);
+  bool hasOutgoingCellArc(const std::string& pin_name);
+  bool hasIncomingCellArc(const std::string& pin_name);
+  PinDirection inferInoutPinDirectionByNet(Pin& pin, std::map<std::string, PinDirection>& inout_pin_direction_map);
+  Net* getPinNet(Pin& pin);
+  std::vector<std::string> getDriverPinList(Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map);
+  int32_t getDriverPinNum(Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map);
+  int32_t getUnresolvedInoutPinNum(Net& net, std::map<std::string, PinDirection>& inout_pin_direction_map);
+  bool isResolvedDriverPin(const std::string& pin_name, std::map<std::string, PinDirection>& inout_pin_direction_map);
   bool isDriverDirection(Pin& pin, PinDirection direction);
   PinDirection getDriverPinDirection(Pin& pin);
   PinDirection getLoadPinDirection(Pin& pin);
-  void rebuildCellArcListByPinDirection(Database& database);
-  void buildNetDriverLoadList(Database& database);
-  void makeNetDriverLoad(Database& database, Net& net);
+  void rebuildCellArcListByPinDirection();
+  void buildNetDriverLoadList();
+  void makeNetDriverLoad(Net& net);
   bool isDriverPin(Pin& pin);
   std::string getPinNameListString(std::vector<std::string>& pin_name_list);
-  void buildNetArcs(Database& database);
-  void addArc(Database& database, const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name);
-  bool shouldDisableNetArc(Database& database, const std::string& source_pin, const std::string& sink_pin);
+  void buildNetArcs();
+  void addArc(const std::string& source_pin, const std::string& sink_pin, ArcType type, const std::string& owner_name);
+  bool shouldDisableNetArc(const std::string& source_pin, const std::string& sink_pin);
   bool isDisableArc(Arc& arc);
-  void buildStartEndPointList(Database& database);
-  bool isStartPoint(Database& database, const std::string& pin_name, Pin& pin);
-  bool isRegisterClockStartPoint(Database& database, const std::string& pin_name, Pin& pin);
-  bool isClockPin(Database& database, const std::string& pin_name, Pin& pin);
-  bool isClockSource(Database& database, const std::string& pin_name);
-  bool hasIncomingArc(Database& database, const std::string& pin_name);
+  void buildStartEndPointList();
+  bool isStartPoint(const std::string& pin_name, Pin& pin);
+  bool isRegisterClockStartPoint(const std::string& pin_name, Pin& pin);
+  bool isClockPin(const std::string& pin_name, Pin& pin);
+  bool isClockSource(const std::string& pin_name);
+  bool hasIncomingArc(const std::string& pin_name);
   bool isStartPort(Pin& pin);
-  bool isEndPoint(Database& database, const std::string& pin_name, Pin& pin);
-  bool isTimingCheckEndPoint(Database& database, const std::string& pin_name, Pin& pin);
-  bool hasOutgoingArc(Database& database, const std::string& pin_name);
+  bool isEndPoint(const std::string& pin_name, Pin& pin);
+  bool isTimingCheckEndPoint(const std::string& pin_name, Pin& pin);
+  bool hasOutgoingArc(const std::string& pin_name);
   bool isEndPort(Pin& pin);
   void appendUnique(std::vector<std::string>& list, const std::string& value);
-  void breakLoopArcList(Database& database);
-  std::size_t breakLoopArcFromStart(Database& database);
-  bool traverseDataPath(Database& database, std::string& pin_name, bool is_forward, std::map<std::string, int32_t>& color_map,
+  void breakLoopArcList();
+  std::size_t breakLoopArcFromStart();
+  bool traverseDataPath(std::string& pin_name, bool is_forward, std::map<std::string, int32_t>& color_map,
                         std::size_t& disabled_loop_num);
-  bool stopTraverse(Database& database, std::string& pin_name, bool is_forward);
+  bool stopTraverse(std::string& pin_name, bool is_forward);
   bool isBlack(std::map<std::string, int32_t>& color_map, std::string& pin_name);
   bool isGray(std::map<std::string, int32_t>& color_map, std::string& pin_name);
   bool disableLoopArc(Arc& arc);
-  std::size_t breakLoopArcFromEnd(Database& database);
-  std::size_t breakLoopArcFromFloating(Database& database);
-  void traverseFloatingDataPath(Database& database, std::string& pin_name, std::map<std::string, int32_t>& color_map,
+  std::size_t breakLoopArcFromEnd();
+  std::size_t breakLoopArcFromFloating();
+  void traverseFloatingDataPath(std::string& pin_name, std::map<std::string, int32_t>& color_map,
                                 std::size_t& disabled_loop_num);
-  void buildTimingOrder(Database& database);
-  std::map<std::string, std::size_t> makeIndegreeMap(Database& database);
-  void pushRootPinList(Database& database, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
-  void updateSinkLevel(Database& database, Arc& arc);
+  void buildTimingOrder();
+  std::map<std::string, std::size_t> makeIndegreeMap();
+  void pushRootPinList(std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
+  void updateSinkLevel(Arc& arc);
   void updateSinkIndegree(Arc& arc, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
-  void printLoopInfo(Database& database);
+  void printLoopInfo();
 };
 
 }  // namespace ista

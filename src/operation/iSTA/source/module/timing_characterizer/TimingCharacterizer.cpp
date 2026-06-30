@@ -55,14 +55,14 @@ void TimingCharacterizer::characterize()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
-  Database& database = STADM.getDatabase();
-  outputLibFileList(database);
+  outputLibFileList();
 
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void TimingCharacterizer::outputLibFileList(Database& database)
+void TimingCharacterizer::outputLibFileList()
 {
+  Database& database = STADM.getDatabase();
   std::string& design_name = database.get_design_name();
   outputLibFile(design_name, "max");
   outputLibFile(design_name, "min");

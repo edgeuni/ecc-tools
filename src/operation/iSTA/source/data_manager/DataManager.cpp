@@ -118,20 +118,15 @@ void DataManager::buildConfig()
 
 void DataManager::buildDatabase()
 {
-  buildDesign(_database);
-  readSdc(_database);
+  buildTimingLibrary();
+  buildInstanceList();
+  buildNetList();
+  buildInstanceTimingInfo();
+  buildParasiticLibrary();
+  readConstraint();
 }
 
-void DataManager::buildDesign(Database& database)
-{
-  buildTimingLibrary(database);
-  buildInstanceList(database);
-  buildNetList(database);
-  buildInstanceTimingInfo(database);
-  buildParasiticLibrary(database);
-}
-
-void DataManager::buildTimingLibrary(Database& database)
+void DataManager::buildTimingLibrary()
 {
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
@@ -145,23 +140,25 @@ void DataManager::buildTimingLibrary(Database& database)
     delete lib_builder;
     liberty_reader.set_library_builder(nullptr);
   }
-  buildTimingCellMap(database, lib_list);
+  buildTimingCellMap(lib_list);
   idb::Lib::setSilentOutput(old_silent_output);
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void DataManager::buildTimingCellMap(Database& database, std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list)
+void DataManager::buildTimingCellMap(std::vector<std::unique_ptr<idb::LibLibrary>>& lib_list)
 {
+  Database& database = _database;
   database.get_timing_library().get_cell_map().clear();
   for (std::unique_ptr<idb::LibLibrary>& lib : lib_list) {
     for (std::unique_ptr<idb::LibCell>& lib_cell : lib->get_cells()) {
-      makeTimingCell(database, lib_cell.get());
+      makeTimingCell(lib_cell.get());
     }
   }
 }
 
-void DataManager::makeTimingCell(Database& database, idb::LibCell* lib_cell)
+void DataManager::makeTimingCell(idb::LibCell* lib_cell)
 {
+  Database& database = _database;
   TimingCell timing_cell;
   timing_cell.set_cell_name(lib_cell->get_cell_name());
   timing_cell.set_is_sequential(lib_cell->isSequentialCell());
@@ -439,13 +436,14 @@ void DataManager::updateTimingCell(TimingCell& timing_cell)
   }
 }
 
-void DataManager::buildInstanceList(Database& database)
+void DataManager::buildInstanceList()
 {
-  makeInstanceList(database);
+  makeInstanceList();
 }
 
-void DataManager::makeInstanceList(Database& database)
+void DataManager::makeInstanceList()
 {
+  Database& database = _database;
   for (std::pair<const std::string, Instance>& instance_pair : database.get_instance_map()) {
     instance_pair.second.get_pin_name_list().clear();
   }
@@ -460,15 +458,17 @@ void DataManager::makeInstanceList(Database& database)
   }
 }
 
-void DataManager::buildInstanceTimingInfo(Database& database)
+void DataManager::buildInstanceTimingInfo()
 {
+  Database& database = _database;
   for (std::pair<const std::string, Instance>& instance_pair : database.get_instance_map()) {
-    makeInstanceTimingInfo(database, instance_pair.second);
+    makeInstanceTimingInfo(instance_pair.second);
   }
 }
 
-void DataManager::makeInstanceTimingInfo(Database& database, Instance& instance)
+void DataManager::makeInstanceTimingInfo(Instance& instance)
 {
+  Database& database = _database;
   std::map<std::string, TimingCell>& timing_cell_map = database.get_timing_library().get_cell_map();
   if (timing_cell_map.count(instance.get_cell_name()) == 0) {
     return;
@@ -550,24 +550,26 @@ void DataManager::makeUniqueName(std::vector<std::string>& list, const std::stri
   }
 }
 
-void DataManager::buildNetList(Database& database)
+void DataManager::buildNetList()
 {
-  makeNetList(database);
+  makeNetList();
 }
 
-void DataManager::makeNetList(Database& database)
+void DataManager::makeNetList()
 {
+  Database& database = _database;
   for (std::pair<const std::string, Pin>& pin_pair : database.get_pin_map()) {
     pin_pair.second.get_net_name().clear();
   }
 
   for (std::pair<const std::string, Net>& net_pair : database.get_net_map()) {
-    makeNet(database, net_pair.first, net_pair.second);
+    makeNet(net_pair.first, net_pair.second);
   }
 }
 
-void DataManager::makeNet(Database& database, const std::string& net_name, Net& net)
+void DataManager::makeNet(const std::string& net_name, Net& net)
 {
+  Database& database = _database;
   net.get_driver_pin().clear();
   net.get_driver_pin_list().clear();
   net.get_load_pin_list().clear();
@@ -579,8 +581,9 @@ void DataManager::makeNet(Database& database, const std::string& net_name, Net& 
   }
 }
 
-void DataManager::buildParasiticLibrary(Database& database)
+void DataManager::buildParasiticLibrary()
 {
+  Database& database = _database;
   database.get_parasitic_library().set_spef_file_path(dmInst->get_config().get_spef_path());
   database.get_parasitic_library().get_net_map().clear();
   spef::SpefReader* spef_reader = dmInst->get_spef_reader();
@@ -593,12 +596,13 @@ void DataManager::buildParasiticLibrary(Database& database)
 
   spef::Exchange* spef_file = spef_reader->getSpefFile();
   for (spef::Net& spef_net : spef_file->nets) {
-    buildParasiticNetMap(database, spef_net);
+    buildParasiticNetMap(spef_net);
   }
 }
 
-void DataManager::buildParasiticNetMap(Database& database, spef::Net& spef_net)
+void DataManager::buildParasiticNetMap(spef::Net& spef_net)
 {
+  Database& database = _database;
   ParasiticNet parasitic_net;
   parasitic_net.set_net_name(spef_net.name);
   parasitic_net.set_lumped_capacitance(spef_net.lcap);
@@ -649,8 +653,9 @@ ParasiticNode& DataManager::getParasiticNode(ParasiticNet& parasitic_net, const 
   return parasitic_node;
 }
 
-void DataManager::readSdc(Database& database)
+void DataManager::readConstraint()
 {
+  Database& database = _database;
   std::string sdc_file_path = dmInst->get_config().get_sdc_path();
   database.get_timing_constraint().set_sdc_file_path(sdc_file_path);
   database.get_timing_constraint().get_clock_map().clear();
@@ -661,7 +666,7 @@ void DataManager::readSdc(Database& database)
 
   std::vector<std::vector<std::string>> command_list = readCommandList(sdc_file_path);
   for (std::vector<std::string>& token_list : command_list) {
-    parseCommand(database, token_list);
+    parseCommand(token_list);
   }
 }
 
@@ -968,49 +973,49 @@ std::string DataManager::removeComment(std::string& line)
   return result;
 }
 
-void DataManager::parseCommand(Database& database, std::vector<std::string>& token_list)
+void DataManager::parseCommand(std::vector<std::string>& token_list)
 {
   if (token_list.empty()) {
     return;
   }
   if (token_list.front() == "create_clock") {
-    parseCreateClock(database, token_list);
+    parseCreateClock(token_list);
   } else if (token_list.front() == "set_input_delay") {
-    parseSetInputDelay(database, token_list);
+    parseSetInputDelay(token_list);
   } else if (token_list.front() == "set_output_delay") {
-    parseSetOutputDelay(database, token_list);
+    parseSetOutputDelay(token_list);
   } else if (token_list.front() == "set_input_transition") {
-    parseSetInputTransition(database, token_list);
+    parseSetInputTransition(token_list);
   } else if (token_list.front() == "set_load") {
-    parseSetLoad(database, token_list);
+    parseSetLoad(token_list);
   }
 }
 
-void DataManager::parseCreateClock(Database& database, std::vector<std::string>& token_list)
+void DataManager::parseCreateClock(std::vector<std::string>& token_list)
 {
   TimingClock timing_clock;
   timing_clock.set_clock_name(getOptionValue(token_list, "-name"));
   timing_clock.set_period(getOptionDoubleValue(token_list, "-period", 0.0));
   std::vector<std::string> object_list = getObjectList(token_list);
-  std::vector<std::string> source_list = resolveObjectList(database, object_list);
+  std::vector<std::string> source_list = resolveObjectList(object_list);
   if (timing_clock.get_clock_name().empty() && !source_list.empty()) {
     timing_clock.set_clock_name(source_list.front());
   }
   timing_clock.set_source_list(source_list);
   timing_clock.set_rise_edge(0.0);
   timing_clock.set_fall_edge(timing_clock.get_period() / 2.0);
-  updateClock(database, timing_clock);
+  updateClock(timing_clock);
 }
 
-void DataManager::parseSetInputDelay(Database& database, std::vector<std::string>& token_list)
+void DataManager::parseSetInputDelay(std::vector<std::string>& token_list)
 {
   const double delay_value = getCommandDoubleValue(token_list);
   const bool set_min = hasOption(token_list, "-min");
   const bool set_max = hasOption(token_list, "-max");
   std::string clock_name = getClockName(token_list);
   std::vector<std::string> object_list = getObjectList(token_list);
-  for (std::string& port_name : resolveObjectList(database, object_list)) {
-    TimingPortConstraint& port_constraint = getPortConstraint(database, port_name);
+  for (std::string& port_name : resolveObjectList(object_list)) {
+    TimingPortConstraint& port_constraint = getPortConstraint(port_name);
     port_constraint.set_clock_name(clock_name);
     if (set_min && !set_max) {
       port_constraint.set_input_delay_min(delay_value);
@@ -1027,15 +1032,15 @@ void DataManager::parseSetInputDelay(Database& database, std::vector<std::string
   }
 }
 
-void DataManager::parseSetOutputDelay(Database& database, std::vector<std::string>& token_list)
+void DataManager::parseSetOutputDelay(std::vector<std::string>& token_list)
 {
   const double delay_value = getCommandDoubleValue(token_list);
   const bool set_min = hasOption(token_list, "-min");
   const bool set_max = hasOption(token_list, "-max");
   std::string clock_name = getClockName(token_list);
   std::vector<std::string> object_list = getObjectList(token_list);
-  for (std::string& port_name : resolveObjectList(database, object_list)) {
-    TimingPortConstraint& port_constraint = getPortConstraint(database, port_name);
+  for (std::string& port_name : resolveObjectList(object_list)) {
+    TimingPortConstraint& port_constraint = getPortConstraint(port_name);
     port_constraint.set_clock_name(clock_name);
     if (set_min && !set_max) {
       port_constraint.set_output_delay_min(delay_value);
@@ -1052,23 +1057,23 @@ void DataManager::parseSetOutputDelay(Database& database, std::vector<std::strin
   }
 }
 
-void DataManager::parseSetInputTransition(Database& database, std::vector<std::string>& token_list)
+void DataManager::parseSetInputTransition(std::vector<std::string>& token_list)
 {
   const double transition_value = getCommandDoubleValue(token_list);
   std::vector<std::string> object_list = getObjectList(token_list);
-  for (std::string& port_name : resolveObjectList(database, object_list)) {
-    TimingPortConstraint& port_constraint = getPortConstraint(database, port_name);
+  for (std::string& port_name : resolveObjectList(object_list)) {
+    TimingPortConstraint& port_constraint = getPortConstraint(port_name);
     port_constraint.set_input_transition(transition_value);
     port_constraint.set_has_input_transition(true);
   }
 }
 
-void DataManager::parseSetLoad(Database& database, std::vector<std::string>& token_list)
+void DataManager::parseSetLoad(std::vector<std::string>& token_list)
 {
   const double load_value = getCommandDoubleValue(token_list);
   std::vector<std::string> object_list = getObjectList(token_list);
-  for (std::string& port_name : resolveObjectList(database, object_list)) {
-    TimingPortConstraint& port_constraint = getPortConstraint(database, port_name);
+  for (std::string& port_name : resolveObjectList(object_list)) {
+    TimingPortConstraint& port_constraint = getPortConstraint(port_name);
     port_constraint.set_load(load_value);
     port_constraint.set_has_load(true);
   }
@@ -1225,8 +1230,9 @@ bool DataManager::isCommandOptionValue(std::vector<std::string>& token_list, std
   return end != token_list[token_idx].c_str() && *end == '\0';
 }
 
-std::vector<std::string> DataManager::resolveObjectList(Database& database, std::vector<std::string>& object_list)
+std::vector<std::string> DataManager::resolveObjectList(std::vector<std::string>& object_list)
 {
+  Database& database = _database;
   std::vector<std::string> resolved_object_list;
   for (std::string& object_name : object_list) {
     std::string resolved_object_name = object_name;
@@ -1257,16 +1263,18 @@ std::vector<std::string> DataManager::resolveObjectList(Database& database, std:
   return resolved_object_list;
 }
 
-void DataManager::updateClock(Database& database, TimingClock& timing_clock)
+void DataManager::updateClock(TimingClock& timing_clock)
 {
+  Database& database = _database;
   if (timing_clock.get_clock_name().empty()) {
     return;
   }
   database.get_timing_constraint().get_clock_map()[timing_clock.get_clock_name()] = timing_clock;
 }
 
-TimingPortConstraint& DataManager::getPortConstraint(Database& database, const std::string& port_name)
+TimingPortConstraint& DataManager::getPortConstraint(const std::string& port_name)
 {
+  Database& database = _database;
   TimingPortConstraint& port_constraint = database.get_timing_constraint().get_port_constraint_map()[port_name];
   port_constraint.set_port_name(port_name);
   return port_constraint;

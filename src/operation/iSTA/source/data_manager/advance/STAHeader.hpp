@@ -68,5 +68,6 @@
 #include <vector>
 
 #include "libfort/fort.hpp"
+#include "json.hpp"
 
 #define STA_ERROR 1E-6
