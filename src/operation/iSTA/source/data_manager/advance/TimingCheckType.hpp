@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
+
 namespace ista {
 
 enum class TimingCheckType
@@ -25,6 +27,35 @@ enum class TimingCheckType
   kHold,
   kRecovery,
   kRemoval
+};
+
+struct GetTimingCheckTypeName
+{
+  std::string operator()(const TimingCheckType& timing_check_type) const
+  {
+    std::string timing_check_type_name;
+    switch (timing_check_type) {
+      case TimingCheckType::kNone:
+        timing_check_type_name = "none";
+        break;
+      case TimingCheckType::kSetup:
+        timing_check_type_name = "setup";
+        break;
+      case TimingCheckType::kHold:
+        timing_check_type_name = "hold";
+        break;
+      case TimingCheckType::kRecovery:
+        timing_check_type_name = "recovery";
+        break;
+      case TimingCheckType::kRemoval:
+        timing_check_type_name = "removal";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return timing_check_type_name;
+  }
 };
 
 }  // namespace ista
