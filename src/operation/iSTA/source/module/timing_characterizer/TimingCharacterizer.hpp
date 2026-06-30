@@ -78,7 +78,6 @@ class TimingCharacterizer
   double getDelayArcValue(TimingPath& timing_path);
   std::unique_ptr<idb::LibArc> makeLibArc(std::string& source_port, std::string& sink_port, std::string& timing_type);
   std::unique_ptr<idb::LibTable> makeScalarTable(idb::LibTable::TableType table_type, double value);
-  void outputCheckSourceFile(std::string& lib_file_path, AnalysisType analysis_type);
   std::string getLibFilePath(std::string& design_name, AnalysisType analysis_type);
   std::vector<TimingPath*> getTimingPathList(AnalysisType analysis_type);
   bool isMatchAnalysisType(TimingPath& timing_path, AnalysisType analysis_type);
