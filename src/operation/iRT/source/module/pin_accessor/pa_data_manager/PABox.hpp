@@ -48,8 +48,13 @@ class PABox
   std::vector<std::pair<EXTLayerRect*, bool>>& get_env_shape_list() { return _env_shape_list; }
   std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>>& get_net_pin_shape_map() { return _net_pin_shape_map; }
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>>& get_net_access_point_map() { return _net_access_point_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_pin_access_result_list_map()
+  {
+    return _net_pin_access_result_list_map;
+  }
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& get_net_pin_access_result_map() { return _net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_task_access_result_map() { return _net_task_access_result_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_net_pin_access_patch_list_map() { return _net_pin_access_patch_list_map; }
   std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& get_net_pin_access_patch_map() { return _net_pin_access_patch_map; }
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_net_task_access_patch_map() { return _net_task_access_patch_map; }
   std::vector<PATask*>& get_pa_task_list() { return _pa_task_list; }
@@ -175,8 +180,10 @@ class PABox
   std::vector<std::pair<EXTLayerRect*, bool>> _env_shape_list;
   std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>> _net_pin_shape_map;
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> _net_access_point_map;
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_pin_access_result_list_map;
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> _net_pin_access_result_map;
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_task_access_result_map;
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _net_pin_access_patch_list_map;
   std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>> _net_pin_access_patch_map;
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _net_task_access_patch_map;
   std::vector<PATask*> _pa_task_list;

@@ -40,6 +40,7 @@ class DETask
   std::set<ViolationType>& get_check_type_set() { return _check_type_set; }
   std::vector<LayerRect>& get_check_region_list() { return _check_region_list; }
   std::vector<Violation>& get_violation_list() { return _violation_list; }
+  bool get_skip_single_net_violation() const { return _skip_single_net_violation; }
   // setter
   void set_proc_type(const DEProcType& proc_type) { _proc_type = proc_type; }
   void set_net_type(const DENetType& net_type) { _net_type = net_type; }
@@ -52,6 +53,7 @@ class DETask
   void set_check_type_set(const std::set<ViolationType>& check_type_set) { _check_type_set = check_type_set; }
   void set_check_region_list(const std::vector<LayerRect>& check_region_list) { _check_region_list = check_region_list; }
   void set_violation_list(const std::vector<Violation>& violation_list) { _violation_list = violation_list; }
+  void set_skip_single_net_violation(const bool skip_single_net_violation) { _skip_single_net_violation = skip_single_net_violation; }
   // function
  private:
   DEProcType _proc_type = DEProcType::kNone;
@@ -65,6 +67,7 @@ class DETask
   std::set<ViolationType> _check_type_set;
   std::vector<LayerRect> _check_region_list;
   std::vector<Violation> _violation_list;
+  bool _skip_single_net_violation = false;
 };
 
 }  // namespace irt

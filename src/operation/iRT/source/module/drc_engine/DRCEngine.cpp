@@ -62,8 +62,43 @@ void DRCEngine::init()
 
 std::vector<Violation> DRCEngine::getViolationList(DETask& de_task)
 {
-  getViolationListByInterface(de_task);
-  filterViolationList(de_task);
+  Monitor monitor;
+  int32_t raw_violation_num = 0;
+  std::string interface_stats;
+  {
+    Monitor stage_monitor;
+    getViolationListByInterface(de_task);
+    raw_violation_num = static_cast<int32_t>(de_task.get_violation_list().size());
+    interface_stats = stage_monitor.getStatsInfo();
+  }
+  std::string filter_stats;
+  {
+    Monitor stage_monitor;
+    filterViolationList(de_task);
+    filter_stats = stage_monitor.getStatsInfo();
+  }
+  if (de_task.get_top_name().find("pa_box_") != 0) {
+    int32_t result_num = 0;
+    for (auto& [net_idx, segment_list] : de_task.get_net_result_map()) {
+      (void) net_idx;
+      result_num += static_cast<int32_t>(segment_list.size());
+    }
+    int32_t patch_num = 0;
+    for (auto& [net_idx, patch_list] : de_task.get_net_patch_map()) {
+      (void) net_idx;
+      patch_num += static_cast<int32_t>(patch_list.size());
+    }
+    RTLOG.info(Loc::current(), "DE getViolationList summary: proc=", GetDEProcTypeName()(de_task.get_proc_type()),
+               " net_type=", GetDENetTypeName()(de_task.get_net_type()), " top=", de_task.get_top_name(),
+               " env=", de_task.get_env_shape_list().size(), " pin_net=", de_task.get_net_pin_shape_map().size(),
+               " result_net=", de_task.get_net_result_map().size(), " result=", result_num,
+               " patch_net=", de_task.get_net_patch_map().size(), " patch=", patch_num,
+               " checked_net=", de_task.get_need_checked_net_set().size(), " check_type=", de_task.get_check_type_set().size(),
+               " check_region=", de_task.get_check_region_list().size(), " skip_single_net=", de_task.get_skip_single_net_violation(),
+               " raw_violation=", raw_violation_num,
+               " violation=", de_task.get_violation_list().size(), " interface_time=", interface_stats,
+               " filter_time=", filter_stats, monitor.getStatsInfo());
+  }
   return de_task.get_violation_list();
 }
 
@@ -139,6 +174,9 @@ void DRCEngine::filterViolationList(DETask& de_task)
   for (Violation& violation : de_task.get_violation_list()) {
     if (violation.get_violation_type() == ViolationType::kNone) {
       // 未知规则舍弃
+      continue;
+    }
+    if (de_task.get_skip_single_net_violation() && violation.get_violation_net_set().size() <= 1) {
       continue;
     }
     std::vector<Violation> expanded_violation_list = getExpandedViolationList(de_task, violation);

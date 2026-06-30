@@ -88,9 +88,16 @@ class PinAccessor
   void routePABoxMap(PAModel& pa_model);
   void buildFixedRect(PABox& pa_box);
   void buildAccessPoint(PABox& pa_box);
-  void buildAccessResult(PABox& pa_box);
-  void buildAccessPatch(PABox& pa_box);
+  void updatePAModelAccessResultToGCellMap(PAModel& pa_model, ChangeType change_type, int32_t net_idx, int32_t pin_idx, int32_t result_idx);
+  void updatePAModelAccessPatchToGCellMap(PAModel& pa_model, ChangeType change_type, int32_t net_idx, int32_t pin_idx, int32_t patch_idx);
+  void addPAModelAccessResult(PAModel& pa_model, int32_t net_idx, int32_t pin_idx, const Segment<LayerCoord>& segment);
+  void addPAModelAccessPatch(PAModel& pa_model, int32_t net_idx, int32_t pin_idx, const EXTLayerRect& patch);
+  void setPAModelAccessResult(PAModel& pa_model, int32_t net_idx, int32_t pin_idx, const std::vector<Segment<LayerCoord>>& segment_list);
+  void setPAModelAccessPatch(PAModel& pa_model, int32_t net_idx, int32_t pin_idx, const std::vector<EXTLayerRect>& patch_list);
+  void clearPAModelAccessResult(PAModel& pa_model, int32_t net_idx, int32_t pin_idx);
+  void clearPAModelAccessPatch(PAModel& pa_model, int32_t net_idx, int32_t pin_idx);
   void initPATaskList(PAModel& pa_model, PABox& pa_box);
+  void claimAccessResultPatch(PAModel& pa_model, PABox& pa_box);
   void buildRouteViolation(PABox& pa_box);
   bool needRouting(PABox& pa_box);
   void buildBoxTrackAxis(PABox& pa_box);
@@ -155,7 +162,8 @@ class PinAccessor
   void updateAccessPoint(PABox& pa_box);
   void updateBestResult(PABox& pa_box);
   void updateTaskSchedule(PABox& pa_box, std::vector<PATask*>& routing_task_list, int routing_rounds);
-  void uploadBestResult(PABox& pa_box);
+  void uploadBestResult(PAModel& pa_model, PABox& pa_box);
+  void freePABoxRoutingData(PABox& pa_box);
   void freePABox(PABox& pa_box);
   int32_t getRouteViolationNum(PAModel& pa_model);
   void uploadViolation(PAModel& pa_model, bool include_ap_via_only);
@@ -165,9 +173,10 @@ class PinAccessor
   bool stopIteration(PAModel& pa_model, std::vector<PAIterParam>& pa_iter_param_list);
   void selectBestResult(PAModel& pa_model);
   void uploadBestResult(PAModel& pa_model);
-  void uploadAccessPoint(PAModel& pa_model);
-  void uploadAccessResult(PAModel& pa_model);
-  void uploadAccessPatch(PAModel& pa_model);
+  int32_t clearAccessPointGCellMap();
+  void uploadAccessPoint(PAModel& pa_model, bool use_best = false);
+  void uploadAccessResult(PAModel& pa_model, bool use_best = false);
+  void uploadAccessPatch(PAModel& pa_model, bool use_best = false);
 
 #if 1  // update env
   void updateFixedRectToGraph(PABox& pa_box, ChangeType change_type, int32_t net_idx, EXTLayerRect* fixed_rect, bool is_routing);
@@ -200,13 +209,13 @@ class PinAccessor
 #endif
 
 #if 1  // exhibit
-  void updateSummary(PAModel& pa_model);
+  void updateSummary(PAModel& pa_model, bool use_best = false);
   void printSummary(PAModel& pa_model);
-  void outputNetCSV(PAModel& pa_model);
-  void outputViolationCSV(PAModel& pa_model);
-  void outputJson(PAModel& pa_model);
-  std::string outputNetJson(PAModel& pa_model);
-  std::string outputViolationJson(PAModel& pa_model);
+  void outputNetCSV(PAModel& pa_model, bool use_best = false);
+  void outputViolationCSV(PAModel& pa_model, bool use_best = false);
+  void outputJson(PAModel& pa_model, bool use_best = false);
+  std::string outputNetJson(PAModel& pa_model, bool use_best = false);
+  std::string outputViolationJson(PAModel& pa_model, bool use_best = false);
   std::string outputSummaryJson(PAModel& pa_model);
 #endif
 
