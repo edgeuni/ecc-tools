@@ -120,7 +120,7 @@ void PinAccessor::setPAComParam(PAModel& pa_model)
   // 默认使用CX55，不需要额外的via类型
   PAComParam cx55_param(15, 0, 10, false);
   PAComParam custom_param(15, 2, 8, true);
-  bool use_cx55_param = false;
+  bool use_cx55_param = true;
   PAComParam pa_com_param = (use_cx55_param ? cx55_param : custom_param);
   RTLOG.info(Loc::current(), "max_candidate_point_num: ", pa_com_param.get_max_candidate_point_num());
   RTLOG.info(Loc::current(), "extra_via_master_num: ", pa_com_param.get_extra_via_master_num());
@@ -457,8 +457,11 @@ std::vector<AccessPoint> PinAccessor::getAccessPointList(PAModel& pa_model, int3
   double violation_unit = 4 * non_prefer_wire_unit * cost_unit;
 
   PlanarRect die_valid_rect = die.get_real_rect();
-  int32_t shrinked_size = cost_unit;
-  if (RTUTIL.hasShrinkedRect(die_valid_rect, shrinked_size)) {
+  int32_t shrinked_size = INT32_MAX;
+  for (PALegalShape& legal_shape : legal_shape_list) {
+    shrinked_size = std::min(shrinked_size, routing_layer_list[legal_shape.shape.get_layer_idx()].get_min_width() / 2);
+  }
+  if (shrinked_size != INT32_MAX && RTUTIL.hasShrinkedRect(die_valid_rect, shrinked_size)) {
     die_valid_rect = RTUTIL.getShrinkedRect(die_valid_rect, shrinked_size);
   }
 
@@ -1115,7 +1118,7 @@ void PinAccessor::routePatternSeed(PAModel& pa_model)
       if (RTUTIL.exist(representative_pin_set, net_pin_pair)) {
         pattern_task_list.push_back(pa_task);
       } else {
-        delete pa_task;
+        pa_box.deletePATask(pa_task);
       }
     }
     pa_box.set_pa_task_list(pattern_task_list);
@@ -3745,11 +3748,7 @@ void PinAccessor::freePABoxRoutingData(PABox& pa_box)
 
 void PinAccessor::freePABox(PABox& pa_box)
 {
-  for (PATask* pa_task : pa_box.get_pa_task_list()) {
-    delete pa_task;
-    pa_task = nullptr;
-  }
-  pa_box.get_pa_task_list().clear();
+  pa_box.clearPATaskList();
   freePABoxRoutingData(pa_box);
   pa_box.get_best_net_task_access_result_map().clear();
   pa_box.get_best_net_task_access_patch_map().clear();

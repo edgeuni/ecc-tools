@@ -2746,6 +2746,7 @@ class Utility
       std::vector<GTLRectInt> gtl_rect_list;
       gtl::get_rectangles(gtl_rect_list, master_poly, gtl::HORIZONTAL);
       gtl::get_rectangles(gtl_rect_list, master_poly, gtl::VERTICAL);
+      gtl::get_max_rectangles(gtl_rect_list, master_poly);
 
       std::vector<PlanarRect> candidate_rect_list;
       for (GTLRectInt& gtl_rect : gtl_rect_list) {
