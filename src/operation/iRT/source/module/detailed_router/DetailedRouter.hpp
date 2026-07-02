@@ -113,12 +113,14 @@ class DetailedRouter
   void patchDRTask(DRBox& dr_box, DRTask* dr_task);
   void initSinglePatchTask(DRBox& dr_box, DRTask* dr_task);
   std::vector<Violation> getPatchViolationList(DRBox& dr_box, const std::set<ViolationType>& check_type_set, const std::vector<LayerRect>& check_region_list);
+  bool isInsideCheckRegion(int32_t layer_idx, const PlanarRect& real_rect, const std::vector<LayerRect>& check_region_list);
+  bool isInsideCheckRegion(int32_t net_idx, Segment<LayerCoord>& segment, const std::vector<LayerRect>& check_region_list);
   bool searchViolation(DRBox& dr_box);
   bool isValidPatchViolation(DRBox& dr_box, Violation& violation);
   std::vector<PlanarRect> getViolationOverlapRect(DRBox& dr_box, Violation& violation);
   void addViolationToShadow(DRBox& dr_box);
   void patchSingleViolation(DRBox& dr_box);
-  std::vector<DRPatch> getCandidatePatchList(DRBox& dr_box);
+  std::vector<DRPatch> getCandidatePatchList(DRBox& dr_box, int32_t raw_candidate_limit = -1);
   bool getSolvedStatus(DRBox& dr_box, std::vector<Violation>& origin_patch_violation_list, std::vector<Violation>& curr_patch_violation_list);
   void resetSingleViolation(DRBox& dr_box);
   void clearViolationShadow(DRBox& dr_box);
