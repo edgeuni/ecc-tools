@@ -405,9 +405,108 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
   }
 
   size_t routed_box_num = 0;
+  size_t active_box_num = 0;
+  bool initial_routing = false;
+  if (!dr_model.get_dr_box_id_list_list().empty() && !dr_model.get_dr_box_id_list_list().front().empty()) {
+    DRBoxId& dr_box_id = dr_model.get_dr_box_id_list_list().front().front();
+    initial_routing = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()].get_initial_routing();
+  }
+  // initial routing和后续reroute处理
+  if (!initial_routing) {
+    // 先根据box内的违例数量进行排序，优先执行较重的box
+    std::vector<std::pair<DRBoxId, size_t>> dr_box_weight_list;
+    dr_box_weight_list.reserve(total_box_num);
+    size_t candidate_box_num = 0;
+    for (std::vector<DRBoxId>& dr_box_id_list : dr_model.get_dr_box_id_list_list()) {
+      for (DRBoxId& dr_box_id : dr_box_id_list) {
+        DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
+        size_t dr_box_weight = RTDM.getViolationSet(dr_box.get_box_rect()).size();
+        if (dr_box_weight > 0) {
+          candidate_box_num++;
+        }
+        dr_box_weight_list.emplace_back(dr_box_id, dr_box_weight);
+      }
+    }
+    std::sort(dr_box_weight_list.begin(), dr_box_weight_list.end(), [](const std::pair<DRBoxId, size_t>& a, const std::pair<DRBoxId, size_t>& b) {
+      if (a.second != b.second) {
+        return a.second > b.second;
+      }
+      return CmpDRBoxId()(a.first, b.first);
+    });
+    // 如果need routing的box小于一定数量，动态调整并行list，而不是使用3x3 interval
+    bool use_global_pool = candidate_box_num * 4 <= total_box_num;
+    RTLOG.info(Loc::current(), "Reroute candidate boxes: ", candidate_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(candidate_box_num, total_box_num),
+               "), mode: ", (use_global_pool ? "global_pool" : "frontier"));
+    if (use_global_pool) {
+      GridMap<omp_lock_t> dr_box_lock_map;
+      dr_box_lock_map.init(dr_box_map.get_x_size(), dr_box_map.get_y_size());
+      for (int32_t x = 0; x < dr_box_lock_map.get_x_size(); x++) {
+        for (int32_t y = 0; y < dr_box_lock_map.get_y_size(); y++) {
+          omp_init_lock(&dr_box_lock_map[x][y]);
+        }
+      }
+      Monitor stage_monitor;
+#pragma omp parallel for schedule(dynamic, 1) reduction(+ : active_box_num)
+      for (std::pair<DRBoxId, size_t>& dr_box_weight : dr_box_weight_list) {
+        DRBoxId& dr_box_id = dr_box_weight.first;
+        int32_t lock_min_x = std::max(0, dr_box_id.get_x() - 1);
+        int32_t lock_max_x = std::min(dr_box_map.get_x_size() - 1, dr_box_id.get_x() + 1);
+        int32_t lock_min_y = std::max(0, dr_box_id.get_y() - 1);
+        int32_t lock_max_y = std::min(dr_box_map.get_y_size() - 1, dr_box_id.get_y() + 1);
+        for (int32_t x = lock_min_x; x <= lock_max_x; x++) {
+          for (int32_t y = lock_min_y; y <= lock_max_y; y++) {
+            omp_set_lock(&dr_box_lock_map[x][y]);
+          }
+        }
+
+        DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
+        buildFixedRect(dr_box);
+        buildAccessPoint(dr_box);
+        buildNetResult(dr_box);
+        buildNetPatch(dr_box);
+        initDRTaskList(dr_model, dr_box);
+        buildRouteViolation(dr_box);
+        bool need_routing = needRouting(dr_box);
+        if (need_routing) {
+          active_box_num++;
+          buildBoxTrackAxis(dr_box);
+          buildLayerNodeMap(dr_box);
+          buildLayerShadowMap(dr_box);
+          buildDRNodeNeighbor(dr_box);
+          buildOrientNetMap(dr_box);
+          buildNetShadowMap(dr_box);
+          exemptPinShape(dr_model, dr_box);
+          // debugCheckDRBox(dr_box);
+          // debugPlotDRBox(dr_box, "before");
+          routeDRBox(dr_box);
+          // debugPlotDRBox(dr_box, "after");
+        }
+        selectBestResult(dr_box);
+        freeDRBox(dr_box);
+
+        for (int32_t x = lock_max_x; x >= lock_min_x; x--) {
+          for (int32_t y = lock_max_y; y >= lock_min_y; y--) {
+            omp_unset_lock(&dr_box_lock_map[x][y]);
+          }
+        }
+      }
+      for (int32_t x = 0; x < dr_box_lock_map.get_x_size(); x++) {
+        for (int32_t y = 0; y < dr_box_lock_map.get_y_size(); y++) {
+          omp_destroy_lock(&dr_box_lock_map[x][y]);
+        }
+      }
+      routed_box_num = total_box_num;
+      RTLOG.info(Loc::current(), "Reroute active boxes: ", active_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(active_box_num, total_box_num), ")");
+      RTLOG.info(Loc::current(), "Routed ", routed_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(routed_box_num, total_box_num), ") boxes with ",
+                 getRouteViolationNum(dr_model), " violations", stage_monitor.getStatsInfo());
+      RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+      return;
+    }
+  }
+
   for (std::vector<DRBoxId>& dr_box_id_list : dr_model.get_dr_box_id_list_list()) {
     Monitor stage_monitor;
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 1)
     for (DRBoxId& dr_box_id : dr_box_id_list) {
       DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
       buildFixedRect(dr_box);
@@ -416,6 +515,33 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
       buildNetPatch(dr_box);
       initDRTaskList(dr_model, dr_box);
       buildRouteViolation(dr_box);
+    }
+    std::vector<std::pair<DRBoxId, size_t>> dr_box_weight_list;
+    dr_box_weight_list.reserve(dr_box_id_list.size());
+    for (DRBoxId& dr_box_id : dr_box_id_list) {
+      DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
+      size_t dr_box_weight = dr_box.get_dr_task_list().size() * 100 + dr_box.get_route_violation_list().size() * 10;
+      if (!initial_routing && needRouting(dr_box)) {
+        active_box_num++;
+      }
+      for (auto& net_task_result : dr_box.get_net_task_detailed_result_map()) {
+        dr_box_weight += net_task_result.second.size();
+      }
+      for (auto& net_task_patch : dr_box.get_net_task_detailed_patch_map()) {
+        dr_box_weight += net_task_patch.second.size();
+      }
+      dr_box_weight_list.emplace_back(dr_box_id, dr_box_weight);
+    }
+    std::sort(dr_box_weight_list.begin(), dr_box_weight_list.end(), [](const std::pair<DRBoxId, size_t>& a, const std::pair<DRBoxId, size_t>& b) {
+      if (a.second != b.second) {
+        return a.second > b.second;
+      }
+      return CmpDRBoxId()(a.first, b.first);
+    });
+#pragma omp parallel for schedule(dynamic, 1)
+    for (std::pair<DRBoxId, size_t>& dr_box_weight : dr_box_weight_list) {
+      DRBoxId& dr_box_id = dr_box_weight.first;
+      DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
       if (needRouting(dr_box)) {
         buildBoxTrackAxis(dr_box);
         buildLayerNodeMap(dr_box);
@@ -430,6 +556,11 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
         // debugPlotDRBox(dr_box, "after");
       }
       selectBestResult(dr_box);
+    }
+#pragma omp parallel for schedule(dynamic, 1)
+    for (std::pair<DRBoxId, size_t>& dr_box_weight : dr_box_weight_list) {
+      DRBoxId& dr_box_id = dr_box_weight.first;
+      DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
       freeDRBox(dr_box);
     }
     routed_box_num += dr_box_id_list.size();
@@ -437,6 +568,9 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
                getRouteViolationNum(dr_model), " violations", stage_monitor.getStatsInfo());
   }
 
+  if (!initial_routing) {
+    RTLOG.info(Loc::current(), "Reroute active boxes: ", active_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(active_box_num, total_box_num), ")");
+  }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
