@@ -883,7 +883,9 @@ std::vector<std::string> DataManager::getBracketTokenList(std::vector<std::strin
   std::vector<std::string> bracket_token_list;
   for (std::size_t i = token_idx; i < token_list.size(); i++) {
     std::string token = token_list[i];
-    bool is_end = !token.empty() && token.back() == ']';
+    std::size_t left_bracket_num = std::count(token.begin(), token.end(), '[');
+    std::size_t right_bracket_num = std::count(token.begin(), token.end(), ']');
+    bool is_end = right_bracket_num > left_bracket_num;
     if (i == token_idx && !token.empty() && token.front() == '[') {
       token.erase(token.begin());
     }
