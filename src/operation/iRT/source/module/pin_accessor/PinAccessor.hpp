@@ -178,8 +178,7 @@ class PinAccessor
   void updateBestResult(PAModel& pa_model, bool force_update = false);
   bool stopIteration(PAModel& pa_model, std::vector<PAIterParam>& pa_iter_param_list);
   void selectBestResult(PAModel& pa_model);
-  void uploadBestResult(PAModel& pa_model);
-  int32_t clearAccessPointGCellMap();
+  void clearAccessPointGCellMap();
   void uploadAccessPoint(PAModel& pa_model);
   void uploadAccessResult(PAModel& pa_model);
   void uploadAccessPatch(PAModel& pa_model);

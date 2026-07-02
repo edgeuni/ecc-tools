@@ -127,10 +127,11 @@ void DataManager::updateNetAccessPointToGCellMap(ChangeType change_type, int32_t
     for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
       auto& net_access_point_map = gcell_map[x][y].get_net_access_point_map();
       if (change_type == ChangeType::kAdd) {
-        net_access_point_map[net_idx].insert(access_point);
+        net_access_point_map[net_idx].push_back(access_point);
       } else if (change_type == ChangeType::kDel) {
-        net_access_point_map[net_idx].erase(access_point);
-        if (net_access_point_map[net_idx].empty()) {
+        std::vector<AccessPoint*>& access_point_list = net_access_point_map[net_idx];
+        access_point_list.erase(std::remove(access_point_list.begin(), access_point_list.end(), access_point), access_point_list.end());
+        if (access_point_list.empty()) {
           net_access_point_map.erase(net_idx);
         }
       }
@@ -373,8 +374,8 @@ std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> DataManager::getNetAcc
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> net_access_point_map;
   for (int32_t x = region.get_grid_ll_x(); x <= region.get_grid_ur_x(); x++) {
     for (int32_t y = region.get_grid_ll_y(); y <= region.get_grid_ur_y(); y++) {
-      for (auto& [net_idx, access_point_set] : gcell_map[x][y].get_net_access_point_map()) {
-        net_access_point_map[net_idx].insert(access_point_set.begin(), access_point_set.end());
+      for (auto& [net_idx, access_point_list] : gcell_map[x][y].get_net_access_point_map()) {
+        net_access_point_map[net_idx].insert(access_point_list.begin(), access_point_list.end());
       }
     }
   }
