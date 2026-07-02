@@ -147,11 +147,7 @@ PANet PinAccessor::convertToPANet(Net& net)
 
 void PinAccessor::setPAComParam(PAModel& pa_model)
 {
-  // 默认使用CX55，不需要额外的via类型
-  PAComParam cx55_param(15, 0, 10, false);
-  PAComParam custom_param(15, 2, 8, true);
-  bool use_cx55_param = true;
-  PAComParam pa_com_param = (use_cx55_param ? cx55_param : custom_param);
+  PAComParam pa_com_param(15, 2, 8, true);
   RTLOG.info(Loc::current(), "max_candidate_point_num: ", pa_com_param.get_max_candidate_point_num());
   RTLOG.info(Loc::current(), "extra_via_master_num: ", pa_com_param.get_extra_via_master_num());
   RTLOG.info(Loc::current(), "ap_per_via_master: ", pa_com_param.get_ap_per_via_master());
