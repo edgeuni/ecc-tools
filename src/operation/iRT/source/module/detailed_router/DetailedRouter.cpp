@@ -29,6 +29,36 @@
 
 namespace irt {
 
+namespace {
+
+bool overlapCheckRegion(int32_t layer_idx, const PlanarRect& real_rect, const std::vector<LayerRect>& check_region_list)
+{
+  if (check_region_list.empty()) {
+    return true;
+  }
+  for (const LayerRect& check_region : check_region_list) {
+    if (layer_idx == check_region.get_layer_idx() && RTUTIL.isClosedOverlap(real_rect, check_region)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool overlapCheckRegion(int32_t net_idx, Segment<LayerCoord>& segment, const std::vector<LayerRect>& check_region_list)
+{
+  if (check_region_list.empty()) {
+    return true;
+  }
+  for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
+    if (overlapCheckRegion(net_shape.get_layer_idx(), net_shape.get_rect(), check_region_list)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 // public
 
 void DetailedRouter::initInst()
@@ -434,7 +464,7 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
       return CmpDRBoxId()(a.first, b.first);
     });
     // 如果need routing的box小于一定数量，动态调整并行list，而不是使用3x3 interval
-    bool use_global_pool = candidate_box_num * 4 <= total_box_num;
+    bool use_global_pool = candidate_box_num * 9 <= total_box_num;
     RTLOG.info(Loc::current(), "Reroute candidate boxes: ", candidate_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(candidate_box_num, total_box_num),
                "), mode: ", (use_global_pool ? "global_pool" : "frontier"));
     if (use_global_pool) {
@@ -1730,7 +1760,7 @@ void DetailedRouter::patchDRTask(DRBox& dr_box, DRTask* dr_task)
 
 void DetailedRouter::initSinglePatchTask(DRBox& dr_box, DRTask* dr_task)
 {
-  // single task only checks relevent shapes
+  // single task only checks relevant shapes
   dr_box.set_curr_patch_task(dr_task);
   dr_box.get_routing_patch_list().clear();
   std::vector<LayerRect> check_region_list;
@@ -1766,14 +1796,14 @@ std::vector<Violation> DetailedRouter::getPatchViolationList(DRBox& dr_box, cons
       for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
         if (net_idx == -1) {
           for (auto& fixed_rect : fixed_rect_set) {
-            if (!isInsideCheckRegion(layer_idx, fixed_rect->get_real_rect(), check_region_list)) {
+            if (!overlapCheckRegion(layer_idx, fixed_rect->get_real_rect(), check_region_list)) {
               continue;
             }
             env_shape_list.emplace_back(fixed_rect, is_routing);
           }
         } else {
           for (auto& fixed_rect : fixed_rect_set) {
-            if (!isInsideCheckRegion(layer_idx, fixed_rect->get_real_rect(), check_region_list)) {
+            if (!overlapCheckRegion(layer_idx, fixed_rect->get_real_rect(), check_region_list)) {
               continue;
             }
             net_pin_shape_map[net_idx].emplace_back(fixed_rect, is_routing);
@@ -1785,7 +1815,7 @@ std::vector<Violation> DetailedRouter::getPatchViolationList(DRBox& dr_box, cons
   std::map<int32_t, std::vector<Segment<LayerCoord>*>> net_result_map;
   for (auto& [net_idx, segment_set] : dr_box.get_net_detailed_result_map()) {
     for (Segment<LayerCoord>* segment : segment_set) {
-      if (!isInsideCheckRegion(net_idx, *segment, check_region_list)) {
+      if (!overlapCheckRegion(net_idx, *segment, check_region_list)) {
         continue;
       }
       net_result_map[net_idx].push_back(segment);
@@ -1793,7 +1823,7 @@ std::vector<Violation> DetailedRouter::getPatchViolationList(DRBox& dr_box, cons
   }
   for (auto& [net_idx, segment_list] : dr_box.get_net_task_detailed_result_map()) {
     for (Segment<LayerCoord>& segment : segment_list) {
-      if (!isInsideCheckRegion(net_idx, segment, check_region_list)) {
+      if (!overlapCheckRegion(net_idx, segment, check_region_list)) {
         continue;
       }
       net_result_map[net_idx].emplace_back(&segment);
@@ -1802,7 +1832,7 @@ std::vector<Violation> DetailedRouter::getPatchViolationList(DRBox& dr_box, cons
   std::map<int32_t, std::vector<EXTLayerRect*>> net_patch_map;
   for (auto& [net_idx, patch_set] : dr_box.get_net_detailed_patch_map()) {
     for (EXTLayerRect* patch : patch_set) {
-      if (!isInsideCheckRegion(patch->get_layer_idx(), patch->get_real_rect(), check_region_list)) {
+      if (!overlapCheckRegion(patch->get_layer_idx(), patch->get_real_rect(), check_region_list)) {
         continue;
       }
       net_patch_map[net_idx].push_back(patch);
@@ -1811,14 +1841,14 @@ std::vector<Violation> DetailedRouter::getPatchViolationList(DRBox& dr_box, cons
   for (auto& [net_idx, patch_list] : dr_box.get_net_task_detailed_patch_map()) {
     if (net_idx == dr_box.get_curr_patch_task()->get_net_idx()) {
       for (EXTLayerRect& patch : dr_box.get_routing_patch_list()) {
-        if (!isInsideCheckRegion(patch.get_layer_idx(), patch.get_real_rect(), check_region_list)) {
+        if (!overlapCheckRegion(patch.get_layer_idx(), patch.get_real_rect(), check_region_list)) {
           continue;
         }
         net_patch_map[net_idx].emplace_back(&patch);
       }
     } else {
       for (EXTLayerRect& patch : patch_list) {
-        if (!isInsideCheckRegion(patch.get_layer_idx(), patch.get_real_rect(), check_region_list)) {
+        if (!overlapCheckRegion(patch.get_layer_idx(), patch.get_real_rect(), check_region_list)) {
           continue;
         }
         net_patch_map[net_idx].emplace_back(&patch);
@@ -1842,32 +1872,6 @@ std::vector<Violation> DetailedRouter::getPatchViolationList(DRBox& dr_box, cons
   de_task.set_check_type_set(check_type_set);
   de_task.set_check_region_list(check_region_list);
   return RTDE.getViolationList(de_task);
-}
-
-bool DetailedRouter::isInsideCheckRegion(int32_t layer_idx, const PlanarRect& real_rect, const std::vector<LayerRect>& check_region_list)
-{
-  if (check_region_list.empty()) {
-    return true;
-  }
-  for (const LayerRect& check_region : check_region_list) {
-    if (layer_idx == check_region.get_layer_idx() && RTUTIL.isClosedOverlap(real_rect, check_region)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool DetailedRouter::isInsideCheckRegion(int32_t net_idx, Segment<LayerCoord>& segment, const std::vector<LayerRect>& check_region_list)
-{
-  if (check_region_list.empty()) {
-    return true;
-  }
-  for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
-    if (isInsideCheckRegion(net_shape.get_layer_idx(), net_shape.get_rect(), check_region_list)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 bool DetailedRouter::searchViolation(DRBox& dr_box)
