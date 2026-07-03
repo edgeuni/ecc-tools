@@ -29,36 +29,6 @@
 
 namespace irt {
 
-namespace {
-
-bool overlapCheckRegion(int32_t layer_idx, const PlanarRect& real_rect, const std::vector<LayerRect>& check_region_list)
-{
-  if (check_region_list.empty()) {
-    return true;
-  }
-  for (const LayerRect& check_region : check_region_list) {
-    if (layer_idx == check_region.get_layer_idx() && RTUTIL.isClosedOverlap(real_rect, check_region)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool overlapCheckRegion(int32_t net_idx, Segment<LayerCoord>& segment, const std::vector<LayerRect>& check_region_list)
-{
-  if (check_region_list.empty()) {
-    return true;
-  }
-  for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
-    if (overlapCheckRegion(net_shape.get_layer_idx(), net_shape.get_rect(), check_region_list)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
-
 // public
 
 void DetailedRouter::initInst()
@@ -269,6 +239,8 @@ void DetailedRouter::initDRBoxMap(DRModel& dr_model)
     int32_t y_box_num = static_cast<int32_t>(y_scale_list.size()) - 1;
     dr_box_map.init(x_box_num, y_box_num);
   }
+
+  #pragma omp parallel for collapse(2)
   for (int32_t x = 0; x < dr_box_map.get_x_size(); x++) {
     for (int32_t y = 0; y < dr_box_map.get_y_size(); y++) {
       int32_t grid_ll_x = x_scale_list[x];
@@ -337,6 +309,11 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
 
   Die& die = RTDM.getDatabase().get_die();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  if (detection_distance == -1) {
+    RTLOG.error(Loc::current(), "The detection_distance is not initialize!");
+  }
 
   const std::map<int32_t, std::set<Segment<LayerCoord>*>> net_detailed_result_map = RTDM.getNetDetailedResultMap(die);
   std::vector<std::pair<int32_t, const std::set<Segment<LayerCoord>*>*>> net_segment_set_list;
@@ -344,9 +321,10 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
   for (auto& [net_idx, segment_set] : net_detailed_result_map) {
     net_segment_set_list.emplace_back(net_idx, &segment_set);
   }
+
   std::vector<std::set<Segment<LayerCoord>*>> del_segment_set_list(net_segment_set_list.size());
   std::vector<std::vector<Segment<LayerCoord>>> new_segment_list_list(net_segment_set_list.size());
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 1)
   for (int32_t i = 0; i < static_cast<int32_t>(net_segment_set_list.size()); i++) {
     std::set<Segment<LayerCoord>*>& del_segment_set = del_segment_set_list[i];
     std::vector<Segment<LayerCoord>>& new_segment_list = new_segment_list_list[i];
@@ -408,15 +386,63 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
       }
     }
   }
+
+  GridMap<omp_lock_t> net_detailed_result_lock_map;
+  net_detailed_result_lock_map.init(gcell_map.get_x_size(), gcell_map.get_y_size());
+  for (int32_t x = 0; x < net_detailed_result_lock_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < net_detailed_result_lock_map.get_y_size(); y++) {
+      omp_init_lock(&net_detailed_result_lock_map[x][y]);
+    }
+  }
+#pragma omp parallel for schedule(dynamic, 1)
   for (int32_t i = 0; i < static_cast<int32_t>(net_segment_set_list.size()); i++) {
     int32_t net_idx = net_segment_set_list[i].first;
     std::set<Segment<LayerCoord>*>& del_segment_set = del_segment_set_list[i];
     std::vector<Segment<LayerCoord>>& new_segment_list = new_segment_list_list[i];
     for (Segment<LayerCoord>* del_segment : del_segment_set) {
-      RTDM.updateNetDetailedResultToGCellMap(ChangeType::kDel, net_idx, del_segment);
+      for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *del_segment)) {
+        PlanarRect real_rect = RTUTIL.getEnlargedRect(net_shape, detection_distance);
+        if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+          continue;
+        }
+        real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
+        PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
+        for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+          for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
+            omp_set_lock(&net_detailed_result_lock_map[x][y]);
+            auto& net_detailed_result_map = gcell_map[x][y].get_net_detailed_result_map();
+            net_detailed_result_map[net_idx].erase(del_segment);
+            if (net_detailed_result_map[net_idx].empty()) {
+              net_detailed_result_map.erase(net_idx);
+            }
+            omp_unset_lock(&net_detailed_result_lock_map[x][y]);
+          }
+        }
+      }
+      delete del_segment;
     }
     for (Segment<LayerCoord>& new_segment : new_segment_list) {
-      RTDM.updateNetDetailedResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(new_segment));
+      Segment<LayerCoord>* new_segment_ptr = new Segment<LayerCoord>(new_segment);
+      for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *new_segment_ptr)) {
+        PlanarRect real_rect = RTUTIL.getEnlargedRect(net_shape, detection_distance);
+        if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+          continue;
+        }
+        real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
+        PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
+        for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+          for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
+            omp_set_lock(&net_detailed_result_lock_map[x][y]);
+            gcell_map[x][y].get_net_detailed_result_map()[net_idx].insert(new_segment_ptr);
+            omp_unset_lock(&net_detailed_result_lock_map[x][y]);
+          }
+        }
+      }
+    }
+  }
+  for (int32_t x = 0; x < net_detailed_result_lock_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < net_detailed_result_lock_map.get_y_size(); y++) {
+      omp_destroy_lock(&net_detailed_result_lock_map[x][y]);
     }
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -440,100 +466,6 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
   if (!dr_model.get_dr_box_id_list_list().empty() && !dr_model.get_dr_box_id_list_list().front().empty()) {
     DRBoxId& dr_box_id = dr_model.get_dr_box_id_list_list().front().front();
     initial_routing = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()].get_initial_routing();
-  }
-  // initial routing和后续reroute处理
-  if (!initial_routing) {
-    // 先根据box内的违例数量进行排序，优先执行较重的box
-    std::vector<std::pair<DRBoxId, size_t>> dr_box_weight_list;
-    dr_box_weight_list.reserve(total_box_num);
-    size_t candidate_box_num = 0;
-    for (std::vector<DRBoxId>& dr_box_id_list : dr_model.get_dr_box_id_list_list()) {
-      for (DRBoxId& dr_box_id : dr_box_id_list) {
-        DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
-        size_t dr_box_weight = RTDM.getViolationSet(dr_box.get_box_rect()).size();
-        if (dr_box_weight > 0) {
-          candidate_box_num++;
-        }
-        dr_box_weight_list.emplace_back(dr_box_id, dr_box_weight);
-      }
-    }
-    std::sort(dr_box_weight_list.begin(), dr_box_weight_list.end(), [](const std::pair<DRBoxId, size_t>& a, const std::pair<DRBoxId, size_t>& b) {
-      if (a.second != b.second) {
-        return a.second > b.second;
-      }
-      return CmpDRBoxId()(a.first, b.first);
-    });
-    // 如果need routing的box小于一定数量，动态调整并行list，而不是使用3x3 interval
-    bool use_global_pool = candidate_box_num * 9 <= total_box_num;
-    RTLOG.info(Loc::current(), "Reroute candidate boxes: ", candidate_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(candidate_box_num, total_box_num),
-               "), mode: ", (use_global_pool ? "global_pool" : "frontier"));
-    if (use_global_pool) {
-      GridMap<omp_lock_t> dr_box_lock_map;
-      dr_box_lock_map.init(dr_box_map.get_x_size(), dr_box_map.get_y_size());
-      for (int32_t x = 0; x < dr_box_lock_map.get_x_size(); x++) {
-        for (int32_t y = 0; y < dr_box_lock_map.get_y_size(); y++) {
-          omp_init_lock(&dr_box_lock_map[x][y]);
-        }
-      }
-      Monitor stage_monitor;
-#pragma omp parallel for schedule(dynamic, 1) reduction(+ : active_box_num)
-      for (int32_t i = 0; i < static_cast<int32_t>(dr_box_weight_list.size()); i++) {
-        std::pair<DRBoxId, size_t>& dr_box_weight = dr_box_weight_list[i];
-        DRBoxId& dr_box_id = dr_box_weight.first;
-        int32_t lock_min_x = std::max(0, dr_box_id.get_x() - 1);
-        int32_t lock_max_x = std::min(dr_box_map.get_x_size() - 1, dr_box_id.get_x() + 1);
-        int32_t lock_min_y = std::max(0, dr_box_id.get_y() - 1);
-        int32_t lock_max_y = std::min(dr_box_map.get_y_size() - 1, dr_box_id.get_y() + 1);
-        for (int32_t x = lock_min_x; x <= lock_max_x; x++) {
-          for (int32_t y = lock_min_y; y <= lock_max_y; y++) {
-            omp_set_lock(&dr_box_lock_map[x][y]);
-          }
-        }
-
-        DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
-        buildFixedRect(dr_box);
-        buildAccessPoint(dr_box);
-        buildNetResult(dr_box);
-        buildNetPatch(dr_box);
-        initDRTaskList(dr_model, dr_box);
-        buildRouteViolation(dr_box);
-
-        bool need_routing = needRouting(dr_box);
-        if (need_routing) {
-          active_box_num++;
-          buildBoxTrackAxis(dr_box);
-          buildLayerNodeMap(dr_box);
-          buildLayerShadowMap(dr_box);
-          buildDRNodeNeighbor(dr_box);
-          buildOrientNetMap(dr_box);
-          buildNetShadowMap(dr_box);
-          exemptPinShape(dr_model, dr_box);
-          // debugCheckDRBox(dr_box);
-          // debugPlotDRBox(dr_box, "before");
-          routeDRBox(dr_box);
-          // debugPlotDRBox(dr_box, "after");
-        }
-        selectBestResult(dr_box);
-        freeDRBox(dr_box);
-
-        for (int32_t x = lock_max_x; x >= lock_min_x; x--) {
-          for (int32_t y = lock_max_y; y >= lock_min_y; y--) {
-            omp_unset_lock(&dr_box_lock_map[x][y]);
-          }
-        }
-      }
-      for (int32_t x = 0; x < dr_box_lock_map.get_x_size(); x++) {
-        for (int32_t y = 0; y < dr_box_lock_map.get_y_size(); y++) {
-          omp_destroy_lock(&dr_box_lock_map[x][y]);
-        }
-      }
-      routed_box_num = total_box_num;
-      RTLOG.info(Loc::current(), "Reroute active boxes: ", active_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(active_box_num, total_box_num), ")");
-      RTLOG.info(Loc::current(), "Routed ", routed_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(routed_box_num, total_box_num), ") boxes with ",
-                 getRouteViolationNum(dr_model), " violations", stage_monitor.getStatsInfo());
-      RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
-      return;
-    }
   }
 
   for (std::vector<DRBoxId>& dr_box_id_list : dr_model.get_dr_box_id_list_list()) {
@@ -1784,6 +1716,36 @@ void DetailedRouter::initSinglePatchTask(DRBox& dr_box, DRTask* dr_task)
   dr_box.get_tried_fix_violation_set().clear();
 }
 
+namespace {
+
+bool overlapCheckRegion(int32_t layer_idx, const PlanarRect& real_rect, const std::vector<LayerRect>& check_region_list)
+{
+  if (check_region_list.empty()) {
+    return true;
+  }
+  for (const LayerRect& check_region : check_region_list) {
+    if (layer_idx == check_region.get_layer_idx() && RTUTIL.isClosedOverlap(real_rect, check_region)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool overlapCheckRegion(int32_t net_idx, Segment<LayerCoord>& segment, const std::vector<LayerRect>& check_region_list)
+{
+  if (check_region_list.empty()) {
+    return true;
+  }
+  for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
+    if (overlapCheckRegion(net_shape.get_layer_idx(), net_shape.get_rect(), check_region_list)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 std::vector<Violation> DetailedRouter::getPatchViolationList(DRBox& dr_box, const std::set<ViolationType>& check_type_set,
                                                              const std::vector<LayerRect>& check_region_list)
 {
@@ -2450,6 +2412,12 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
   RTLOG.info(Loc::current(), "Starting...");
 
   Die& die = RTDM.getDatabase().get_die();
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  if (detection_distance == -1) {
+    RTLOG.error(Loc::current(), "The detection_distance is not initialize!");
+  }
   std::vector<DRNet>& dr_net_list = dr_model.get_dr_net_list();
 
   // detailed result
@@ -2459,23 +2427,17 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
     for (auto& [net_idx, segment_set] : RTDM.getNetDetailedResultMap(die)) {
       detailed_result_list[net_idx] = segment_set;
     }
+
     std::vector<std::set<Segment<LayerCoord>*>> new_detailed_result_list;
     new_detailed_result_list.resize(dr_net_list.size());
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 1)
     for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(detailed_result_list.size()); net_idx++) {
-      auto isViaSegment = [](Segment<LayerCoord>& segment) {
-        return segment.get_first().get_planar_coord() == segment.get_second().get_planar_coord()
-               && std::abs(segment.get_first().get_layer_idx() - segment.get_second().get_layer_idx()) == 1;
-      };
-      auto isSameViaSegment = [](Segment<LayerCoord>& a, Segment<LayerCoord>& b) {
-        return (a.get_first() == b.get_first() && a.get_second() == b.get_second())
-               || (a.get_first() == b.get_second() && a.get_second() == b.get_first());
-      };
       std::vector<Segment<LayerCoord>> routing_segment_list;
       std::vector<Segment<LayerCoord>> via_segment_list;
       for (Segment<LayerCoord>* segment : detailed_result_list[net_idx]) {
         routing_segment_list.push_back(*segment);
-        if (isViaSegment(*segment) && segment->hasValidViaMaster()) {
+        if (segment->get_first().get_planar_coord() == segment->get_second().get_planar_coord()
+            && std::abs(segment->get_first().get_layer_idx() - segment->get_second().get_layer_idx()) == 1 && segment->hasValidViaMaster()) {
           via_segment_list.push_back(*segment);
         }
       }
@@ -2490,9 +2452,11 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
       MTree<LayerCoord> coord_tree = RTUTIL.getTreeByFullFlow(candidate_root_coord_list, routing_segment_list, key_coord_pin_map);
       for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
         Segment<LayerCoord>* new_segment = new Segment<LayerCoord>(coord_segment.get_first()->value(), coord_segment.get_second()->value());
-        if (isViaSegment(*new_segment)) {
+        if (new_segment->get_first().get_planar_coord() == new_segment->get_second().get_planar_coord()
+            && std::abs(new_segment->get_first().get_layer_idx() - new_segment->get_second().get_layer_idx()) == 1) {
           for (Segment<LayerCoord>& via_segment : via_segment_list) {
-            if (isSameViaSegment(*new_segment, via_segment)) {
+            if ((new_segment->get_first() == via_segment.get_first() && new_segment->get_second() == via_segment.get_second())
+                || (new_segment->get_first() == via_segment.get_second() && new_segment->get_second() == via_segment.get_first())) {
               new_segment->set_via_master_idx(via_segment.get_via_master_idx());
               break;
             }
@@ -2502,14 +2466,64 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
         new_detailed_result_list[net_idx].insert(new_segment);
       }
     }
-    for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(detailed_result_list.size()); net_idx++) {
-      for (Segment<LayerCoord>* segment : detailed_result_list[net_idx]) {
-        RTDM.updateNetDetailedResultToGCellMap(ChangeType::kDel, net_idx, segment);
+
+    GridMap<omp_lock_t> net_detailed_result_lock_map;
+    net_detailed_result_lock_map.init(gcell_map.get_x_size(), gcell_map.get_y_size());
+    for (int32_t x = 0; x < net_detailed_result_lock_map.get_x_size(); x++) {
+      for (int32_t y = 0; y < net_detailed_result_lock_map.get_y_size(); y++) {
+        omp_init_lock(&net_detailed_result_lock_map[x][y]);
       }
     }
+
+#pragma omp parallel for schedule(dynamic, 1)
+    for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(detailed_result_list.size()); net_idx++) {
+      for (Segment<LayerCoord>* segment : detailed_result_list[net_idx]) {
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
+          PlanarRect real_rect = RTUTIL.getEnlargedRect(net_shape, detection_distance);
+          if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+            continue;
+          }
+          real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
+          PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
+          for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+            for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
+              omp_set_lock(&net_detailed_result_lock_map[x][y]);
+              auto& net_detailed_result_map = gcell_map[x][y].get_net_detailed_result_map();
+              net_detailed_result_map[net_idx].erase(segment);
+              if (net_detailed_result_map[net_idx].empty()) {
+                net_detailed_result_map.erase(net_idx);
+              }
+              omp_unset_lock(&net_detailed_result_lock_map[x][y]);
+            }
+          }
+        }
+        delete segment;
+      }
+    }
+
+#pragma omp parallel for schedule(dynamic, 1)
     for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(new_detailed_result_list.size()); net_idx++) {
       for (Segment<LayerCoord>* segment : new_detailed_result_list[net_idx]) {
-        RTDM.updateNetDetailedResultToGCellMap(ChangeType::kAdd, net_idx, segment);
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
+          PlanarRect real_rect = RTUTIL.getEnlargedRect(net_shape, detection_distance);
+          if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+            continue;
+          }
+          real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
+          PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
+          for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+            for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
+              omp_set_lock(&net_detailed_result_lock_map[x][y]);
+              gcell_map[x][y].get_net_detailed_result_map()[net_idx].insert(segment);
+              omp_unset_lock(&net_detailed_result_lock_map[x][y]);
+            }
+          }
+        }
+      }
+    }
+    for (int32_t x = 0; x < net_detailed_result_lock_map.get_x_size(); x++) {
+      for (int32_t y = 0; y < net_detailed_result_lock_map.get_y_size(); y++) {
+        omp_destroy_lock(&net_detailed_result_lock_map[x][y]);
       }
     }
   }
@@ -2523,20 +2537,39 @@ void DetailedRouter::uploadNetPatch(DRModel& dr_model)
   RTLOG.info(Loc::current(), "Starting...");
 
   Die& die = RTDM.getDatabase().get_die();
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  if (detection_distance == -1) {
+    RTLOG.error(Loc::current(), "The detection_distance is not initialize!");
+  }
 
-  std::map<int32_t, std::set<EXTLayerRect*>> net_detailed_patch_map = RTDM.getNetDetailedPatchMap(die);
-  std::map<int32_t, std::set<Segment<LayerCoord>*>> net_detailed_result_map = RTDM.getNetDetailedResultMap(die);
+  const std::map<int32_t, std::set<EXTLayerRect*>> net_detailed_patch_map = RTDM.getNetDetailedPatchMap(die);
+  const std::map<int32_t, std::set<Segment<LayerCoord>*>> net_detailed_result_map = RTDM.getNetDetailedResultMap(die);
+  std::vector<std::pair<int32_t, const std::set<EXTLayerRect*>*>> net_patch_set_list;
+  net_patch_set_list.reserve(net_detailed_patch_map.size());
   for (auto& [net_idx, patch_set] : net_detailed_patch_map) {
+    net_patch_set_list.emplace_back(net_idx, &patch_set);
+  }
+
+  std::vector<std::vector<EXTLayerRect*>> del_patch_list_list(net_patch_set_list.size());
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int32_t i = 0; i < static_cast<int32_t>(net_patch_set_list.size()); i++) {
+    int32_t net_idx = net_patch_set_list[i].first;
+    const std::set<EXTLayerRect*>& patch_set = *net_patch_set_list[i].second;
     std::map<int32_t, std::vector<PlanarRect>> layer_rect_map;
-    for (Segment<LayerCoord>* segment : net_detailed_result_map[net_idx]) {
-      for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
-        if (!net_shape.get_is_routing()) {
-          continue;
+    auto result_iter = net_detailed_result_map.find(net_idx);
+    if (result_iter != net_detailed_result_map.end()) {
+      for (Segment<LayerCoord>* segment : result_iter->second) {
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
+          if (!net_shape.get_is_routing()) {
+            continue;
+          }
+          layer_rect_map[net_shape.get_layer_idx()].push_back(net_shape.get_rect());
         }
-        layer_rect_map[net_shape.get_layer_idx()].push_back(net_shape.get_rect());
       }
     }
-    std::vector<EXTLayerRect*> del_patch_list;
+    std::vector<EXTLayerRect*>& del_patch_list = del_patch_list_list[i];
     for (EXTLayerRect* patch : patch_set) {
       bool is_used = false;
       for (PlanarRect& rect : layer_rect_map[patch->get_layer_idx()]) {
@@ -2549,8 +2582,43 @@ void DetailedRouter::uploadNetPatch(DRModel& dr_model)
         del_patch_list.push_back(patch);
       }
     }
-    for (EXTLayerRect* del_patch : del_patch_list) {
-      RTDM.updateNetDetailedPatchToGCellMap(ChangeType::kDel, net_idx, del_patch);
+  }
+
+  GridMap<omp_lock_t> net_detailed_patch_lock_map;
+  net_detailed_patch_lock_map.init(gcell_map.get_x_size(), gcell_map.get_y_size());
+  for (int32_t x = 0; x < net_detailed_patch_lock_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < net_detailed_patch_lock_map.get_y_size(); y++) {
+      omp_init_lock(&net_detailed_patch_lock_map[x][y]);
+    }
+  }
+
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int32_t i = 0; i < static_cast<int32_t>(net_patch_set_list.size()); i++) {
+    int32_t net_idx = net_patch_set_list[i].first;
+    for (EXTLayerRect* del_patch : del_patch_list_list[i]) {
+      PlanarRect real_rect = RTUTIL.getEnlargedRect(del_patch->get_real_rect(), detection_distance);
+      if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+        continue;
+      }
+      real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
+      PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
+      for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+        for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
+          omp_set_lock(&net_detailed_patch_lock_map[x][y]);
+          auto& gcell_net_detailed_patch_map = gcell_map[x][y].get_net_detailed_patch_map();
+          gcell_net_detailed_patch_map[net_idx].erase(del_patch);
+          if (gcell_net_detailed_patch_map[net_idx].empty()) {
+            gcell_net_detailed_patch_map.erase(net_idx);
+          }
+          omp_unset_lock(&net_detailed_patch_lock_map[x][y]);
+        }
+      }
+      delete del_patch;
+    }
+  }
+  for (int32_t x = 0; x < net_detailed_patch_lock_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < net_detailed_patch_lock_map.get_y_size(); y++) {
+      omp_destroy_lock(&net_detailed_patch_lock_map[x][y]);
     }
   }
 
