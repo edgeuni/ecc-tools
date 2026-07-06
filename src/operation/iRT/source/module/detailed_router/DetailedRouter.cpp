@@ -2438,6 +2438,7 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
 
     std::vector<std::set<Segment<LayerCoord>*>> new_detailed_result_list;
     new_detailed_result_list.resize(dr_net_list.size());
+    std::vector<int32_t> changed_net_list(detailed_result_list.size(), 0);
 #pragma omp parallel for schedule(dynamic, 1)
     for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(detailed_result_list.size()); net_idx++) {
       std::vector<Segment<LayerCoord>> routing_segment_list;
@@ -2473,6 +2474,21 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
         updateSegmentViaMaster(*new_segment);
         new_detailed_result_list[net_idx].insert(new_segment);
       }
+      std::vector<LayerRect> old_shape_list;
+      std::vector<LayerRect> new_shape_list;
+      for (Segment<LayerCoord>* segment : detailed_result_list[net_idx]) {
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
+          old_shape_list.push_back(net_shape);
+        }
+      }
+      for (Segment<LayerCoord>* segment : new_detailed_result_list[net_idx]) {
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
+          new_shape_list.push_back(net_shape);
+        }
+      }
+      std::sort(old_shape_list.begin(), old_shape_list.end(), [](const LayerRect& a, const LayerRect& b) { return CmpLayerRectByXASC()(a, b); });
+      std::sort(new_shape_list.begin(), new_shape_list.end(), [](const LayerRect& a, const LayerRect& b) { return CmpLayerRectByXASC()(a, b); });
+      changed_net_list[net_idx] = (old_shape_list != new_shape_list);
     }
 
     GridMap<omp_lock_t> net_detailed_result_lock_map;
@@ -2483,10 +2499,14 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
       }
     }
 
+    std::vector<std::vector<PlanarRect>> dirty_region_list_list(detailed_result_list.size());
 #pragma omp parallel for schedule(dynamic, 1)
     for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(detailed_result_list.size()); net_idx++) {
       for (Segment<LayerCoord>* segment : detailed_result_list[net_idx]) {
         for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
+          if (changed_net_list[net_idx]) {
+            dirty_region_list_list[net_idx].push_back(net_shape.get_rect());
+          }
           PlanarRect real_rect = RTUTIL.getEnlargedRect(net_shape, detection_distance);
           if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
             continue;
@@ -2513,6 +2533,9 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
     for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(new_detailed_result_list.size()); net_idx++) {
       for (Segment<LayerCoord>* segment : new_detailed_result_list[net_idx]) {
         for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
+          if (changed_net_list[net_idx]) {
+            dirty_region_list_list[net_idx].push_back(net_shape.get_rect());
+          }
           PlanarRect real_rect = RTUTIL.getEnlargedRect(net_shape, detection_distance);
           if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
             continue;
@@ -2533,6 +2556,10 @@ void DetailedRouter::uploadNetResult(DRModel& dr_model)
       for (int32_t y = 0; y < net_detailed_result_lock_map.get_y_size(); y++) {
         omp_destroy_lock(&net_detailed_result_lock_map[x][y]);
       }
+    }
+    // 仅对 result shape 发生变化的 net 补充 dirty 区域。
+    for (std::vector<PlanarRect>& dirty_region_list : dirty_region_list_list) {
+      dr_model.get_dirty_region_list().insert(dr_model.get_dirty_region_list().end(), dirty_region_list.begin(), dirty_region_list.end());
     }
   }
 
@@ -2600,10 +2627,12 @@ void DetailedRouter::uploadNetPatch(DRModel& dr_model)
     }
   }
 
+  std::vector<std::vector<PlanarRect>> dirty_region_list_list(net_patch_set_list.size());
 #pragma omp parallel for schedule(dynamic, 1)
   for (int32_t i = 0; i < static_cast<int32_t>(net_patch_set_list.size()); i++) {
     int32_t net_idx = net_patch_set_list[i].first;
     for (EXTLayerRect* del_patch : del_patch_list_list[i]) {
+      dirty_region_list_list[i].push_back(del_patch->get_real_rect());
       PlanarRect real_rect = RTUTIL.getEnlargedRect(del_patch->get_real_rect(), detection_distance);
       if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
         continue;
@@ -2628,6 +2657,10 @@ void DetailedRouter::uploadNetPatch(DRModel& dr_model)
     for (int32_t y = 0; y < net_detailed_patch_lock_map.get_y_size(); y++) {
       omp_destroy_lock(&net_detailed_patch_lock_map[x][y]);
     }
+  }
+  // patch 删除也会改变 DRC 输入，需补充 dirty 区域给后续 uploadViolation。
+  for (std::vector<PlanarRect>& dirty_region_list : dirty_region_list_list) {
+    dr_model.get_dirty_region_list().insert(dr_model.get_dirty_region_list().end(), dirty_region_list.begin(), dirty_region_list.end());
   }
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());

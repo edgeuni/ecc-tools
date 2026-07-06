@@ -842,10 +842,11 @@ void PinAccessor::routePAModel(PAModel& pa_model)
   std::vector<PAIterParam> pa_iter_param_list;
   // clang-format off
   pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 3, 0, 3, fixed_rect_unit, routed_rect_unit, violation_unit, 20, 10);
-  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 2, 1, 2, 2 * fixed_rect_unit, 2 * routed_rect_unit, 2 * violation_unit, 80, 10);
-  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 2, 0, 2, 2 * fixed_rect_unit, 2 * routed_rect_unit, 2 * violation_unit, 80, 10);
-  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 2, 1, 2, 2 * fixed_rect_unit, 2 * routed_rect_unit, 2 * violation_unit, 100, 10);
-  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 2, 0, 2, 2 * fixed_rect_unit, 2 * routed_rect_unit, 2 * violation_unit, 100, 10);
+  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 3, 1, 3, fixed_rect_unit, routed_rect_unit, violation_unit, 80, 10);
+  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 3, 2, 3, fixed_rect_unit, routed_rect_unit, violation_unit, 80, 10);
+  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 3, 0, 3, 2 * fixed_rect_unit, 2 * routed_rect_unit, 2 * violation_unit, 100, 10);
+  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 3, 1, 3, 2 * fixed_rect_unit, 2 * routed_rect_unit, 2 * violation_unit, 100, 10);
+  pa_iter_param_list.emplace_back(prefer_wire_unit, non_prefer_wire_unit, via_unit, 3, 2, 3, 2 * fixed_rect_unit, 2 * routed_rect_unit, 2 * violation_unit, 100, 10);
   // clang-format on
   initRoutingState(pa_model);
   if (pa_model.get_pa_com_param().get_enable_pattern_seed()) {
