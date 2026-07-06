@@ -16,6 +16,9 @@
 // ***************************************************************************************
 #pragma once
 
+#include <array>
+#include <cstdint>
+
 #include "Direction.hpp"
 #include "LayerCoord.hpp"
 #include "Orientation.hpp"
@@ -23,6 +26,86 @@
 #include "Utility.hpp"
 
 namespace irt {
+
+enum TGOrientMask : uint8_t
+{
+  kTGMaskNone = 0,
+  kTGMaskEast = 1 << 0,
+  kTGMaskWest = 1 << 1,
+  kTGMaskSouth = 1 << 2,
+  kTGMaskNorth = 1 << 3,
+  kTGMaskHorizontal = kTGMaskEast | kTGMaskWest,
+  kTGMaskVertical = kTGMaskSouth | kTGMaskNorth
+};
+
+inline int32_t getTGOrientIndex(Orientation orientation)
+{
+  switch (orientation) {
+    case Orientation::kEast:
+      return 0;
+    case Orientation::kWest:
+      return 1;
+    case Orientation::kSouth:
+      return 2;
+    case Orientation::kNorth:
+      return 3;
+    default:
+      RTLOG.error(Loc::current(), "The orientation is error!");
+  }
+  return -1;
+}
+
+inline Orientation getTGOrientationByIndex(int32_t orient_idx)
+{
+  switch (orient_idx) {
+    case 0:
+      return Orientation::kEast;
+    case 1:
+      return Orientation::kWest;
+    case 2:
+      return Orientation::kSouth;
+    case 3:
+      return Orientation::kNorth;
+    default:
+      RTLOG.error(Loc::current(), "The orientation index is error!");
+  }
+  return Orientation::kNone;
+}
+
+inline uint8_t getTGOrientMask(Orientation orientation)
+{
+  return static_cast<uint8_t>(1 << getTGOrientIndex(orientation));
+}
+
+inline uint8_t getTGDirectionMask(Direction direction)
+{
+  if (direction == Direction::kHorizontal) {
+    return kTGMaskHorizontal;
+  }
+  if (direction == Direction::kVertical) {
+    return kTGMaskVertical;
+  }
+  RTLOG.error(Loc::current(), "The direction is error!");
+  return kTGMaskNone;
+}
+
+inline int32_t getTGMaskBitNum(uint8_t mask)
+{
+  int32_t bit_num = 0;
+  for (int32_t i = 0; i < 4; i++) {
+    if (mask & (1 << i)) {
+      bit_num++;
+    }
+  }
+  return bit_num;
+}
+
+enum class TGNodeState
+{
+  kNone = 0,
+  kOpen = 1,
+  kClose = 2
+};
 
 struct TGNodeCost
 {
@@ -65,16 +148,51 @@ class TGNode : public PlanarCoord
   std::map<int32_t, std::set<Orientation>>& get_ignore_net_orient_map() { return _ignore_net_orient_map; }
   std::map<Orientation, std::set<int32_t>>& get_orient_net_map() { return _orient_net_map; }
   std::map<int32_t, std::set<Orientation>>& get_net_orient_map() { return _net_orient_map; }
+  std::map<Orientation, std::map<int32_t, int32_t>>& get_orient_net_ref_count_map() { return _orient_net_ref_count_map; }
+  double get_congestion_risk() const { return _congestion_risk; }
   // setter
   void set_boundary_wire_unit(const double boundary_wire_unit) { _boundary_wire_unit = boundary_wire_unit; }
   void set_internal_wire_unit(const double internal_wire_unit) { _internal_wire_unit = internal_wire_unit; }
   void set_internal_via_unit(const double internal_via_unit) { _internal_via_unit = internal_via_unit; }
   void set_neighbor_node_map(const std::map<Orientation, TGNode*>& neighbor_node_map) { _neighbor_node_map = neighbor_node_map; }
-  void set_orient_supply_map(const std::map<Orientation, int32_t>& orient_supply_map) { _orient_supply_map = orient_supply_map; }
-  void set_ignore_net_orient_map(const std::map<int32_t, std::set<Orientation>>& ignore_net_orient_map) { _ignore_net_orient_map = ignore_net_orient_map; }
-  void set_orient_net_map(const std::map<Orientation, std::set<int32_t>>& orient_net_map) { _orient_net_map = orient_net_map; }
-  void set_net_orient_map(const std::map<int32_t, std::set<Orientation>>& net_orient_map) { _net_orient_map = net_orient_map; }
+  void set_orient_supply_map(const std::map<Orientation, int32_t>& orient_supply_map)
+  {
+    _orient_supply_map = orient_supply_map;
+    _orient_supply_count.fill(0);
+    _internal_supply_count = 0;
+    for (auto& [orient, supply] : _orient_supply_map) {
+      if (orient == Orientation::kEast || orient == Orientation::kWest || orient == Orientation::kSouth || orient == Orientation::kNorth) {
+        _orient_supply_count[getTGOrientIndex(orient)] = supply;
+        _internal_supply_count += supply;
+      }
+    }
+  }
+  void set_ignore_net_orient_map(const std::map<int32_t, std::set<Orientation>>& ignore_net_orient_map)
+  {
+    _ignore_net_orient_map = ignore_net_orient_map;
+    rebuildFastDemand();
+  }
+  void set_orient_net_map(const std::map<Orientation, std::set<int32_t>>& orient_net_map)
+  {
+    _orient_net_map = orient_net_map;
+    rebuildDemandRefCount();
+    rebuildFastDemand();
+  }
+  void set_net_orient_map(const std::map<int32_t, std::set<Orientation>>& net_orient_map)
+  {
+    _net_orient_map = net_orient_map;
+    rebuildDemandRefCount();
+    rebuildFastDemand();
+  }
+  void set_congestion_risk(const double congestion_risk) { _congestion_risk = congestion_risk; }
   // function
+  void clearDemand()
+  {
+    _orient_net_ref_count_map.clear();
+    _orient_net_map.clear();
+    _net_orient_map.clear();
+    clearFastDemand();
+  }
   TGNode* getNeighborNode(Orientation orientation)
   {
     TGNode* neighbor_node = nullptr;
@@ -83,14 +201,23 @@ class TGNode : public PlanarCoord
     }
     return neighbor_node;
   }
-  TGNodeCost getCost(int32_t net_idx, Direction direction, double overflow_unit,
-                     const std::set<Orientation>* extra_orient_set = nullptr)
+  TGNodeCost getCost(int32_t net_idx, Direction direction, double overflow_unit, const std::set<Orientation>* extra_orient_set = nullptr,
+                     bool ignore_curr_net = false)
   {
     if (!validDemandUnit()) {
       RTLOG.error(Loc::current(), "The demand unit is error!");
     }
     std::map<Orientation, std::set<int32_t>> orient_net_map = _orient_net_map;
     std::map<int32_t, std::set<Orientation>> net_orient_map = _net_orient_map;
+    if (ignore_curr_net && RTUTIL.exist(net_orient_map, net_idx)) {
+      for (Orientation orient : net_orient_map[net_idx]) {
+        orient_net_map[orient].erase(net_idx);
+        if (orient_net_map[orient].empty()) {
+          orient_net_map.erase(orient);
+        }
+      }
+      net_orient_map.erase(net_idx);
+    }
     if (extra_orient_set) {
       for (Orientation orient : *extra_orient_set) {
         orient_net_map[orient].insert(net_idx);
@@ -147,10 +274,46 @@ class TGNode : public PlanarCoord
     }
     return node_cost;
   }
-  double getOverflowCost(int32_t net_idx, Direction direction, double overflow_unit,
-                         const std::set<Orientation>* extra_orient_set = nullptr)
+  double getOverflowCost(int32_t net_idx, Direction direction, double overflow_unit, const std::set<Orientation>* extra_orient_set = nullptr,
+                         bool ignore_curr_net = false)
   {
-    return getCost(net_idx, direction, overflow_unit, extra_orient_set).getTotalCost();
+    return getCost(net_idx, direction, overflow_unit, extra_orient_set, ignore_curr_net).getTotalCost();
+  }
+  TGNodeCost getFastCost(uint8_t orient_mask, double overflow_unit)
+  {
+    if (!validDemandUnit()) {
+      RTLOG.error(Loc::current(), "The demand unit is error!");
+    }
+    return getFastCostByDemandCount(_orient_demand_count, _internal_demand_count, orient_mask, overflow_unit);
+  }
+  TGNodeCost getFastCost(int32_t net_idx, uint8_t orient_mask, double overflow_unit, bool ignore_curr_net)
+  {
+    if (!validDemandUnit()) {
+      RTLOG.error(Loc::current(), "The demand unit is error!");
+    }
+    std::array<int32_t, 4> orient_demand_count = _orient_demand_count;
+    int32_t internal_demand_count = _internal_demand_count;
+    uint8_t add_orient_mask = orient_mask;
+    for (int32_t orient_idx = 0; orient_idx < 4; orient_idx++) {
+      Orientation orient = getTGOrientationByIndex(orient_idx);
+      if (isIgnored(net_idx, orient)) {
+        add_orient_mask &= static_cast<uint8_t>(~getTGOrientMask(orient));
+      }
+    }
+    if (RTUTIL.exist(_net_orient_map, net_idx)) {
+      for (Orientation orient : _net_orient_map[net_idx]) {
+        if (isIgnored(net_idx, orient)) {
+          continue;
+        }
+        if (ignore_curr_net) {
+          orient_demand_count[getTGOrientIndex(orient)]--;
+          internal_demand_count--;
+        } else {
+          add_orient_mask &= static_cast<uint8_t>(~getTGOrientMask(orient));
+        }
+      }
+    }
+    return getFastCostByDemandCount(orient_demand_count, internal_demand_count, add_orient_mask, overflow_unit);
   }
   bool validDemandUnit()
   {
@@ -278,13 +441,119 @@ class TGNode : public PlanarCoord
     }
     return (boundary_overflow + internal_overflow);
   }
+  double getMaxUsageRatio()
+  {
+    if (!validDemandUnit()) {
+      RTLOG.error(Loc::current(), "The demand unit is error!");
+    }
+    double max_usage_ratio = 0;
+    for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+      double boundary_demand = 0;
+      if (RTUTIL.exist(_orient_net_map, orient)) {
+        for (int32_t demand_net_idx : _orient_net_map[orient]) {
+          if (RTUTIL.exist(_ignore_net_orient_map, demand_net_idx) && RTUTIL.exist(_ignore_net_orient_map[demand_net_idx], orient)) {
+            continue;
+          }
+          boundary_demand += _boundary_wire_unit;
+        }
+      }
+      double boundary_supply = 0;
+      if (RTUTIL.exist(_orient_supply_map, orient)) {
+        boundary_supply = _orient_supply_map[orient];
+      }
+      max_usage_ratio = std::max(max_usage_ratio, calcUsageRatio(boundary_demand, boundary_supply));
+    }
+    {
+      double internal_demand = 0;
+      for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+        if (RTUTIL.exist(_orient_net_map, orient)) {
+          for (int32_t demand_net_idx : _orient_net_map[orient]) {
+            if (RTUTIL.exist(_ignore_net_orient_map, demand_net_idx) && RTUTIL.exist(_ignore_net_orient_map[demand_net_idx], orient)) {
+              continue;
+            }
+            internal_demand += _internal_wire_unit;
+          }
+        }
+      }
+      double internal_supply = 0;
+      for (auto& [orient, supply] : _orient_supply_map) {
+        internal_supply += supply;
+      }
+      max_usage_ratio = std::max(max_usage_ratio, calcUsageRatio(internal_demand, internal_supply));
+    }
+    return max_usage_ratio;
+  }
+  double getHighUsage(double threshold)
+  {
+    if (!validDemandUnit()) {
+      RTLOG.error(Loc::current(), "The demand unit is error!");
+    }
+    double high_usage = 0;
+    for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+      double boundary_demand = 0;
+      if (RTUTIL.exist(_orient_net_map, orient)) {
+        for (int32_t demand_net_idx : _orient_net_map[orient]) {
+          if (RTUTIL.exist(_ignore_net_orient_map, demand_net_idx) && RTUTIL.exist(_ignore_net_orient_map[demand_net_idx], orient)) {
+            continue;
+          }
+          boundary_demand += _boundary_wire_unit;
+        }
+      }
+      double boundary_supply = 0;
+      if (RTUTIL.exist(_orient_supply_map, orient)) {
+        boundary_supply = _orient_supply_map[orient];
+      }
+      double usage_ratio = calcUsageRatio(boundary_demand, boundary_supply);
+      high_usage += std::max(0.0, usage_ratio - threshold);
+    }
+    {
+      double internal_demand = 0;
+      for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+        if (RTUTIL.exist(_orient_net_map, orient)) {
+          for (int32_t demand_net_idx : _orient_net_map[orient]) {
+            if (RTUTIL.exist(_ignore_net_orient_map, demand_net_idx) && RTUTIL.exist(_ignore_net_orient_map[demand_net_idx], orient)) {
+              continue;
+            }
+            internal_demand += _internal_wire_unit;
+          }
+        }
+      }
+      double internal_supply = 0;
+      for (auto& [orient, supply] : _orient_supply_map) {
+        internal_supply += supply;
+      }
+      double usage_ratio = calcUsageRatio(internal_demand, internal_supply);
+      high_usage += std::max(0.0, usage_ratio - threshold);
+    }
+    return high_usage;
+  }
   void updateDemand(int32_t net_idx, std::set<Orientation> orient_set, ChangeType change_type)
   {
     for (const Orientation& orient : orient_set) {
       if (change_type == ChangeType::kAdd) {
-        _orient_net_map[orient].insert(net_idx);
-        _net_orient_map[net_idx].insert(orient);
+        int32_t& ref_count = _orient_net_ref_count_map[orient][net_idx];
+        ref_count++;
+        if (ref_count == 1) {
+          _orient_net_map[orient].insert(net_idx);
+          _net_orient_map[net_idx].insert(orient);
+          addFastDemand(net_idx, orient);
+        }
       } else {
+        if (!RTUTIL.exist(_orient_net_ref_count_map, orient) || !RTUTIL.exist(_orient_net_ref_count_map[orient], net_idx)) {
+          continue;
+        }
+        int32_t& ref_count = _orient_net_ref_count_map[orient][net_idx];
+        ref_count--;
+        if (ref_count > 0) {
+          continue;
+        }
+        _orient_net_ref_count_map[orient].erase(net_idx);
+        if (_orient_net_ref_count_map[orient].empty()) {
+          _orient_net_ref_count_map.erase(orient);
+        }
+        if (RTUTIL.exist(_net_orient_map, net_idx) && RTUTIL.exist(_net_orient_map[net_idx], orient)) {
+          delFastDemand(net_idx, orient);
+        }
         _orient_net_map[orient].erase(net_idx);
         if (_orient_net_map[orient].empty()) {
           _orient_net_map.erase(orient);
@@ -296,16 +565,216 @@ class TGNode : public PlanarCoord
       }
     }
   }
+  std::set<int32_t> getOverflowNetSet()
+  {
+    if (!validDemandUnit()) {
+      RTLOG.error(Loc::current(), "The demand unit is error!");
+    }
+    std::set<int32_t> overflow_net_set;
+    for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+      double boundary_demand = 0;
+      if (RTUTIL.exist(_orient_net_map, orient)) {
+        for (int32_t demand_net_idx : _orient_net_map[orient]) {
+          if (RTUTIL.exist(_ignore_net_orient_map, demand_net_idx) && RTUTIL.exist(_ignore_net_orient_map[demand_net_idx], orient)) {
+            continue;
+          }
+          boundary_demand += _boundary_wire_unit;
+        }
+      }
+      double boundary_supply = 0;
+      if (RTUTIL.exist(_orient_supply_map, orient)) {
+        boundary_supply = _orient_supply_map[orient];
+      }
+      if (boundary_demand > boundary_supply && RTUTIL.exist(_orient_net_map, orient)) {
+        overflow_net_set.insert(_orient_net_map[orient].begin(), _orient_net_map[orient].end());
+      }
+    }
+    {
+      double internal_demand = 0;
+      for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+        if (RTUTIL.exist(_orient_net_map, orient)) {
+          for (int32_t demand_net_idx : _orient_net_map[orient]) {
+            if (RTUTIL.exist(_ignore_net_orient_map, demand_net_idx) && RTUTIL.exist(_ignore_net_orient_map[demand_net_idx], orient)) {
+              continue;
+            }
+            internal_demand += _internal_wire_unit;
+          }
+        }
+      }
+      double internal_supply = 0;
+      for (auto& [orient, supply] : _orient_supply_map) {
+        internal_supply += supply;
+      }
+      if (internal_demand > internal_supply) {
+        for (auto& [net_idx, orient_set] : _net_orient_map) {
+          overflow_net_set.insert(net_idx);
+        }
+      }
+    }
+    return overflow_net_set;
+  }
+  std::set<int32_t> getHighUsageNetSet(double threshold)
+  {
+    if (!validDemandUnit()) {
+      RTLOG.error(Loc::current(), "The demand unit is error!");
+    }
+    std::set<int32_t> high_usage_net_set;
+    for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+      double boundary_demand = 0;
+      std::set<int32_t> boundary_net_set;
+      if (RTUTIL.exist(_orient_net_map, orient)) {
+        for (int32_t demand_net_idx : _orient_net_map[orient]) {
+          if (RTUTIL.exist(_ignore_net_orient_map, demand_net_idx) && RTUTIL.exist(_ignore_net_orient_map[demand_net_idx], orient)) {
+            continue;
+          }
+          boundary_demand += _boundary_wire_unit;
+          boundary_net_set.insert(demand_net_idx);
+        }
+      }
+      double boundary_supply = 0;
+      if (RTUTIL.exist(_orient_supply_map, orient)) {
+        boundary_supply = _orient_supply_map[orient];
+      }
+      if (calcUsageRatio(boundary_demand, boundary_supply) > threshold + RT_ERROR) {
+        high_usage_net_set.insert(boundary_net_set.begin(), boundary_net_set.end());
+      }
+    }
+    {
+      double internal_demand = 0;
+      std::set<int32_t> internal_net_set;
+      for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
+        if (RTUTIL.exist(_orient_net_map, orient)) {
+          for (int32_t demand_net_idx : _orient_net_map[orient]) {
+            if (RTUTIL.exist(_ignore_net_orient_map, demand_net_idx) && RTUTIL.exist(_ignore_net_orient_map[demand_net_idx], orient)) {
+              continue;
+            }
+            internal_demand += _internal_wire_unit;
+            internal_net_set.insert(demand_net_idx);
+          }
+        }
+      }
+      double internal_supply = 0;
+      for (auto& [orient, supply] : _orient_supply_map) {
+        internal_supply += supply;
+      }
+      if (calcUsageRatio(internal_demand, internal_supply) > threshold + RT_ERROR) {
+        high_usage_net_set.insert(internal_net_set.begin(), internal_net_set.end());
+      }
+    }
+    return high_usage_net_set;
+  }
+  TGNodeState& get_state() { return _state; }
+  TGNode* get_parent_node() const { return _parent_node; }
+  double get_known_cost() const { return _known_cost; }
+  double get_estimated_cost() const { return _estimated_cost; }
+  void set_state(TGNodeState state) { _state = state; }
+  void set_parent_node(TGNode* parent_node) { _parent_node = parent_node; }
+  void set_known_cost(const double known_cost) { _known_cost = known_cost; }
+  void set_estimated_cost(const double estimated_cost) { _estimated_cost = estimated_cost; }
+  bool isNone() { return _state == TGNodeState::kNone; }
+  bool isOpen() { return _state == TGNodeState::kOpen; }
+  bool isClose() { return _state == TGNodeState::kClose; }
+  double getTotalCost() { return (_known_cost + _estimated_cost); }
 
  private:
+  bool isIgnored(int32_t net_idx, Orientation orient)
+  {
+    return RTUTIL.exist(_ignore_net_orient_map, net_idx) && RTUTIL.exist(_ignore_net_orient_map[net_idx], orient);
+  }
+  void clearFastDemand()
+  {
+    _orient_demand_count.fill(0);
+    _internal_demand_count = 0;
+  }
+  void rebuildFastDemand()
+  {
+    clearFastDemand();
+    for (auto& [orient, net_set] : _orient_net_map) {
+      if (orient != Orientation::kEast && orient != Orientation::kWest && orient != Orientation::kSouth && orient != Orientation::kNorth) {
+        continue;
+      }
+      for (int32_t net_idx : net_set) {
+        addFastDemand(net_idx, orient);
+      }
+    }
+  }
+  void rebuildDemandRefCount()
+  {
+    _orient_net_ref_count_map.clear();
+    if (!_orient_net_map.empty()) {
+      for (auto& [orient, net_set] : _orient_net_map) {
+        for (int32_t net_idx : net_set) {
+          _orient_net_ref_count_map[orient][net_idx] = 1;
+        }
+      }
+    } else {
+      for (auto& [net_idx, orient_set] : _net_orient_map) {
+        for (Orientation orient : orient_set) {
+          _orient_net_ref_count_map[orient][net_idx] = 1;
+        }
+      }
+    }
+  }
+  void addFastDemand(int32_t net_idx, Orientation orient)
+  {
+    if (isIgnored(net_idx, orient)) {
+      return;
+    }
+    _orient_demand_count[getTGOrientIndex(orient)]++;
+    _internal_demand_count++;
+  }
+  void delFastDemand(int32_t net_idx, Orientation orient)
+  {
+    if (isIgnored(net_idx, orient)) {
+      return;
+    }
+    _orient_demand_count[getTGOrientIndex(orient)]--;
+    _internal_demand_count--;
+  }
+  TGNodeCost getFastCostByDemandCount(const std::array<int32_t, 4>& orient_demand_count, int32_t internal_demand_count, uint8_t orient_mask,
+                                      double overflow_unit)
+  {
+    TGNodeCost node_cost;
+    for (int32_t orient_idx = 0; orient_idx < 4; orient_idx++) {
+      int32_t demand_count = orient_demand_count[orient_idx];
+      if (orient_mask & (1 << orient_idx)) {
+        demand_count++;
+      }
+      node_cost.addCost(calcCost(demand_count * _boundary_wire_unit, _orient_supply_count[orient_idx], overflow_unit));
+    }
+    int32_t total_internal_demand_count = internal_demand_count + getTGMaskBitNum(orient_mask);
+    node_cost.addCost(calcCost(total_internal_demand_count * _internal_wire_unit, _internal_supply_count, overflow_unit));
+    return node_cost;
+  }
+  double calcUsageRatio(double demand, double supply)
+  {
+    if (supply <= 0) {
+      if (demand <= 0) {
+        return 0;
+      }
+      return demand + 1.0;
+    }
+    return demand / supply;
+  }
+
   double _boundary_wire_unit = -1;
   double _internal_wire_unit = -1;
   double _internal_via_unit = -1;
+  std::array<int32_t, 4> _orient_demand_count = {0, 0, 0, 0};
+  std::array<int32_t, 4> _orient_supply_count = {0, 0, 0, 0};
+  int32_t _internal_demand_count = 0;
+  int32_t _internal_supply_count = 0;
   std::map<Orientation, TGNode*> _neighbor_node_map;
   std::map<Orientation, int32_t> _orient_supply_map;
   std::map<int32_t, std::set<Orientation>> _ignore_net_orient_map;
+  std::map<Orientation, std::map<int32_t, int32_t>> _orient_net_ref_count_map;
   std::map<Orientation, std::set<int32_t>> _orient_net_map;
   std::map<int32_t, std::set<Orientation>> _net_orient_map;
+  double _congestion_risk = 0;
+  TGNodeState _state = TGNodeState::kNone;
+  TGNode* _parent_node = nullptr;
+  double _known_cost = 0.0;
+  double _estimated_cost = 0.0;
 };
 
 }  // namespace irt
