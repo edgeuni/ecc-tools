@@ -14,9 +14,13 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefConfig.hh
+ * @brief plot_spef implementation detail.
+ */
 #pragma once
 
-#include <string>
+#include "Types.hh"
 
 namespace ircx::plot_spef {
 
@@ -32,7 +36,10 @@ struct Config
   bool output_ground_cap = false;
 
   auto hasNetFilter() const -> bool { return !net_name.empty(); }
-  auto hasOutputFilter() const -> bool { return output_resistance || output_coupling_cap || output_ground_cap; }
+  auto hasOutputFilter() const -> bool
+  {
+    return output_resistance || output_coupling_cap || output_ground_cap;
+  }
   auto plotResistance() const -> bool { return !hasOutputFilter() || output_resistance; }
   auto plotCouplingCap() const -> bool { return !hasOutputFilter() || output_coupling_cap; }
   auto plotGroundCap() const -> bool { return !hasOutputFilter() || output_ground_cap; }

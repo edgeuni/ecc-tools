@@ -13,8 +13,6 @@ target_link_libraries(ircx_api
     ircx_config
     ircx_database_design
     ircx_flow
-    ircx_flow_extraction
-    ircx_flow_report
     log
     OpenMP::OpenMP_CXX
 )

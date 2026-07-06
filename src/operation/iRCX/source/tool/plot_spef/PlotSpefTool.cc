@@ -14,13 +14,19 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefTool.cc
+ * @brief plot_spef implementation detail.
+ */
 #include "PlotSpefTool.hh"
 
 #include "SpefParser.hh"
 #include "builder/PlotSpefModelBuilder.hh"
+#include "config/PlotSpefConfig.hh"
 #include "gds/PlotSpefGdsWriter.hh"
 #include "log/Log.hh"
 #include "lyp/PlotSpefLypWriter.hh"
+#include "model/PlotSpefModel.hh"
 
 namespace ircx {
 

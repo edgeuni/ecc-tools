@@ -17,7 +17,6 @@
 #include "RCXAPI.hh"
 
 #include <omp.h>
-
 #include <utility>
 
 #include "CompareSpefTool.hh"
@@ -29,6 +28,8 @@
 #include "Report.hh"
 #include "Setup.hh"
 #include "StageLog.hh"
+#include "config/CompareSpefConfig.hh"
+#include "config/PlotSpefConfig.hh"
 #include "log/Log.hh"
 
 namespace ircx {
@@ -42,7 +43,7 @@ RCXAPI::RCXAPI()
 
 auto RCXAPI::init(const std::string& config_file) -> bool
 {
-  return run_stage("init_rcx", [&]() {
+  return runStage("init_rcx", [&]() {
     RCX_DATA_INST.reset();
     return Setup::initialize(config_file);
   });
@@ -50,8 +51,8 @@ auto RCXAPI::init(const std::string& config_file) -> bool
 
 auto RCXAPI::run() -> bool
 {
-  return run_stage("run_rcx", []() {
-    if (!RCX_CONFIG_INST.get_initialized()) {
+  return runStage("run_rcx", []() {
+    if (!RCX_CONFIG_INST.is_initialized()) {
       LOG_ERROR << "run_rcx failed: RCX config is not initialized.";
       return false;
     }
@@ -60,7 +61,7 @@ auto RCXAPI::run() -> bool
       return false;
     }
 
-    omp_set_num_threads(RCX_CONFIG_INST.get_thread_num());
+    omp_set_num_threads(RCX_CONFIG_INST.get_thread_count());
 
     return Extraction::run();
   });
@@ -68,21 +69,21 @@ auto RCXAPI::run() -> bool
 
 auto RCXAPI::report() -> bool
 {
-  return run_stage("report_spef", []() {
-    return Report::dumpSpef(); 
+  return runStage("report_spef", []() {
+    return Report::dumpSpef();
   });
 }
 
 auto RCXAPI::compare_spef(compare_spef::Config config) -> bool
 {
-  return run_stage("compare_spef", [&]() {
+  return runStage("compare_spef", [&]() {
     return CompareSpefTool::run(std::move(config));
   }, {.profile = true});
 }
 
 auto RCXAPI::dump_net_shape() -> bool
 {
-  return run_stage("dump_net_shape", []() {
+  return runStage("dump_net_shape", []() {
     if (!Setup::adaptDB()) {
       return false;
     }
@@ -93,7 +94,7 @@ auto RCXAPI::dump_net_shape() -> bool
 
 auto RCXAPI::plot_spef(plot_spef::Config config) -> bool
 {
-  return run_stage("plot_spef", [&]() {
+  return runStage("plot_spef", [&]() {
     return PlotSpefTool::run(std::move(config));
   }, {.profile = true});
 }

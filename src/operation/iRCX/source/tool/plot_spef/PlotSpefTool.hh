@@ -14,11 +14,17 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefTool.hh
+ * @brief plot_spef implementation detail.
+ */
 #pragma once
 
-#include "config/PlotSpefConfig.hh"
-
 namespace ircx {
+
+namespace plot_spef {
+struct Config;
+}
 
 class PlotSpefTool
 {

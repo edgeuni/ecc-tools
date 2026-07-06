@@ -14,26 +14,40 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file ItfBuilder.hpp
+ * @brief ITF builder facade.
+ */
 #pragma once
 
-#include <algorithm>
-#include <cstddef>
+#include <optional>
+#include <vector>
 
-#include "config/CompareSpefConfig.hh"
+#include "ProcessCorner.hpp"
+#include "Types.hh"
 
-namespace ircx {
-namespace compare_spef {
-namespace parallel {
-
-inline auto threadCount(const Config& config, std::size_t work_items) -> int
+namespace ircx
 {
-  if (work_items == 0) {
-    return 1;
-  }
-  const int requested = config.cores > 0 ? config.cores : 1;
-  return std::min<int>(requested, static_cast<int>(work_items));
-}
 
-}  // namespace parallel
-}  // namespace compare_spef
-}  // namespace ircx
+class ItfBuilder {
+ public:
+  ItfBuilder() = default;
+  ~ItfBuilder() = default;
+
+  ProcessCorner* get_last_process_corner();
+  const ProcessCorner* get_last_process_corner() const;
+
+  std::vector<ProcessCorner> takeProcessCorners();
+  std::optional<ProcessCorner> takeLastProcessCorner();
+
+  bool build(const std::string&);
+
+  const ProcessCorner* findProcessCorner(const std::string&) const;
+
+ private:
+  void addProcessCorner(ProcessCorner);
+
+  std::vector<ProcessCorner> _process_corners;
+};
+
+} // namespace ircx

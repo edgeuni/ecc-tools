@@ -16,12 +16,17 @@
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-
-#include "config/CompareSpefConfig.hh"
-#include "config/PlotSpefConfig.hh"
+#include "Types.hh"
 
 namespace ircx {
+
+namespace compare_spef {
+struct Config;
+}
+
+namespace plot_spef {
+struct Config;
+}
 
 #define RCX_API_INST (ircx::RCXAPI::getInst())
 

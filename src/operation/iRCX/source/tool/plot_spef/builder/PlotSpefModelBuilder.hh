@@ -14,18 +14,26 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefModelBuilder.hh
+ * @brief plot_spef implementation detail.
+ */
 #pragma once
 
-#include "SpefParser.hh"
-#include "config/PlotSpefConfig.hh"
-#include "model/PlotSpefModel.hh"
+namespace spef {
+struct Exchange;
+}
 
 namespace ircx::plot_spef {
+
+struct Config;
+struct Model;
 
 class ModelBuilder
 {
  public:
-  auto build(const spef::Exchange& exchange, const Config& config) const -> Model;
+  auto build(const spef::Exchange& exchange,
+             const Config& config) const -> Model;
 };
 
 }  // namespace ircx::plot_spef

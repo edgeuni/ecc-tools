@@ -26,6 +26,7 @@
 #include <utility>
 
 #include "RCXAPI.hh"
+#include "config/PlotSpefConfig.hh"
 #include "log/Log.hh"
 #include "tcl_ircx.h"
 
