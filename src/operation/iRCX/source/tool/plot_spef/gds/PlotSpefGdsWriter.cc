@@ -346,7 +346,7 @@ auto addTopReference(idb::GdsData& gds_data,
 
 auto formatResistance(F64 value) -> std::string
 {
-  return "R=" + format::significant(value, 3) + "Ω";
+  return "R=" + format::significant(value, 3) + "OHM";
 }
 
 auto formatCapacitance(F64 value,

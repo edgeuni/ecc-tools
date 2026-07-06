@@ -10,33 +10,26 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file Extraction.hh
- * @brief iRCX extraction flow entry points.
+ * @file ExtractFromStarrcTopoTool.hh
+ * @brief extract_from_starrc_topo implementation detail.
  */
 #pragma once
 
-#include "Types.hh"
-
 namespace ircx {
 
-class Extraction
+namespace extract_from_starrc_topo {
+struct Config;
+}
+
+class ExtractFromStarrcTopoTool
 {
  public:
-  Extraction() = delete;
-
-  static auto run() -> bool;
-  static auto runFromTopology() -> bool;
-
- private:
-  static auto buildTopology() -> bool;
-  static auto buildEnvironment() -> bool;
-  static auto buildProcessVariation() -> bool;
-  static auto calculateParasitics() -> bool;
+  static auto run(extract_from_starrc_topo::Config config) -> bool;
 };
 
 }  // namespace ircx

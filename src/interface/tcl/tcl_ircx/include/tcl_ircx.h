@@ -91,6 +91,20 @@ class TclDumpNetShape : public TclCmd
 };
 
 /**
+ * @brief Extract RC using topology reconstructed from a StarRC SPEF.
+ *
+ */
+class TclExtractFromStarrcTopo : public TclCmd
+{
+ public:
+  explicit TclExtractFromStarrcTopo(const char* cmd_name);
+  ~TclExtractFromStarrcTopo() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+};
+
+/**
  * @brief Plot a SPEF netlist into GDS text.
  *
  */

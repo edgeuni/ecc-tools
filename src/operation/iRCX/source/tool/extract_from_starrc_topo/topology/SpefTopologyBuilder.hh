@@ -10,33 +10,41 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file Extraction.hh
- * @brief iRCX extraction flow entry points.
+ * @file SpefTopologyBuilder.hh
+ * @brief Build iRCX topology from StarRC SPEF connectivity and annotations.
  */
 #pragma once
 
-#include "Types.hh"
+#include <string>
 
 namespace ircx {
 
-class Extraction
+class LayerTable;
+class LayoutData;
+class TopoPool;
+
+namespace extract_from_starrc_topo {
+
+class SpefTopologyBuilder
 {
  public:
-  Extraction() = delete;
+  explicit SpefTopologyBuilder(TopoPool& topologies) : topo_pool_(&topologies) {}
+  SpefTopologyBuilder() = delete;
+  ~SpefTopologyBuilder() = default;
 
-  static auto run() -> bool;
-  static auto runFromTopology() -> bool;
+  auto build(const LayoutData& layout,
+             const LayerTable& layer_table,
+             const std::string& spef_file,
+             bool strict) const -> bool;
 
  private:
-  static auto buildTopology() -> bool;
-  static auto buildEnvironment() -> bool;
-  static auto buildProcessVariation() -> bool;
-  static auto calculateParasitics() -> bool;
+  TopoPool* topo_pool_{nullptr};
 };
 
+}  // namespace extract_from_starrc_topo
 }  // namespace ircx

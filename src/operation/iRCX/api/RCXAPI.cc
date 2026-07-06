@@ -22,6 +22,7 @@
 #include "CompareSpefTool.hh"
 #include "DumpNetShapeTool.hh"
 #include "Extraction.hh"
+#include "ExtractFromStarrcTopoTool.hh"
 #include "PlotSpefTool.hh"
 #include "RCXConfig.hh"
 #include "RCXData.hh"
@@ -29,6 +30,7 @@
 #include "Setup.hh"
 #include "StageLog.hh"
 #include "config/CompareSpefConfig.hh"
+#include "config/ExtractFromStarrcTopoConfig.hh"
 #include "config/PlotSpefConfig.hh"
 #include "log/Log.hh"
 
@@ -89,6 +91,24 @@ auto RCXAPI::dump_net_shape() -> bool
     }
 
     return DumpNetShapeTool::run();
+  }, {.profile = true});
+}
+
+auto RCXAPI::extract_from_starrc_topo(extract_from_starrc_topo::Config config) -> bool
+{
+  return runStage("extract_from_starrc_topo", [&]() {
+    if (!RCX_CONFIG_INST.is_initialized()) {
+      LOG_ERROR << "extract_from_starrc_topo failed: RCX config is not initialized.";
+      return false;
+    }
+
+    if (!Setup::adaptDB()) {
+      return false;
+    }
+
+    omp_set_num_threads(RCX_CONFIG_INST.get_thread_count());
+
+    return ExtractFromStarrcTopoTool::run(std::move(config));
   }, {.profile = true});
 }
 

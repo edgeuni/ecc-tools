@@ -34,8 +34,12 @@ namespace ircx {
 
 auto Extraction::run() -> bool
 {
-  return buildTopology()
-      && buildEnvironment()
+  return buildTopology() && runFromTopology();
+}
+
+auto Extraction::runFromTopology() -> bool
+{
+  return buildEnvironment()
       && buildProcessVariation()
       && calculateParasitics();
 }
