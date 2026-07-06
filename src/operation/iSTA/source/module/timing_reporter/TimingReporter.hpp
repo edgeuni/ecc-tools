@@ -48,10 +48,7 @@ class TimingReporter
   void outputTimingReportList();
   void outputTimingReport(DelayType delay_type, StartEndType start_end_type);
   std::string getReportFilePath(DelayType delay_type, StartEndType start_end_type);
-  std::string getReportStartEndTypeName(StartEndType start_end_type);
   void outputReportHeader(std::ofstream* report_file, DelayType delay_type, StartEndType start_end_type);
-  std::string getDelayTypeName(DelayType delay_type);
-  std::string getStartEndTypeName(StartEndType start_end_type);
   void outputPathGroupList(std::ofstream* report_file, DelayType delay_type, StartEndType start_end_type);
   void outputReportFooter(std::ofstream* report_file);
   void outputTimingPathGroup(std::ofstream* report_file, TimingPathGroup& timing_path_group, DelayType delay_type,
@@ -61,22 +58,18 @@ class TimingReporter
   std::vector<TimingPath*> getSortedTimingPathList(TimingPathGroup& timing_path_group, DelayType delay_type,
                                                    StartEndType start_end_type);
   std::vector<TimingPath*> getEndpointWorstTimingPathList(std::vector<TimingPath*>& timing_path_list);
-  void outputJsonReport(std::string& report_file_path, DelayType delay_type, StartEndType start_end_type);
-  std::string getJsonReportFilePath(std::string& report_file_path);
-  void buildSummaryJson(nlohmann::json& summary_json, TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list,
-                        DelayType delay_type);
-  nlohmann::json makeSummaryJson(TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
-  std::string getPathDelayJsonValue(TimingPath& timing_path);
-  std::string getFrequencyJsonValue(TimingPath& timing_path, DelayType delay_type);
-  void buildSlackJson(nlohmann::json& slack_json, TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list,
-                      DelayType delay_type);
-  nlohmann::json makeSlackJson(TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list, DelayType delay_type);
-  void buildDetailJson(nlohmann::json& detail_json, TimingPathGroup& timing_path_group, std::vector<TimingPath*>& timing_path_list,
-                       DelayType delay_type);
-  nlohmann::json makeDetailJson(TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
-  nlohmann::json makeTimingPointJson(TimingPathPoint& path_point, double incr_delay, double path_delay);
-  nlohmann::json makeModuleSummaryJson(TimingPath& timing_path);
-  std::string getJsonModuleName(std::string& point_name);
+  void outputQorSummaryReport();
+  std::string getQorSummaryReportFilePath();
+  std::vector<TimingPath*> getQorTimingPathList(TimingPathGroup& timing_path_group, DelayType delay_type);
+  std::vector<std::string> getQorSortedGroupList(std::map<std::string, double>& value_map);
+  double getQorFrequency(TimingPath& timing_path);
+  std::string getQorDoubleString(double value, int32_t width, int32_t precision);
+  std::string getQorIntString(int32_t value, int32_t width);
+  std::string getQorNilString(int32_t width);
+  std::string getQorFrequencyString(double frequency);
+  std::string getQorKString(int32_t value, int32_t width);
+  int32_t getQorCellArea();
+  int32_t getQorLeafCellK();
   bool isMatchAnalysisType(TimingPath& timing_path, DelayType delay_type);
   bool isMatchStartEndType(TimingPath& timing_path, StartEndType start_end_type);
   bool isPort(std::string& pin_name);
@@ -105,7 +98,6 @@ class TimingReporter
   void outputTimingPointHeader(std::ofstream* report_file, std::size_t label_width);
   void outputLaunchClockInfo(std::ofstream* report_file, TimingPath& timing_path, DelayType delay_type, std::size_t label_width);
   std::string getLaunchClockEdgeText(TimingPath& timing_path, DelayType delay_type);
-  std::string getTransTypeName(TransType trans_type);
   void outputTimingLine(std::ofstream* report_file, std::string label, double incr, double path, bool has_incr, std::string transition,
                         std::size_t label_width);
   void outputTimingSummaryLine(std::ofstream* report_file, std::string label, double value, std::size_t label_width);

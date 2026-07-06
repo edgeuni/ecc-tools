@@ -16,14 +16,75 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
+
 namespace ista {
 
 enum class StartEndType
 {
+  kNone,
   kInToOut,
   kInToReg,
   kRegToOut,
   kRegToReg
+};
+
+struct GetStartEndTypeName
+{
+  std::string operator()(const StartEndType& start_end_type) const
+  {
+    std::string start_end_type_name;
+    switch (start_end_type) {
+      case StartEndType::kNone:
+        start_end_type_name = "none";
+        break;
+      case StartEndType::kInToOut:
+        start_end_type_name = "in_to_out";
+        break;
+      case StartEndType::kInToReg:
+        start_end_type_name = "in_to_reg";
+        break;
+      case StartEndType::kRegToOut:
+        start_end_type_name = "reg_to_out";
+        break;
+      case StartEndType::kRegToReg:
+        start_end_type_name = "reg_to_reg";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return start_end_type_name;
+  }
+};
+
+struct GetStartEndTypeReportName
+{
+  std::string operator()(const StartEndType& start_end_type) const
+  {
+    std::string start_end_type_report_name;
+    switch (start_end_type) {
+      case StartEndType::kNone:
+        start_end_type_report_name = "none";
+        break;
+      case StartEndType::kInToOut:
+        start_end_type_report_name = "in2out";
+        break;
+      case StartEndType::kInToReg:
+        start_end_type_report_name = "in2reg";
+        break;
+      case StartEndType::kRegToOut:
+        start_end_type_report_name = "reg2out";
+        break;
+      case StartEndType::kRegToReg:
+        start_end_type_report_name = "reg2reg";
+        break;
+      default:
+        STALOG.error(Loc::current(), "Unrecognized type!");
+        break;
+    }
+    return start_end_type_report_name;
+  }
 };
 
 }  // namespace ista

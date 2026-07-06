@@ -76,7 +76,6 @@ void TimingCharacterizer::outputLibFile(AnalysisType analysis_type)
   std::string lib_file_path = getLibFilePath(database.get_design_name(), analysis_type);
   std::unique_ptr<idb::LibLibrary> timing_model = buildTimingModel(analysis_type);
   timing_model->printLibertyLibrary(lib_file_path.c_str());
-  outputCheckSourceFile(lib_file_path, analysis_type);
   STALOG.info(Loc::current(), "Output iSTA extracted lib: ", lib_file_path);
 }
 
@@ -366,14 +365,14 @@ std::string TimingCharacterizer::getTimingCheckType(TimingPath& timing_path, Ana
   std::string timing_type_suffix = getTimingCheckTypeSuffix(timing_check_arc == nullptr ? TransType::kRise : timing_check_arc->get_clock_trans_type());
   if (analysis_type == AnalysisType::kMax) {
     if (timing_path.get_check_type() == TimingCheckType::kRecovery) {
-      return STAUTIL.getString("recovery_", timing_type_suffix);
+      return STAUTIL.getString(GetTimingCheckTypeName()(TimingCheckType::kRecovery), "_", timing_type_suffix);
     }
-    return STAUTIL.getString("setup_", timing_type_suffix);
+    return STAUTIL.getString(GetTimingCheckTypeName()(TimingCheckType::kSetup), "_", timing_type_suffix);
   }
   if (timing_path.get_check_type() == TimingCheckType::kRemoval) {
-    return STAUTIL.getString("removal_", timing_type_suffix);
+    return STAUTIL.getString(GetTimingCheckTypeName()(TimingCheckType::kRemoval), "_", timing_type_suffix);
   }
-  return STAUTIL.getString("hold_", timing_type_suffix);
+  return STAUTIL.getString(GetTimingCheckTypeName()(TimingCheckType::kHold), "_", timing_type_suffix);
 }
 
 TimingCheckArc* TimingCharacterizer::getTimingCheckArc(TimingPath& timing_path, AnalysisType analysis_type)
@@ -405,10 +404,7 @@ bool TimingCharacterizer::isMatchCheckType(TimingCheckArc& timing_check_arc, Ana
 
 std::string TimingCharacterizer::getTimingCheckTypeSuffix(TransType clock_trans_type)
 {
-  if (clock_trans_type == TransType::kFall) {
-    return "falling";
-  }
-  return "rising";
+  return GetTransTypeLibName()(clock_trans_type);
 }
 
 std::string TimingCharacterizer::getRelatedClockPort(TimingPath& timing_path)
@@ -531,10 +527,7 @@ std::string TimingCharacterizer::getDelayArcRelatedPin(TimingPath& timing_path)
 std::string TimingCharacterizer::getDelayArcTimingType(TimingPath& timing_path)
 {
   if (isRegisterStartPoint(timing_path.get_start_point())) {
-    if (getRegisterClockTransType(timing_path) == TransType::kFall) {
-      return "falling_edge";
-    }
-    return "rising_edge";
+    return GetTransTypeLibEdgeName()(getRegisterClockTransType(timing_path));
   }
   return "combinational";
 }
@@ -586,49 +579,9 @@ std::unique_ptr<idb::LibTable> TimingCharacterizer::makeScalarTable(idb::LibTabl
   return table;
 }
 
-void TimingCharacterizer::outputCheckSourceFile(std::string& lib_file_path, AnalysisType analysis_type)
-{
-  std::ofstream check_source_file(STAUTIL.getString(lib_file_path, ".check_sources.tsv"), std::ios::trunc);
-  check_source_file << "port\trelated_pin\ttiming_type\tinput_trans\tconstraint_ns\t"
-                    << "source_tag\tcheck_margin_source\tlocal_seq_match_status\t"
-                    << "local_seq_binding_status\tpreserved_seq_match_status\t"
-                    << "exported_check_pair_binding_status\n";
-  for (TimingPath* timing_path : getTimingPathList(analysis_type)) {
-    if (!isInputPort(timing_path->get_start_point()) || !isRegisterEndPoint(timing_path->get_end_point())) {
-      continue;
-    }
-    std::string timing_type = getTimingCheckType(*timing_path, analysis_type);
-    std::string related_clock_port = getRelatedClockPort(*timing_path);
-    check_source_file << timing_path->get_start_point() << "\t" << related_clock_port << "\t" << timing_type << "\t"
-                      << getTransTypeName(timing_path->get_trans_type()) << "\t" << getCheckConstraint(*timing_path, analysis_type) << "\t"
-                      << "timing_path\t"
-                      << "timing_path_check_time\t"
-                      << "not_available\t"
-                      << "not_available\t"
-                      << "not_available\t"
-                      << "not_available\n";
-  }
-}
-
 std::string TimingCharacterizer::getLibFilePath(std::string& design_name, AnalysisType analysis_type)
 {
-  return STAUTIL.getString(STADM.getConfig().tc_temp_directory_path, design_name, "_", getAnalysisTypeName(analysis_type), ".lib");
-}
-
-std::string TimingCharacterizer::getAnalysisTypeName(AnalysisType analysis_type)
-{
-  if (analysis_type == AnalysisType::kMin) {
-    return "min";
-  }
-  return "max";
-}
-
-std::string TimingCharacterizer::getTransTypeName(TransType trans_type)
-{
-  if (trans_type == TransType::kFall) {
-    return "fall";
-  }
-  return "rise";
+  return STAUTIL.getString(STADM.getConfig().tc_temp_directory_path, design_name, "_", GetAnalysisTypeName()(analysis_type), ".lib");
 }
 
 std::vector<TimingPath*> TimingCharacterizer::getTimingPathList(AnalysisType analysis_type)
