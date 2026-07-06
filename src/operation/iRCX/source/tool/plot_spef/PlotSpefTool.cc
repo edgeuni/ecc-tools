@@ -40,7 +40,7 @@ auto PlotSpefTool::run(plot_spef::Config config) -> bool
 
   spef::SpefReader reader;
   if (!reader.read(config.spef_file)) {
-    LOG_ERROR << "plot_spef failed: read SPEF failed: " << config.spef_file;
+    LOG_ERROR << "plot_spef failed: read external SPEF failed: " << config.spef_file;
     return false;
   }
   reader.expandName();

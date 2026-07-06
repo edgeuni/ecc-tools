@@ -46,7 +46,7 @@
 namespace ircx::plot_spef {
 namespace {
 
-constexpr int kEdgeWidth = 1;
+constexpr int kMissingBoxEdgeWidth = 1;
 constexpr int kCcWidth = 1;
 
 struct PlotPoint
@@ -429,7 +429,7 @@ class NetGdsWriter
       if (resistor.has_box) {
         addRect(gds_net, resistor, layer);
       } else {
-        addPath(gds_net, layer, kEdge, kEdgeWidth, *node1, *node2);
+        addPath(gds_net, layer, kEdge, kMissingBoxEdgeWidth, *node1, *node2);
       }
       if (config_.plotResistance()) {
         addText(

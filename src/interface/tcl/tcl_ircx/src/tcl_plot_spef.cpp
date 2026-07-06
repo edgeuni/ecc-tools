@@ -96,7 +96,7 @@ TclPlotSpef::TclPlotSpef(const char* cmd_name) : TclCmd(cmd_name)
 unsigned TclPlotSpef::check()
 {
   if (getStringValue(getOptionOrArg(kFirstArg)) == nullptr) {
-    LOG_ERROR << "plot_spef requires an output directory, or SPEF and output directory.";
+    LOG_ERROR << "plot_spef requires an output directory, or external SPEF and output directory.";
     return 0;
   }
   return 1;
