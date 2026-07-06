@@ -120,151 +120,10 @@ class IncidentEdgeIndex
   std::vector<EdgeCandidate> empty_candidates_;
 };
 
-class IrcxResolver
+class GeometryResolver
 {
  public:
-  IrcxResolver(
-      const Model& model,
-      const Config& config,
-      const IncidentEdgeIndex& incident_edges)
-      : model_(model),
-        config_(config),
-        incident_edges_(incident_edges),
-        node_edge_ref_(buildNodeEdgeRefs(incident_edges))
-  {
-  }
-
-  auto resolve(Model& model) const -> void
-  {
-    std::unordered_map<std::string, F64> coupling_votes;
-    NetVotes net_votes(model.nets.size());
-    const int threads = parallel::threadCount(model.nets.size(), config_.cores);
-#pragma omp parallel for schedule(dynamic, 32) num_threads(threads)
-    for (I64 net_index = 0; net_index < static_cast<I64>(model.nets.size()); ++net_index) {
-      auto& net = model.nets[net_index];
-      auto& votes = net_votes[net_index];
-      votes.reserve(net.coupling_caps.size() * 2);
-      for (auto& cap : net.coupling_caps) {
-        cap.edge1 = edgeForNode(cap.node1);
-        cap.edge2 = edgeForNode(cap.node2);
-        if (cap.edge1.valid) {
-          votes.emplace_back(nodeEdgeVoteKey(cap.node1, cap.edge1), cap.value);
-        }
-        if (cap.edge2.valid) {
-          votes.emplace_back(nodeEdgeVoteKey(cap.node2, cap.edge2), cap.value);
-        }
-      }
-    }
-    mergeVotes(net_votes, coupling_votes);
-
-    for (auto& net : model.nets) {
-      for (auto& cap : net.ground_caps) {
-        const auto& candidates = incident_edges_.candidatesFor(cap.node1);
-        if (candidates.empty()) {
-          continue;
-        }
-
-        EdgeCandidate best_vote;
-        F64 best_vote_value = 0.0;
-        for (const auto& candidate : candidates) {
-          const auto vote_it = coupling_votes.find(nodeEdgeVoteKey(cap.node1, candidate.ref));
-          const F64 vote = vote_it == coupling_votes.end() ? 0.0 : vote_it->second;
-          if (vote > best_vote_value) {
-            best_vote = candidate;
-            best_vote_value = vote;
-          }
-        }
-        cap.edge1 = best_vote_value > 0.0 ? best_vote.ref : edgeForNode(cap.node1);
-      }
-    }
-  }
-
- private:
-  auto findNode(const std::string& name) const -> const Node*
-  {
-    return ircx::plot_spef::findNode(model_, name);
-  }
-
-  static auto pointToBoxDistance2(const Node* node,
-                                  const Resistor& edge) -> F64
-  {
-    if (node == nullptr || !node->has_point) {
-      return 0.0;
-    }
-    if (!edge.has_box) {
-      return std::numeric_limits<F64>::max() / 4.0;
-    }
-    return geom::pointToRectDistance2(
-        node->x,
-        node->y,
-        edge.llx,
-        edge.lly,
-        edge.urx,
-        edge.ury);
-  }
-
-  auto edgeForNode(const std::string& node_name) const -> EdgeRef
-  {
-    const auto it = node_edge_ref_.find(node_name);
-    return it == node_edge_ref_.end() ? EdgeRef{} : it->second;
-  }
-
-  auto selectEdgeForNode(const std::string& node_name,
-                         const std::vector<EdgeCandidate>& candidates) const -> EdgeRef
-  {
-    if (candidates.empty()) {
-      return {};
-    }
-    if (candidates.size() == 1) {
-      return candidates.front().ref;
-    }
-
-    const Node* node = findNode(node_name);
-    EdgeCandidate best;
-    F64 best_score = -std::numeric_limits<F64>::infinity();
-    for (const auto& candidate : candidates) {
-      const auto& edge = *candidate.edge;
-      F64 score = 0.0;
-      score += isWireResistor(edge) ? 10000.0 : -10000.0;
-      if (node != nullptr && edge.has_layer && node->layer == edge.layer) {
-        score += 2000.0;
-      }
-      if (edge.has_box) {
-        score -= 0.001 * pointToBoxDistance2(node, edge);
-      }
-      score += 0.01 * resistorLength(edge);
-      if (best.edge == nullptr
-          || score > best_score
-          || (std::abs(score - best_score) < kScoreEpsilon
-              && edgeTieValue(candidate) < edgeTieValue(best))) {
-        best = candidate;
-        best_score = score;
-      }
-    }
-    return best.edge == nullptr ? EdgeRef{} : best.ref;
-  }
-
-  auto buildNodeEdgeRefs(const IncidentEdgeIndex& incident_edges) const
-      -> std::unordered_map<std::string, EdgeRef>
-  {
-    std::unordered_map<std::string, EdgeRef> node_edge_ref;
-    node_edge_ref.reserve(incident_edges.incidentEdges().size());
-    for (const auto& [node_name, candidates] : incident_edges.incidentEdges()) {
-      node_edge_ref.emplace(node_name, selectEdgeForNode(node_name, candidates));
-    }
-    return node_edge_ref;
-  }
-
-  const Model& model_;
-  const Config& config_;
-  const IncidentEdgeIndex& incident_edges_;
-  std::unordered_map<std::string, EdgeRef> node_edge_ref_;
-};
-
-class StarRcResolver
-{
- public:
-  StarRcResolver(const Config& config, const IncidentEdgeIndex& incident_edges)
+  GeometryResolver(const Config& config, const IncidentEdgeIndex& incident_edges)
       : dbu_(config.dbu),
         config_(config),
         incident_edges_(incident_edges)
@@ -505,10 +364,10 @@ auto resolveCapacitorEdges(Model& model,
   const IncidentEdgeIndex incident_edges(model);
   switch (detectResolveMode(model)) {
     case CapResolveMode::kIrcx:
-      IrcxResolver(model, config, incident_edges).resolve(model);
+      GeometryResolver(config, incident_edges).resolve(model);
       break;
     case CapResolveMode::kStarRc:
-      StarRcResolver(config, incident_edges).resolve(model);
+      GeometryResolver(config, incident_edges).resolve(model);
       break;
   }
 }

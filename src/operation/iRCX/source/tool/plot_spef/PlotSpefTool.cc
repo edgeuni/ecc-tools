@@ -24,6 +24,7 @@
 #include "builder/PlotSpefModelBuilder.hh"
 #include "config/PlotSpefConfig.hh"
 #include "gds/PlotSpefGdsWriter.hh"
+#include "internal/InternalPlotSpefWriter.hh"
 #include "log/Log.hh"
 #include "lyp/PlotSpefLypWriter.hh"
 #include "model/PlotSpefModel.hh"
@@ -65,6 +66,12 @@ auto PlotSpefTool::run(plot_spef::Config config) -> bool
 
   LOG_INFO << "plot_spef wrote reports to " << config.output_dir;
   return true;
+}
+
+auto PlotSpefTool::run(const RCXData& data,
+                       plot_spef::Config config) -> bool
+{
+  return writeInternalPlotSpef(data, config);
 }
 
 }  // namespace ircx

@@ -115,6 +115,9 @@ auto RCXAPI::extract_from_starrc_topo(extract_from_starrc_topo::Config config) -
 auto RCXAPI::plot_spef(plot_spef::Config config) -> bool
 {
   return runStage("plot_spef", [&]() {
+    if (config.spef_file.empty()) {
+      return PlotSpefTool::run(RCX_DATA_INST, std::move(config));
+    }
     return PlotSpefTool::run(std::move(config));
   }, {.profile = true});
 }

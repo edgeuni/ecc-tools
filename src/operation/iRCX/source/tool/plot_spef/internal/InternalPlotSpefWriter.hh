@@ -15,25 +15,19 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file PlotSpefTool.hh
- * @brief plot_spef implementation detail.
+ * @file InternalPlotSpefWriter.hh
+ * @brief Direct plot_spef GDS output from iRCX internal RC data.
  */
 #pragma once
+
+#include "Types.hh"
+#include "config/PlotSpefConfig.hh"
 
 namespace ircx {
 
 class RCXData;
 
-namespace plot_spef {
-struct Config;
-}
-
-class PlotSpefTool
-{
- public:
-  static auto run(plot_spef::Config config) -> bool;
-  static auto run(const RCXData& data,
-                  plot_spef::Config config) -> bool;
-};
+auto writeInternalPlotSpef(const RCXData& data,
+                           const plot_spef::Config& config) -> bool;
 
 }  // namespace ircx

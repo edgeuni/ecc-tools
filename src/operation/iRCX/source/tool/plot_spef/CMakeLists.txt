@@ -1,4 +1,5 @@
 add_library(ircx_tool_plot_spef
+  internal/InternalPlotSpefWriter.cc
   PlotSpefTool.cc
   builder/PlotSpefModelBuilder.cc
   config/PlotSpefConfig.cc
@@ -12,6 +13,7 @@ target_link_libraries(ircx_tool_plot_spef
     ircx_headers
   PRIVATE
     gdsii-parser
+    ircx_database_design
     log
     OpenMP::OpenMP_CXX
     spef
