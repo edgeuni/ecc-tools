@@ -1577,20 +1577,6 @@ void TopologyGenerator::setTGIterParam(TGModel& tg_model)
   TGIterParam tg_iter_param(max_iter_num, max_routed_times, max_task_num, wire_unit, corner_unit, overflow_unit, congestion_risk_unit,
                             high_usage_unit, high_usage_ratio_threshold, congestion_risk_radius, route_window_base_expand,
                             route_window_max_expand_times, route_window_expand_ratio, enable_full_die_fallback);
-  RTLOG.info(Loc::current(), "max_iter_num: ", tg_iter_param.get_max_iter_num());
-  RTLOG.info(Loc::current(), "max_routed_times: ", tg_iter_param.get_max_routed_times());
-  RTLOG.info(Loc::current(), "max_task_num: ", tg_iter_param.get_max_task_num());
-  RTLOG.info(Loc::current(), "wire_unit: ", tg_iter_param.get_wire_unit());
-  RTLOG.info(Loc::current(), "corner_unit: ", tg_iter_param.get_corner_unit());
-  RTLOG.info(Loc::current(), "overflow_unit: ", tg_iter_param.get_overflow_unit());
-  RTLOG.info(Loc::current(), "congestion_risk_unit: ", tg_iter_param.get_congestion_risk_unit());
-  RTLOG.info(Loc::current(), "high_usage_unit: ", tg_iter_param.get_high_usage_unit());
-  RTLOG.info(Loc::current(), "high_usage_ratio_threshold: ", tg_iter_param.get_high_usage_ratio_threshold());
-  RTLOG.info(Loc::current(), "congestion_risk_radius: ", tg_iter_param.get_congestion_risk_radius());
-  RTLOG.info(Loc::current(), "route_window_base_expand: ", tg_iter_param.get_route_window_base_expand());
-  RTLOG.info(Loc::current(), "route_window_max_expand_times: ", tg_iter_param.get_route_window_max_expand_times());
-  RTLOG.info(Loc::current(), "route_window_expand_ratio: ", tg_iter_param.get_route_window_expand_ratio());
-  RTLOG.info(Loc::current(), "enable_full_die_fallback: ", tg_iter_param.get_enable_full_die_fallback());
   tg_model.set_tg_iter_param(tg_iter_param);
 }
 
