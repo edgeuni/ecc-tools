@@ -28,7 +28,7 @@ class LayerTable;
 class LayoutData;
 class TopoPool;
 
-namespace extract_from_starrc_topo {
+namespace run_rcx_from_topology {
 
 class SpefTopologyBuilder
 {
@@ -46,5 +46,5 @@ class SpefTopologyBuilder
   TopoPool* topo_pool_{nullptr};
 };
 
-}  // namespace extract_from_starrc_topo
+}  // namespace run_rcx_from_topology
 }  // namespace ircx

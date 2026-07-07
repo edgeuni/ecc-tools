@@ -24,7 +24,7 @@ namespace compare_spef {
 struct Config;
 }
 
-namespace extract_from_starrc_topo {
+namespace run_rcx_from_topology {
 struct Config;
 }
 
@@ -51,7 +51,7 @@ class RCXAPI
   // Standalone RCX utilities.
   static auto compare_spef(compare_spef::Config config) -> bool;
   static auto dump_net_shape() -> bool;
-  static auto extract_from_starrc_topo(extract_from_starrc_topo::Config config) -> bool;
+  static auto run_rcx_from_topology(run_rcx_from_topology::Config config) -> bool;
   static auto plot_spef(plot_spef::Config config) -> bool;
 
   RCXAPI(const RCXAPI& other) = delete;

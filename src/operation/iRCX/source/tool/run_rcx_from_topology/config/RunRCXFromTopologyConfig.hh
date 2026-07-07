@@ -15,14 +15,14 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file ExtractFromStarrcTopoConfig.hh
- * @brief extract_from_starrc_topo implementation detail.
+ * @file RunRCXFromTopologyConfig.hh
+ * @brief run_rcx_from_topology implementation detail.
  */
 #pragma once
 
 #include "Types.hh"
 
-namespace ircx::extract_from_starrc_topo {
+namespace ircx::run_rcx_from_topology {
 
 struct Config
 {
@@ -36,4 +36,4 @@ class ConfigValidator
   auto validate(const Config& config) const -> bool;
 };
 
-}  // namespace ircx::extract_from_starrc_topo
+}  // namespace ircx::run_rcx_from_topology

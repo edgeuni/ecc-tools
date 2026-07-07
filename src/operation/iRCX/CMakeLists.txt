@@ -39,7 +39,7 @@ add_subdirectory(source/module/report)
 
 add_subdirectory(source/tool/compare_spef)
 add_subdirectory(source/tool/dump_net_shape)
-add_subdirectory(source/tool/extract_from_starrc_topo)
+add_subdirectory(source/tool/run_rcx_from_topology)
 add_subdirectory(source/tool/plot_spef)
 
 add_subdirectory(api)

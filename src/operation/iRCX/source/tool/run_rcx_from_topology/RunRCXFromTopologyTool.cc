@@ -15,10 +15,10 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file ExtractFromStarrcTopoTool.cc
- * @brief extract_from_starrc_topo implementation detail.
+ * @file RunRCXFromTopologyTool.cc
+ * @brief run_rcx_from_topology implementation detail.
  */
-#include "ExtractFromStarrcTopoTool.hh"
+#include "RunRCXFromTopologyTool.hh"
 
 #include <utility>
 
@@ -27,15 +27,15 @@
 #include "RCXData.hh"
 #include "TopoPool.hh"
 #include "TopologyBuilder.hh"
-#include "config/ExtractFromStarrcTopoConfig.hh"
+#include "config/RunRCXFromTopologyConfig.hh"
 #include "log/Log.hh"
 #include "topology/SpefTopologyBuilder.hh"
 
 namespace ircx {
 
-auto ExtractFromStarrcTopoTool::run(extract_from_starrc_topo::Config config) -> bool
+auto RunRCXFromTopologyTool::run(run_rcx_from_topology::Config config) -> bool
 {
-  const extract_from_starrc_topo::ConfigValidator validator;
+  const run_rcx_from_topology::ConfigValidator validator;
   if (!validator.validate(config)) {
     return false;
   }
@@ -43,14 +43,14 @@ auto ExtractFromStarrcTopoTool::run(extract_from_starrc_topo::Config config) -> 
   RCXData& data = RCX_DATA_INST;
   const LayoutData& layout = data.get_layout();
   if (layout.get_regular_net_count() == 0) {
-    LOG_ERROR << "extract_from_starrc_topo failed: layout data is empty, call adaptDB first.";
+    LOG_ERROR << "run_rcx_from_topology failed: layout data is empty, call adaptDB first.";
     return false;
   }
 
   TopoPool& topo_pool = data.get_topo_pool();
   topo_pool.clear();
 
-  const extract_from_starrc_topo::SpefTopologyBuilder spef_topology_builder(topo_pool);
+  const run_rcx_from_topology::SpefTopologyBuilder spef_topology_builder(topo_pool);
   if (!spef_topology_builder.build(
           layout,
           data.get_layer_table(),

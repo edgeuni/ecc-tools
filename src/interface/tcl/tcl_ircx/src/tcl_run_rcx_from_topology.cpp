@@ -15,13 +15,13 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file tcl_extract_from_starrc_topo.cpp
+ * @file tcl_run_rcx_from_topology.cpp
  * @brief Tcl command for RC extraction using StarRC SPEF topology.
  */
 #include <utility>
 
 #include "RCXAPI.hh"
-#include "config/ExtractFromStarrcTopoConfig.hh"
+#include "config/RunRCXFromTopologyConfig.hh"
 #include "log/Log.hh"
 #include "tcl_ircx.h"
 
@@ -45,32 +45,32 @@ auto isOptionSet(TclOption* option) -> bool
 
 }  // namespace
 
-TclExtractFromStarrcTopo::TclExtractFromStarrcTopo(const char* cmd_name) : TclCmd(cmd_name)
+TclRunRCXFromTopology::TclRunRCXFromTopology(const char* cmd_name) : TclCmd(cmd_name)
 {
   addOption(new TclStringOption(kSpefArg, 1, nullptr));
   addOption(new TclSwitchOption("-non_strict"));
 }
 
-unsigned TclExtractFromStarrcTopo::check()
+unsigned TclRunRCXFromTopology::check()
 {
   if (getStringValue(getOptionOrArg(kSpefArg)) == nullptr) {
-    LOG_ERROR << "extract_from_starrc_topo requires a SPEF argument.";
+    LOG_ERROR << "run_rcx_from_topology requires a SPEF argument.";
     return 0;
   }
   return 1;
 }
 
-unsigned TclExtractFromStarrcTopo::exec()
+unsigned TclRunRCXFromTopology::exec()
 {
   if (!check()) {
     return 0;
   }
 
-  ircx::extract_from_starrc_topo::Config config;
+  ircx::run_rcx_from_topology::Config config;
   config.spef_file = getStringValue(getOptionOrArg(kSpefArg));
   config.strict = !isOptionSet(getOptionOrArg("-non_strict"));
 
-  return RCX_API_INST.extract_from_starrc_topo(std::move(config)) ? 1U : 0U;
+  return RCX_API_INST.run_rcx_from_topology(std::move(config)) ? 1U : 0U;
 }
 
 }  // namespace tcl

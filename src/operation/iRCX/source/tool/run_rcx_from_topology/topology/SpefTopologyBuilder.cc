@@ -34,7 +34,7 @@
 #include "TopoPool.hh"
 #include "log/Log.hh"
 
-namespace ircx::extract_from_starrc_topo {
+namespace ircx::run_rcx_from_topology {
 namespace {
 
 struct NetTopo
@@ -222,7 +222,7 @@ auto resolveLayer(Size net_id,
     try {
       return layer_table.designId(layer_it->second.layer_name);
     } catch (const std::out_of_range&) {
-      LOG_ERROR << "extract_from_starrc_topo warning: layer map entry not found "
+      LOG_ERROR << "run_rcx_from_topology warning: layer map entry not found "
                 << "in design layers, net_idx=" << net_id
                 << ", annotation_layer=" << annotation_layer
                 << ", layer_name=" << layer_it->second.layer_name << ".";
@@ -232,7 +232,7 @@ auto resolveLayer(Size net_id,
 
   if (annotation_layer < 0) {
     if (strict) {
-      LOG_ERROR << "extract_from_starrc_topo failed: invalid annotation layer "
+      LOG_ERROR << "run_rcx_from_topology failed: invalid annotation layer "
                 << annotation_layer << ", net_idx=" << net_id << ".";
     }
     return std::nullopt;
@@ -243,7 +243,7 @@ auto resolveLayer(Size net_id,
     return static_cast<Size>(annotation_layer);
   } catch (const std::out_of_range&) {
     if (strict) {
-      LOG_ERROR << "extract_from_starrc_topo failed: missing layer map for "
+      LOG_ERROR << "run_rcx_from_topology failed: missing layer map for "
                 << "annotation layer " << annotation_layer
                 << ", net_idx=" << net_id << ".";
     }
@@ -264,7 +264,7 @@ auto connLayer(Size net_id,
     return resolveLayer(net_id, exchange, layer_table, conn.layer, strict);
   }
   if (strict) {
-    LOG_ERROR << "extract_from_starrc_topo failed: node missing layer, net_idx="
+    LOG_ERROR << "run_rcx_from_topology failed: node missing layer, net_idx="
               << net_id << ", node=" << conn.pin_port_name << ".";
   }
   return std::nullopt;
@@ -284,7 +284,7 @@ auto resLayer(Size net_id,
     return fallback_layer;
   }
   if (strict) {
-    LOG_ERROR << "extract_from_starrc_topo failed: resistor missing layer, net_idx="
+    LOG_ERROR << "run_rcx_from_topology failed: resistor missing layer, net_idx="
               << net_id << ", node1=" << res.node1 << ", node2=" << res.node2 << ".";
   }
   return std::nullopt;
@@ -338,7 +338,7 @@ auto buildOneNet(const LayoutData& layout,
     const auto point = connPoint(conn, layout.dbu_per_micron);
     if (!layer_id.has_value() || !point.has_value()) {
       if (strict) {
-        LOG_ERROR << "extract_from_starrc_topo failed: invalid node geometry, net="
+        LOG_ERROR << "run_rcx_from_topology failed: invalid node geometry, net="
                   << spef_net.name << ", node=" << conn.pin_port_name << ".";
         return std::nullopt;
       }
@@ -374,7 +374,7 @@ auto buildOneNet(const LayoutData& layout,
     const auto node2_it = node_index_by_name.find(node2);
     if (node1_it == node_index_by_name.end() || node2_it == node_index_by_name.end()) {
       if (strict) {
-        LOG_ERROR << "extract_from_starrc_topo failed: resistor endpoint missing "
+        LOG_ERROR << "run_rcx_from_topology failed: resistor endpoint missing "
                   << "from *CONN, net=" << spef_net.name
                   << ", node1=" << res.node1 << ", node2=" << res.node2 << ".";
         return std::nullopt;
@@ -456,24 +456,24 @@ auto SpefTopologyBuilder::build(const LayoutData& layout,
     return false;
   }
   if (layout.get_regular_net_count() == 0) {
-    LOG_ERROR << "extract_from_starrc_topo failed: layout data is empty.";
+    LOG_ERROR << "run_rcx_from_topology failed: layout data is empty.";
     return false;
   }
   if (spef_file.empty()) {
-    LOG_ERROR << "extract_from_starrc_topo failed: SPEF file is empty.";
+    LOG_ERROR << "run_rcx_from_topology failed: SPEF file is empty.";
     return false;
   }
 
   spef::SpefReader reader;
   if (!reader.read(spef_file)) {
-    LOG_ERROR << "extract_from_starrc_topo failed: read SPEF failed: " << spef_file;
+    LOG_ERROR << "run_rcx_from_topology failed: read SPEF failed: " << spef_file;
     return false;
   }
   reader.expandName();
 
   const spef::Exchange* exchange = reader.getSpefFile();
   if (exchange == nullptr) {
-    LOG_ERROR << "extract_from_starrc_topo failed: parser returned null exchange.";
+    LOG_ERROR << "run_rcx_from_topology failed: parser returned null exchange.";
     return false;
   }
 
@@ -487,8 +487,8 @@ auto SpefTopologyBuilder::build(const LayoutData& layout,
     const auto net_it = layout_net_map.find(normalized_net_name);
     if (net_it == layout_net_map.end()) {
       const char* message = strict
-                                ? "extract_from_starrc_topo failed"
-                                : "extract_from_starrc_topo warning";
+                                ? "run_rcx_from_topology failed"
+                                : "run_rcx_from_topology warning";
       LOG_ERROR << message << ": net not found in layout, net=" << spef_net.name << ".";
       if (strict) {
         return false;
@@ -517,7 +517,7 @@ auto SpefTopologyBuilder::build(const LayoutData& layout,
     total_edges += net_topology.edges.size();
   }
   if (total_edges == 0) {
-    LOG_ERROR << "extract_from_starrc_topo failed: no topology edges were built from "
+    LOG_ERROR << "run_rcx_from_topology failed: no topology edges were built from "
               << spef_file << ".";
     return false;
   }
@@ -528,9 +528,9 @@ auto SpefTopologyBuilder::build(const LayoutData& layout,
   }
   remapEdgesToGlobalNodeIds(*topo_pool_, net_count);
 
-  LOG_INFO << "extract_from_starrc_topo built " << total_nodes
+  LOG_INFO << "run_rcx_from_topology built " << total_nodes
            << " nodes and " << total_edges << " edges from " << spef_file;
   return true;
 }
 
-}  // namespace ircx::extract_from_starrc_topo
+}  // namespace ircx::run_rcx_from_topology

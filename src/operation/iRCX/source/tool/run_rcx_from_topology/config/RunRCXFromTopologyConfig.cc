@@ -15,21 +15,18 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file ExtractFromStarrcTopoTool.hh
- * @brief extract_from_starrc_topo implementation detail.
+ * @file RunRCXFromTopologyConfig.cc
+ * @brief run_rcx_from_topology implementation detail.
  */
-#pragma once
+#include "config/RunRCXFromTopologyConfig.hh"
 
-namespace ircx {
+#include "PathUtils.hh"
 
-namespace extract_from_starrc_topo {
-struct Config;
+namespace ircx::run_rcx_from_topology {
+
+auto ConfigValidator::validate(const Config& config) const -> bool
+{
+  return path::fileExists(config.spef_file, "run_rcx_from_topology SPEF file");
 }
 
-class ExtractFromStarrcTopoTool
-{
- public:
-  static auto run(extract_from_starrc_topo::Config config) -> bool;
-};
-
-}  // namespace ircx
+}  // namespace ircx::run_rcx_from_topology

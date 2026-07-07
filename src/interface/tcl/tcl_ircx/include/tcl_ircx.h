@@ -94,11 +94,11 @@ class TclDumpNetShape : public TclCmd
  * @brief Extract RC using topology reconstructed from a StarRC SPEF.
  *
  */
-class TclExtractFromStarrcTopo : public TclCmd
+class TclRunRCXFromTopology : public TclCmd
 {
  public:
-  explicit TclExtractFromStarrcTopo(const char* cmd_name);
-  ~TclExtractFromStarrcTopo() override = default;
+  explicit TclRunRCXFromTopology(const char* cmd_name);
+  ~TclRunRCXFromTopology() override = default;
 
   unsigned check() override;
   unsigned exec() override;

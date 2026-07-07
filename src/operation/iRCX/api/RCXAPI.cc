@@ -22,7 +22,7 @@
 #include "CompareSpefTool.hh"
 #include "DumpNetShapeTool.hh"
 #include "Extraction.hh"
-#include "ExtractFromStarrcTopoTool.hh"
+#include "RunRCXFromTopologyTool.hh"
 #include "PlotSpefTool.hh"
 #include "RCXConfig.hh"
 #include "RCXData.hh"
@@ -30,7 +30,7 @@
 #include "Setup.hh"
 #include "StageLog.hh"
 #include "config/CompareSpefConfig.hh"
-#include "config/ExtractFromStarrcTopoConfig.hh"
+#include "config/RunRCXFromTopologyConfig.hh"
 #include "config/PlotSpefConfig.hh"
 #include "log/Log.hh"
 
@@ -94,11 +94,11 @@ auto RCXAPI::dump_net_shape() -> bool
   }, {.profile = true});
 }
 
-auto RCXAPI::extract_from_starrc_topo(extract_from_starrc_topo::Config config) -> bool
+auto RCXAPI::run_rcx_from_topology(run_rcx_from_topology::Config config) -> bool
 {
-  return runStage("extract_from_starrc_topo", [&]() {
+  return runStage("run_rcx_from_topology", [&]() {
     if (!RCX_CONFIG_INST.is_initialized()) {
-      LOG_ERROR << "extract_from_starrc_topo failed: RCX config is not initialized.";
+      LOG_ERROR << "run_rcx_from_topology failed: RCX config is not initialized.";
       return false;
     }
 
@@ -108,7 +108,7 @@ auto RCXAPI::extract_from_starrc_topo(extract_from_starrc_topo::Config config) -
 
     omp_set_num_threads(RCX_CONFIG_INST.get_thread_count());
 
-    return ExtractFromStarrcTopoTool::run(std::move(config));
+    return RunRCXFromTopologyTool::run(std::move(config));
   }, {.profile = true});
 }
 

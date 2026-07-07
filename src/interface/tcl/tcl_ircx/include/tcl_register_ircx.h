@@ -27,7 +27,7 @@ int registerCmdRCX()
   registerTclCmd(TclReportRCX, "report_rcx");
   registerTclCmd(TclCompareSpef, "compare_spef");
   registerTclCmd(TclDumpNetShape, "dump_net_shape");
-  registerTclCmd(TclExtractFromStarrcTopo, "extract_from_starrc_topo");
+  registerTclCmd(TclRunRCXFromTopology, "run_rcx_from_topology");
   registerTclCmd(TclPlotSpef, "plot_spef");
 
   return EXIT_SUCCESS;
