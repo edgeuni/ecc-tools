@@ -141,6 +141,9 @@ void DRCEngine::filterViolationList(DETask& de_task)
       // 未知规则舍弃
       continue;
     }
+    if (de_task.get_skip_single_net_violation() && violation.get_violation_net_set().size() <= 1) {
+      continue;
+    }
     std::vector<Violation> expanded_violation_list = getExpandedViolationList(de_task, violation);
     if (expanded_violation_list.empty()) {
       // 跳过的类型舍弃

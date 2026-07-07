@@ -103,7 +103,7 @@ name_map_entry:
   ;
 
 port_entry:
-    NAME_REF direction EOL
+    name_token direction EOL
     {
       if (context->section() == spef::SectionType::kPorts) {
         context->addPort(spef::tokenToString($1), static_cast<spef::ConnectionDirection>($2),
@@ -111,7 +111,7 @@ port_entry:
       }
       std::free($1);
     }
-  | NAME_REF direction K_COORD NUMBER NUMBER EOL
+  | name_token direction K_COORD NUMBER NUMBER EOL
     {
       if (context->section() == spef::SectionType::kPorts) {
         context->addPort(spef::tokenToString($1), static_cast<spef::ConnectionDirection>($2),

@@ -70,6 +70,7 @@ class DataManager
 
 #if 1  // 获得唯一的结果
   int32_t getOnlyOffset();
+  int32_t getOnlyOffset(Direction direction);
   int32_t getOnlyPitch();
 #endif
 
