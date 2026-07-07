@@ -10,34 +10,23 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#pragma once
+/**
+ * @file RunRCXFromTopologyConfig.cc
+ * @brief run_rcx_from_topology implementation detail.
+ */
+#include "config/RunRCXFromTopologyConfig.hh"
 
-#include <memory>
-#include <string>
+#include "PathUtils.hh"
 
-#include "ItfService.hpp"
-namespace itf
+namespace ircx::run_rcx_from_topology {
+
+auto ConfigValidator::validate(const Config& config) const -> bool
 {
+  return path::fileExists(config.spef_file, "run_rcx_from_topology SPEF file");
+}
 
-class ItfBuilder {
- public:
-  // constructor
-  ItfBuilder() = default;
-  ~ItfBuilder() = default;
-
-  // getter
-  ItfService* get_itf_service() const;
-
-  // function
-  bool buildItf(const std::string&);
-
- private:
-  // members
-  std::unique_ptr<ItfService> _itf_service{std::make_unique<ItfService>()};
-};
-
-} // namespace itf
+}  // namespace ircx::run_rcx_from_topology

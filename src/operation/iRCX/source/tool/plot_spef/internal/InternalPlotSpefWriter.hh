@@ -14,27 +14,20 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file InternalPlotSpefWriter.hh
+ * @brief Direct plot_spef GDS output from iRCX internal RC data.
+ */
 #pragma once
 
-#include <vector>
+#include "Types.hh"
+#include "config/PlotSpefConfig.hh"
 
-#include "itfiVariationParam.hpp"
-namespace itf
-{
-class VariationParams {
- public:
-  // constructor
+namespace ircx {
 
-  // getter
+class RCXData;
 
-  // setter
-  void add_variation_param(const itfiVariationParam&);
+auto writeInternalPlotSpef(const RCXData& data,
+                           const plot_spef::Config& config) -> bool;
 
-  // function
-
- private:
-  // members
-  std::vector<itfiVariationParam*> _params;
-};
-
-} // namespace itf
+}  // namespace ircx

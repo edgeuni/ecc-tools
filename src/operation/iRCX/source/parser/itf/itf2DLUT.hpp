@@ -14,6 +14,10 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file itf2DLUT.hpp
+ * @brief Legacy ITF parser data structure implementation detail.
+ */
 #pragma once 
 
 #include <algorithm>
@@ -24,6 +28,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
 namespace itf
 {
 
@@ -34,7 +39,9 @@ class itf2DLUT {
  public: 
   // constructor
   itf2DLUT() = default;
-  explicit itf2DLUT(const char* row_name, const char* col_name, const char* value_name)
+  explicit itf2DLUT(const char* row_name,
+                    const char* col_name,
+                    const char* value_name)
   : _rows(),
     _cols(),
     _values(),
@@ -102,7 +109,8 @@ class itf2DLUT {
 
   // @param r_idx row index
   // @param c_idx col index
-  std::optional<T3> query(int r_idx, int c_idx) const {
+  std::optional<T3> query(int r_idx,
+                          int c_idx) const {
     int v_idx = r_idx * _cols.size() + c_idx;
     if ((0 <= r_idx) && (r_idx < (int)_rows.size()  )
      && (0 <= c_idx) && (c_idx < (int)_cols.size()  ) 
@@ -119,7 +127,8 @@ class itf2DLUT {
   // In other words, no extrapolate beyond the table.
   // @param r data in _raws 
   // @param c data in _cols
-  std::optional<T3> query_interpolation(const T1& r, const T2& c) const {
+  std::optional<T3> query_interpolation(const T1& r,
+                                        const T2& c) const {
     if (_rows.empty() || _cols.empty()) return std::nullopt;
     
     const auto [r_low, r_high] = bounding_indices_(_rows, r);
@@ -166,7 +175,8 @@ class itf2DLUT {
 
   // @param list_name data_list name. match data_list in an order of rows, cols and values.
   template<typename E>
-  void add_data(const char* list_name, E e) {
+  void add_data(const char* list_name,
+                E e) {
     if (_row_name.compare(list_name) == 0) {
       add_row_data(T1(e));
     } else if (_col_name.compare(list_name) == 0) {
@@ -179,13 +189,14 @@ class itf2DLUT {
   }
 
   template<typename E>
-  void set_data_list(const char* list_name, const std::vector<E>& src) {
+  void set_data_list(const char* list_name,
+                     const std::vector<E>& src) {
     if (_row_name.compare(list_name) == 0) {
-      set_list<T1, E>(&_rows, src);
+      assignList<T1, E>(&_rows, src);
     } else if (_col_name.compare(list_name) == 0) {
-      set_list<T2, E>(&_cols, src);
+      assignList<T2, E>(&_cols, src);
     } else if (_value_name.compare(list_name) == 0) {
-      set_list<T3, E>(&_values, src);
+      assignList<T3, E>(&_values, src);
     } else {
       std::cout << "fail to find data list named " << list_name << std::endl;
     }
@@ -194,7 +205,9 @@ class itf2DLUT {
   // @param r rows_name
   // @param c cols_name
   // @param v values_name
-  void set_names(const char* r, const char* c, const char* v) {
+  void set_names(const char* r,
+                 const char* c,
+                 const char* v) {
     set_row_name(r);
     set_col_name(c);
     set_value_name(v);
@@ -218,7 +231,9 @@ class itf2DLUT {
   struct is_pair_<std::pair<TFirst, TSecond>> : std::true_type {};
 
   template<typename TValue>
-  static TValue interpolate_value_(const TValue& low, const TValue& high, double ratio) {
+  static TValue interpolate_value_(const TValue& low,
+                                   const TValue& high,
+                                   double ratio) {
     if constexpr (is_pair_<TValue>::value) {
       return TValue{
         interpolate_value_(low.first, high.first, ratio),
@@ -231,9 +246,8 @@ class itf2DLUT {
   }
 
   template<typename TValue>
-  static std::pair<size_t, size_t> bounding_indices_(
-      const std::vector<TValue>& values,
-      const TValue& value) {
+  static std::pair<size_t, size_t> bounding_indices_(const std::vector<TValue>& values,
+                                                     const TValue& value) {
     if (value <= values.front()) {
       return {0, 0};
     }
@@ -251,11 +265,10 @@ class itf2DLUT {
   }
 
   template<typename TValue>
-  static double interpolation_ratio_(
-      const std::vector<TValue>& values,
-      size_t low,
-      size_t high,
-      const TValue& value) {
+  static double interpolation_ratio_(const std::vector<TValue>& values,
+                                     size_t low,
+                                     size_t high,
+                                     const TValue& value) {
     if (low == high) {
       return 0.0;
     }
@@ -264,7 +277,8 @@ class itf2DLUT {
   }
 
   template<typename E1, typename E2>
-  void set_list(void* dst, const std::vector<E2>& src) {
+  void assignList(void* dst,
+                  const std::vector<E2>& src) {
     if (typeid(E1) == typeid(E2)) {
       std::vector<E2>* dst_ptr = (std::vector<E2>*)dst;
       dst_ptr->clear();
@@ -286,7 +300,7 @@ class itfTitleLut : public itf2DLUT<T1, T2, T3> {
 
   itfTitleLut(const char* title, const char* row_name, const char* col_name, const char* value_name)
   : itf2DLUT<T1, T2, T3>(row_name, col_name, value_name),
-    _title(title)
+    _title(title ? title : "")
   { }
 
   itfTitleLut(const itfTitleLut& other)
@@ -296,14 +310,14 @@ class itfTitleLut : public itf2DLUT<T1, T2, T3> {
 
   itfTitleLut(const char* title, const itf2DLUT<T1, T2, T3> lut)
   : itf2DLUT<T1, T2, T3>(lut),
-    _title(title)
+    _title(title ? title : "")
   { }
 
   // getter
   std::string get_title() const { return _title; }
 
   // setter
-  void set_title(const char* title) { _title = title; }
+  void set_title(const char* title) { _title = title ? title : ""; }
   void set_lut(const itf2DLUT<T1, T2, T3>& lut) {
     static_cast<itf2DLUT<T1, T2, T3>&>(*this) = lut;
   }

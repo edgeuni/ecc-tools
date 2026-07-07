@@ -14,13 +14,18 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefCapResolver.hh
+ * @brief plot_spef implementation detail.
+ */
 #pragma once
-
-#include "config/PlotSpefConfig.hh"
-#include "model/PlotSpefModel.hh"
 
 namespace ircx::plot_spef {
 
-auto resolveCapacitorEdges(Model& model, const Config& config) -> void;
+struct Config;
+struct Model;
+
+auto resolveCapacitorEdges(Model& model,
+                           const Config& config) -> void;
 
 }  // namespace ircx::plot_spef

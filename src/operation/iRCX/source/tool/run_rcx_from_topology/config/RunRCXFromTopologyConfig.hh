@@ -10,18 +10,30 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "itfUtil.h"
-#include "string.h"
-namespace itf
-{
+/**
+ * @file RunRCXFromTopologyConfig.hh
+ * @brief run_rcx_from_topology implementation detail.
+ */
+#pragma once
 
-bool itfStrCmp(const char* s1, const char* s2)
-{
-  return (s1 && s2) ? strcmp(s1, s2) == 0 : s1 == s2;
-}
+#include "Types.hh"
 
-} // namespace itf
+namespace ircx::run_rcx_from_topology {
+
+struct Config
+{
+  std::string spef_file;
+  bool strict = true;
+};
+
+class ConfigValidator
+{
+ public:
+  auto validate(const Config& config) const -> bool;
+};
+
+}  // namespace ircx::run_rcx_from_topology

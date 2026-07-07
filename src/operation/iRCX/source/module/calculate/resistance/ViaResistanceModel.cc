@@ -14,6 +14,10 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file ViaResistanceModel.cc
+ * @brief iRCX module implementation detail.
+ */
 #include "ViaResistanceModel.hh"
 
 #include <algorithm>
@@ -28,16 +32,17 @@ namespace ircx {
 
 namespace {
 
-auto viaDrawLengthWidth(const TopoEdge& edge, Micron micron_per_dbu) -> std::pair<F64, F64>
+auto viaDrawLengthWidth(const TopoEdge& edge,
+                        Micron micron_per_dbu) -> std::pair<F64, F64>
 {
-  const F64 dx = static_cast<F64>(geom::delta_x(edge.shape())) * micron_per_dbu;
-  const F64 dy = static_cast<F64>(geom::delta_y(edge.shape())) * micron_per_dbu;
+  const F64 dx = static_cast<F64>(geom::deltaX(edge.get_shape())) * micron_per_dbu;
+  const F64 dy = static_cast<F64>(geom::deltaY(edge.get_shape())) * micron_per_dbu;
   return {std::max(dx, dy), std::min(dx, dy)};
 }
 
 auto viaResistanceArea(const TopoEdge& edge,
-                       const itf::ProcessCorner& corner,
-                       const itf::LayerVia& layer,
+                       const ProcessCorner& corner,
+                       const LayerVia& layer,
                        Micron micron_per_dbu) -> F64
 {
   auto [length, width] = viaDrawLengthWidth(edge, micron_per_dbu);
@@ -45,8 +50,8 @@ auto viaResistanceArea(const TopoEdge& edge,
   length *= half_node_scale_factor;
   width *= half_node_scale_factor;
 
-  if (layer.use_etch_vwl_for_resistance()) {
-    const auto etch = layer.get_etch_vwl().query_interpolation(static_cast<float>(width), static_cast<float>(length));
+  if (layer.use_etch_width_length_for_resistance()) {
+    const auto etch = layer.query_etch_width_length(width, length);
     if (etch) {
       const F64 length_etch = etch->first;
       const F64 width_etch = etch->second;
@@ -60,7 +65,10 @@ auto viaResistanceArea(const TopoEdge& edge,
 
 }  // namespace
 
-auto ViaResistanceModel::calc(const TopoEdge& edge, const itf::ProcessCorner& corner, const itf::LayerVia& layer, Micron micron_per_dbu,
+auto ViaResistanceModel::calc(const TopoEdge& edge,
+                              const ProcessCorner& corner,
+                              const LayerVia& layer,
+                              Micron micron_per_dbu,
                               F64 operating_temperature) -> F64
 {
   const F64 via_area = viaResistanceArea(edge, corner, layer, micron_per_dbu);
@@ -69,15 +77,18 @@ auto ViaResistanceModel::calc(const TopoEdge& edge, const itf::ProcessCorner& co
   if (auto rpv = layer.get_rpv()) {
     via_resistance = rpv.value();
   } else {
-    via_resistance = layer.query_rpv_vs_area(via_area);
+    via_resistance = layer.query_rpv_by_area(via_area);
   }
 
   const ResistanceTemperatureCoefficients coefficients =
       resistanceTemperatureCoefficients(layer, [&](auto& crt1, auto& crt2) {
-        layer.query_crt_vs_area(via_area, crt1, crt2);
+        layer.query_crt_by_area(via_area, crt1, crt2);
       });
-  return applyResistanceTemperatureDerating(via_resistance, operating_temperature, resistanceNominalTemperature(layer, corner),
-                                            coefficients);
+  return applyResistanceTemperatureDerating(
+      via_resistance,
+      operating_temperature,
+      resistanceNominalTemperature(layer, corner),
+      coefficients);
 }
 
 }  // namespace ircx

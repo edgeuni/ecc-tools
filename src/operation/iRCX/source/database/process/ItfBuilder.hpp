@@ -14,22 +14,40 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "ItfBuilder.hpp"
-#include "ItfRead.hpp"
-namespace itf
+/**
+ * @file ItfBuilder.hpp
+ * @brief ITF builder facade.
+ */
+#pragma once
+
+#include <optional>
+#include <vector>
+
+#include "ProcessCorner.hpp"
+#include "Types.hh"
+
+namespace ircx
 {
 
-ItfService*
-ItfBuilder::get_itf_service() const
-{
-  return _itf_service.get();
-}
+class ItfBuilder {
+ public:
+  ItfBuilder() = default;
+  ~ItfBuilder() = default;
 
-bool
-ItfBuilder::buildItf(const std::string& fname)
-{
-  ItfRead itf_read(_itf_service.get());
-  return itf_read.createDb(fname);
-}
+  ProcessCorner* get_last_process_corner();
+  const ProcessCorner* get_last_process_corner() const;
 
-} // namespace itf
+  std::vector<ProcessCorner> takeProcessCorners();
+  std::optional<ProcessCorner> takeLastProcessCorner();
+
+  bool build(const std::string&);
+
+  const ProcessCorner* findProcessCorner(const std::string&) const;
+
+ private:
+  void addProcessCorner(ProcessCorner);
+
+  std::vector<ProcessCorner> _process_corners;
+};
+
+} // namespace ircx

@@ -10,30 +10,26 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file RunRCXFromTopologyTool.hh
+ * @brief run_rcx_from_topology implementation detail.
+ */
 #pragma once
 
-#include <algorithm>
-#include <cstddef>
-
-#include "config/CompareSpefConfig.hh"
-
 namespace ircx {
-namespace compare_spef {
-namespace parallel {
 
-inline auto threadCount(const Config& config, std::size_t work_items) -> int
-{
-  if (work_items == 0) {
-    return 1;
-  }
-  const int requested = config.cores > 0 ? config.cores : 1;
-  return std::min<int>(requested, static_cast<int>(work_items));
+namespace run_rcx_from_topology {
+struct Config;
 }
 
-}  // namespace parallel
-}  // namespace compare_spef
+class RunRCXFromTopologyTool
+{
+ public:
+  static auto run(run_rcx_from_topology::Config config) -> bool;
+};
+
 }  // namespace ircx
