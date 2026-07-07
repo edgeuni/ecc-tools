@@ -118,7 +118,7 @@ class DetailedRouter
   std::vector<PlanarRect> getViolationOverlapRect(DRBox& dr_box, Violation& violation);
   void addViolationToShadow(DRBox& dr_box);
   void patchSingleViolation(DRBox& dr_box);
-  std::vector<DRPatch> getCandidatePatchList(DRBox& dr_box);
+  std::vector<DRPatch> getCandidatePatchList(DRBox& dr_box, int32_t raw_candidate_limit = -1);
   bool getSolvedStatus(DRBox& dr_box, std::vector<Violation>& origin_patch_violation_list, std::vector<Violation>& curr_patch_violation_list);
   void resetSingleViolation(DRBox& dr_box);
   void clearViolationShadow(DRBox& dr_box);
@@ -137,13 +137,14 @@ class DetailedRouter
   void uploadNetResult(DRModel& dr_model);
   void uploadNetPatch(DRModel& dr_model);
   void uploadViolation(DRModel& dr_model);
-  std::vector<Violation> getRouteViolationList(DRModel& dr_model);
+  std::vector<Violation> getRouteViolationList(DRModel& dr_model, const std::vector<LayerRect>& check_region_list = {},
+                                               const std::vector<PlanarRect>& dirty_region_list = {});
   void updateBestResult(DRModel& dr_model);
   bool stopIteration(DRModel& dr_model, std::vector<DRIterParam>& dr_iter_param_list);
   void selectBestResult(DRModel& dr_model);
   void patchFinalMinArea(DRModel& dr_model);
-  void buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box);
-  void uploadFinalPatch(DRBox& dr_box);
+  void buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box, const std::set<Violation*, CmpViolation>& patch_violation_set);
+  void uploadFinalPatch(DRBox& dr_box, std::map<int32_t, std::set<LayerRect, CmpLayerRectByXASC>>& uploaded_patch_map);
   void uploadBestResult(DRModel& dr_model);
 
 #if 1  // update env

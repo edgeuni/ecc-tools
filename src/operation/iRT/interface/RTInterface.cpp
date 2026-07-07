@@ -992,8 +992,15 @@ void RTInterface::wrapPinList(Net& net, idb::IdbNet* idb_net)
       continue;
     }
     Pin pin;
-    pin.set_pin_name(RTUTIL.getString(idb_pin->get_instance()->get_name(), ":", idb_pin->get_pin_name()));
-    pin.set_is_core(idb_pin->get_instance()->get_cell_master()->is_core());
+    idb::IdbInstance* idb_inst = idb_pin->get_instance();
+    idb::IdbCellMaster* cell_master = idb_inst->get_cell_master();
+    pin.set_pin_name(RTUTIL.getString(idb_inst->get_name(), ":", idb_pin->get_pin_name()));
+    pin.set_inst_name(idb_inst->get_name());
+    pin.set_cell_master_name(cell_master->get_name());
+    pin.set_orient(static_cast<int32_t>(idb_inst->get_orient()));
+    pin.set_inst_origin(PlanarCoord(idb_inst->get_coordinate()->get_x(), idb_inst->get_coordinate()->get_y()));
+    pin.set_local_pin_name(idb_pin->get_pin_name());
+    pin.set_is_core(cell_master->is_core());
     wrapPinShapeList(pin, idb_pin);
     pin_list.push_back(std::move(pin));
   }
