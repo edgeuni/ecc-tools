@@ -79,6 +79,35 @@ auto coverAxis(Dbu origin,
   return {static_cast<Dbu>(axis_origin), static_cast<Dbu>(axis_count), step};
 }
 
+auto initTrackForDirection(Track& track,
+                           const RoutingLayer::TrackInfo& ti,
+                           const GtlRectI& rect,
+                           Dbu bucket_dlt,
+                           bool is_horz) -> bool
+{
+  const Dbu die_x0 = geom::minX(rect);
+  const Dbu die_y0 = geom::minY(rect);
+  const Dbu die_x1 = geom::maxX(rect);
+  const Dbu die_y1 = geom::maxY(rect);
+  const Dbu die_dx = geom::deltaX(rect);
+  const Dbu die_dy = geom::deltaY(rect);
+
+  const Dbu track_ori = is_horz ? ti.y0 : ti.x0;
+  const Dbu track_num = is_horz ? ti.ny : ti.nx;
+  const Dbu track_dlt = is_horz ? ti.dy : ti.dx;
+  const Dbu axis_lo = is_horz ? die_y0 : die_x0;
+  const Dbu axis_hi = is_horz ? die_y1 : die_x1;
+  const Axis track_axis = coverAxis(track_ori, track_num, track_dlt, axis_lo, axis_hi);
+
+  track.set_track_origin(track_axis.origin);
+  track.set_track_count(track_axis.count);
+  track.set_track_step(track_axis.step);
+  track.set_bucket_origin(is_horz ? die_x0 : die_y0);
+  track.set_bucket_count(ceilDivPositive(is_horz ? die_dx : die_dy, bucket_dlt));
+  track.set_bucket_step(bucket_dlt);
+  return track.initTrack();
+}
+
 }  // namespace
 
 void Environment::reset()
@@ -87,7 +116,8 @@ void Environment::reset()
   topo_pool_ = nullptr;
   layer_to_pixel_prefer_dir_.clear();
   layer_to_pixel_nonprefer_dir_.clear();
-  layer_to_track_.clear();
+  layer_to_track_prefer_dir_.clear();
+  layer_to_track_nonprefer_dir_.clear();
   layer_to_search_track_num_.clear();
 }
 
@@ -105,69 +135,52 @@ bool Environment::buildTracks()
   const std::map<Size, RoutingLayer>& routing_layers = layout_data_->routing_layers;
 
   const GtlRectI& rect = layout_data_->die_shape;
-  Dbu die_x0 = geom::minX(rect);
-  Dbu die_y0 = geom::minY(rect);
-  Dbu die_x1 = geom::maxX(rect);
-  Dbu die_y1 = geom::maxY(rect);
-  Dbu die_dx = geom::deltaX(rect);
-  Dbu die_dy = geom::deltaY(rect);
-
   Dbu bucket_dlt = static_cast<Dbu>(bucket_size_um_ * layout_data_->dbu_per_micron);
 
-  layer_to_track_.clear();
+  layer_to_track_prefer_dir_.clear();
+  layer_to_track_nonprefer_dir_.clear();
 
   // init
   for (const auto& [lid, layer] : routing_layers) {
-    bool is_horz = layer.is_prefer_horz();
     const RoutingLayer::TrackInfo& ti = layer.get_track_info();
-    Track track;
 
-    Dbu track_ori = is_horz ? ti.y0 : ti.x0;
-    Dbu track_num = is_horz ? ti.ny : ti.nx;
-    Dbu track_dlt = is_horz ? ti.dy : ti.dx;
-    const Dbu axis_lo = is_horz ? die_y0 : die_x0;
-    const Dbu axis_hi = is_horz ? die_y1 : die_x1;
-    const auto track_axis = coverAxis(track_ori, track_num, track_dlt, axis_lo, axis_hi);
-
-    track.set_track_origin(track_axis.origin);
-    track.set_track_count(track_axis.count);
-    track.set_track_step(track_axis.step);
-
-    Dbu bucket_len = is_horz ? die_dx : die_dy;
-    track.set_bucket_origin(is_horz ? die_x0 : die_y0);
-    track.set_bucket_count(ceilDivPositive(bucket_len, bucket_dlt));
-    track.set_bucket_step(bucket_dlt);
-
-    if (!track.initTrack()) {
+    Track prefer_track;
+    if (!initTrackForDirection(prefer_track, ti, rect, bucket_dlt, layer.is_prefer_horz())) {
       LOG_ERROR << "build environment tracks failed on layer " << lid;
       return false;
     }
-    layer_to_track_[lid] = std::move(track);
+    layer_to_track_prefer_dir_[lid] = std::move(prefer_track);
+
+    Track nonprefer_track;
+    if (!initTrackForDirection(nonprefer_track, ti, rect, bucket_dlt, !layer.is_prefer_horz())) {
+      LOG_ERROR << "build environment non-preferred tracks failed on layer " << lid;
+      return false;
+    }
+    layer_to_track_nonprefer_dir_[lid] = std::move(nonprefer_track);
   }
+
+  auto add_track_edge = [&](const TopoEdge& edge) {
+    if (edge.is_via()) {
+      return;
+    }
+
+    const Size lid = edge.get_layer_id();
+    const bool layer_is_horz = routing_layers.at(lid).is_prefer_horz();
+    auto& track_map = edge.is_horz() == layer_is_horz
+                          ? layer_to_track_prefer_dir_
+                          : layer_to_track_nonprefer_dir_;
+    track_map.at(lid).addEdge(edge);
+  };
 
   // build: regular edges
   const std::vector<TopoEdge>& edge_pool = topo_pool_->get_edge_pool();
   for (const TopoEdge& edge : edge_pool) {
-    if (edge.is_via()) continue;
-
-    Size lid = edge.get_layer_id();
-    bool layer_is_horz = routing_layers.at(lid).is_prefer_horz();
-
-    if (edge.is_horz() == layer_is_horz) {
-      layer_to_track_.at(lid).addEdge(edge);
-    }
+    add_track_edge(edge);
   }
 
   // build: special-net edges (power/ground context)
   for (const TopoEdge& edge : topo_pool_->get_special_edge_pool()) {
-    if (edge.is_via()) continue;
-
-    Size lid = edge.get_layer_id();
-    bool layer_is_horz = routing_layers.at(lid).is_prefer_horz();
-
-    if (edge.is_horz() == layer_is_horz) {
-      layer_to_track_.at(lid).addEdge(edge);
-    }
+    add_track_edge(edge);
   }
 
   return true;
@@ -379,10 +392,18 @@ bool Environment::buildNetEnvironments(std::vector<NetEnvironment>& net_environm
       const Size lid = edge.get_layer_id();
       const LineSegmentI query_seg = widen_segment(edge.get_line_segment(), 0);
 
-      std::vector<TrackOverlap> track_ov_up =
-          layer_to_track_[lid].overlap(query_seg,  layer_to_search_track_num_[lid], nullptr);
-      std::vector<TrackOverlap> track_ov_dn =
-          layer_to_track_[lid].overlap(query_seg, -layer_to_search_track_num_[lid], nullptr);
+      std::vector<TrackOverlap> track_ov_up;
+      std::vector<TrackOverlap> track_ov_dn;
+      const bool layer_is_horz = routing_layers.at(lid).is_prefer_horz();
+      const auto& track_map = edge.is_horz() == layer_is_horz
+                                  ? layer_to_track_prefer_dir_
+                                  : layer_to_track_nonprefer_dir_;
+      if (const auto track_it = track_map.find(lid); track_it != track_map.end()) {
+        track_ov_up =
+            track_it->second.overlap(query_seg, layer_to_search_track_num_[lid], nullptr);
+        track_ov_dn =
+            track_it->second.overlap(query_seg, -layer_to_search_track_num_[lid], nullptr);
+      }
 
       std::vector<EdgeEnvironmentInterval> out;
       track_merger.compute(query_seg.lo, query_seg.hi, track_ov_dn, track_ov_up, out);

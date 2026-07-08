@@ -115,6 +115,7 @@ class CapTable {
    *
    * The lookup distance is the non-negative same-layer spacing in microns.
    * For isolated/no-neighbor cases, use queryTwoLayerIsolatedCap().
+   * Distances above the table range use the isolated result.
    *
    * Negative distances are treated as a legacy compatibility path and map
    * to the isolated result.
@@ -128,6 +129,7 @@ class CapTable {
    *
    * The lookup distance is the non-negative same-layer spacing in microns.
    * For isolated/no-neighbor cases, use queryThreeLayerIsolatedCap().
+   * Distances above the table range use the isolated result.
    *
    * Negative distances are treated as a legacy compatibility path and map
    * to the isolated result.

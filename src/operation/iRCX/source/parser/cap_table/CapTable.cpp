@@ -264,6 +264,10 @@ CapacitanceResult CapTable::interpolate(const std::string& layer_name,
     return isolatedResult(*config);
   }
 
+  if (neighborDistance > data.back().distance) {
+    return isolatedResult(*config);
+  }
+
   if (data.size() == 1) {
     result.ground_cap = data[0].ground_cap;
     result.coupling_cap = data[0].coupling_cap;

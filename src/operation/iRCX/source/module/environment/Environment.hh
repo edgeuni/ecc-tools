@@ -65,7 +65,8 @@ class Environment final
 
   std::map<Size, Pixel> layer_to_pixel_prefer_dir_;
   std::map<Size, Pixel> layer_to_pixel_nonprefer_dir_;
-  std::map<Size, Track> layer_to_track_;  // preferred routing direction only
+  std::map<Size, Track> layer_to_track_prefer_dir_;
+  std::map<Size, Track> layer_to_track_nonprefer_dir_;
   std::map<Size, Dbu> layer_to_search_track_num_;
 
 };
