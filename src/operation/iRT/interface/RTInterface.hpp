@@ -32,6 +32,7 @@ class IdbLayerRouting;
 class IdbLayerCut;
 class IdbNet;
 class IdbPin;
+class IdbInstance;
 enum class IdbLayerDirection : uint8_t;
 enum class IdbConnectType : uint8_t;
 class IdbRegularWireSegment;
@@ -53,6 +54,7 @@ enum class ConnectType;
 class EXTLayerRect;
 class TAPanel;
 class PlanarCoord;
+enum class MacroPinEdge;
 }  // namespace irt
 
 namespace ieda_feature {
@@ -105,10 +107,13 @@ class RTInterface
   void wrapLayerInfo();
   void wrapLayerViaMasterList();
   void wrapObstacleList();
+  void wrapMacroRouteHaloList();
   void wrapNetList();
   bool isSkipping(idb::IdbNet* idb_net, bool with_log);
   void wrapPinList(Net& net, idb::IdbNet* idb_net);
   void wrapPinShapeList(Pin& pin, idb::IdbPin* idb_pin);
+  MacroPinEdge getMacroPinEdge(Pin& pin);
+  int32_t getPreferredConnLayerIdx(Pin& pin);
   void wrapDrivenPin(Net& net, idb::IdbNet* idb_net);
   Direction getRTDirectionByDB(idb::IdbLayerDirection idb_direction);
   ConnectType getRTConnectTypeByDB(idb::IdbConnectType idb_connect_type);
