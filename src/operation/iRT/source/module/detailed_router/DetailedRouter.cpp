@@ -390,6 +390,11 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
     }
   }
 
+  std::set<Segment<LayerCoord>*> unique_del_segment_set;
+  for (std::set<Segment<LayerCoord>*>& del_segment_set : del_segment_set_list) {
+    unique_del_segment_set.insert(del_segment_set.begin(), del_segment_set.end());
+  }
+
   GridMap<omp_lock_t> net_detailed_result_lock_map;
   net_detailed_result_lock_map.init(gcell_map.get_x_size(), gcell_map.get_y_size());
   for (int32_t x = 0; x < net_detailed_result_lock_map.get_x_size(); x++) {
@@ -422,7 +427,6 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
           }
         }
       }
-      delete del_segment;
     }
     for (Segment<LayerCoord>& new_segment : new_segment_list) {
       Segment<LayerCoord>* new_segment_ptr = new Segment<LayerCoord>(new_segment);
@@ -447,6 +451,9 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
     for (int32_t y = 0; y < net_detailed_result_lock_map.get_y_size(); y++) {
       omp_destroy_lock(&net_detailed_result_lock_map[x][y]);
     }
+  }
+  for (Segment<LayerCoord>* del_segment : unique_del_segment_set) {
+    delete del_segment;
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -478,10 +485,16 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
       DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
       buildFixedRect(dr_box);
       buildAccessPoint(dr_box);
-      buildNetResult(dr_box);
-      buildNetPatch(dr_box);
+#pragma omp critical(DRGCellMap)
+      {
+        buildNetResult(dr_box);
+        buildNetPatch(dr_box);
+      }
       initDRTaskList(dr_model, dr_box);
-      buildRouteViolation(dr_box);
+#pragma omp critical(DRGCellMap)
+      {
+        buildRouteViolation(dr_box);
+      }
     }
     std::vector<std::pair<DRBoxId, size_t>> dr_box_weight_list;
     dr_box_weight_list.reserve(dr_box_id_list.size());
@@ -524,7 +537,10 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
         routeDRBox(dr_box);
         // debugPlotDRBox(dr_box, "after");
       }
-      selectBestResult(dr_box);
+#pragma omp critical(DRGCellMap)
+      {
+        selectBestResult(dr_box);
+      }
       if (need_routing) {
         // 只记录实际改动的 box，后续 uploadViolation 可按 dirty 区域局部 DRC。
 #pragma omp critical(DRDirtyRegion)
