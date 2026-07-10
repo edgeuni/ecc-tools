@@ -60,36 +60,8 @@ class TopologyGenerator
   void routeTGTask(TGModel& tg_model, TGNet* tg_net);
   void initSingleTask(TGModel& tg_model, TGNet* tg_net);
   std::vector<Segment<PlanarCoord>> getRoutingSegmentList(TGModel& tg_model);
-  struct TGShadowDemandMap
-  {
-    GridMap<uint8_t>* orient_mask_map = nullptr;
-    GridMap<int32_t>* stamp_map = nullptr;
-    int32_t stamp = 0;
-    std::vector<PlanarCoord> touched_coord_list;
-
-    bool empty() const { return touched_coord_list.empty(); }
-    bool isInside(int32_t x, int32_t y) const { return orient_mask_map != nullptr && orient_mask_map->isInside(x, y); }
-    uint8_t getMask(int32_t x, int32_t y) const
-    {
-      if (!isInside(x, y) || stamp_map == nullptr || (*stamp_map)[x][y] != stamp) {
-        return 0;
-      }
-      return (*orient_mask_map)[x][y];
-    }
-    void addMask(int32_t x, int32_t y, uint8_t mask)
-    {
-      if (mask == 0 || !isInside(x, y) || stamp_map == nullptr) {
-        return;
-      }
-      if ((*stamp_map)[x][y] != stamp) {
-        (*stamp_map)[x][y] = stamp;
-        (*orient_mask_map)[x][y] = 0;
-        touched_coord_list.emplace_back(x, y);
-      }
-      (*orient_mask_map)[x][y] |= mask;
-    }
-  };
-  TGShadowDemandMap initTGShadowDemandMap(TGModel& tg_model);
+  using TGShadowDemandMap = std::map<PlanarCoord, std::set<Orientation>, CmpPlanarCoordByXASC>;
+  uint8_t getShadowOrientMask(const TGShadowDemandMap* shadow_demand_map, const PlanarCoord& coord);
   bool isBetterCandidate(TGModel& tg_model, TGCandidate& candidate, TGCandidate& current_best);
   std::vector<TGCandidate> getTGCandidateListByTopo(TGModel& tg_model, int32_t topo_idx, Segment<PlanarCoord>& planar_topo,
                                                     const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
@@ -113,6 +85,46 @@ class TopologyGenerator
     std::vector<Segment<PlanarCoord>> stub_segment_list;
     double cost = 0;
   };
+  struct TGAStarNodeState
+  {
+    uint64_t search_stamp = 0;
+    bool closed = false;
+    int32_t parent_idx = -1;
+    double known_cost = DBL_MAX;
+  };
+  struct TGAStarNodeCostCache
+  {
+    uint64_t context_stamp = 0;
+    uint8_t valid_mask = 0;
+    std::array<double, 2> cost = {0, 0};
+  };
+  struct TGAStarQueueNode
+  {
+    int32_t node_idx = -1;
+    double known_cost = 0;
+    double estimated_cost = 0;
+    double getTotalCost() const { return known_cost + estimated_cost; }
+  };
+  struct TGAStarPairTask
+  {
+    int32_t start_idx = -1;
+    int32_t end_idx = -1;
+    PlanarRect search_rect;
+    double lower_bound = 0;
+    bool need_search = true;
+  };
+  struct TGAStarWorkspace
+  {
+    PlanarRect workspace_rect;
+    int32_t x_size = 0;
+    int32_t y_size = 0;
+    uint64_t search_stamp = 0;
+    uint64_t context_stamp = 0;
+    std::vector<TGAStarNodeState> node_state_list;
+    std::vector<TGAStarNodeCostCache> node_cost_list;
+    std::vector<TGAStarQueueNode> open_heap;
+  };
+  TGAStarWorkspace _astar_workspace;
   std::vector<TGAStarEscapeNode> getAStarEscapeNodeList(TGModel& tg_model, const PlanarCoord& terminal_coord,
                                                         const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
                                                         const TGShadowDemandMap* shadow_demand_map = nullptr);
@@ -120,17 +132,24 @@ class TopologyGenerator
       TGModel& tg_model, Segment<PlanarCoord>& planar_topo,
       const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
       const TGShadowDemandMap* shadow_demand_map = nullptr);
-  double getRoutingSegmentListScore(TGModel& tg_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
-                                    const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
-                                    const TGShadowDemandMap* shadow_demand_map = nullptr);
-  std::vector<Segment<PlanarCoord>> getRoutingSegmentListByAStar(TGModel& tg_model, Segment<PlanarCoord>& planar_topo,
-                                                                 const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
-                                                                 const TGShadowDemandMap* shadow_demand_map = nullptr);
+  double getLegalRoutingSegmentListScore(TGModel& tg_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
+                                         const TGShadowDemandMap* shadow_demand_map = nullptr);
+  void prepareAStarWorkspace(TGModel& tg_model, const PlanarRect& workspace_rect, TGAStarWorkspace& workspace);
+  int32_t getAStarNodeIndex(const TGAStarWorkspace& workspace, const PlanarCoord& coord);
+  PlanarCoord getAStarNodeCoord(const TGAStarWorkspace& workspace, int32_t node_idx);
+  bool searchRoutingSegmentByAStar(TGModel& tg_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord,
+                                   const PlanarRect& search_rect,
+                                   const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
+                                   const TGShadowDemandMap* shadow_demand_map, TGAStarWorkspace& workspace,
+                                   std::vector<Segment<PlanarCoord>>& routing_segment_list);
   PlanarRect getAStarSearchRect(TGModel& tg_model, Segment<PlanarCoord>& planar_topo);
   bool isAStarAccessibleCoord(TGModel& tg_model, const PlanarCoord& coord, Segment<PlanarCoord>& planar_topo,
                               const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set);
   double getAStarStepCost(TGModel& tg_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord,
-                          const PlanarCoord& parent_coord, const TGShadowDemandMap* shadow_demand_map);
+                          const PlanarCoord& parent_coord, const TGShadowDemandMap* shadow_demand_map,
+                          TGAStarWorkspace& workspace);
+  double getAStarNodeCost(TGModel& tg_model, const PlanarCoord& coord, Direction direction,
+                          const TGShadowDemandMap* shadow_demand_map, TGAStarWorkspace& workspace);
   double getAStarEstimateCost(TGModel& tg_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord);
   std::vector<Segment<PlanarCoord>> getRoutingSegmentListByCoordList(std::vector<PlanarCoord>& coord_list);
   bool isLongObliqueTopo(TGModel& tg_model, Segment<PlanarCoord>& planar_topo);
@@ -144,9 +163,11 @@ class TopologyGenerator
       TGModel& tg_model, Segment<PlanarCoord>& planar_topo,
       const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
       const TGShadowDemandMap* shadow_demand_map = nullptr);
-  double getPatternSegmentFastScore(TGModel& tg_model, Segment<PlanarCoord>& segment,
-                                    const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
-                                    const TGShadowDemandMap* shadow_demand_map = nullptr);
+  double getPatternSegmentScore(TGModel& tg_model, Segment<PlanarCoord>& segment,
+                                const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
+                                const TGShadowDemandMap* shadow_demand_map = nullptr);
+  double getPatternSegmentCost(TGModel& tg_model, Segment<PlanarCoord>& segment,
+                               const TGShadowDemandMap* shadow_demand_map = nullptr);
   std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByOuter3Bends(TGModel& tg_model, Segment<PlanarCoord>& planar_topo);
   void updateTGCandidate(TGModel& tg_model, TGCandidate& tg_candidate,
                          const TGShadowDemandMap* shadow_demand_map = nullptr);

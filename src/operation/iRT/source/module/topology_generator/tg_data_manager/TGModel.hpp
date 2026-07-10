@@ -37,8 +37,23 @@ struct TGMacroRepairStat
   int32_t fixed_steiner_in_macro = 0;
   int32_t failed_steiner_legalize_num = 0;
   int32_t filtered_macro_cross_candidate_num = 0;
-  int32_t astar_candidate_num = 0;
-  int32_t failed_astar_num = 0;
+  int32_t astar_fallback_attempt_num = 0;
+  int32_t astar_fallback_success_num = 0;
+  int32_t astar_fallback_failed_num = 0;
+  int64_t astar_search_num = 0;
+  int64_t astar_escape_pair_num = 0;
+  int64_t astar_pruned_pair_num = 0;
+  int64_t astar_max_workspace_cell_num = 0;
+  int64_t astar_expanded_node_num = 0;
+  int64_t astar_push_node_num = 0;
+  int64_t astar_stale_pop_num = 0;
+  int64_t astar_cost_cache_hit_num = 0;
+  int64_t astar_cost_cache_miss_num = 0;
+  double astar_prepare_time_ms = 0;
+  double astar_search_time_ms = 0;
+  double astar_validate_time_ms = 0;
+  int32_t failed_routing_edge_num = 0;
+  std::set<int32_t> failed_routing_net_set;
   int32_t pattern_astar_macro_cross_edge_num = 0;
   std::set<int32_t> pattern_astar_macro_cross_net_set;
 };
@@ -56,9 +71,7 @@ class TGModel
   std::vector<TGMacroRegion>& get_tg_macro_region_list() { return _tg_macro_region_list; }
   GridMap<bool>& get_macro_body_forbidden_map() { return _macro_body_forbidden_map; }
   TGMacroRepairStat& get_tg_macro_repair_stat() { return _tg_macro_repair_stat; }
-  GridMap<uint8_t>& get_shadow_orient_mask_map() { return _shadow_orient_mask_map; }
-  GridMap<int32_t>& get_shadow_stamp_map() { return _shadow_stamp_map; }
-  int32_t get_shadow_stamp() const { return _shadow_stamp; }
+  bool get_enable_astar_fallback() const { return _enable_astar_fallback; }
   // setter
   void set_tg_net_list(const std::vector<TGNet>& tg_net_list) { _tg_net_list = tg_net_list; }
   void set_tg_com_param(const TGComParam& tg_com_param) { _tg_com_param = tg_com_param; }
@@ -67,7 +80,7 @@ class TGModel
   void set_tg_macro_region_list(const std::vector<TGMacroRegion>& tg_macro_region_list) { _tg_macro_region_list = tg_macro_region_list; }
   void set_macro_body_forbidden_map(const GridMap<bool>& macro_body_forbidden_map) { _macro_body_forbidden_map = macro_body_forbidden_map; }
   void set_tg_macro_repair_stat(const TGMacroRepairStat& tg_macro_repair_stat) { _tg_macro_repair_stat = tg_macro_repair_stat; }
-  void set_shadow_stamp(const int32_t shadow_stamp) { _shadow_stamp = shadow_stamp; }
+  void set_enable_astar_fallback(const bool enable_astar_fallback) { _enable_astar_fallback = enable_astar_fallback; }
 #if 1
   // single task
   TGNet* get_curr_tg_task() { return _curr_tg_task; }
@@ -82,9 +95,7 @@ class TGModel
   std::vector<TGMacroRegion> _tg_macro_region_list;
   GridMap<bool> _macro_body_forbidden_map;
   TGMacroRepairStat _tg_macro_repair_stat;
-  GridMap<uint8_t> _shadow_orient_mask_map;
-  GridMap<int32_t> _shadow_stamp_map;
-  int32_t _shadow_stamp = 0;
+  bool _enable_astar_fallback = false;
 #if 1
   // single task
   TGNet* _curr_tg_task = nullptr;

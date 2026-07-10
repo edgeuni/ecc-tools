@@ -159,8 +159,7 @@ void SpaceRouter::reviseNodeDemand(SRModel& sr_model)
   for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
     for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
       for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_node_map.size()); layer_idx++) {
-        layer_node_map[layer_idx][x][y].get_orient_net_map().clear();
-        layer_node_map[layer_idx][x][y].get_net_orient_map().clear();
+        layer_node_map[layer_idx][x][y].clearDemand();
       }
     }
   }
@@ -759,6 +758,7 @@ void SpaceRouter::buildOrientDemand(SRModel& sr_model, SRBox& sr_box)
         SRNode& sr_node = sr_node_map[x][y];
         sr_node.set_orient_net_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_orient_net_map());
         sr_node.set_net_orient_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_net_orient_map());
+        sr_node.rebuildFastDemand();
       }
     }
   }
@@ -1109,7 +1109,7 @@ double SpaceRouter::getNodeCost(SRBox& sr_box, SRNode* curr_node, Direction dire
   double overflow_unit = sr_box.get_sr_iter_param()->get_overflow_unit();
 
   double node_cost = 0;
-  node_cost += curr_node->getOverflowCost(sr_box.get_curr_sr_task()->get_net_idx(), direction, overflow_unit);
+  node_cost += curr_node->getFastCost(sr_box.get_curr_sr_task()->get_net_idx(), direction, overflow_unit);
   return node_cost;
 }
 
