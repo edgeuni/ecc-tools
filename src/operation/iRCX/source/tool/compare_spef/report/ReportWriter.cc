@@ -38,6 +38,7 @@
 #include "PathUtils.hh"
 #include "libfort/fort.hpp"
 #include "log/Log.hh"
+#include "utils/CompareMath.hh"
 
 namespace ircx {
 namespace compare_spef {
@@ -266,13 +267,19 @@ auto writeCcapReport(const std::filesystem::path& output_dir,
     return false;
   }
   ofs << config.test_file << '\t' << config.reference_file
-      << "\t%diff\tVictim\tAggressor\tTCAP Victim\n";
+      << "\t%diff\tVictim\tAggressor\tlumpC_abs\tCC_abs\tCC_rel\n";
   for (const auto& row : result.ccap_rows) {
+    const F64 cc_abs = std::abs(row.reference);
+    const F64 cc_rel = row.reference_victim_total_cap <= math::kEpsilon
+                           ? 0.0
+                           : cc_abs / row.reference_victim_total_cap;
     ofs << row.test << '\t' << row.reference << '\t';
     writePercent(ofs, row.relative_delta);
     ofs << '\t' << row.victim
         << '\t' << row.aggressor
         << '\t' << row.reference_victim_total_cap
+        << '\t' << cc_abs
+        << '\t' << cc_rel
         << '\n';
   }
   return true;
@@ -409,7 +416,7 @@ auto writeSummaryReport(const std::filesystem::path& output_dir,
                     "CCAP",
                     "CCAP threshold",
                     config.ccap_abs_threshold,
-                    "Number of matched net pairs",
+                    "Number of matched CCAP rows",
                     errors.ccap)
              .to_string()
       << '\n';

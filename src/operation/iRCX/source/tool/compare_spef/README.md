@@ -108,12 +108,15 @@ Capacitance comparison:
   at least `-tcap`.
 - `gcap.rpt` includes matched net ground caps when
   `abs(reference_gcap) >= -ccap abs` or `abs(test_gcap) >= -ccap abs`.
-- `ccap.rpt` includes matched reference coupling pairs only when both conditions
-  hold:
+- `ccap.rpt` includes matched reference coupling rows in victim/aggressor form
+  only when both conditions hold:
   - `abs(reference_ccap) >= -ccap abs`
-  - `abs(reference_ccap) / reference_victim_total_cap >= -ccap rel`
+  - `abs(reference_ccap) / abs(reference_victim_total_cap) >= -ccap rel`
   The `%diff` value in `ccap.rpt` is computed as
   `(test_ccap - reference_ccap) / reference_ccap`.
+- `summary.rpt` computes the CCAP distribution from matched victim/aggressor
+  rows. Opposite rows are not merged because their victim total capacitances can
+  differ.
 
 Resistance comparison:
 
@@ -164,10 +167,10 @@ The command writes these files under `-output_dir`:
 | `summary.rpt` | Overview, thresholds, row counts, and error distributions. |
 | `tcap.rpt` | Total capacitance differences. |
 | `gcap.rpt` | Ground capacitance differences by net. |
-| `ccap.rpt` | Coupling capacitance differences. |
+| `ccap.rpt` | Coupling capacitance differences by victim/aggressor row. |
 | `p2p.rpt` | Point-to-point resistance differences. |
 | `nets.mismatched` | Nets found only in reference or only in test. |
-| `coupling_caps.mismatched` | Coupling-cap pairs found only in reference or only in test. |
+| `coupling_caps.mismatched` | Coupling-cap rows found only in reference or only in test. |
 
 ## Current Limitations
 

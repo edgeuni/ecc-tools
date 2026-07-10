@@ -24,7 +24,6 @@
 #include <cstdlib>
 #include <optional>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
 #include "SpefParser.hh"
@@ -135,23 +134,26 @@ void SpefReader::buildNetCouplingCaps(Data& data) const
     coupling_count += net.node_coupling_caps.size();
   }
 
-  std::unordered_set<NodePair, NodePairHash> seen_node_pairs;
-  seen_node_pairs.reserve(coupling_count);
   data.coupling_caps.clear();
   data.coupling_caps.reserve(coupling_count);
 
   for (const Net& net : data.nets) {
     for (const auto& [node_pair, capacitance] : net.node_coupling_caps) {
-      if (!seen_node_pairs.insert(node_pair).second) {
-        continue;
-      }
-
       const auto net1 = data.index.resolveNodeNet(node_pair.first);
       const auto net2 = data.index.resolveNodeNet(node_pair.second);
       if (net1.empty() || net2.empty() || net1 == net2) {
         continue;
       }
-      data.coupling_caps.add(NodePair::ordered(net1, net2), capacitance);
+
+      std::string aggressor;
+      if (net1 == net.name) {
+        aggressor = net2;
+      } else if (net2 == net.name) {
+        aggressor = net1;
+      } else {
+        continue;
+      }
+      data.coupling_caps.add(NodePair{net.name, std::move(aggressor)}, capacitance);
     }
   }
 }

@@ -85,34 +85,13 @@ class NetMetaIndex
   std::unordered_map<std::string, NetMeta> _meta;
 };
 
-auto makeReportCouplingPair(const NetMetaIndex& meta,
-                            const NodePair& key) -> NodePair
-{
-  const bool first_external = meta.isExternal(key.first);
-  const bool second_external = meta.isExternal(key.second);
-  if (first_external != second_external) {
-    return first_external ? key : NodePair{key.second, key.first};
-  }
-
-  const NetMeta* first_meta = meta.find(key.first);
-  const NetMeta* second_meta = meta.find(key.second);
-  if (first_meta == nullptr || second_meta == nullptr) {
-    return key;
-  }
-
-  if (first_external && second_external && first_meta->order < second_meta->order) {
-    return NodePair{key.second, key.first};
-  }
-  return key;
-}
-
 auto makeCcapMismatch(const NetMetaIndex& meta,
                       const NodePair& key,
                       F64 capacitance) -> CcapMismatch
 {
   CcapMismatch mismatch;
   mismatch.nets = key;
-  mismatch.report_nets = makeReportCouplingPair(meta, key);
+  mismatch.report_nets = key;
   mismatch.first_order = meta.orderOf(mismatch.report_nets.first);
   mismatch.second_order = meta.orderOf(mismatch.report_nets.second);
   mismatch.first_external = meta.isExternal(mismatch.report_nets.first);
@@ -167,12 +146,10 @@ void addRow(const Config& config,
     return;
   }
 
-  const F64 reference_victim_tcap = victim_meta->net->total_cap;
-  const F64 reference_rel = reference_victim_tcap <= math::kEpsilon
-                                ? 0.0
-                                : std::abs(reference_cap) / reference_victim_tcap;
-  if (std::abs(reference_cap) < config.ccap_abs_threshold
-      || reference_rel < config.ccap_rel_threshold) {
+  const F64 cc_abs = std::abs(reference_cap);
+  const F64 lumpC_abs = std::abs(victim_meta->net->total_cap);
+  const F64 cc_rel = lumpC_abs <= math::kEpsilon ? 0.0 : cc_abs / lumpC_abs;
+  if (cc_abs < config.ccap_abs_threshold || cc_rel < config.ccap_rel_threshold) {
     return;
   }
 
@@ -182,7 +159,7 @@ void addRow(const Config& config,
   row.reference = reference_cap;
   row.test = test_cap;
   row.delta = row.test - row.reference;
-  row.reference_victim_total_cap = reference_victim_tcap;
+  row.reference_victim_total_cap = lumpC_abs;
   row.relative_delta = math::couplingRelativeDelta(row.test, row.reference, row.reference);
   result.ccap_rows.push_back(std::move(row));
 }
@@ -226,14 +203,6 @@ void CouplingCapComparator::compare(const Data& test,
             reference_meta,
             entry.nets.first,
             entry.nets.second,
-            entry.capacitance,
-            test_cap->capacitance,
-            local_result);
-        addRow(
-            _config,
-            reference_meta,
-            entry.nets.second,
-            entry.nets.first,
             entry.capacitance,
             test_cap->capacitance,
             local_result);
