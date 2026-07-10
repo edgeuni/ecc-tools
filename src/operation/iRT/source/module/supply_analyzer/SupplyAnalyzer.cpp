@@ -58,7 +58,9 @@ void SupplyAnalyzer::analyze()
   setSAComParam(sa_model);
   buildSupplySchedule(sa_model);
   analyzeSupply(sa_model);
+  applyMacroRouteHaloSupply(sa_model);
   buildIgnoreNet(sa_model);
+  buildMacroPinEscapeIgnore(sa_model);
   analyzeDemandUnit(sa_model);
   // debugPlotSAModel(sa_model);
   updateSummary(sa_model);
@@ -298,6 +300,58 @@ bool SupplyAnalyzer::isAccess(LayerRect& wire, std::vector<PlanarRect>& obs_rect
   return true;
 }
 
+void SupplyAnalyzer::applyMacroRouteHaloSupply(SAModel& sa_model)
+{
+  (void) sa_model;
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  std::vector<MacroRouteHalo>& macro_route_halo_list = RTDM.getDatabase().get_macro_route_halo_list();
+
+  auto validRect = [](PlanarRect& rect) { return rect.get_ll_x() < rect.get_ur_x() && rect.get_ll_y() < rect.get_ur_y(); };
+
+  auto updateSupply = [&](PlanarRect rect, std::vector<int32_t>& layer_idx_list, const std::set<Orientation>& zero_orient_set) {
+    if (!validRect(rect)) {
+      return;
+    }
+    PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(rect, gcell_axis);
+    for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+      for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
+        if (!RTUTIL.isOpenOverlap(gcell_map[x][y], rect)) {
+          continue;
+        }
+        for (int32_t layer_idx : layer_idx_list) {
+          std::map<Orientation, int32_t>& orient_supply_map = gcell_map[x][y].get_routing_orient_supply_map()[layer_idx];
+          for (Orientation orient : zero_orient_set) {
+            orient_supply_map[orient] = 0;
+          }
+        }
+      }
+    }
+  };
+
+  const std::set<Orientation> all_orient_set = {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth};
+  const std::set<Orientation> horizontal_block_orient_set = {Orientation::kEast, Orientation::kWest};
+  const std::set<Orientation> vertical_block_orient_set = {Orientation::kSouth, Orientation::kNorth};
+
+  for (MacroRouteHalo& macro_route_halo : macro_route_halo_list) {
+    PlanarRect& body_rect = macro_route_halo.get_body_rect();
+    PlanarRect& halo_rect = macro_route_halo.get_halo_rect();
+    std::vector<int32_t>& layer_idx_list = macro_route_halo.get_layer_idx_list();
+
+    updateSupply(body_rect, layer_idx_list, all_orient_set);
+
+    PlanarRect left_strip(halo_rect.get_ll_x(), halo_rect.get_ll_y(), body_rect.get_ll_x(), halo_rect.get_ur_y());
+    PlanarRect right_strip(body_rect.get_ur_x(), halo_rect.get_ll_y(), halo_rect.get_ur_x(), halo_rect.get_ur_y());
+    PlanarRect bottom_strip(body_rect.get_ll_x(), halo_rect.get_ll_y(), body_rect.get_ur_x(), body_rect.get_ll_y());
+    PlanarRect top_strip(body_rect.get_ll_x(), body_rect.get_ur_y(), body_rect.get_ur_x(), halo_rect.get_ur_y());
+
+    updateSupply(left_strip, layer_idx_list, vertical_block_orient_set);
+    updateSupply(right_strip, layer_idx_list, vertical_block_orient_set);
+    updateSupply(bottom_strip, layer_idx_list, horizontal_block_orient_set);
+    updateSupply(top_strip, layer_idx_list, horizontal_block_orient_set);
+  }
+}
+
 void SupplyAnalyzer::buildIgnoreNet(SAModel& sa_model)
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
@@ -362,6 +416,90 @@ void SupplyAnalyzer::buildIgnoreNet(SAModel& sa_model)
         }
       }
       gcell_map[x][y].set_routing_ignore_net_orient_map(routing_ignore_net_orient_map);
+    }
+  }
+}
+
+void SupplyAnalyzer::buildMacroPinEscapeIgnore(SAModel& sa_model)
+{
+  (void) sa_model;
+  Die& die = RTDM.getDatabase().get_die();
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
+
+  auto getAccessGridCoord = [&](AccessPoint& access_point) {
+    if (access_point.get_grid_coord() != PlanarCoord(-1, -1)) {
+      return access_point.get_grid_coord();
+    }
+    PlanarRect real_rect(access_point.get_real_coord(), access_point.get_real_coord());
+    if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+      return PlanarCoord(-1, -1);
+    }
+    return RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis).get_ll();
+  };
+
+  auto addIgnore = [&](PlanarCoord grid_coord, std::vector<int32_t>& layer_idx_list, int32_t net_idx, const std::set<Orientation>& orient_set) {
+    int32_t x = grid_coord.get_x();
+    int32_t y = grid_coord.get_y();
+    if (x < 0 || y < 0 || gcell_map.get_x_size() <= x || gcell_map.get_y_size() <= y) {
+      return;
+    }
+    for (int32_t layer_idx : layer_idx_list) {
+      std::set<Orientation>& gcell_orient_set = gcell_map[x][y].get_routing_ignore_net_orient_map()[layer_idx][net_idx];
+      gcell_orient_set.insert(orient_set.begin(), orient_set.end());
+    }
+  };
+
+  for (Net& net : net_list) {
+    int32_t net_idx = net.get_net_idx();
+    for (Pin& pin : net.get_pin_list()) {
+      if (!pin.get_is_macro() && !pin.get_is_pad()) {
+        continue;
+      }
+      AccessPoint& access_point = pin.get_access_point();
+      if (access_point.get_real_coord() == PlanarCoord(-1, -1) || access_point.get_layer_idx() == -1) {
+        continue;
+      }
+      MacroPinEdge macro_pin_edge = pin.get_macro_pin_edge();
+      if (macro_pin_edge == MacroPinEdge::kNone) {
+        continue;
+      }
+      std::vector<int32_t> layer_idx_list;
+      layer_idx_list.push_back(access_point.get_layer_idx());
+      if (pin.get_preferred_conn_layer_idx() != -1) {
+        layer_idx_list.push_back(pin.get_preferred_conn_layer_idx());
+      }
+      std::sort(layer_idx_list.begin(), layer_idx_list.end());
+      layer_idx_list.erase(std::unique(layer_idx_list.begin(), layer_idx_list.end()), layer_idx_list.end());
+
+      PlanarCoord access_grid_coord = getAccessGridCoord(access_point);
+      if (access_grid_coord == PlanarCoord(-1, -1)) {
+        continue;
+      }
+
+      PlanarCoord outside_grid_coord = access_grid_coord;
+      std::set<Orientation> orient_set = {Orientation::kAbove, Orientation::kBelow};
+      if (macro_pin_edge == MacroPinEdge::kNorth) {
+        outside_grid_coord.set_y(outside_grid_coord.get_y() + 1);
+        orient_set.insert(Orientation::kNorth);
+        orient_set.insert(Orientation::kSouth);
+      } else if (macro_pin_edge == MacroPinEdge::kSouth) {
+        outside_grid_coord.set_y(outside_grid_coord.get_y() - 1);
+        orient_set.insert(Orientation::kNorth);
+        orient_set.insert(Orientation::kSouth);
+      } else if (macro_pin_edge == MacroPinEdge::kEast) {
+        outside_grid_coord.set_x(outside_grid_coord.get_x() + 1);
+        orient_set.insert(Orientation::kEast);
+        orient_set.insert(Orientation::kWest);
+      } else if (macro_pin_edge == MacroPinEdge::kWest) {
+        outside_grid_coord.set_x(outside_grid_coord.get_x() - 1);
+        orient_set.insert(Orientation::kEast);
+        orient_set.insert(Orientation::kWest);
+      }
+
+      addIgnore(access_grid_coord, layer_idx_list, net_idx, orient_set);
+      addIgnore(outside_grid_coord, layer_idx_list, net_idx, orient_set);
     }
   }
 }
