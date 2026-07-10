@@ -256,28 +256,25 @@ auto isVisibleEdge(const Model& model,
          && net.resistors[ref.resistor_index].visible;
 }
 
+auto capEndpointKey(const EdgeRef& edge,
+                    const std::string& node) -> std::string
+{
+  return edge.valid ? "E:" + edgeRefKey(edge) : "N:" + node;
+}
+
 auto couplingKey(const Capacitor& cap) -> std::string
 {
-  if (cap.edge1.valid && cap.edge2.valid) {
-    std::string key1 = edgeRefKey(cap.edge1);
-    std::string key2 = edgeRefKey(cap.edge2);
-    if (key2 < key1) {
-      std::swap(key1, key2);
-    }
-    return "E:" + key1 + "\n" + key2;
+  std::string key1 = capEndpointKey(cap.edge1, cap.node1);
+  std::string key2 = capEndpointKey(cap.edge2, cap.node2);
+  if (key2 < key1) {
+    std::swap(key1, key2);
   }
-
-  std::string node1 = cap.node1;
-  std::string node2 = cap.node2;
-  if (node2 < node1) {
-    std::swap(node1, node2);
-  }
-  return "N:" + node1 + "\n" + node2;
+  return key1 + "\n" + key2;
 }
 
 auto groundKey(const Capacitor& cap) -> std::string
 {
-  return cap.edge1.valid ? "E:" + edgeRefKey(cap.edge1) : "N:" + cap.node1;
+  return capEndpointKey(cap.edge1, cap.node1);
 }
 
 auto collectGroundCapPlots(const Model& model,
