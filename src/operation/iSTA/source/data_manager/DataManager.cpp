@@ -263,12 +263,23 @@ TimingTimeUnit DataManager::getTimingTimeUnit(idb::LibLibrary* lib_library)
 void DataManager::makeTimingCell(idb::LibCell* lib_cell)
 {
   Database& database = _database;
+  idb::LibLibrary* lib_library = lib_cell->get_owner_lib();
   TimingCell timing_cell;
   timing_cell.set_cell_name(lib_cell->get_cell_name());
+  timing_cell.set_library_name(lib_library->get_lib_name());
   timing_cell.set_area(lib_cell->get_cell_area());
   timing_cell.set_is_sequential(lib_cell->isSequentialCell());
   timing_cell.set_is_clock_gating(lib_cell->isICG());
   timing_cell.set_is_macro(lib_cell->isMacroCell());
+  timing_cell.set_slew_lower_threshold_pct_rise(lib_library->get_slew_lower_threshold_pct_rise());
+  timing_cell.set_slew_upper_threshold_pct_rise(lib_library->get_slew_upper_threshold_pct_rise());
+  timing_cell.set_slew_lower_threshold_pct_fall(lib_library->get_slew_lower_threshold_pct_fall());
+  timing_cell.set_slew_upper_threshold_pct_fall(lib_library->get_slew_upper_threshold_pct_fall());
+  timing_cell.set_input_threshold_pct_rise(lib_library->get_input_threshold_pct_rise());
+  timing_cell.set_output_threshold_pct_rise(lib_library->get_output_threshold_pct_rise());
+  timing_cell.set_input_threshold_pct_fall(lib_library->get_input_threshold_pct_fall());
+  timing_cell.set_output_threshold_pct_fall(lib_library->get_output_threshold_pct_fall());
+  timing_cell.set_slew_derate_from_library(lib_library->get_slew_derate_from_library());
 
   for (std::unique_ptr<idb::LibPort>& lib_port : lib_cell->get_cell_ports()) {
     makeTimingCellPort(timing_cell, lib_port.get());
@@ -379,9 +390,18 @@ TimingArc DataManager::makeTimingArc(idb::LibArc* lib_arc)
   timing_arc.set_sense(getTimingArcSense(lib_arc));
   timing_arc.set_trigger_trans_type(getTriggerTransType(lib_arc));
   timing_arc.set_check_trans_type(getCheckTransType(lib_arc));
+  timing_arc.set_library_name(lib_library->get_lib_name());
   timing_arc.set_time_unit_scale(getLibTimeUnitScale(lib_library));
   timing_arc.set_cap_unit_scale(getLibCapUnitScale(lib_library));
   timing_arc.set_slew_derate(lib_library->get_slew_derate_from_library());
+  timing_arc.set_slew_lower_threshold_pct_rise(lib_library->get_slew_lower_threshold_pct_rise());
+  timing_arc.set_slew_upper_threshold_pct_rise(lib_library->get_slew_upper_threshold_pct_rise());
+  timing_arc.set_slew_lower_threshold_pct_fall(lib_library->get_slew_lower_threshold_pct_fall());
+  timing_arc.set_slew_upper_threshold_pct_fall(lib_library->get_slew_upper_threshold_pct_fall());
+  timing_arc.set_input_threshold_pct_rise(lib_library->get_input_threshold_pct_rise());
+  timing_arc.set_output_threshold_pct_rise(lib_library->get_output_threshold_pct_rise());
+  timing_arc.set_input_threshold_pct_fall(lib_library->get_input_threshold_pct_fall());
+  timing_arc.set_output_threshold_pct_fall(lib_library->get_output_threshold_pct_fall());
   makeTimingArcTable(timing_arc, lib_arc);
   return timing_arc;
 }
@@ -710,15 +730,15 @@ void DataManager::buildParasiticNetMap(spef::Net& spef_net)
   Database& database = _database;
   ParasiticNet parasitic_net;
   parasitic_net.set_net_name(spef_net.name);
-  parasitic_net.set_lumped_capacitance(spef_net.lcap);
+  parasitic_net.set_lumped_capacitance(getParasiticCapacitance(spef_net.lcap));
   for (spef::ConnEntry& spef_conn : spef_net.conns) {
     makeParasiticConnection(parasitic_net, spef_conn);
   }
-  for (spef::ResCap& spef_cap : spef_net.caps) {
-    makeParasiticCapacitance(parasitic_net, spef_cap);
-  }
   for (spef::ResCap& spef_res : spef_net.ress) {
     makeParasiticResistance(parasitic_net, spef_res);
+  }
+  for (spef::ResCap& spef_cap : spef_net.caps) {
+    makeParasiticCapacitance(parasitic_net, spef_cap);
   }
   database.get_parasitic_library().get_net_map()[parasitic_net.get_net_name()] = parasitic_net;
 }
@@ -732,11 +752,16 @@ void DataManager::makeParasiticConnection(ParasiticNet& parasitic_net, spef::Con
 
 void DataManager::makeParasiticCapacitance(ParasiticNet& parasitic_net, spef::ResCap& spef_cap)
 {
+  double capacitance = getParasiticCapacitance(spef_cap.res_or_cap);
   ParasiticNode& parasitic_node = getParasiticNode(parasitic_net, spef_cap.node1);
-  parasitic_node.set_capacitance(parasitic_node.get_capacitance() + spef_cap.res_or_cap);
-  if (!spef_cap.node2.empty()) {
-    ParasiticNode& coupled_node = getParasiticNode(parasitic_net, spef_cap.node2);
-    coupled_node.set_capacitance(coupled_node.get_capacitance() + spef_cap.res_or_cap);
+  parasitic_node.set_capacitance(parasitic_node.get_capacitance() + capacitance);
+
+  if (spef_cap.node2.empty()) {
+    return;
+  }
+  if (parasitic_net.get_node_map().count(spef_cap.node2) > 0) {
+    ParasiticNode& coupled_node = parasitic_net.get_node_map()[spef_cap.node2];
+    coupled_node.set_capacitance(coupled_node.get_capacitance() + capacitance);
   }
 }
 
@@ -745,10 +770,59 @@ void DataManager::makeParasiticResistance(ParasiticNet& parasitic_net, spef::Res
   ParasiticResistor parasitic_resistor;
   parasitic_resistor.set_source_node(spef_res.node1);
   parasitic_resistor.set_sink_node(spef_res.node2);
-  parasitic_resistor.set_resistance(spef_res.res_or_cap);
+  parasitic_resistor.set_resistance(getParasiticResistance(spef_res.res_or_cap));
   parasitic_net.get_resistor_list().push_back(parasitic_resistor);
   getParasiticNode(parasitic_net, spef_res.node1);
   getParasiticNode(parasitic_net, spef_res.node2);
+}
+
+double DataManager::getParasiticCapacitance(double spef_capacitance)
+{
+  Database& database = _database;
+  std::string spef_unit = database.get_parasitic_library().get_capacitive_unit();
+  std::string target_unit = "PF";
+  return spef_capacitance * getSpefUnitScale(spef_unit, target_unit);
+}
+
+double DataManager::getParasiticResistance(double spef_resistance)
+{
+  Database& database = _database;
+  std::string spef_unit = database.get_parasitic_library().get_resistance_unit();
+  std::string target_unit = "OHM";
+  return spef_resistance * getSpefUnitScale(spef_unit, target_unit);
+}
+
+double DataManager::getSpefUnitScale(std::string& spef_unit, std::string& target_unit)
+{
+  double unit_value = 1.0;
+  std::string unit_name;
+  std::stringstream spef_unit_stream(spef_unit);
+  spef_unit_stream >> unit_value >> unit_name;
+  std::transform(unit_name.begin(), unit_name.end(), unit_name.begin(), ::toupper);
+  std::transform(target_unit.begin(), target_unit.end(), target_unit.begin(), ::toupper);
+
+  if (unit_name == target_unit) {
+    return unit_value;
+  }
+  if (unit_name == "FF" && target_unit == "PF") {
+    return unit_value * 1E-3;
+  }
+  if (unit_name == "PF" && target_unit == "FF") {
+    return unit_value * 1E3;
+  }
+  if (unit_name == "F" && target_unit == "PF") {
+    return unit_value * 1E12;
+  }
+  if (unit_name == "PF" && target_unit == "F") {
+    return unit_value * 1E-12;
+  }
+  if (unit_name == "KOHM" && target_unit == "OHM") {
+    return unit_value * 1E3;
+  }
+  if (unit_name == "OHM" && target_unit == "KOHM") {
+    return unit_value * 1E-3;
+  }
+  return unit_value;
 }
 
 ParasiticNode& DataManager::getParasiticNode(ParasiticNet& parasitic_net, const std::string& node_name)
