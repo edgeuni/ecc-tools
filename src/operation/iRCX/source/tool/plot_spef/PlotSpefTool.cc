@@ -157,14 +157,7 @@ auto PlotSpefTool::run(plot_spef::Config config) -> bool
   const plot_spef::ModelBuilder model_builder;
   auto model = model_builder.build(*exchange, config);
   const auto visibility = plot_spef::makeVisibleObjects(model, *exchange, config);
-  const bool batch_edge_gds = !config.hasNetFilter() && !config.hasEdgeFilter();
-
-  if (!config.hasEdgeFilter() && !batch_edge_gds) {
-    const plot_spef::CgEdgeReport cg_edge_report;
-    if (!cg_edge_report.write(model, config)) {
-      return false;
-    }
-  }
+  const bool batch_edge_gds = config.output_edge_gds && !config.hasEdgeFilter();
 
   const plot_spef::GdsWriter writer;
   if (!writer.write(model, visibility, config)) {

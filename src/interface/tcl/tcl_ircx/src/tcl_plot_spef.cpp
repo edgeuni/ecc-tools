@@ -86,7 +86,7 @@ TclPlotSpef::TclPlotSpef(const char* cmd_name) : TclCmd(cmd_name)
   addOption(new TclStringOption(kFirstArg, 1, nullptr));
   addOption(new TclStringOption(kSecondArg, 1, nullptr));
   addOption(new TclStringOption("-net", 0, nullptr));
-  addOption(new TclStringOption("-edge", 0, nullptr));
+  addOption(new TclSwitchOption("-edge"));
   addOption(new TclStringOption("-dbu", 0, nullptr));
   addOption(new TclStringOption("-cores", 0, nullptr));
   addOption(new TclSwitchOption("-R"));
@@ -121,12 +121,13 @@ unsigned TclPlotSpef::exec()
   if (const char* net_name = getStringValue(getOptionOrArg("-net")); net_name != nullptr) {
     config.net_name = net_name;
   }
-  if (const char* edge_name = getStringValue(getOptionOrArg("-edge")); edge_name != nullptr) {
+  TclOption* edge_option = getOptionOrArg("-edge");
+  if (isOptionSet(edge_option)) {
     if (second_arg == nullptr) {
       LOG_ERROR << "plot_spef -edge requires an external SPEF input.";
       return 0;
     }
-    config.edge_name = edge_name;
+    config.output_edge_gds = true;
   }
   if (!setIntOption(getOptionOrArg("-dbu"), "-dbu", config.dbu)) {
     return 0;

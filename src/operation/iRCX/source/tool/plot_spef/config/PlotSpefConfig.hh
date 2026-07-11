@@ -35,10 +35,12 @@ struct Config
   bool output_resistance = false;
   bool output_coupling_cap = false;
   bool output_ground_cap = false;
+  bool output_edge_gds = false;
   bool log_gds_file = true;
 
   auto hasNetFilter() const -> bool { return !net_name.empty(); }
   auto hasEdgeFilter() const -> bool { return !edge_name.empty(); }
+  auto hasEdgeGdsOutput() const -> bool { return output_edge_gds || hasEdgeFilter(); }
   auto hasOutputFilter() const -> bool
   {
     return output_resistance || output_coupling_cap || output_ground_cap;

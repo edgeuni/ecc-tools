@@ -46,7 +46,7 @@ auto ConfigValidator::validate(const Config& config) const -> bool
     return false;
   }
 
-  if (config.hasNetFilter() && config.hasEdgeFilter()) {
+  if (config.hasNetFilter() && config.hasEdgeGdsOutput()) {
     LOG_ERROR << "plot_spef does not support using -net and -edge together.";
     return false;
   }
