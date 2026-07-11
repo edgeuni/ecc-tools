@@ -23,9 +23,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <optional>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
 #include "ParallelUtils.hh"
@@ -33,10 +31,9 @@
 #include "SpefParser.hh"
 #include "StringUtils.hh"
 #include "Types.hh"
+#include "cap/PlotSpefCapToEdge.hh"
 #include "config/PlotSpefConfig.hh"
-#include "log/Log.hh"
 #include "model/PlotSpefModel.hh"
-#include "resolver/PlotSpefCapResolver.hh"
 
 namespace ircx::plot_spef {
 namespace {
@@ -149,18 +146,6 @@ auto getHeaderValue(const spef::Exchange& exchange,
     }
   }
   return {};
-}
-
-auto normalizeNetFilterName(const spef::Exchange& exchange,
-                            const std::string& name) -> std::string
-{
-  return spef::removeEscapes(spef::stripQuotes(spef::expandName(exchange, name)));
-}
-
-auto owningNetName(const std::string& node_name) -> std::string
-{
-  const auto delimiter = node_name.find(':');
-  return delimiter == std::string::npos ? node_name : node_name.substr(0, delimiter);
 }
 
 auto fallbackBox(Node& node) -> void
@@ -276,12 +261,6 @@ auto buildNetMap(Model& model) -> std::unordered_map<std::string, Net*>
     net_map[net.name] = &net;
   }
   return net_map;
-}
-
-auto shouldBuildNet(const std::optional<std::unordered_set<std::string>>& visible_net_names,
-                    const std::string& net_name) -> bool
-{
-  return !visible_net_names.has_value() || visible_net_names->contains(net_name);
 }
 
 auto initModelMetadata(const spef::Exchange& exchange,
@@ -463,160 +442,13 @@ class TextGeometryAugmenter
   Size res_index_ = 0;
 };
 
-// A focused net plot still needs directly coupled neighbors so Cc shapes can be
-// resolved and drawn with useful context.
-class PlotScope
-{
- public:
-  PlotScope(const spef::Exchange& exchange, const Config& config)
-      : exchange_(exchange), config_(config)
-  {
-  }
-
-  auto netNamesToBuild() const -> std::optional<std::unordered_set<std::string>>
-  {
-    if (!config_.hasNetFilter()) {
-      return std::nullopt;
-    }
-
-    const std::string target_net = get_target_net_name();
-    std::unordered_set<std::string> visible_nets;
-    visible_nets.insert(target_net);
-
-    for (const auto& net : exchange_.nets) {
-      for (const auto& cap : net.caps) {
-        if (cap.node2.empty()) {
-          continue;
-        }
-        const std::string net1 = owningNetName(cap.node1);
-        const std::string net2 = owningNetName(cap.node2);
-        if (net1 == target_net) {
-          visible_nets.insert(net2);
-        }
-        if (net2 == target_net) {
-          visible_nets.insert(net1);
-        }
-      }
-    }
-    return visible_nets;
-  }
-
-  auto apply(Model& model) const -> void
-  {
-    if (!config_.hasNetFilter()) {
-      showAll(model);
-      return;
-    }
-
-    const std::string target_net = get_target_net_name();
-    auto net_map = buildNetMap(model);
-    const bool found_target = showOnlyTarget(model, target_net);
-    showCoupledContext(model, net_map, target_net);
-    if (!found_target) {
-      LOG_ERROR << "plot_spef warning: target net not found: " << config_.net_name;
-    }
-  }
-
- private:
-  auto get_target_net_name() const -> std::string
-  {
-    return normalizeNetFilterName(exchange_, config_.net_name);
-  }
-
-  static auto showAll(Model& model) -> void
-  {
-    for (auto& net : model.nets) {
-      net.visible = true;
-      net.context_only = false;
-      for (auto& node : net.nodes) {
-        node.visible = true;
-      }
-      for (auto& resistor : net.resistors) {
-        resistor.visible = true;
-      }
-    }
-  }
-
-  static auto showOnlyTarget(Model& model,
-                             const std::string& target_net) -> bool
-  {
-    bool found_target = false;
-    for (auto& net : model.nets) {
-      const bool is_target_net = net.name == target_net;
-      net.visible = is_target_net;
-      net.context_only = !is_target_net;
-      found_target = found_target || is_target_net;
-      for (auto& node : net.nodes) {
-        node.visible = is_target_net;
-      }
-      for (auto& resistor : net.resistors) {
-        resistor.visible = is_target_net;
-      }
-    }
-    return found_target;
-  }
-
-  auto showCoupledContext(Model& model,
-                          std::unordered_map<std::string, Net*>& net_map,
-                          const std::string& target_net) const -> void
-  {
-    for (const auto& net : model.nets) {
-      for (const auto& cap : net.coupling_caps) {
-        const std::string net1 = owningNetName(cap.node1);
-        const std::string net2 = owningNetName(cap.node2);
-        if (net1 == target_net || net2 == target_net) {
-          showNode(model, net_map, cap.node1);
-          showNode(model, net_map, cap.node2);
-          showEdge(model, net_map, cap.edge1);
-          showEdge(model, net_map, cap.edge2);
-        }
-      }
-    }
-  }
-
-  static auto showNode(Model& model,
-                       std::unordered_map<std::string, Net*>& net_map,
-                       const std::string& node_name) -> void
-  {
-    if (auto* node = findNode(model, node_name)) {
-      node->visible = true;
-    }
-    const auto net_it = net_map.find(owningNetName(node_name));
-    if (net_it != net_map.end()) {
-      net_it->second->visible = true;
-    }
-  }
-
-  static auto showEdge(Model& model,
-                       std::unordered_map<std::string, Net*>& net_map,
-                       const EdgeRef& edge_ref) -> void
-  {
-    if (!edge_ref.valid || edge_ref.net_index >= model.nets.size()) {
-      return;
-    }
-    auto& net = model.nets[edge_ref.net_index];
-    net.visible = true;
-    if (edge_ref.resistor_index >= net.resistors.size()) {
-      return;
-    }
-    auto& resistor = net.resistors[edge_ref.resistor_index];
-    resistor.visible = true;
-    showNode(model, net_map, resistor.node1);
-    showNode(model, net_map, resistor.node2);
-  }
-
-  const spef::Exchange& exchange_;
-  const Config& config_;
-};
-
 class ModelAssembler
 {
  public:
   ModelAssembler(
       const spef::Exchange& exchange,
-      const Config& config,
-      const std::optional<std::unordered_set<std::string>>& visible_net_names)
-      : exchange_(exchange), config_(config), visible_net_names_(visible_net_names)
+      const Config& config)
+      : exchange_(exchange), config_(config)
   {
   }
 
@@ -646,22 +478,12 @@ class ModelAssembler
  private:
   using NetJobs = std::vector<const spef::Net*>;
 
-  auto shouldBuild(const std::string& net_name) const -> bool
-  {
-    return shouldBuildNet(visible_net_names_, net_name);
-  }
-
   auto collectJobs() const -> NetJobs
   {
     NetJobs jobs;
-    jobs.reserve(
-        visible_net_names_.has_value()
-            ? std::min(exchange_.nets.size(), visible_net_names_->size())
-            : exchange_.nets.size());
+    jobs.reserve(exchange_.nets.size());
     for (const auto& spef_net : exchange_.nets) {
-      if (shouldBuild(spef_net.name)) {
-        jobs.push_back(&spef_net);
-      }
+      jobs.push_back(&spef_net);
     }
     return jobs;
   }
@@ -687,25 +509,28 @@ class ModelAssembler
                                 || config_.plotGroundCap();
     const bool need_coupling_caps = config_.plotCouplingCap()
                                     || config_.plotGroundCap()
-                                    || config_.hasNetFilter();
+                                    || config_.hasNetFilter()
+                                    || config_.hasEdgeFilter();
+    const bool need_ground_caps = true;
     if (need_resistors) {
       net.resistors.reserve(spef_net.ress.size());
     }
-    reserveCapacitors(net, spef_net, need_coupling_caps);
+    reserveCapacitors(net, spef_net, need_coupling_caps, need_ground_caps);
 
     appendNodes(net, spef_net);
     if (need_resistors) {
       appendResistors(net, spef_net);
     }
-    appendCapacitors(net, spef_net, need_coupling_caps);
+    appendCapacitors(net, spef_net, need_coupling_caps, need_ground_caps);
     return net;
   }
 
   auto reserveCapacitors(Net& net,
                          const spef::Net& spef_net,
-                         bool need_coupling_caps) const -> void
+                         bool need_coupling_caps,
+                         bool need_ground_caps) const -> void
   {
-    if (!need_coupling_caps && !config_.plotGroundCap()) {
+    if (!need_coupling_caps && !need_ground_caps) {
       return;
     }
 
@@ -721,16 +546,17 @@ class ModelAssembler
     if (need_coupling_caps) {
       net.coupling_caps.reserve(coupling_cap_count);
     }
-    if (config_.plotGroundCap()) {
+    if (need_ground_caps) {
       net.ground_caps.reserve(ground_cap_count);
     }
   }
 
   auto appendCapacitors(Net& net,
                         const spef::Net& spef_net,
-                        bool need_coupling_caps) const -> void
+                        bool need_coupling_caps,
+                        bool need_ground_caps) const -> void
   {
-    if (!need_coupling_caps && !config_.plotGroundCap()) {
+    if (!need_coupling_caps && !need_ground_caps) {
       return;
     }
 
@@ -740,7 +566,7 @@ class ModelAssembler
           .node2 = cap.node2,
           .value = cap.res_or_cap};
       if (cap.node2.empty()) {
-        if (config_.plotGroundCap()) {
+        if (need_ground_caps) {
           net.ground_caps.push_back(std::move(capacitor));
         }
       } else if (need_coupling_caps) {
@@ -779,13 +605,12 @@ class ModelAssembler
           .node1 = res.node1,
           .node2 = res.node2,
           .value = res.res_or_cap,
-          .index = res_index});
+          .index = res.index == 0 ? res_index + 1 : static_cast<Size>(res.index)});
     }
   }
 
   const spef::Exchange& exchange_;
   const Config& config_;
-  const std::optional<std::unordered_set<std::string>>& visible_net_names_;
 };
 
 }  // namespace
@@ -793,12 +618,9 @@ class ModelAssembler
 auto ModelBuilder::build(const spef::Exchange& exchange,
                          const Config& config) const -> Model
 {
-  const PlotScope scope(exchange, config);
-  const auto visible_net_names = scope.netNamesToBuild();
-  Model model = ModelAssembler(exchange, config, visible_net_names).build();
+  Model model = ModelAssembler(exchange, config).build();
   TextGeometryAugmenter(exchange, model, config).run();
-  resolveCapacitorEdges(model, config);
-  scope.apply(model);
+  assignCapEdges(model);
   return model;
 }
 

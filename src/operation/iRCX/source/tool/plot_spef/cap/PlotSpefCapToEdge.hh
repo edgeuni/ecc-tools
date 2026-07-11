@@ -15,23 +15,15 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file PlotSpefGdsType.hh
- * @brief plot_spef implementation detail.
+ * @file PlotSpefCapToEdge.hh
+ * @brief Assign capacitors to edges only when the owner edge is unique.
  */
 #pragma once
 
 namespace ircx::plot_spef {
 
-enum GdsDataType
-{
-  kNode = 1,
-  kEdge = 2,
-  kTargetEdge = 3,
-  kTextNode = 5,
-  kTextRes = 6,
-  kTextCg = 7,
-  kTextCc = 8,
-  kCc = 9
-};
+struct Model;
+
+auto assignCapEdges(Model& model) -> void;
 
 }  // namespace ircx::plot_spef

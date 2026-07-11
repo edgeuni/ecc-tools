@@ -24,11 +24,13 @@ namespace ircx::plot_spef {
 
 struct Config;
 struct Model;
+struct Visibility;
 
 class LypWriter
 {
  public:
   auto write(const Model& model,
+             const Visibility& visibility,
              const Config& config) const -> bool;
 };
 

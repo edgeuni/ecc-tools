@@ -46,6 +46,11 @@ auto ConfigValidator::validate(const Config& config) const -> bool
     return false;
   }
 
+  if (config.hasNetFilter() && config.hasEdgeFilter()) {
+    LOG_ERROR << "plot_spef does not support using -net and -edge together.";
+    return false;
+  }
+
   if (!path::ensureDir(config.output_dir, "plot_spef output directory")) {
     return false;
   }

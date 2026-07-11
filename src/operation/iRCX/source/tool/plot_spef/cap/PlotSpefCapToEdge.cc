@@ -15,16 +15,15 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file PlotSpefCapResolver.cc
- * @brief Capacitor edge resolver implementation for plot_spef.
+ * @file PlotSpefCapToEdge.cc
+ * @brief Assign capacitors to edges only when the owner edge is unique.
  */
-#include "resolver/PlotSpefCapResolver.hh"
+#include "cap/PlotSpefCapToEdge.hh"
 
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "config/PlotSpefConfig.hh"
 #include "model/PlotSpefModel.hh"
 
 namespace ircx::plot_spef {
@@ -93,10 +92,10 @@ auto uniqueEdgeCandidate(const std::vector<EdgeCandidate>& candidates) -> EdgeRe
   return unique;
 }
 
-class StrictResolver
+class CapToEdge
 {
  public:
-  explicit StrictResolver(const IncidentEdgeIndex& incident_edges)
+  explicit CapToEdge(const IncidentEdgeIndex& incident_edges)
       : incident_edges_(incident_edges)
   {
   }
@@ -140,15 +139,10 @@ class StrictResolver
 
 }  // namespace
 
-auto resolveCapacitorEdges(Model& model,
-                           const Config& config) -> void
+auto assignCapEdges(Model& model) -> void
 {
-  if (!config.plotCouplingCap() && !config.plotGroundCap()) {
-    return;
-  }
-
   const IncidentEdgeIndex incident_edges(model);
-  StrictResolver(incident_edges).resolve(model);
+  CapToEdge(incident_edges).resolve(model);
 }
 
 }  // namespace ircx::plot_spef

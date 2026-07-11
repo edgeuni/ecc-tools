@@ -15,17 +15,30 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file PlotSpefCapResolver.hh
- * @brief plot_spef implementation detail.
+ * @file PlotSpefSelect.hh
+ * @brief Select the plot_spef objects that should be visible.
  */
 #pragma once
+
+#include <string>
+
+#include "model/PlotSpefVisibility.hh"
+
+namespace spef {
+struct Exchange;
+}
 
 namespace ircx::plot_spef {
 
 struct Config;
 struct Model;
 
-auto resolveCapacitorEdges(Model& model,
-                           const Config& config) -> void;
+auto makeVisibleObjects(const Model& model,
+                        const spef::Exchange& exchange,
+                        const Config& config) -> Visibility;
+
+auto makeEdgeVisibleObjects(const Model& model,
+                            const spef::Exchange& exchange,
+                            const Config& config) -> Visibility;
 
 }  // namespace ircx::plot_spef

@@ -15,23 +15,36 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file PlotSpefGdsType.hh
- * @brief plot_spef implementation detail.
+ * @file PlotSpefCgEdgeReport.hh
+ * @brief Write SPEF *RES indexes for ground caps that can be assigned to edges.
  */
 #pragma once
 
+#include <string>
+#include <vector>
+
+#include "Types.hh"
+
 namespace ircx::plot_spef {
 
-enum GdsDataType
+struct Config;
+struct Model;
+
+struct EdgeRow
 {
-  kNode = 1,
-  kEdge = 2,
-  kTargetEdge = 3,
-  kTextNode = 5,
-  kTextRes = 6,
-  kTextCg = 7,
-  kTextCc = 8,
-  kCc = 9
+  std::string net_name;
+  Size res_index = 0;
+};
+
+auto collectCgEdgeRows(const Model& model) -> std::vector<EdgeRow>;
+
+auto collectCoupledEdgeRows(const Model& model) -> std::vector<EdgeRow>;
+
+class CgEdgeReport
+{
+ public:
+  auto write(const Model& model,
+             const Config& config) const -> bool;
 };
 
 }  // namespace ircx::plot_spef

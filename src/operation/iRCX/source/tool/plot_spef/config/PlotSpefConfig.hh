@@ -29,13 +29,16 @@ struct Config
   std::string spef_file;
   std::string output_dir;
   std::string net_name;
+  std::string edge_name;
   int dbu = 1000;
   int cores = 1;
   bool output_resistance = false;
   bool output_coupling_cap = false;
   bool output_ground_cap = false;
+  bool log_gds_file = true;
 
   auto hasNetFilter() const -> bool { return !net_name.empty(); }
+  auto hasEdgeFilter() const -> bool { return !edge_name.empty(); }
   auto hasOutputFilter() const -> bool
   {
     return output_resistance || output_coupling_cap || output_ground_cap;

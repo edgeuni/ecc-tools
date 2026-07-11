@@ -43,6 +43,7 @@
 #include "log/Log.hh"
 #include "lyp/PlotSpefLypWriter.hh"
 #include "model/PlotSpefModel.hh"
+#include "model/PlotSpefVisibility.hh"
 
 namespace ircx {
 namespace {
@@ -341,8 +342,12 @@ class DirectModelBuilder
     }
 
     appendCouplingCaps(model, corner_idx);
-    applyScope(model);
     return model;
+  }
+
+  auto makeVisibility(const plot_spef::Model& model) const -> plot_spef::Visibility
+  {
+    return makeScopeVisibility(model);
   }
 
  private:
@@ -432,80 +437,83 @@ class DirectModelBuilder
     }
   }
 
-  auto applyScope(plot_spef::Model& model) const -> void
+  auto makeScopeVisibility(const plot_spef::Model& model) const -> plot_spef::Visibility
   {
     const std::string target_net = string::trim(config_.net_name);
     if (target_net.empty()) {
-      for (auto& net : model.nets) {
-        net.visible = true;
-        net.context_only = false;
-        for (auto& node : net.nodes) {
-          node.visible = true;
-        }
-        for (auto& resistor : net.resistors) {
-          resistor.visible = true;
-        }
-      }
-      return;
+      return plot_spef::makeVisibility(model, true);
     }
 
+    auto visibility = plot_spef::makeVisibility(model, false);
     Size target_net_index = kMaxSize;
     for (Size net_idx = 0; net_idx < model.nets.size(); ++net_idx) {
-      auto& net = model.nets[net_idx];
+      const auto& net = model.nets[net_idx];
       const bool is_target = net.name == target_net;
       if (is_target) {
         target_net_index = net_idx;
       }
-      net.visible = is_target;
-      net.context_only = !is_target;
-      for (auto& node : net.nodes) {
-        node.visible = is_target;
-      }
-      for (auto& resistor : net.resistors) {
-        resistor.visible = is_target;
-      }
+      auto& net_visibility = visibility.nets[net_idx];
+      net_visibility.visible = is_target;
+      net_visibility.context_only = !is_target;
+      std::fill(net_visibility.nodes.begin(), net_visibility.nodes.end(), is_target ? 1 : 0);
+      std::fill(net_visibility.resistors.begin(), net_visibility.resistors.end(), is_target ? 1 : 0);
+      std::fill(net_visibility.coupling_caps.begin(), net_visibility.coupling_caps.end(), is_target ? 1 : 0);
+      std::fill(net_visibility.ground_caps.begin(), net_visibility.ground_caps.end(), is_target ? 1 : 0);
     }
 
     if (target_net_index == kMaxSize) {
       LOG_ERROR << "plot_spef warning: target net not found: " << target_net;
-      return;
+      return visibility;
     }
 
     for (const auto& net : model.nets) {
       for (const auto& cap : net.coupling_caps) {
         if (cap.edge1.net_index == target_net_index || cap.edge2.net_index == target_net_index) {
-          showEdge(model, cap.edge1);
-          showEdge(model, cap.edge2);
+          showEdge(model, visibility, cap.edge1);
+          showEdge(model, visibility, cap.edge2);
         }
       }
     }
+    return visibility;
   }
 
-  static auto showEdge(plot_spef::Model& model,
+  static auto showEdge(const plot_spef::Model& model,
+                       plot_spef::Visibility& visibility,
                        const plot_spef::EdgeRef& edge_ref) -> void
   {
     if (!edge_ref.valid || edge_ref.net_index >= model.nets.size()) {
       return;
     }
 
-    auto& net = model.nets[edge_ref.net_index];
-    net.visible = true;
+    const auto& net = model.nets[edge_ref.net_index];
+    if (edge_ref.net_index >= visibility.nets.size()) {
+      return;
+    }
+    auto& net_visibility = visibility.nets[edge_ref.net_index];
+    net_visibility.visible = true;
     if (edge_ref.resistor_index >= net.resistors.size()) {
       return;
     }
 
-    auto& resistor = net.resistors[edge_ref.resistor_index];
-    resistor.visible = true;
-    showNode(model, resistor.node1);
-    showNode(model, resistor.node2);
+    const auto& resistor = net.resistors[edge_ref.resistor_index];
+    plot_spef::setFlag(net_visibility.resistors, edge_ref.resistor_index);
+    showNode(model, visibility, resistor.node1);
+    showNode(model, visibility, resistor.node2);
   }
 
-  static auto showNode(plot_spef::Model& model,
+  static auto showNode(const plot_spef::Model& model,
+                       plot_spef::Visibility& visibility,
                        const std::string& node_name) -> void
   {
-    if (auto* node = plot_spef::findNode(model, node_name)) {
-      node->visible = true;
+    const auto node_it = model.node_refs_by_name.find(node_name);
+    if (node_it == model.node_refs_by_name.end()
+        || !node_it->second.valid
+        || node_it->second.net_index >= visibility.nets.size()) {
+      return;
     }
+    auto& net_visibility = visibility.nets[node_it->second.net_index];
+    net_visibility.visible = true;
+    plot_spef::setFlag(net_visibility.nodes, node_it->second.node_index);
   }
 
   const RCXData& data_;
@@ -576,10 +584,11 @@ auto writeInternalPlotSpef(const RCXData& data,
   const plot_spef::LypWriter lyp_writer;
   for (Size corner_idx = 0; corner_idx < data.get_corner_data().size(); ++corner_idx) {
     const plot_spef::Model model = builder.build(corner_idx);
-    if (!gds_writer.write(model, plot_config)) {
+    const plot_spef::Visibility visibility = builder.makeVisibility(model);
+    if (!gds_writer.write(model, visibility, plot_config)) {
       return false;
     }
-    if (!lyp_writer.write(model, plot_config)) {
+    if (!lyp_writer.write(model, visibility, plot_config)) {
       return false;
     }
   }

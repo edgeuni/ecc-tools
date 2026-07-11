@@ -2,10 +2,12 @@ add_library(ircx_tool_plot_spef
   internal/InternalPlotSpefWriter.cc
   PlotSpefTool.cc
   builder/PlotSpefModelBuilder.cc
+  cap/PlotSpefCapToEdge.cc
   config/PlotSpefConfig.cc
   gds/PlotSpefGdsWriter.cc
   lyp/PlotSpefLypWriter.cc
-  resolver/PlotSpefCapResolver.cc
+  report/PlotSpefCgEdgeReport.cc
+  select/PlotSpefSelect.cc
 )
 
 target_link_libraries(ircx_tool_plot_spef

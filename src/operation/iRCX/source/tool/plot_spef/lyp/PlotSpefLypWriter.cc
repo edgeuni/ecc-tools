@@ -32,6 +32,7 @@
 #include "log/Log.hh"
 #include "model/PlotSpefGdsType.hh"
 #include "model/PlotSpefModel.hh"
+#include "model/PlotSpefVisibility.hh"
 
 namespace ircx::plot_spef {
 namespace {
@@ -67,6 +68,40 @@ constexpr const char* kMacaronColors[] = {
 
 constexpr Size kMacaronColorCount = sizeof(kMacaronColors) / sizeof(kMacaronColors[0]);
 
+class VisibilityReader
+{
+ public:
+  explicit VisibilityReader(const Visibility& visibility)
+      : visibility_(visibility)
+  {
+  }
+
+  auto netVisible(Size net_index) const -> bool
+  {
+    return visibility_.netVisible(net_index);
+  }
+
+  auto netContextOnly(Size net_index) const -> bool
+  {
+    return visibility_.netContextOnly(net_index);
+  }
+
+  auto nodeVisible(Size net_index,
+                   Size node_index) const -> bool
+  {
+    return visibility_.nets[net_index].nodeVisible(node_index);
+  }
+
+  auto resistorVisible(Size net_index,
+                       Size resistor_index) const -> bool
+  {
+    return visibility_.nets[net_index].resistorVisible(resistor_index);
+  }
+
+ private:
+  const Visibility& visibility_;
+};
+
 auto resistorPlotLayer(const Model& model,
                        const Resistor& resistor) -> int
 {
@@ -78,21 +113,25 @@ auto resistorPlotLayer(const Model& model,
   return node == nullptr ? 0 : node->layer;
 }
 
-auto collectLayers(const Model& model) -> std::vector<int>
+auto collectLayers(const Model& model,
+                   const VisibilityReader& visibility) -> std::vector<int>
 {
   std::set<int> layers;
-  for (const auto& net : model.nets) {
-    if (!net.visible) {
+  for (Size net_index = 0; net_index < model.nets.size(); ++net_index) {
+    const auto& net = model.nets[net_index];
+    if (!visibility.netVisible(net_index)) {
       continue;
     }
-    for (const auto& node : net.nodes) {
-      if (!node.visible) {
+    for (Size node_index = 0; node_index < net.nodes.size(); ++node_index) {
+      const auto& node = net.nodes[node_index];
+      if (!visibility.nodeVisible(net_index, node_index)) {
         continue;
       }
       layers.insert(node.layer);
     }
-    for (const auto& resistor : net.resistors) {
-      if (resistor.visible) {
+    for (Size resistor_index = 0; resistor_index < net.resistors.size(); ++resistor_index) {
+      const auto& resistor = net.resistors[resistor_index];
+      if (visibility.resistorVisible(net_index, resistor_index)) {
         layers.insert(resistorPlotLayer(model, resistor));
       }
     }
@@ -132,14 +171,18 @@ auto edgeColor(Size color_index) -> std::string
 }
 
 auto hasVisibleContextEdgeOnLayer(const Model& model,
+                                  const VisibilityReader& visibility,
                                   int layer) -> bool
 {
-  for (const auto& net : model.nets) {
-    if (!net.visible || !net.context_only) {
+  for (Size net_index = 0; net_index < model.nets.size(); ++net_index) {
+    const auto& net = model.nets[net_index];
+    if (!visibility.netVisible(net_index) || !visibility.netContextOnly(net_index)) {
       continue;
     }
-    for (const auto& resistor : net.resistors) {
-      if (resistor.visible && resistorPlotLayer(model, resistor) == layer) {
+    for (Size resistor_index = 0; resistor_index < net.resistors.size(); ++resistor_index) {
+      const auto& resistor = net.resistors[resistor_index];
+      if (visibility.resistorVisible(net_index, resistor_index)
+          && resistorPlotLayer(model, resistor) == layer) {
         return true;
       }
     }
@@ -148,6 +191,7 @@ auto hasVisibleContextEdgeOnLayer(const Model& model,
 }
 
 auto makePropertiesForLayer(const Model& model,
+                            const VisibilityReader& visibility,
                             const Config& config,
                             int layer,
                             Size color_index) -> std::vector<LayerProperty>
@@ -168,7 +212,7 @@ auto makePropertiesForLayer(const Model& model,
        .frame_color = "#0050d8",
        .fill_color = "#0050d8"},
   };
-  const bool plot_edge = config.plotResistance() || hasVisibleContextEdgeOnLayer(model, layer);
+  const bool plot_edge = config.plotResistance() || hasVisibleContextEdgeOnLayer(model, visibility, layer);
   if (plot_edge) {
     properties.push_back({.layer = layer,
                           .data_type = kEdge,
@@ -177,6 +221,14 @@ auto makePropertiesForLayer(const Model& model,
                           .fill_color = edgeColor(color_index),
                           .line_style = 0,
                           .width = 1,
+                          .filled = true});
+    properties.push_back({.layer = layer,
+                          .data_type = kTargetEdge,
+                          .name = prefix + "TargetEdge",
+                          .frame_color = "#e00000",
+                          .fill_color = "#ff3030",
+                          .line_style = 0,
+                          .width = 2,
                           .filled = true});
   }
   if (config.plotResistance()) {
@@ -212,12 +264,13 @@ auto makePropertiesForLayer(const Model& model,
 }
 
 auto makeProperties(const Model& model,
+                    const VisibilityReader& visibility,
                     const Config& config) -> std::vector<LayerProperty>
 {
   std::vector<LayerProperty> properties;
-  const auto layers = collectLayers(model);
+  const auto layers = collectLayers(model, visibility);
   for (Size index = 0; index < layers.size(); ++index) {
-    const auto layer_properties = makePropertiesForLayer(model, config, layers[index], index);
+    const auto layer_properties = makePropertiesForLayer(model, visibility, config, layers[index], index);
     properties.insert(properties.end(), layer_properties.begin(), layer_properties.end());
   }
   return properties;
@@ -248,6 +301,7 @@ auto writeProperty(std::ostream& os,
 }  // namespace
 
 auto LypWriter::write(const Model& model,
+                      const Visibility& visibility,
                       const Config& config) const -> bool
 {
   const auto lyp_file = path::fileUnderDir(
@@ -262,7 +316,8 @@ auto LypWriter::write(const Model& model,
 
   os << "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
   os << "<layer-properties>\n";
-  for (const auto& property : makeProperties(model, config)) {
+  const VisibilityReader visibility_reader(visibility);
+  for (const auto& property : makeProperties(model, visibility_reader, config)) {
     writeProperty(os, property);
   }
   os << "</layer-properties>\n";
