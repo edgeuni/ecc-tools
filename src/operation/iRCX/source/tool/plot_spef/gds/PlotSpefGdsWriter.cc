@@ -686,10 +686,6 @@ class NetGdsWriter
                       Size net_index,
                       const Net& net) const -> void
   {
-    if (!config_.plotResistance() && !visibility_.netContextOnly(net_index)) {
-      return;
-    }
-
     for (Size resistor_index = 0; resistor_index < net.resistors.size(); ++resistor_index) {
       const auto& resistor = net.resistors[resistor_index];
       if (!visibility_.resistorVisible(net_index, resistor_index)) {

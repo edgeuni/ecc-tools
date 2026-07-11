@@ -170,13 +170,13 @@ auto edgeColor(Size color_index) -> std::string
   return macaronColor(color_index * 2 + 1);
 }
 
-auto hasVisibleContextEdgeOnLayer(const Model& model,
-                                  const VisibilityReader& visibility,
-                                  int layer) -> bool
+auto hasVisibleEdgeOnLayer(const Model& model,
+                           const VisibilityReader& visibility,
+                           int layer) -> bool
 {
   for (Size net_index = 0; net_index < model.nets.size(); ++net_index) {
     const auto& net = model.nets[net_index];
-    if (!visibility.netVisible(net_index) || !visibility.netContextOnly(net_index)) {
+    if (!visibility.netVisible(net_index)) {
       continue;
     }
     for (Size resistor_index = 0; resistor_index < net.resistors.size(); ++resistor_index) {
@@ -212,7 +212,7 @@ auto makePropertiesForLayer(const Model& model,
        .frame_color = "#0050d8",
        .fill_color = "#0050d8"},
   };
-  const bool plot_edge = config.plotResistance() || hasVisibleContextEdgeOnLayer(model, visibility, layer);
+  const bool plot_edge = hasVisibleEdgeOnLayer(model, visibility, layer);
   if (plot_edge) {
     properties.push_back({.layer = layer,
                           .data_type = kEdge,
