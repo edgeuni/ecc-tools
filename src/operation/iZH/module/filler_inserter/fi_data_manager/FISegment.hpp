@@ -16,17 +16,26 @@
 // ***************************************************************************************
 #pragma once
 
-namespace irt {
+#include "ZHHeader.hpp"
 
-class TGIterParam
+namespace izh {
+
+class FISegment
 {
  public:
-  TGIterParam() = default;
-  ~TGIterParam() = default;
+  FISegment() = default;
+  ~FISegment() = default;
   // getter
+  int32_t get_begin_site_idx() const { return _begin_site_idx; }
+  int32_t get_end_site_idx() const { return _end_site_idx; }
+  int32_t get_site_count() const { return _end_site_idx >= _begin_site_idx ? _end_site_idx - _begin_site_idx + 1 : 0; }
   // setter
+  void set_begin_site_idx(const int32_t begin_site_idx) { _begin_site_idx = begin_site_idx; }
+  void set_end_site_idx(const int32_t end_site_idx) { _end_site_idx = end_site_idx; }
 
  private:
+  int32_t _begin_site_idx = -1;
+  int32_t _end_site_idx = -1;
 };
 
-}  // namespace irt
+}  // namespace izh

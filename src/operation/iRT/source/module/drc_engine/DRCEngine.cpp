@@ -141,6 +141,9 @@ void DRCEngine::filterViolationList(DETask& de_task)
       // 未知规则舍弃
       continue;
     }
+    if (de_task.get_skip_single_net_violation() && violation.get_violation_net_set().size() <= 1) {
+      continue;
+    }
     std::vector<Violation> expanded_violation_list = getExpandedViolationList(de_task, violation);
     if (expanded_violation_list.empty()) {
       // 跳过的类型舍弃
@@ -255,7 +258,7 @@ std::vector<Violation> DRCEngine::getExpandedViolationList(DETask& de_task, Viol
         break;
       case ViolationType::kMinStep:
         new_real_rect = enlargeRect(new_real_rect, 0);
-        layer_routing_list = expandLayer(violation, {-1, 0, +1 });
+        layer_routing_list = expandLayer(violation, {-1, 0, +1});
         break;
       case ViolationType::kNonsufficientMetalOverlap:
         new_real_rect = enlargeRect(new_real_rect, 0);

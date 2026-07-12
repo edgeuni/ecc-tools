@@ -28,7 +28,7 @@ class GCell : public PlanarRect
   ~GCell() = default;
   // getter
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
-  std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>>& get_net_access_point_map() { return _net_access_point_map; }
+  std::map<int32_t, std::vector<AccessPoint*>>& get_net_access_point_map() { return _net_access_point_map; }
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& get_net_pin_access_result_map() { return _net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& get_net_pin_access_patch_map() { return _net_pin_access_patch_map; }
   double get_boundary_wire_unit() const { return _boundary_wire_unit; }
@@ -45,10 +45,7 @@ class GCell : public PlanarRect
   {
     _type_layer_net_fixed_rect_map = type_layer_net_fixed_rect_map;
   }
-  void set_net_access_point_map(const std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>>& net_access_point_map)
-  {
-    _net_access_point_map = net_access_point_map;
-  }
+  void set_net_access_point_map(const std::map<int32_t, std::vector<AccessPoint*>>& net_access_point_map) { _net_access_point_map = net_access_point_map; }
   void set_net_pin_access_result_map(const std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& net_pin_access_result_map)
   {
     _net_pin_access_result_map = net_pin_access_result_map;
@@ -87,7 +84,7 @@ class GCell : public PlanarRect
   // obstacle & pin_shape
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
   // access point
-  std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> _net_access_point_map;
+  std::map<int32_t, std::vector<AccessPoint*>> _net_access_point_map;
   // access routing result
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> _net_pin_access_result_map;
   // access routing patch

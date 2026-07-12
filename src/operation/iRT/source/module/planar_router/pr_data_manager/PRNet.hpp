@@ -17,30 +17,30 @@
 #pragma once
 
 #include "Net.hpp"
-#include "TGPin.hpp"
+#include "PRPin.hpp"
 
 namespace irt {
 
-class TGNet
+class PRNet
 {
  public:
-  TGNet() = default;
-  ~TGNet() = default;
+  PRNet() = default;
+  ~PRNet() = default;
   // getter
   Net* get_origin_net() { return _origin_net; }
   int32_t get_net_idx() const { return _net_idx; }
   ConnectType& get_connect_type() { return _connect_type; }
-  std::vector<TGPin>& get_tg_pin_list() { return _tg_pin_list; }
+  std::vector<PRPin>& get_pr_pin_list() { return _pr_pin_list; }
   BoundingBox& get_bounding_box() { return _bounding_box; }
   // const getter
   const ConnectType& get_connect_type() const { return _connect_type; }
-  const std::vector<TGPin>& get_tg_pin_list() const { return _tg_pin_list; }
+  const std::vector<PRPin>& get_pr_pin_list() const { return _pr_pin_list; }
   const BoundingBox& get_bounding_box() const { return _bounding_box; }
   // setter
   void set_origin_net(Net* origin_net) { _origin_net = origin_net; }
   void set_net_idx(const int32_t net_idx) { _net_idx = net_idx; }
   void set_connect_type(const ConnectType& connect_type) { _connect_type = connect_type; }
-  void set_tg_pin_list(const std::vector<TGPin>& tg_pin_list) { _tg_pin_list = tg_pin_list; }
+  void set_pr_pin_list(const std::vector<PRPin>& pr_pin_list) { _pr_pin_list = pr_pin_list; }
   void set_bounding_box(const BoundingBox& bounding_box) { _bounding_box = bounding_box; }
   // function
 
@@ -48,13 +48,13 @@ class TGNet
   Net* _origin_net = nullptr;
   int32_t _net_idx = -1;
   ConnectType _connect_type = ConnectType::kNone;
-  std::vector<TGPin> _tg_pin_list;
+  std::vector<PRPin> _pr_pin_list;
   BoundingBox _bounding_box;
 };
 
-struct CmpTGNet
+struct CmpPRNet
 {
-  bool operator()(const TGNet* a, const TGNet* b) const
+  bool operator()(const PRNet* a, const PRNet* b) const
   {
     SortStatus sort_status = SortStatus::kEqual;
     // 时钟线网优先
@@ -101,8 +101,8 @@ struct CmpTGNet
     }
     // PinNum 降序
     if (sort_status == SortStatus::kEqual) {
-      int32_t a_pin_num = static_cast<int32_t>(a->get_tg_pin_list().size());
-      int32_t b_pin_num = static_cast<int32_t>(b->get_tg_pin_list().size());
+      int32_t a_pin_num = static_cast<int32_t>(a->get_pr_pin_list().size());
+      int32_t b_pin_num = static_cast<int32_t>(b->get_pr_pin_list().size());
       if (a_pin_num > b_pin_num) {
         sort_status = SortStatus::kTrue;
       } else if (a_pin_num == b_pin_num) {

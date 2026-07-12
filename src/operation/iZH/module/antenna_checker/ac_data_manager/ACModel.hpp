@@ -16,23 +16,24 @@
 // ***************************************************************************************
 #pragma once
 
-#include "Pin.hpp"
+#include "ZHHeader.hpp"
 
-namespace irt {
+namespace izh {
 
-class TGPin : public Pin
+class ACModel
 {
  public:
-  TGPin() = default;
-  explicit TGPin(const Pin& pin) : Pin(pin) {}
-  ~TGPin() = default;
+  ACModel() = default;
+  ~ACModel() = default;
   // getter
-
+  int32_t get_violation_num() const { return _violation_num; }
   // setter
-
+  void set_violation_num(const int32_t violation_num) { _violation_num = violation_num; }
   // function
+  void addViolationNum(const int32_t violation_num) { _violation_num += violation_num; }
 
  private:
+  int32_t _violation_num = 0;
 };
 
-}  // namespace irt
+}  // namespace izh

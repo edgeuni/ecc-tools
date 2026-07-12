@@ -120,10 +120,22 @@ class DRNode : public LayerCoord
     }
     return cost;
   }
-  void addFixedRectNet(Orientation orientation, int32_t net_idx) { addOrientNet(_orient_fixed_rect_list, _orient_fixed_rect_net_idx_list, orientation, net_idx); }
-  void addRoutedRectNet(Orientation orientation, int32_t net_idx) { addOrientNet(_orient_routed_rect_list, _orient_routed_rect_net_idx_list, orientation, net_idx); }
-  void delFixedRectNet(Orientation orientation, int32_t net_idx) { delOrientNet(_orient_fixed_rect_list, _orient_fixed_rect_net_idx_list, orientation, net_idx); }
-  void delRoutedRectNet(Orientation orientation, int32_t net_idx) { delOrientNet(_orient_routed_rect_list, _orient_routed_rect_net_idx_list, orientation, net_idx); }
+  void addFixedRectNet(Orientation orientation, int32_t net_idx)
+  {
+    addOrientNet(_orient_fixed_rect_list, _orient_fixed_rect_net_idx_list, orientation, net_idx);
+  }
+  void addRoutedRectNet(Orientation orientation, int32_t net_idx)
+  {
+    addOrientNet(_orient_routed_rect_list, _orient_routed_rect_net_idx_list, orientation, net_idx);
+  }
+  void delFixedRectNet(Orientation orientation, int32_t net_idx)
+  {
+    delOrientNet(_orient_fixed_rect_list, _orient_fixed_rect_net_idx_list, orientation, net_idx);
+  }
+  void delRoutedRectNet(Orientation orientation, int32_t net_idx)
+  {
+    delOrientNet(_orient_routed_rect_list, _orient_routed_rect_net_idx_list, orientation, net_idx);
+  }
   bool hasFixedRectOrient(Orientation orientation) const
   {
     if (!isNeighborOrientation(orientation)) {
@@ -332,8 +344,7 @@ class DRNode : public LayerCoord
       updateOrientNetIdx(orient_net_idx_list, orientation, orient_net_list.back().second);
     }
   }
-  static double getOrientNetCost(const std::array<int32_t, kNeighborOrientationNum>& orient_net_idx_list, int32_t net_idx, Orientation orientation,
-                                 double unit)
+  static double getOrientNetCost(const std::array<int32_t, kNeighborOrientationNum>& orient_net_idx_list, int32_t net_idx, Orientation orientation, double unit)
   {
     if (!isNeighborOrientation(orientation)) {
       return 0;
