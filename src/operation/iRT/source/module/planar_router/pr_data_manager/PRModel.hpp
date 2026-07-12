@@ -18,24 +18,24 @@
 #pragma once
 
 #include "RTHeader.hpp"
-#include "TGComParam.hpp"
-#include "TGIterParam.hpp"
-#include "TGNet.hpp"
-#include "TGNode.hpp"
+#include "PRComParam.hpp"
+#include "PRIterParam.hpp"
+#include "PRNet.hpp"
+#include "PRNode.hpp"
 
 namespace irt {
 
-class TGModel
+class PRModel
 {
  public:
-  TGModel() = default;
-  ~TGModel() = default;
+  PRModel() = default;
+  ~PRModel() = default;
   // getter
-  std::vector<TGNet>& get_tg_net_list() { return _tg_net_list; }
-  TGComParam& get_tg_com_param() { return _tg_com_param; }
-  TGIterParam& get_tg_iter_param() { return _tg_iter_param; }
-  std::vector<TGNet*>& get_tg_task_list() { return _tg_task_list; }
-  GridMap<TGNode>& get_tg_node_map() { return _tg_node_map; }
+  std::vector<PRNet>& get_pr_net_list() { return _pr_net_list; }
+  PRComParam& get_pr_com_param() { return _pr_com_param; }
+  PRIterParam& get_pr_iter_param() { return _pr_iter_param; }
+  std::vector<PRNet*>& get_pr_task_list() { return _pr_task_list; }
+  GridMap<PRNode>& get_pr_node_map() { return _pr_node_map; }
   GridMap<double>& get_congestion_risk_map() { return _congestion_risk_map; }
   GridMap<uint8_t>& get_shadow_orient_mask_map() { return _shadow_orient_mask_map; }
   GridMap<int32_t>& get_shadow_stamp_map() { return _shadow_stamp_map; }
@@ -53,11 +53,11 @@ class TGModel
   double get_best_congestion_risk() const { return _best_congestion_risk; }
   double get_best_wire_length() const { return _best_wire_length; }
   // setter
-  void set_tg_net_list(const std::vector<TGNet>& tg_net_list) { _tg_net_list = tg_net_list; }
-  void set_tg_com_param(const TGComParam& tg_com_param) { _tg_com_param = tg_com_param; }
-  void set_tg_iter_param(const TGIterParam& tg_iter_param) { _tg_iter_param = tg_iter_param; }
-  void set_tg_task_list(const std::vector<TGNet*>& tg_task_list) { _tg_task_list = tg_task_list; }
-  void set_tg_node_map(const GridMap<TGNode>& tg_node_map) { _tg_node_map = tg_node_map; }
+  void set_pr_net_list(const std::vector<PRNet>& pr_net_list) { _pr_net_list = pr_net_list; }
+  void set_pr_com_param(const PRComParam& pr_com_param) { _pr_com_param = pr_com_param; }
+  void set_pr_iter_param(const PRIterParam& pr_iter_param) { _pr_iter_param = pr_iter_param; }
+  void set_pr_task_list(const std::vector<PRNet*>& pr_task_list) { _pr_task_list = pr_task_list; }
+  void set_pr_node_map(const GridMap<PRNode>& pr_node_map) { _pr_node_map = pr_node_map; }
   void set_congestion_risk_map(const GridMap<double>& congestion_risk_map) { _congestion_risk_map = congestion_risk_map; }
   void set_shadow_stamp(const int32_t shadow_stamp) { _shadow_stamp = shadow_stamp; }
   void set_net_global_result_map(const std::map<int32_t, std::set<Segment<LayerCoord>*>>& net_global_result_map)
@@ -79,16 +79,16 @@ class TGModel
   void set_best_wire_length(const double best_wire_length) { _best_wire_length = best_wire_length; }
 #if 1
   // single task
-  TGNet* get_curr_tg_task() { return _curr_tg_task; }
-  void set_curr_tg_task(TGNet* curr_tg_task) { _curr_tg_task = curr_tg_task; }
+  PRNet* get_curr_pr_task() { return _curr_pr_task; }
+  void set_curr_pr_task(PRNet* curr_pr_task) { _curr_pr_task = curr_pr_task; }
 #endif
 
  private:
-  std::vector<TGNet> _tg_net_list;
-  TGComParam _tg_com_param;
-  TGIterParam _tg_iter_param;
-  std::vector<TGNet*> _tg_task_list;
-  GridMap<TGNode> _tg_node_map;
+  std::vector<PRNet> _pr_net_list;
+  PRComParam _pr_com_param;
+  PRIterParam _pr_iter_param;
+  std::vector<PRNet*> _pr_task_list;
+  GridMap<PRNode> _pr_node_map;
   GridMap<double> _congestion_risk_map;
   GridMap<uint8_t> _shadow_orient_mask_map;
   GridMap<int32_t> _shadow_stamp_map;
@@ -107,7 +107,7 @@ class TGModel
   double _best_wire_length = DBL_MAX;
 #if 1
   // single task
-  TGNet* _curr_tg_task = nullptr;
+  PRNet* _curr_pr_task = nullptr;
 #endif
 };
 

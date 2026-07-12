@@ -20,12 +20,12 @@
 
 namespace irt {
 
-class TGPin : public Pin
+class PRPin : public Pin
 {
  public:
-  TGPin() = default;
-  explicit TGPin(const Pin& pin) : Pin(pin) {}
-  ~TGPin() = default;
+  PRPin() = default;
+  explicit PRPin(const Pin& pin) : Pin(pin) {}
+  ~PRPin() = default;
   // getter
 
   // setter

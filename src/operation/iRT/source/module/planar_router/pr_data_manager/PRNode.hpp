@@ -27,18 +27,18 @@
 
 namespace irt {
 
-enum TGOrientMask : uint8_t
+enum PROrientMask : uint8_t
 {
-  kTGMaskNone = 0,
-  kTGMaskEast = 1 << 0,
-  kTGMaskWest = 1 << 1,
-  kTGMaskSouth = 1 << 2,
-  kTGMaskNorth = 1 << 3,
-  kTGMaskHorizontal = kTGMaskEast | kTGMaskWest,
-  kTGMaskVertical = kTGMaskSouth | kTGMaskNorth
+  kPRMaskNone = 0,
+  kPRMaskEast = 1 << 0,
+  kPRMaskWest = 1 << 1,
+  kPRMaskSouth = 1 << 2,
+  kPRMaskNorth = 1 << 3,
+  kPRMaskHorizontal = kPRMaskEast | kPRMaskWest,
+  kPRMaskVertical = kPRMaskSouth | kPRMaskNorth
 };
 
-inline int32_t getTGOrientIndex(Orientation orientation)
+inline int32_t getPROrientIndex(Orientation orientation)
 {
   switch (orientation) {
     case Orientation::kEast:
@@ -55,7 +55,7 @@ inline int32_t getTGOrientIndex(Orientation orientation)
   return -1;
 }
 
-inline Orientation getTGOrientationByIndex(int32_t orient_idx)
+inline Orientation getPROrientationByIndex(int32_t orient_idx)
 {
   switch (orient_idx) {
     case 0:
@@ -72,24 +72,24 @@ inline Orientation getTGOrientationByIndex(int32_t orient_idx)
   return Orientation::kNone;
 }
 
-inline uint8_t getTGOrientMask(Orientation orientation)
+inline uint8_t getPROrientMask(Orientation orientation)
 {
-  return static_cast<uint8_t>(1 << getTGOrientIndex(orientation));
+  return static_cast<uint8_t>(1 << getPROrientIndex(orientation));
 }
 
-inline uint8_t getTGDirectionMask(Direction direction)
+inline uint8_t getPRDirectionMask(Direction direction)
 {
   if (direction == Direction::kHorizontal) {
-    return kTGMaskHorizontal;
+    return kPRMaskHorizontal;
   }
   if (direction == Direction::kVertical) {
-    return kTGMaskVertical;
+    return kPRMaskVertical;
   }
   RTLOG.error(Loc::current(), "The direction is error!");
-  return kTGMaskNone;
+  return kPRMaskNone;
 }
 
-inline int32_t getTGMaskBitNum(uint8_t mask)
+inline int32_t getPRMaskBitNum(uint8_t mask)
 {
   int32_t bit_num = 0;
   for (int32_t i = 0; i < 4; i++) {
@@ -100,14 +100,14 @@ inline int32_t getTGMaskBitNum(uint8_t mask)
   return bit_num;
 }
 
-enum class TGNodeState
+enum class PRNodeState
 {
   kNone = 0,
   kOpen = 1,
   kClose = 2
 };
 
-struct TGNodeCost
+struct PRNodeCost
 {
   double usage_cost = 0.0;
   double saturation_cost = 0.0;
@@ -120,7 +120,7 @@ struct TGNodeCost
   int32_t overflow_orient_num = 0;
 
   double getTotalCost() const { return usage_cost + saturation_cost + hotspot_cost + overflow_cost; }
-  void addCost(const TGNodeCost& cost)
+  void addCost(const PRNodeCost& cost)
   {
     usage_cost += cost.usage_cost;
     saturation_cost += cost.saturation_cost;
@@ -134,16 +134,16 @@ struct TGNodeCost
   }
 };
 
-class TGNode : public PlanarCoord
+class PRNode : public PlanarCoord
 {
  public:
-  TGNode() = default;
-  ~TGNode() = default;
+  PRNode() = default;
+  ~PRNode() = default;
   // getter
   double get_boundary_wire_unit() const { return _boundary_wire_unit; }
   double get_internal_wire_unit() const { return _internal_wire_unit; }
   double get_internal_via_unit() const { return _internal_via_unit; }
-  std::map<Orientation, TGNode*>& get_neighbor_node_map() { return _neighbor_node_map; }
+  std::map<Orientation, PRNode*>& get_neighbor_node_map() { return _neighbor_node_map; }
   std::map<Orientation, int32_t>& get_orient_supply_map() { return _orient_supply_map; }
   std::map<int32_t, std::set<Orientation>>& get_ignore_net_orient_map() { return _ignore_net_orient_map; }
   std::map<Orientation, std::set<int32_t>>& get_orient_net_map() { return _orient_net_map; }
@@ -154,7 +154,7 @@ class TGNode : public PlanarCoord
   void set_boundary_wire_unit(const double boundary_wire_unit) { _boundary_wire_unit = boundary_wire_unit; }
   void set_internal_wire_unit(const double internal_wire_unit) { _internal_wire_unit = internal_wire_unit; }
   void set_internal_via_unit(const double internal_via_unit) { _internal_via_unit = internal_via_unit; }
-  void set_neighbor_node_map(const std::map<Orientation, TGNode*>& neighbor_node_map) { _neighbor_node_map = neighbor_node_map; }
+  void set_neighbor_node_map(const std::map<Orientation, PRNode*>& neighbor_node_map) { _neighbor_node_map = neighbor_node_map; }
   void set_orient_supply_map(const std::map<Orientation, int32_t>& orient_supply_map)
   {
     _orient_supply_map = orient_supply_map;
@@ -162,7 +162,7 @@ class TGNode : public PlanarCoord
     _internal_supply_count = 0;
     for (auto& [orient, supply] : _orient_supply_map) {
       if (orient == Orientation::kEast || orient == Orientation::kWest || orient == Orientation::kSouth || orient == Orientation::kNorth) {
-        _orient_supply_count[getTGOrientIndex(orient)] = supply;
+        _orient_supply_count[getPROrientIndex(orient)] = supply;
         _internal_supply_count += supply;
       }
     }
@@ -193,15 +193,15 @@ class TGNode : public PlanarCoord
     _net_orient_map.clear();
     clearFastDemand();
   }
-  TGNode* getNeighborNode(Orientation orientation)
+  PRNode* getNeighborNode(Orientation orientation)
   {
-    TGNode* neighbor_node = nullptr;
+    PRNode* neighbor_node = nullptr;
     if (RTUTIL.exist(_neighbor_node_map, orientation)) {
       neighbor_node = _neighbor_node_map[orientation];
     }
     return neighbor_node;
   }
-  TGNodeCost getCost(int32_t net_idx, Direction direction, double overflow_unit, const std::set<Orientation>* extra_orient_set = nullptr,
+  PRNodeCost getCost(int32_t net_idx, Direction direction, double overflow_unit, const std::set<Orientation>* extra_orient_set = nullptr,
                      bool ignore_curr_net = false)
   {
     if (!validDemandUnit()) {
@@ -237,7 +237,7 @@ class TGNode : public PlanarCoord
     } else {
       RTLOG.error(Loc::current(), "The direction is error!");
     }
-    TGNodeCost node_cost;
+    PRNodeCost node_cost;
     for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
       double boundary_demand = 0;
       if (RTUTIL.exist(orient_net_map, orient)) {
@@ -279,14 +279,14 @@ class TGNode : public PlanarCoord
   {
     return getCost(net_idx, direction, overflow_unit, extra_orient_set, ignore_curr_net).getTotalCost();
   }
-  TGNodeCost getFastCost(uint8_t orient_mask, double overflow_unit)
+  PRNodeCost getFastCost(uint8_t orient_mask, double overflow_unit)
   {
     if (!validDemandUnit()) {
       RTLOG.error(Loc::current(), "The demand unit is error!");
     }
     return getFastCostByDemandCount(_orient_demand_count, _internal_demand_count, orient_mask, overflow_unit);
   }
-  TGNodeCost getFastCost(int32_t net_idx, uint8_t orient_mask, double overflow_unit, bool ignore_curr_net)
+  PRNodeCost getFastCost(int32_t net_idx, uint8_t orient_mask, double overflow_unit, bool ignore_curr_net)
   {
     if (!validDemandUnit()) {
       RTLOG.error(Loc::current(), "The demand unit is error!");
@@ -295,9 +295,9 @@ class TGNode : public PlanarCoord
     int32_t internal_demand_count = _internal_demand_count;
     uint8_t add_orient_mask = orient_mask;
     for (int32_t orient_idx = 0; orient_idx < 4; orient_idx++) {
-      Orientation orient = getTGOrientationByIndex(orient_idx);
+      Orientation orient = getPROrientationByIndex(orient_idx);
       if (isIgnored(net_idx, orient)) {
-        add_orient_mask &= static_cast<uint8_t>(~getTGOrientMask(orient));
+        add_orient_mask &= static_cast<uint8_t>(~getPROrientMask(orient));
       }
     }
     if (RTUTIL.exist(_net_orient_map, net_idx)) {
@@ -306,10 +306,10 @@ class TGNode : public PlanarCoord
           continue;
         }
         if (ignore_curr_net) {
-          orient_demand_count[getTGOrientIndex(orient)]--;
+          orient_demand_count[getPROrientIndex(orient)]--;
           internal_demand_count--;
         } else {
-          add_orient_mask &= static_cast<uint8_t>(~getTGOrientMask(orient));
+          add_orient_mask &= static_cast<uint8_t>(~getPROrientMask(orient));
         }
       }
     }
@@ -325,14 +325,14 @@ class TGNode : public PlanarCoord
     }
     return true;
   }
-  TGNodeCost calcCost(double demand, double supply, double overflow_unit)
+  PRNodeCost calcCost(double demand, double supply, double overflow_unit)
   {
     constexpr double kSaturationStartRatio = 0.8;
     constexpr double kHotspotStartRatio = 0.9;
     constexpr double kFullSupplyPenaltyScale = 1.0;
     constexpr double kHotspotPenaltyScale = 2.0;
 
-    TGNodeCost cost;
+    PRNodeCost cost;
     if (supply <= 0) {
       if (demand <= 0) {
         return cost;
@@ -663,17 +663,17 @@ class TGNode : public PlanarCoord
     }
     return high_usage_net_set;
   }
-  TGNodeState& get_state() { return _state; }
-  TGNode* get_parent_node() const { return _parent_node; }
+  PRNodeState& get_state() { return _state; }
+  PRNode* get_parent_node() const { return _parent_node; }
   double get_known_cost() const { return _known_cost; }
   double get_estimated_cost() const { return _estimated_cost; }
-  void set_state(TGNodeState state) { _state = state; }
-  void set_parent_node(TGNode* parent_node) { _parent_node = parent_node; }
+  void set_state(PRNodeState state) { _state = state; }
+  void set_parent_node(PRNode* parent_node) { _parent_node = parent_node; }
   void set_known_cost(const double known_cost) { _known_cost = known_cost; }
   void set_estimated_cost(const double estimated_cost) { _estimated_cost = estimated_cost; }
-  bool isNone() { return _state == TGNodeState::kNone; }
-  bool isOpen() { return _state == TGNodeState::kOpen; }
-  bool isClose() { return _state == TGNodeState::kClose; }
+  bool isNone() { return _state == PRNodeState::kNone; }
+  bool isOpen() { return _state == PRNodeState::kOpen; }
+  bool isClose() { return _state == PRNodeState::kClose; }
   double getTotalCost() { return (_known_cost + _estimated_cost); }
 
  private:
@@ -720,7 +720,7 @@ class TGNode : public PlanarCoord
     if (isIgnored(net_idx, orient)) {
       return;
     }
-    _orient_demand_count[getTGOrientIndex(orient)]++;
+    _orient_demand_count[getPROrientIndex(orient)]++;
     _internal_demand_count++;
   }
   void delFastDemand(int32_t net_idx, Orientation orient)
@@ -728,13 +728,13 @@ class TGNode : public PlanarCoord
     if (isIgnored(net_idx, orient)) {
       return;
     }
-    _orient_demand_count[getTGOrientIndex(orient)]--;
+    _orient_demand_count[getPROrientIndex(orient)]--;
     _internal_demand_count--;
   }
-  TGNodeCost getFastCostByDemandCount(const std::array<int32_t, 4>& orient_demand_count, int32_t internal_demand_count, uint8_t orient_mask,
+  PRNodeCost getFastCostByDemandCount(const std::array<int32_t, 4>& orient_demand_count, int32_t internal_demand_count, uint8_t orient_mask,
                                       double overflow_unit)
   {
-    TGNodeCost node_cost;
+    PRNodeCost node_cost;
     for (int32_t orient_idx = 0; orient_idx < 4; orient_idx++) {
       int32_t demand_count = orient_demand_count[orient_idx];
       if (orient_mask & (1 << orient_idx)) {
@@ -742,7 +742,7 @@ class TGNode : public PlanarCoord
       }
       node_cost.addCost(calcCost(demand_count * _boundary_wire_unit, _orient_supply_count[orient_idx], overflow_unit));
     }
-    int32_t total_internal_demand_count = internal_demand_count + getTGMaskBitNum(orient_mask);
+    int32_t total_internal_demand_count = internal_demand_count + getPRMaskBitNum(orient_mask);
     node_cost.addCost(calcCost(total_internal_demand_count * _internal_wire_unit, _internal_supply_count, overflow_unit));
     return node_cost;
   }
@@ -764,15 +764,15 @@ class TGNode : public PlanarCoord
   std::array<int32_t, 4> _orient_supply_count = {0, 0, 0, 0};
   int32_t _internal_demand_count = 0;
   int32_t _internal_supply_count = 0;
-  std::map<Orientation, TGNode*> _neighbor_node_map;
+  std::map<Orientation, PRNode*> _neighbor_node_map;
   std::map<Orientation, int32_t> _orient_supply_map;
   std::map<int32_t, std::set<Orientation>> _ignore_net_orient_map;
   std::map<Orientation, std::map<int32_t, int32_t>> _orient_net_ref_count_map;
   std::map<Orientation, std::set<int32_t>> _orient_net_map;
   std::map<int32_t, std::set<Orientation>> _net_orient_map;
   double _congestion_risk = 0;
-  TGNodeState _state = TGNodeState::kNone;
-  TGNode* _parent_node = nullptr;
+  PRNodeState _state = PRNodeState::kNone;
+  PRNode* _parent_node = nullptr;
   double _known_cost = 0.0;
   double _estimated_cost = 0.0;
 };

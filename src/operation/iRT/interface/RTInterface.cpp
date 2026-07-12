@@ -28,7 +28,7 @@
 #include "RTInterface.hpp"
 #include "SpaceRouter.hpp"
 #include "SupplyAnalyzer.hpp"
-#include "TopologyGenerator.hpp"
+#include "PlanarRouter.hpp"
 #include "TrackAssigner.hpp"
 #include "ViolationReporter.hpp"
 #include "api/TimingEngine.hh"
@@ -125,9 +125,9 @@ void RTInterface::runRT()
   RTSA.analyze();
   SupplyAnalyzer::destroyInst();
 
-  TopologyGenerator::initInst();
-  RTTG.generate();
-  TopologyGenerator::destroyInst();
+  PlanarRouter::initInst();
+  RTPR.generate();
+  PlanarRouter::destroyInst();
   
   LayerAssigner::initInst();
   RTLA.assign();
@@ -1262,12 +1262,12 @@ void RTInterface::outputSummary()
     top_rt_summary.sa_summary.routing_supply_map = rt_summary.sa_summary.routing_supply_map;
     top_rt_summary.sa_summary.total_supply = rt_summary.sa_summary.total_supply;
   }
-  // tg_summary
+  // pr_summary
   {
-    top_rt_summary.tg_summary.total_demand = rt_summary.tg_summary.total_demand;
-    top_rt_summary.tg_summary.total_overflow = rt_summary.tg_summary.total_overflow;
-    top_rt_summary.tg_summary.total_wire_length = rt_summary.tg_summary.total_wire_length;
-    top_rt_summary.tg_summary.clock_timing_map = rt_summary.tg_summary.clock_timing_map;
+    top_rt_summary.pr_summary.total_demand = rt_summary.pr_summary.total_demand;
+    top_rt_summary.pr_summary.total_overflow = rt_summary.pr_summary.total_overflow;
+    top_rt_summary.pr_summary.total_wire_length = rt_summary.pr_summary.total_wire_length;
+    top_rt_summary.pr_summary.clock_timing_map = rt_summary.pr_summary.clock_timing_map;
   }
   // la_summary
   {

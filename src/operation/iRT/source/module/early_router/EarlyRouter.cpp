@@ -82,7 +82,7 @@ void EarlyRouter::route(std::map<std::string, std::any> config_map)
     outputPlanarNetCSV(er_model);
     outputPlanarOverflowCSV(er_model);
     printPlanarSummary(er_model);
-    // debugPlotERModel(er_model, "tg");
+    // debugPlotERModel(er_model, "pr");
   }
   if (er_model.get_er_com_param().get_stage() >= ERStage::kEgr3D) {
     buildLayerNodeMap(er_model);

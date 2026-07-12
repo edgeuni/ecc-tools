@@ -24,11 +24,11 @@
 
 namespace irt {
 
-class TGSegmentTask
+class PRSegmentTask
 {
  public:
-  TGSegmentTask() = default;
-  ~TGSegmentTask() = default;
+  PRSegmentTask() = default;
+  ~PRSegmentTask() = default;
   // getter
   int32_t get_net_idx() const { return _net_idx; }
   ConnectType get_connect_type() const { return _connect_type; }
