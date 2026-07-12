@@ -14,27 +14,37 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "ZHInterface.hpp"
-#include "tcl_util.h"
-#include "tcl_zh.h"
+#pragma once
 
-namespace tcl {
+#include "ACModel.hpp"
+#include "Logger.hpp"
+#include "Monitor.hpp"
 
-TclZHInsertFiller::TclZHInsertFiller(const char* cmd_name) : TclCmd(cmd_name)
+namespace izh {
+
+#define ZHAC (izh::AntennaChecker::getInst())
+
+class AntennaChecker
 {
-  _config_list.push_back(std::make_pair("-filler", ValueType::kString));
+ public:
+  static void initInst();
+  static AntennaChecker& getInst();
+  static void destroyInst();
+  // function
+  void check(std::map<std::string, std::any> config_map);
 
-  TclUtil::addOption(this, _config_list);
-}
+ private:
+  // self
+  static AntennaChecker* _ac_instance;
 
-unsigned TclZHInsertFiller::exec()
-{
-  if (!check()) {
-    return 0;
-  }
-  std::map<std::string, std::any> config_map = TclUtil::getConfigMap(this, _config_list);
-  ZHI.insertFiller(config_map);
-  return 1;
-}
+  AntennaChecker() = default;
+  AntennaChecker(const AntennaChecker& other) = delete;
+  AntennaChecker(AntennaChecker&& other) = delete;
+  ~AntennaChecker() = default;
+  AntennaChecker& operator=(const AntennaChecker& other) = delete;
+  AntennaChecker& operator=(AntennaChecker&& other) = delete;
+  // function
+  ACModel initACModel(std::map<std::string, std::any>& config_map);
+};
 
-}  // namespace tcl
+}  // namespace izh

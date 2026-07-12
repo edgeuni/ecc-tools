@@ -14,27 +14,26 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "ZHInterface.hpp"
-#include "tcl_util.h"
-#include "tcl_zh.h"
+#pragma once
 
-namespace tcl {
+#include "ZHHeader.hpp"
 
-TclZHInsertFiller::TclZHInsertFiller(const char* cmd_name) : TclCmd(cmd_name)
+namespace izh {
+
+class ACModel
 {
-  _config_list.push_back(std::make_pair("-filler", ValueType::kString));
+ public:
+  ACModel() = default;
+  ~ACModel() = default;
+  // getter
+  int32_t get_violation_num() const { return _violation_num; }
+  // setter
+  void set_violation_num(const int32_t violation_num) { _violation_num = violation_num; }
+  // function
+  void addViolationNum(const int32_t violation_num) { _violation_num += violation_num; }
 
-  TclUtil::addOption(this, _config_list);
-}
+ private:
+  int32_t _violation_num = 0;
+};
 
-unsigned TclZHInsertFiller::exec()
-{
-  if (!check()) {
-    return 0;
-  }
-  std::map<std::string, std::any> config_map = TclUtil::getConfigMap(this, _config_list);
-  ZHI.insertFiller(config_map);
-  return 1;
-}
-
-}  // namespace tcl
+}  // namespace izh

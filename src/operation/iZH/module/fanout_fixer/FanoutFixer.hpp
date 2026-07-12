@@ -14,27 +14,37 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "ZHInterface.hpp"
-#include "tcl_util.h"
-#include "tcl_zh.h"
+#pragma once
 
-namespace tcl {
+#include "FFModel.hpp"
+#include "Logger.hpp"
+#include "Monitor.hpp"
 
-TclZHInsertFiller::TclZHInsertFiller(const char* cmd_name) : TclCmd(cmd_name)
+namespace izh {
+
+#define ZHFF (izh::FanoutFixer::getInst())
+
+class FanoutFixer
 {
-  _config_list.push_back(std::make_pair("-filler", ValueType::kString));
+ public:
+  static void initInst();
+  static FanoutFixer& getInst();
+  static void destroyInst();
+  // function
+  void fix(std::map<std::string, std::any> config_map);
 
-  TclUtil::addOption(this, _config_list);
-}
+ private:
+  // self
+  static FanoutFixer* _ff_instance;
 
-unsigned TclZHInsertFiller::exec()
-{
-  if (!check()) {
-    return 0;
-  }
-  std::map<std::string, std::any> config_map = TclUtil::getConfigMap(this, _config_list);
-  ZHI.insertFiller(config_map);
-  return 1;
-}
+  FanoutFixer() = default;
+  FanoutFixer(const FanoutFixer& other) = delete;
+  FanoutFixer(FanoutFixer&& other) = delete;
+  ~FanoutFixer() = default;
+  FanoutFixer& operator=(const FanoutFixer& other) = delete;
+  FanoutFixer& operator=(FanoutFixer&& other) = delete;
+  // function
+  FFModel initFFModel(std::map<std::string, std::any>& config_map);
+};
 
-}  // namespace tcl
+}  // namespace izh

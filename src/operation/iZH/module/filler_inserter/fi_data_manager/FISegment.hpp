@@ -14,27 +14,28 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "ZHInterface.hpp"
-#include "tcl_util.h"
-#include "tcl_zh.h"
+#pragma once
 
-namespace tcl {
+#include "ZHHeader.hpp"
 
-TclZHInsertFiller::TclZHInsertFiller(const char* cmd_name) : TclCmd(cmd_name)
+namespace izh {
+
+class FISegment
 {
-  _config_list.push_back(std::make_pair("-filler", ValueType::kString));
+ public:
+  FISegment() = default;
+  ~FISegment() = default;
+  // getter
+  int32_t get_begin_site_idx() const { return _begin_site_idx; }
+  int32_t get_end_site_idx() const { return _end_site_idx; }
+  int32_t get_site_count() const { return _end_site_idx >= _begin_site_idx ? _end_site_idx - _begin_site_idx + 1 : 0; }
+  // setter
+  void set_begin_site_idx(const int32_t begin_site_idx) { _begin_site_idx = begin_site_idx; }
+  void set_end_site_idx(const int32_t end_site_idx) { _end_site_idx = end_site_idx; }
 
-  TclUtil::addOption(this, _config_list);
-}
+ private:
+  int32_t _begin_site_idx = -1;
+  int32_t _end_site_idx = -1;
+};
 
-unsigned TclZHInsertFiller::exec()
-{
-  if (!check()) {
-    return 0;
-  }
-  std::map<std::string, std::any> config_map = TclUtil::getConfigMap(this, _config_list);
-  ZHI.insertFiller(config_map);
-  return 1;
-}
-
-}  // namespace tcl
+}  // namespace izh
