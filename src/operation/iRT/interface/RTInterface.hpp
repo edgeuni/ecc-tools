@@ -112,6 +112,10 @@ class RTInterface
   void wrapDrivenPin(Net& net, idb::IdbNet* idb_net);
   Direction getRTDirectionByDB(idb::IdbLayerDirection idb_direction);
   ConnectType getRTConnectTypeByDB(idb::IdbConnectType idb_connect_type);
+  idb::IdbRegularWireSegment* getIDBSegmentByNetResult(int32_t net_idx, Segment<LayerCoord>& segment);
+  idb::IdbRegularWireSegment* getIDBSegmentByNetPatch(int32_t net_idx, EXTLayerRect& ext_layer_rect);
+  idb::IdbRegularWireSegment* getIDBWire(int32_t net_idx, Segment<LayerCoord>& segment);
+  idb::IdbRegularWireSegment* getIDBVia(int32_t net_idx, Segment<LayerCoord>& segment);
 #endif
 
 #if 1  // output
@@ -120,13 +124,6 @@ class RTInterface
   void outputGCellGrid();
   void outputNetList();
   void outputSummary();
-#endif
-
-#if 1  // convert idb
-  idb::IdbRegularWireSegment* getIDBSegmentByNetResult(int32_t net_idx, Segment<LayerCoord>& segment);
-  idb::IdbRegularWireSegment* getIDBSegmentByNetPatch(int32_t net_idx, EXTLayerRect& ext_layer_rect);
-  idb::IdbRegularWireSegment* getIDBWire(int32_t net_idx, Segment<LayerCoord>& segment);
-  idb::IdbRegularWireSegment* getIDBVia(int32_t net_idx, Segment<LayerCoord>& segment);
 #endif
 
 #endif
