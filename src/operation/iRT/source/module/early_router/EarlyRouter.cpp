@@ -20,6 +20,7 @@
 #include "GDSPlotter.hpp"
 #include "Monitor.hpp"
 #include "TOPOBuilder.hpp"
+#include "TBTask.hpp"
 #include "Utility.hpp"
 
 namespace irt {
@@ -1253,8 +1254,11 @@ std::vector<Segment<PlanarCoord>> EarlyRouter::getPlanarTopoList(ERModel& er_mod
     std::sort(planar_coord_list.begin(), planar_coord_list.end(), CmpPlanarCoordByXASC());
     planar_coord_list.erase(std::unique(planar_coord_list.begin(), planar_coord_list.end()), planar_coord_list.end());
   }
+
   std::vector<Segment<PlanarCoord>> planar_topo_list;
-  for (Segment<PlanarCoord>& planar_topo : RTTB.getPlanarTopoList(planar_coord_list)) {
+  TBTask tb_task;
+  tb_task.set_planar_coord_list(planar_coord_list);
+  for (Segment<PlanarCoord>& planar_topo : RTTB.getPlanarTopoList(tb_task)) {
     PlanarCoord& first_coord = planar_topo.get_first();
     PlanarCoord& second_coord = planar_topo.get_second();
     int32_t span_x = std::abs(first_coord.get_x() - second_coord.get_x());

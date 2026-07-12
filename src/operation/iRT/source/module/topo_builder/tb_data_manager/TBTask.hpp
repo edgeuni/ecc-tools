@@ -16,37 +16,26 @@
 // ***************************************************************************************
 #pragma once
 
-#include "Logger.hpp"
-#include "Monitor.hpp"
+#include "RTHeader.hpp"
 #include "PlanarCoord.hpp"
-#include "Segment.hpp"
-#include "TBTask.hpp"
 
 namespace irt {
 
-#define RTTB (irt::TOPOBuilder::getInst())
-
-class TOPOBuilder
+class TBTask
 {
  public:
-  static void initInst();
-  static TOPOBuilder& getInst();
-  static void destroyInst();
+  TBTask() = default;
+  ~TBTask() = default;
+  // getter
+  std::vector<PlanarCoord>& get_planar_coord_list() { return _planar_coord_list; }
+  // setter
+  void set_planar_coord_list(std::vector<PlanarCoord> planar_coord_list)
+  {
+    _planar_coord_list = std::move(planar_coord_list);
+  }
   // function
-  void init();
-  std::vector<Segment<PlanarCoord>> getPlanarTopoList(TBTask& tb_task);
-  void destroy();
-
  private:
-  // self
-  static TOPOBuilder* _tb_instance;
-
-  TOPOBuilder() = default;
-  TOPOBuilder(const TOPOBuilder& other) = delete;
-  TOPOBuilder(TOPOBuilder&& other) = delete;
-  ~TOPOBuilder() = default;
-  TOPOBuilder& operator=(const TOPOBuilder& other) = delete;
-  TOPOBuilder& operator=(TOPOBuilder&& other) = delete;
+  std::vector<PlanarCoord> _planar_coord_list;
 };
 
 }  // namespace irt

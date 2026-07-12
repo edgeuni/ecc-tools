@@ -21,6 +21,7 @@
 #include "RTInterface.hpp"
 #include "TOPOBuilder.hpp"
 #include "Utility.hpp"
+#include "TBTask.hpp"
 
 namespace irt {
 
@@ -911,11 +912,10 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_mo
     std::sort(planar_coord_list.begin(), planar_coord_list.end(), CmpPlanarCoordByXASC());
     planar_coord_list.erase(std::unique(planar_coord_list.begin(), planar_coord_list.end()), planar_coord_list.end());
   }
-  std::vector<Segment<PlanarCoord>> planar_topo_list;
-  for (Segment<PlanarCoord>& planar_topo : RTTB.getPlanarTopoList(planar_coord_list)) {
-    planar_topo_list.push_back(planar_topo);
-  }
-  return planar_topo_list;
+
+  TBTask tb_task;
+  tb_task.set_planar_coord_list(planar_coord_list);
+  return RTTB.getPlanarTopoList(tb_task);
 }
 
 bool PlanarRouter::isLongObliqueTopo(PRModel& pr_model, Segment<PlanarCoord>& planar_topo)

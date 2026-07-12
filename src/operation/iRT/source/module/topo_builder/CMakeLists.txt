@@ -20,5 +20,6 @@ target_link_libraries(irt_topo_builder
 
 target_include_directories(irt_topo_builder
     PUBLIC
+    ${IRT_MODULE}/topo_builder/tb_data_manager
     ${IRT_MODULE}/topo_builder
 )

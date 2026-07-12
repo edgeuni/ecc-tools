@@ -15,6 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #include "TOPOBuilder.hpp"
+#include "TBTask.hpp"
 
 #include "RTInterface.hpp"
 
@@ -57,9 +58,9 @@ void TOPOBuilder::init()
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-std::vector<Segment<PlanarCoord>> TOPOBuilder::getPlanarTopoList(std::vector<PlanarCoord> planar_coord_list)
+std::vector<Segment<PlanarCoord>> TOPOBuilder::getPlanarTopoList(TBTask& tb_task)
 {
-  return RTI.getPlanarTopoList(planar_coord_list);
+  return RTI.getPlanarTopoList(tb_task.get_planar_coord_list());
 }
 
 void TOPOBuilder::destroy()
