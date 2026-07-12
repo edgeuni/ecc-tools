@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "RTHeader.hpp"
 #include "PRComParam.hpp"
 #include "PRIterParam.hpp"
 #include "PRNet.hpp"
 #include "PRNode.hpp"
+#include "RTHeader.hpp"
 
 namespace irt {
 

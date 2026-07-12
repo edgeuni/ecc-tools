@@ -41,15 +41,9 @@ class PRSegmentTask
   double get_max_usage_ratio() const { return _max_usage_ratio; }
   double get_wire_length() const { return _wire_length; }
   std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_overflow_penalty_map() { return _origin_overflow_penalty_map; }
-  const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_overflow_penalty_map() const
-  {
-    return _origin_overflow_penalty_map;
-  }
+  const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_overflow_penalty_map() const { return _origin_overflow_penalty_map; }
   std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_high_usage_penalty_map() { return _origin_high_usage_penalty_map; }
-  const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_high_usage_penalty_map() const
-  {
-    return _origin_high_usage_penalty_map;
-  }
+  const std::map<PlanarCoord, double, CmpPlanarCoordByXASC>& get_origin_high_usage_penalty_map() const { return _origin_high_usage_penalty_map; }
   // setter
   void set_net_idx(const int32_t net_idx) { _net_idx = net_idx; }
   void set_connect_type(const ConnectType connect_type) { _connect_type = connect_type; }

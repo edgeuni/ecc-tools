@@ -70,8 +70,8 @@ class PinAccessor
   void updateAccessPointList(PAModel& pa_model, std::vector<std::pair<int32_t, PAPin*>>& net_pin_pair_list, bool enable_via_candidate);
   std::vector<PALegalShape> getLegalShapeList(PAModel& pa_model, int32_t net_idx, PAPin* pa_pin,
                                               const std::map<int32_t, std::vector<ViaMaster*>>& selected_via_master_list_map);
-  std::vector<PALegalShape> getPlanarLegalShapeList(PAModel& pa_model, int32_t curr_net_idx, PAPin* pa_pin,
-                                                    std::vector<EXTLayerRect>& pin_shape_list, ViaMaster* via_master);
+  std::vector<PALegalShape> getPlanarLegalShapeList(PAModel& pa_model, int32_t curr_net_idx, PAPin* pa_pin, std::vector<EXTLayerRect>& pin_shape_list,
+                                                    ViaMaster* via_master);
   std::vector<AccessPoint> getAccessPointList(PAModel& pa_model, int32_t pin_idx, std::vector<PALegalShape>& legal_shape_list);
   std::vector<ViaMaster*> getSelectedViaMasterList(PAModel& pa_model, int32_t routing_layer_idx);
   PlanarRect getViaEnclosure(ViaMaster& via_master, int32_t routing_layer_idx);

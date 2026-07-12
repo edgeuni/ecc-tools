@@ -2238,8 +2238,8 @@ void SpaceRouter::outputCongestionCSV(SRModel& sr_model)
               || RTUTIL.exist(sr_node.get_ignore_net_orient_map()[net_idx], Orientation::kBelow))) {
         continue;
       }
-      if (RTUTIL.exist(orient_set, Orientation::kEast) || RTUTIL.exist(orient_set, Orientation::kWest)
-          || RTUTIL.exist(orient_set, Orientation::kSouth) || RTUTIL.exist(orient_set, Orientation::kNorth)) {
+      if (RTUTIL.exist(orient_set, Orientation::kEast) || RTUTIL.exist(orient_set, Orientation::kWest) || RTUTIL.exist(orient_set, Orientation::kSouth)
+          || RTUTIL.exist(orient_set, Orientation::kNorth)) {
         continue;
       }
       if (RTUTIL.exist(orient_set, Orientation::kAbove) || RTUTIL.exist(orient_set, Orientation::kBelow)) {
@@ -2306,40 +2306,37 @@ void SpaceRouter::outputCongestionCSV(SRModel& sr_model)
                       "overflow_net_count,high_usage_net_count,net_list,overflow_net_list,high_usage_net_list\n");
   };
   auto pushRow = [&](std::ofstream* csv_file, bool include_all, SRNode& sr_node, RoutingLayer& routing_layer, const std::string& resource,
-                     const std::string& orient_name, double demand, double supply, const std::set<int32_t>& net_set,
-                     const std::set<int32_t>& overflow_net_set, const std::set<int32_t>& high_usage_net_set) {
+                     const std::string& orient_name, double demand, double supply, const std::set<int32_t>& net_set, const std::set<int32_t>& overflow_net_set,
+                     const std::set<int32_t>& high_usage_net_set) {
     double usage_ratio = calcUsageRatio(demand, supply);
     double overflow = std::max(0.0, demand - supply);
     if (!include_all && overflow <= 0 && usage_ratio < kHighUsageThreshold && sr_node.get_congestion_risk() <= 0) {
       return;
     }
     PlanarRect real_rect = RTUTIL.getRealRectByGCell(sr_node.get_planar_coord(), gcell_axis);
-    RTUTIL.pushStream(csv_file, "SR,", sr_model.get_iter(), ",", routing_layer.get_layer_idx(), ",", routing_layer.get_layer_name(), ",",
-                      sr_node.get_x(), ",", sr_node.get_y(), ",", real_rect.get_ll_x() / 1.0 / micron_dbu, ",",
-                      real_rect.get_ll_y() / 1.0 / micron_dbu, ",", real_rect.get_ur_x() / 1.0 / micron_dbu, ",",
-                      real_rect.get_ur_y() / 1.0 / micron_dbu, ",", resource, ",", orient_name, ",", demand, ",", supply, ",", overflow,
-                      ",", usage_ratio, ",", sr_node.getDemand(), ",", sr_node.getOverflow(), ",", getMaxUsageRatio(sr_node), ",",
+    RTUTIL.pushStream(csv_file, "SR,", sr_model.get_iter(), ",", routing_layer.get_layer_idx(), ",", routing_layer.get_layer_name(), ",", sr_node.get_x(), ",",
+                      sr_node.get_y(), ",", real_rect.get_ll_x() / 1.0 / micron_dbu, ",", real_rect.get_ll_y() / 1.0 / micron_dbu, ",",
+                      real_rect.get_ur_x() / 1.0 / micron_dbu, ",", real_rect.get_ur_y() / 1.0 / micron_dbu, ",", resource, ",", orient_name, ",", demand, ",",
+                      supply, ",", overflow, ",", usage_ratio, ",", sr_node.getDemand(), ",", sr_node.getOverflow(), ",", getMaxUsageRatio(sr_node), ",",
                       getHighUsage(sr_node), ",", sr_node.get_congestion_risk(), ",", net_set.size(), ",", overflow_net_set.size(), ",",
-                      high_usage_net_set.size(), ",", joinNetSet(net_set), ",", joinNetSet(overflow_net_set), ",",
-                      joinNetSet(high_usage_net_set), "\n");
+                      high_usage_net_set.size(), ",", joinNetSet(net_set), ",", joinNetSet(overflow_net_set), ",", joinNetSet(high_usage_net_set), "\n");
   };
 
-  std::ofstream* hotspot_csv_file
-      = RTUTIL.getOutputFileStream(RTUTIL.getString(sr_temp_directory_path, "congestion_hotspot_SR_", sr_model.get_iter(), ".csv"));
+  std::ofstream* hotspot_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(sr_temp_directory_path, "congestion_hotspot_SR_", sr_model.get_iter(), ".csv"));
   pushHeader(hotspot_csv_file);
   std::ofstream* full_csv_file = nullptr;
   if (output_full) {
     full_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(sr_temp_directory_path, "congestion_full_SR_", sr_model.get_iter(), ".csv"));
     pushHeader(full_csv_file);
   }
-  auto pushToFiles = [&](SRNode& sr_node, RoutingLayer& routing_layer, const std::string& resource, const std::string& orient_name, double demand,
-                         double supply, const std::set<int32_t>& net_set, const std::set<int32_t>& overflow_net_set,
-                         const std::set<int32_t>& high_usage_net_set) {
-    pushRow(hotspot_csv_file, false, sr_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
-    if (full_csv_file != nullptr) {
-      pushRow(full_csv_file, true, sr_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
-    }
-  };
+  auto pushToFiles
+      = [&](SRNode& sr_node, RoutingLayer& routing_layer, const std::string& resource, const std::string& orient_name, double demand, double supply,
+            const std::set<int32_t>& net_set, const std::set<int32_t>& overflow_net_set, const std::set<int32_t>& high_usage_net_set) {
+          pushRow(hotspot_csv_file, false, sr_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
+          if (full_csv_file != nullptr) {
+            pushRow(full_csv_file, true, sr_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
+          }
+        };
 
   for (RoutingLayer& routing_layer : routing_layer_list) {
     GridMap<SRNode>& sr_node_map = layer_node_map[routing_layer.get_layer_idx()];
@@ -2351,13 +2348,13 @@ void SpaceRouter::outputCongestionCSV(SRModel& sr_model)
         for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
           std::set<int32_t> net_set = getDemandNetSet(sr_node, orient);
           double demand = net_set.size() * sr_node.get_boundary_wire_unit();
-          pushToFiles(sr_node, routing_layer, "boundary", GetOrientationName()(orient), demand, getSupply(sr_node, orient), net_set,
-                      overflow_net_set, high_usage_net_set);
+          pushToFiles(sr_node, routing_layer, "boundary", GetOrientationName()(orient), demand, getSupply(sr_node, orient), net_set, overflow_net_set,
+                      high_usage_net_set);
         }
         std::set<int32_t> internal_net_set;
         double internal_demand = getInternalDemand(sr_node, internal_net_set);
-        pushToFiles(sr_node, routing_layer, "internal", "internal", internal_demand, getInternalSupply(sr_node), internal_net_set,
-                    overflow_net_set, high_usage_net_set);
+        pushToFiles(sr_node, routing_layer, "internal", "internal", internal_demand, getInternalSupply(sr_node), internal_net_set, overflow_net_set,
+                    high_usage_net_set);
       }
     }
   }

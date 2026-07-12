@@ -243,7 +243,7 @@ void DetailedRouter::initDRBoxMap(DRModel& dr_model)
     dr_box_map.init(x_box_num, y_box_num);
   }
 
-  #pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2)
   for (int32_t x = 0; x < dr_box_map.get_x_size(); x++) {
     for (int32_t y = 0; y < dr_box_map.get_y_size(); y++) {
       int32_t grid_ll_x = x_scale_list[x];
@@ -2233,8 +2233,8 @@ void DetailedRouter::updateRouteViolationList(DRBox& dr_box)
 {
   dr_box.get_route_violation_list().clear();
   for (Violation new_violation : getRouteViolationList(dr_box)) {
-    if (RTUTIL.isOpenOverlap(dr_box.get_box_rect().get_real_rect(), 
-      RTUTIL.getEnlargedRect(new_violation.get_violation_shape().get_real_rect(), RTDM.getOnlyPitch()))) {
+    if (RTUTIL.isOpenOverlap(dr_box.get_box_rect().get_real_rect(),
+                             RTUTIL.getEnlargedRect(new_violation.get_violation_shape().get_real_rect(), RTDM.getOnlyPitch()))) {
       dr_box.get_route_violation_list().push_back(new_violation);
     }
   }
@@ -2345,8 +2345,7 @@ void DetailedRouter::updateTaskSchedule(DRBox& dr_box, std::vector<DRTask*>& rou
   std::vector<DRTask*> new_routing_task_list;
   for (Violation& violation : dr_box.get_route_violation_list()) {
     EXTLayerRect& violation_shape = violation.get_violation_shape();
-    if (!RTUTIL.isOpenOverlap(dr_box.get_box_rect().get_real_rect(), 
-      RTUTIL.getEnlargedRect(violation_shape.get_real_rect(), RTDM.getOnlyPitch()))) {
+    if (!RTUTIL.isOpenOverlap(dr_box.get_box_rect().get_real_rect(), RTUTIL.getEnlargedRect(violation_shape.get_real_rect(), RTDM.getOnlyPitch()))) {
       continue;
     }
     for (DRTask* dr_task : dr_box.get_dr_task_list()) {

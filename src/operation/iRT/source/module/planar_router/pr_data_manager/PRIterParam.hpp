@@ -24,10 +24,9 @@ class PRIterParam
 {
  public:
   PRIterParam() = default;
-  PRIterParam(int32_t max_iter_num, int32_t max_routed_times, int32_t max_task_num, double wire_unit, double corner_unit,
-              double overflow_unit, double congestion_risk_unit, double high_usage_unit, double high_usage_ratio_threshold,
-              int32_t congestion_risk_radius, int32_t route_window_base_expand, int32_t route_window_max_expand_times,
-              double route_window_expand_ratio, bool enable_full_die_fallback)
+  PRIterParam(int32_t max_iter_num, int32_t max_routed_times, int32_t max_task_num, double wire_unit, double corner_unit, double overflow_unit,
+              double congestion_risk_unit, double high_usage_unit, double high_usage_ratio_threshold, int32_t congestion_risk_radius,
+              int32_t route_window_base_expand, int32_t route_window_max_expand_times, double route_window_expand_ratio, bool enable_full_die_fallback)
   {
     _max_iter_num = max_iter_num;
     _max_routed_times = max_routed_times;

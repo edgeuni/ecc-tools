@@ -37,8 +37,7 @@ enum class SRNodeState
 
 inline bool isSRPlanarOrientation(Orientation orientation)
 {
-  return orientation == Orientation::kEast || orientation == Orientation::kWest || orientation == Orientation::kSouth
-         || orientation == Orientation::kNorth;
+  return orientation == Orientation::kEast || orientation == Orientation::kWest || orientation == Orientation::kSouth || orientation == Orientation::kNorth;
 }
 
 inline bool isSRViaOrientation(Orientation orientation)
@@ -539,13 +538,13 @@ class SRNode : public LayerCoord
   {
     delFastDemand(net_idx, orient_set, _orient_demand_count, _internal_wire_demand_count, _internal_via_only_demand_count);
   }
-  void addFastDemand(int32_t net_idx, const std::set<Orientation>& orient_set, std::array<int32_t, 4>& orient_demand_count,
-                     int32_t& internal_wire_demand_count, int32_t& internal_via_only_demand_count)
+  void addFastDemand(int32_t net_idx, const std::set<Orientation>& orient_set, std::array<int32_t, 4>& orient_demand_count, int32_t& internal_wire_demand_count,
+                     int32_t& internal_via_only_demand_count)
   {
     updateFastDemand(net_idx, orient_set, 1, orient_demand_count, internal_wire_demand_count, internal_via_only_demand_count);
   }
-  void delFastDemand(int32_t net_idx, const std::set<Orientation>& orient_set, std::array<int32_t, 4>& orient_demand_count,
-                     int32_t& internal_wire_demand_count, int32_t& internal_via_only_demand_count)
+  void delFastDemand(int32_t net_idx, const std::set<Orientation>& orient_set, std::array<int32_t, 4>& orient_demand_count, int32_t& internal_wire_demand_count,
+                     int32_t& internal_via_only_demand_count)
   {
     updateFastDemand(net_idx, orient_set, -1, orient_demand_count, internal_wire_demand_count, internal_via_only_demand_count);
   }
@@ -573,8 +572,8 @@ class SRNode : public LayerCoord
       internal_via_only_demand_count += delta;
     }
   }
-  double getFastCostByDemandCount(const std::array<int32_t, 4>& orient_demand_count, int32_t internal_wire_demand_count,
-                                  int32_t internal_via_only_demand_count, double overflow_unit)
+  double getFastCostByDemandCount(const std::array<int32_t, 4>& orient_demand_count, int32_t internal_wire_demand_count, int32_t internal_via_only_demand_count,
+                                  double overflow_unit)
   {
     double boundary_overflow = 0;
     for (int32_t orient_idx = 0; orient_idx < 4; orient_idx++) {
@@ -591,8 +590,7 @@ class SRNode : public LayerCoord
   bool isViaIgnored(int32_t net_idx)
   {
     return RTUTIL.exist(_ignore_net_orient_map, net_idx)
-           && (RTUTIL.exist(_ignore_net_orient_map[net_idx], Orientation::kAbove)
-               || RTUTIL.exist(_ignore_net_orient_map[net_idx], Orientation::kBelow));
+           && (RTUTIL.exist(_ignore_net_orient_map[net_idx], Orientation::kAbove) || RTUTIL.exist(_ignore_net_orient_map[net_idx], Orientation::kBelow));
   }
 };
 

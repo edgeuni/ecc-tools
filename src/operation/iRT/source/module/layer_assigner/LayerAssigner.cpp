@@ -481,8 +481,7 @@ std::vector<LayerAssigner::LAOverflowEdge> LayerAssigner::getOverflowEdgeList(LA
       }
       overflow_edge.has_true_overflow = (overflow_edge.max_true_overflow > RT_ERROR);
       bool hard_trigger = overflow_edge.has_true_overflow;
-      bool soft_trigger = (!hard_trigger && overflow_edge.max_usage_ratio >= soft_start_ratio
-                           && overflow_edge.max_soft_congestion >= min_soft_score);
+      bool soft_trigger = (!hard_trigger && overflow_edge.max_usage_ratio >= soft_start_ratio && overflow_edge.max_soft_congestion >= min_soft_score);
       if (!hard_trigger && !soft_trigger) {
         continue;
       }
@@ -620,11 +619,10 @@ void LayerAssigner::insertPointList(TNode<LayerCoord>* planar_node, TNode<LayerC
   }
   std::sort(offset_coord_pair_list.begin(), offset_coord_pair_list.end(),
             [](const std::pair<int32_t, PlanarCoord>& a, const std::pair<int32_t, PlanarCoord>& b) { return a.first < b.first; });
-  offset_coord_pair_list.erase(std::unique(offset_coord_pair_list.begin(), offset_coord_pair_list.end(),
-                                           [](const std::pair<int32_t, PlanarCoord>& a, const std::pair<int32_t, PlanarCoord>& b) {
-                                             return a.first == b.first;
-                                           }),
-                               offset_coord_pair_list.end());
+  offset_coord_pair_list.erase(
+      std::unique(offset_coord_pair_list.begin(), offset_coord_pair_list.end(),
+                  [](const std::pair<int32_t, PlanarCoord>& a, const std::pair<int32_t, PlanarCoord>& b) { return a.first == b.first; }),
+      offset_coord_pair_list.end());
   if (offset_coord_pair_list.empty()) {
     return;
   }
@@ -856,9 +854,7 @@ double LayerAssigner::getLayerBiasCost(LAModel& la_model, LAPackage& la_package,
     return layer_bias_unit * 0.4 * std::abs(layer_rank - target_rank);
   }
 
-  auto clamp = [](double value, double lower_bound, double upper_bound) {
-    return std::max(lower_bound, std::min(value, upper_bound));
-  };
+  auto clamp = [](double value, double lower_bound, double upper_bound) { return std::max(lower_bound, std::min(value, upper_bound)); };
   auto smooth_step = [&clamp](double value, double lower_bound, double upper_bound) {
     double ratio = clamp((value - lower_bound) / (upper_bound - lower_bound), 0.0, 1.0);
     return ratio * ratio * (3.0 - 2.0 * ratio);
@@ -1545,8 +1541,8 @@ void LayerAssigner::outputCongestionCSV(LAModel& la_model)
               || RTUTIL.exist(la_node.get_ignore_net_orient_map()[net_idx], Orientation::kBelow))) {
         continue;
       }
-      if (RTUTIL.exist(orient_set, Orientation::kEast) || RTUTIL.exist(orient_set, Orientation::kWest)
-          || RTUTIL.exist(orient_set, Orientation::kSouth) || RTUTIL.exist(orient_set, Orientation::kNorth)) {
+      if (RTUTIL.exist(orient_set, Orientation::kEast) || RTUTIL.exist(orient_set, Orientation::kWest) || RTUTIL.exist(orient_set, Orientation::kSouth)
+          || RTUTIL.exist(orient_set, Orientation::kNorth)) {
         continue;
       }
       if (RTUTIL.exist(orient_set, Orientation::kAbove) || RTUTIL.exist(orient_set, Orientation::kBelow)) {
@@ -1628,19 +1624,18 @@ void LayerAssigner::outputCongestionCSV(LAModel& la_model)
                       "overflow_net_count,high_usage_net_count,net_list,overflow_net_list,high_usage_net_list\n");
   };
   auto pushRow = [&](std::ofstream* csv_file, bool include_all, LANode& la_node, RoutingLayer& routing_layer, const std::string& resource,
-                     const std::string& orient_name, double demand, double supply, const std::set<int32_t>& net_set,
-                     const std::set<int32_t>& overflow_net_set, const std::set<int32_t>& high_usage_net_set) {
+                     const std::string& orient_name, double demand, double supply, const std::set<int32_t>& net_set, const std::set<int32_t>& overflow_net_set,
+                     const std::set<int32_t>& high_usage_net_set) {
     double usage_ratio = calcUsageRatio(demand, supply);
     double overflow = std::max(0.0, demand - supply);
     if (!include_all && overflow <= 0 && usage_ratio < kHighUsageThreshold) {
       return;
     }
     PlanarRect real_rect = RTUTIL.getRealRectByGCell(la_node.get_planar_coord(), gcell_axis);
-    RTUTIL.pushStream(csv_file, "LA,-1,", routing_layer.get_layer_idx(), ",", routing_layer.get_layer_name(), ",", la_node.get_x(), ",",
-                      la_node.get_y(), ",", real_rect.get_ll_x() / 1.0 / micron_dbu, ",", real_rect.get_ll_y() / 1.0 / micron_dbu, ",",
-                      real_rect.get_ur_x() / 1.0 / micron_dbu, ",", real_rect.get_ur_y() / 1.0 / micron_dbu, ",", resource, ",",
-                      orient_name, ",", demand, ",", supply, ",", overflow, ",", usage_ratio, ",", la_node.getDemand(), ",",
-                      la_node.getOverflow(), ",", getMaxUsageRatio(la_node), ",", getHighUsage(la_node), ",0,", net_set.size(), ",",
+    RTUTIL.pushStream(csv_file, "LA,-1,", routing_layer.get_layer_idx(), ",", routing_layer.get_layer_name(), ",", la_node.get_x(), ",", la_node.get_y(), ",",
+                      real_rect.get_ll_x() / 1.0 / micron_dbu, ",", real_rect.get_ll_y() / 1.0 / micron_dbu, ",", real_rect.get_ur_x() / 1.0 / micron_dbu, ",",
+                      real_rect.get_ur_y() / 1.0 / micron_dbu, ",", resource, ",", orient_name, ",", demand, ",", supply, ",", overflow, ",", usage_ratio, ",",
+                      la_node.getDemand(), ",", la_node.getOverflow(), ",", getMaxUsageRatio(la_node), ",", getHighUsage(la_node), ",0,", net_set.size(), ",",
                       overflow_net_set.size(), ",", high_usage_net_set.size(), ",", joinNetSet(net_set), ",", joinNetSet(overflow_net_set), ",",
                       joinNetSet(high_usage_net_set), "\n");
   };
@@ -1652,14 +1647,14 @@ void LayerAssigner::outputCongestionCSV(LAModel& la_model)
     full_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(la_temp_directory_path, "congestion_full_LA.csv"));
     pushHeader(full_csv_file);
   }
-  auto pushToFiles = [&](LANode& la_node, RoutingLayer& routing_layer, const std::string& resource, const std::string& orient_name, double demand,
-                         double supply, const std::set<int32_t>& net_set, const std::set<int32_t>& overflow_net_set,
-                         const std::set<int32_t>& high_usage_net_set) {
-    pushRow(hotspot_csv_file, false, la_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
-    if (full_csv_file != nullptr) {
-      pushRow(full_csv_file, true, la_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
-    }
-  };
+  auto pushToFiles
+      = [&](LANode& la_node, RoutingLayer& routing_layer, const std::string& resource, const std::string& orient_name, double demand, double supply,
+            const std::set<int32_t>& net_set, const std::set<int32_t>& overflow_net_set, const std::set<int32_t>& high_usage_net_set) {
+          pushRow(hotspot_csv_file, false, la_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
+          if (full_csv_file != nullptr) {
+            pushRow(full_csv_file, true, la_node, routing_layer, resource, orient_name, demand, supply, net_set, overflow_net_set, high_usage_net_set);
+          }
+        };
 
   for (RoutingLayer& routing_layer : routing_layer_list) {
     GridMap<LANode>& la_node_map = layer_node_map[routing_layer.get_layer_idx()];
@@ -1671,13 +1666,13 @@ void LayerAssigner::outputCongestionCSV(LAModel& la_model)
         for (Orientation orient : {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth}) {
           std::set<int32_t> net_set = getDemandNetSet(la_node, orient);
           double demand = net_set.size() * la_node.get_boundary_wire_unit();
-          pushToFiles(la_node, routing_layer, "boundary", GetOrientationName()(orient), demand, getSupply(la_node, orient), net_set,
-                      overflow_net_set, high_usage_net_set);
+          pushToFiles(la_node, routing_layer, "boundary", GetOrientationName()(orient), demand, getSupply(la_node, orient), net_set, overflow_net_set,
+                      high_usage_net_set);
         }
         std::set<int32_t> internal_net_set;
         double internal_demand = getInternalDemand(la_node, internal_net_set);
-        pushToFiles(la_node, routing_layer, "internal", "internal", internal_demand, getInternalSupply(la_node), internal_net_set,
-                    overflow_net_set, high_usage_net_set);
+        pushToFiles(la_node, routing_layer, "internal", "internal", internal_demand, getInternalSupply(la_node), internal_net_set, overflow_net_set,
+                    high_usage_net_set);
       }
     }
   }

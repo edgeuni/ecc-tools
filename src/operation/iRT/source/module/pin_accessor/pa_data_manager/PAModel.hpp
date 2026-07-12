@@ -62,10 +62,7 @@ class PAModel
   PAIterParam& get_pa_iter_param() { return _pa_iter_param; }
   GridMap<PABox>& get_pa_box_map() { return _pa_box_map; }
   std::vector<std::vector<PABoxId>>& get_pa_box_id_list_list() { return _pa_box_id_list_list; }
-  std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map()
-  {
-    return _type_layer_net_fixed_rect_map;
-  }
+  std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::set<std::pair<int32_t, int32_t>>& get_pattern_fallback_pin_set() { return _pattern_fallback_pin_set; }
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_curr_net_pin_access_result_map() { return _curr_net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_curr_net_pin_access_patch_map() { return _curr_net_pin_access_patch_map; }

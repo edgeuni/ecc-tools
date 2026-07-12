@@ -24,8 +24,8 @@
 #include "Monitor.hpp"
 #include "OpenQueue.hpp"
 #include "PRCandidate.hpp"
-#include "PRSegmentTask.hpp"
 #include "PRModel.hpp"
+#include "PRSegmentTask.hpp"
 
 namespace irt {
 
@@ -114,8 +114,7 @@ class PlanarRouter
   };
   PRShadowDemandMap initPRShadowDemandMap(PRModel& pr_model);
   bool isBetterCandidate(PRCandidate& candidate, PRCandidate& current_best, double corner_weight);
-  void updatePRCandidate(PRModel& pr_model, PRCandidate& pr_candidate,
-                         const PRShadowDemandMap* shadow_demand_map = nullptr);
+  void updatePRCandidate(PRModel& pr_model, PRCandidate& pr_candidate, const PRShadowDemandMap* shadow_demand_map = nullptr);
   MTree<PlanarCoord> getCoordTree(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list);
   void uploadNetResult(PRModel& pr_model, MTree<PlanarCoord>& coord_tree);
   void resetSingleTask(PRModel& pr_model);
@@ -129,23 +128,20 @@ class PlanarRouter
   double getWireLength(PRModel& pr_model);
   void updateCongestionRisk(PRModel& pr_model);
   void initPRMetric(PRModel& pr_model);
-  void collectPRHotspotInfo(PRModel& pr_model, std::set<PlanarCoord, CmpPlanarCoordByXASC>& overflow_coord_set,
-                            std::set<int32_t>& overflow_net_set,
-                            std::set<PlanarCoord, CmpPlanarCoordByXASC>& high_usage_coord_set,
-                            std::set<int32_t>& high_usage_net_set);
+  void collectPRHotspotInfo(PRModel& pr_model, std::set<PlanarCoord, CmpPlanarCoordByXASC>& overflow_coord_set, std::set<int32_t>& overflow_net_set,
+                            std::set<PlanarCoord, CmpPlanarCoordByXASC>& high_usage_coord_set, std::set<int32_t>& high_usage_net_set);
   std::vector<PRSegmentTask> initPRSegmentTaskList(PRModel& pr_model, bool include_overflow = true, bool include_high_usage = true,
                                                    bool high_usage_first = false);
   void routePRSegmentTaskListByHighUsage(PRModel& pr_model);
   bool routePRSegmentTask(PRModel& pr_model, PRSegmentTask& pr_segment_task, bool enable_true_local_accept);
   void routePRNetTaskListByPattern(PRModel& pr_model);
   bool routePRNetTaskByPattern(PRModel& pr_model, int32_t net_idx);
-  bool routePRTopoEdgeByPattern(PRModel& pr_model, int32_t topo_idx, Segment<PlanarCoord>& topo_edge,
-                                PRShadowDemandMap& shadow_demand_map, std::vector<Segment<PlanarCoord>>& routing_segment_list);
+  bool routePRTopoEdgeByPattern(PRModel& pr_model, int32_t topo_idx, Segment<PlanarCoord>& topo_edge, PRShadowDemandMap& shadow_demand_map,
+                                std::vector<Segment<PlanarCoord>>& routing_segment_list);
   void routePRNetTaskListByAStar(PRModel& pr_model);
   std::vector<int32_t> initPRNetTaskList(PRModel& pr_model, bool include_high_usage, bool include_changed_net);
   bool routePRNetTaskByAStar(PRModel& pr_model, int32_t net_idx);
-  bool routePRTopoEdgeByAStar(PRModel& pr_model, int32_t net_idx, Segment<PlanarCoord>& topo_edge,
-                              std::vector<Segment<PlanarCoord>>& routing_segment_list);
+  bool routePRTopoEdgeByAStar(PRModel& pr_model, int32_t net_idx, Segment<PlanarCoord>& topo_edge, std::vector<Segment<PlanarCoord>>& routing_segment_list);
   std::vector<PlanarRect> getRouteWindowList(PRModel& pr_model, PRSegmentTask& pr_segment_task);
   PlanarRect getRouteWindow(PRModel& pr_model, PRSegmentTask& pr_segment_task, int32_t expand_size);
   PlanarRect getDieWindow(PRModel& pr_model);
@@ -158,14 +154,11 @@ class PlanarRouter
   PRNode* popFromOpenList(OpenQueue<PRNode>& open_queue);
   void resetPathState(std::vector<PRNode*>& visited_node_list, OpenQueue<PRNode>& open_queue);
   std::vector<Segment<PlanarCoord>> getRoutingSegmentListByNode(PRNode* node);
-  double getKnownCost(PRModel& pr_model, PRSegmentTask& pr_segment_task, PRNode* start_node, PRNode* end_node,
-                      PRAStarNodeCostCache& node_cost_cache);
-  double getNodeCost(PRModel& pr_model, PRSegmentTask& pr_segment_task, PRNode* curr_node, Direction direction,
-                     PRAStarNodeCostCache& node_cost_cache);
+  double getKnownCost(PRModel& pr_model, PRSegmentTask& pr_segment_task, PRNode* start_node, PRNode* end_node, PRAStarNodeCostCache& node_cost_cache);
+  double getNodeCost(PRModel& pr_model, PRSegmentTask& pr_segment_task, PRNode* curr_node, Direction direction, PRAStarNodeCostCache& node_cost_cache);
   double getEstimateCost(PRModel& pr_model, PRNode* start_node, PRNode* end_node);
   bool isSegmentCrossOverflow(PRModel& pr_model, Segment<LayerCoord>* segment, std::set<PlanarCoord, CmpPlanarCoordByXASC>& overflow_coord_set);
-  bool isSegmentCrossHighUsage(PRModel& pr_model, Segment<LayerCoord>* segment,
-                               std::set<PlanarCoord, CmpPlanarCoordByXASC>& high_usage_coord_set);
+  bool isSegmentCrossHighUsage(PRModel& pr_model, Segment<LayerCoord>* segment, std::set<PlanarCoord, CmpPlanarCoordByXASC>& high_usage_coord_set);
   double getSegmentOverflow(PRModel& pr_model, Segment<LayerCoord>* segment);
   double getSegmentCongestionRisk(PRModel& pr_model, Segment<LayerCoord>* segment);
   double getSegmentHighUsage(PRModel& pr_model, Segment<LayerCoord>* segment);

@@ -25,10 +25,11 @@
 #include "Monitor.hpp"
 #include "NotificationUtility.h"
 #include "PinAccessor.hpp"
+#include "PlanarRouter.hpp"
 #include "RTInterface.hpp"
 #include "SpaceRouter.hpp"
 #include "SupplyAnalyzer.hpp"
-#include "PlanarRouter.hpp"
+#include "TOPOBuilder.hpp"
 #include "TrackAssigner.hpp"
 #include "ViolationReporter.hpp"
 #include "api/TimingEngine.hh"
@@ -84,6 +85,7 @@ void RTInterface::initRT(std::map<std::string, std::any> config_map)
 
   DataManager::initInst();
   RTDM.input(config_map);
+  TOPOBuilder::initInst();
   DRCEngine::initInst();
   GDSPlotter::initInst();
 
@@ -95,14 +97,14 @@ void RTInterface::runERT(std::map<std::string, std::any> config_map)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  initFlute();
+  RTTB.init();
   RTGP.init();
 
   EarlyRouter::initInst();
   RTER.route(config_map);
   EarlyRouter::destroyInst();
 
-  destroyFlute();
+  RTTB.destroy();
   RTGP.destroy();
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -113,7 +115,7 @@ void RTInterface::runRT()
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  initFlute();
+  RTTB.init();
   RTGP.init();
   RTDE.init();
 
@@ -128,11 +130,11 @@ void RTInterface::runRT()
   PlanarRouter::initInst();
   RTPR.generate();
   PlanarRouter::destroyInst();
-  
+
   LayerAssigner::initInst();
   RTLA.assign();
   LayerAssigner::destroyInst();
-  
+
   SpaceRouter::initInst();
   RTSR.route();
   SpaceRouter::destroyInst();
@@ -149,7 +151,7 @@ void RTInterface::runRT()
   RTVR.report();
   ViolationReporter::destroyInst();
 
-  destroyFlute();
+  RTTB.destroy();
   RTGP.destroy();
   RTDE.destroy();
 
@@ -163,6 +165,7 @@ void RTInterface::destroyRT()
 
   GDSPlotter::destroyInst();
   DRCEngine::destroyInst();
+  TOPOBuilder::destroyInst();
   RTDM.output();
   DataManager::destroyInst();
 
@@ -314,12 +317,11 @@ void RTInterface::fixFanout(std::map<std::string, std::any> config_map)
         idb::IdbNet* new_net = idb_design->createOrFindNet(idb_design->makeUniqueNetName(RTUTIL.getString("rt_fanout_net_", new_idx++)),
                                                            idb::IdbConnectType::kSignal, idb::IdbCreatePolicy::kErrorIfExists);
         // 生成buf
-        idb::IdbInstance* new_buf = idb_design->createInstance(idb_design->makeUniqueInstanceName(RTUTIL.getString("rt_fanout_buf_", new_idx++)),
-                                                               buffer_name, idb::IdbInstanceType::kTiming,
-                                                               idb::IdbPlacementStatus::kNone, idb::IdbOrient::kNone, 0, 0,
+        idb::IdbInstance* new_buf = idb_design->createInstance(idb_design->makeUniqueInstanceName(RTUTIL.getString("rt_fanout_buf_", new_idx++)), buffer_name,
+                                                               idb::IdbInstanceType::kTiming, idb::IdbPlacementStatus::kNone, idb::IdbOrient::kNone, 0, 0,
                                                                idb::IdbCreatePolicy::kErrorIfExists);
         if (new_net == nullptr || new_buf == nullptr) {
-          RTLOG.error(Loc::current(),"new_net == nullptr || new_buf == nullptr!");
+          RTLOG.error(Loc::current(), "new_net == nullptr || new_buf == nullptr!");
         }
         // 连接buf
         for (idb::IdbPin* buf_pin : new_buf->get_pin_list()->get_pin_list()) {
@@ -1535,8 +1537,8 @@ ids::Shape RTInterface::getIDSShape(int32_t net_idx, LayerRect layer_rect, bool 
 #if 1  // iSTA
 
 void RTInterface::updateTiming(std::vector<std::map<std::string, std::vector<LayerCoord>>>& real_pin_coord_map_list,
-                                       std::vector<std::vector<Segment<LayerCoord>>>& routing_segment_list_list,
-                                       std::map<std::string, std::map<std::string, double>>& clock_timing)
+                               std::vector<std::vector<Segment<LayerCoord>>>& routing_segment_list_list,
+                               std::map<std::string, std::map<std::string, double>>& clock_timing)
 {
 #if 1  // 数据结构定义
   struct RCPin

@@ -44,10 +44,7 @@ class SRModel
   void set_sr_net_list(const std::vector<SRNet>& sr_net_list) { _sr_net_list = sr_net_list; }
   void set_initial_routing(const bool initial_routing) { _initial_routing = initial_routing; }
   void set_layer_node_map(const std::vector<GridMap<SRNode>>& layer_node_map) { _layer_node_map = layer_node_map; }
-  void set_layer_congestion_risk_map(const std::vector<GridMap<double>>& layer_congestion_risk_map)
-  {
-    _layer_congestion_risk_map = layer_congestion_risk_map;
-  }
+  void set_layer_congestion_risk_map(const std::vector<GridMap<double>>& layer_congestion_risk_map) { _layer_congestion_risk_map = layer_congestion_risk_map; }
   void set_iter(const int32_t iter) { _iter = iter; }
   void set_sr_iter_param(const SRIterParam& sr_iter_param) { _sr_iter_param = sr_iter_param; }
   void set_sr_box_map(const GridMap<SRBox>& sr_box_map) { _sr_box_map = sr_box_map; }
