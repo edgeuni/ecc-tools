@@ -43,9 +43,9 @@ class TimingPropagator
   std::map<std::string, ParasiticDmpModel> _parasitic_dmp_model_cache;
   std::map<std::string, ParasiticDmpTimingResult> _parasitic_dmp_timing_result_cache;
   std::map<std::string, ParasiticDmpTimingResult> _parasitic_dmp_driver_result_cache;
-  std::map<std::string, ParasiticArnoldiModel> _parasitic_arnoldi_model_cache;
-  std::map<std::string, ParasiticArnoldiTimingResult> _parasitic_arnoldi_timing_result_cache;
-  std::map<std::string, ParasiticArnoldiTimingResult> _parasitic_arnoldi_driver_result_cache;
+  std::map<ParasiticArnoldiModelKey, ParasiticArnoldiModel> _parasitic_arnoldi_model_cache;
+  std::map<ParasiticArnoldiTimingResultKey, ParasiticArnoldiTimingResult> _parasitic_arnoldi_timing_result_cache;
+  std::map<ParasiticArnoldiDriverResultKey, ParasiticArnoldiTimingResult> _parasitic_arnoldi_driver_result_cache;
   static constexpr int32_t kStartTimeIndex = 0;
   static constexpr int32_t kTransitionTimeIndex = 1;
   static constexpr int32_t kEffectiveCapacitanceIndex = 2;
@@ -244,8 +244,9 @@ class TimingPropagator
                                   double residue_pole1, double residue_pole2, double transition_time, double transition_voltage);
   ParasiticArnoldiTimingResult& getParasiticArnoldiTimingResult(std::string& output_pin, TimingArc& timing_arc, AnalysisType analysis_type,
                                                                 TransType output_trans_type, double input_slew, double output_load);
-  std::string getParasiticArnoldiTimingResultKey(std::string& output_pin, TimingArc& timing_arc, AnalysisType analysis_type,
-                                                 TransType output_trans_type, double input_slew);
+  ParasiticArnoldiTimingResultKey getParasiticArnoldiTimingResultKey(std::string& output_pin, TimingArc& timing_arc,
+                                                                     AnalysisType analysis_type, TransType output_trans_type,
+                                                                     double input_slew);
   ParasiticArnoldiTimingResult calcParasiticArnoldiTimingResult(std::string& output_pin, TimingArc& timing_arc, AnalysisType analysis_type,
                                                                 TransType output_trans_type, double input_slew, double output_load);
   void adjustParasiticLoadThreshold(TimingArc& timing_arc, std::string& load_pin, TransType trans_type, double& wire_delay, double& load_slew);
@@ -255,20 +256,22 @@ class TimingPropagator
   double getTimingCellInputThreshold(TimingCell& timing_cell, TransType trans_type);
   void cacheParasiticArnoldiDriverResult(std::string& output_pin, AnalysisType analysis_type, TransType output_trans_type, double driver_slew,
                                          ParasiticArnoldiTimingResult& timing_result);
-  std::string getParasiticArnoldiDriverResultKey(std::string& output_pin, AnalysisType analysis_type, TransType output_trans_type, double driver_slew);
+  ParasiticArnoldiDriverResultKey getParasiticArnoldiDriverResultKey(std::string& output_pin, AnalysisType analysis_type,
+                                                                     TransType output_trans_type, double driver_slew);
   std::optional<double> getParasiticArnoldiCachedWireDelay(Arc& arc, AnalysisType analysis_type, TransType trans_type, double input_slew);
   std::optional<double> getParasiticArnoldiCachedLoadSlew(Arc& arc, AnalysisType analysis_type, TransType trans_type, double input_slew);
   ParasiticArnoldiModel& getParasiticArnoldiModel(ParasiticNet& parasitic_net, std::string& source_node_name, AnalysisType analysis_type,
                                                   TransType trans_type);
-  std::string getParasiticArnoldiModelKey(ParasiticNet& parasitic_net, std::string& source_node_name, AnalysisType analysis_type,
-                                          TransType trans_type);
+  ParasiticArnoldiModelKey getParasiticArnoldiModelKey(ParasiticNet& parasitic_net, std::string& source_node_name,
+                                                        AnalysisType analysis_type, TransType trans_type);
   ParasiticArnoldiModel buildParasiticArnoldiModel(ParasiticNet& parasitic_net, std::string& source_node_name, AnalysisType analysis_type,
                                                    TransType trans_type);
   void initParasiticArnoldiTree(ParasiticNet& parasitic_net, std::string& source_node_name, AnalysisType analysis_type, TransType trans_type,
                                 std::vector<std::string>& node_name_list, std::vector<int32_t>& parent_idx_list,
                                 std::vector<double>& resistance_list, std::vector<double>& capacitance_list);
   void initParasiticArnoldiTerm(ParasiticArnoldiModel& arnoldi_model, std::vector<std::string>& node_name_list, std::string& source_node_name);
-  void updateParasiticArnoldiModel(ParasiticArnoldiModel& arnoldi_model, std::vector<int32_t>& parent_idx_list,
+  void updateParasiticArnoldiModel(ParasiticArnoldiModel& arnoldi_model, ParasiticNet& parasitic_net,
+                                   std::vector<std::string>& node_name_list, std::vector<int32_t>& parent_idx_list,
                                    std::vector<double>& resistance_list, std::vector<double>& capacitance_list,
                                    std::vector<std::size_t>& term_point_idx_list);
   void updateParasiticArnoldiProjection(ParasiticArnoldiModel& arnoldi_model, std::vector<double>& basis_list,
@@ -319,6 +322,11 @@ class TimingPropagator
   void markClockPoint(std::string& clock_source);
   void propagateClockArrival();
   void seedClockArrival(std::string& clock_source);
+  void propagateClockSlewDelay();
+  void propagateClockSlewDelayArc(std::size_t arc_idx, AnalysisType analysis_type);
+  void propagateClockSlewDelayArc(std::size_t arc_idx, AnalysisType analysis_type, TransType input_trans_type);
+  void updateClockSlewDelay(Arc& arc, TimingPoint& source_point, TimingPoint& sink_point, AnalysisType analysis_type,
+                            TransType input_trans_type, TransType output_trans_type);
   void propagateClockArrivalArc(std::size_t arc_idx, AnalysisType analysis_type);
   void propagateClockArrivalArc(std::size_t arc_idx, AnalysisType analysis_type, TransType input_trans_type);
   void updateClockPathState(Arc& arc, TimingPoint& source_point, TimingPoint& sink_point, AnalysisType analysis_type,

@@ -16,9 +16,15 @@
 // ***************************************************************************************
 #pragma once
 
+#include "AnalysisType.hpp"
 #include "STAHeader.hpp"
+#include "TransType.hpp"
 
 namespace ista {
+
+using ParasiticArnoldiTimingResultKey = std::tuple<std::string, std::uintptr_t, AnalysisType, TransType, double>;
+using ParasiticArnoldiDriverResultKey = std::tuple<std::string, AnalysisType, TransType, double>;
+using ParasiticArnoldiModelKey = std::tuple<std::string, std::string, AnalysisType, TransType>;
 
 class ParasiticArnoldiModel
 {

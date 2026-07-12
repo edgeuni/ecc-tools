@@ -16,6 +16,9 @@
 // ***************************************************************************************
 #include "TimingPropagator.hpp"
 
+#include <Eigen/IterativeLinearSolvers>
+#include <Eigen/SparseCore>
+
 #include "DataManager.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
@@ -125,7 +128,8 @@ void TimingPropagator::buildTransArcDelay(Arc& arc, AnalysisType analysis_type, 
   }
 
   for (TransType output_trans_type : getOutputTransTypeList(*timing_cell_arc, input_trans_type)) {
-    double delay = calcTimingCellArcDelay(arc, *timing_cell_arc, analysis_type, input_trans_type, output_trans_type);
+    double output_load = getArcOutputLoad(arc, analysis_type, output_trans_type);
+    double delay = calcTimingCellArcDelay(*timing_cell_arc, analysis_type, input_trans_type, output_trans_type, 0.0, output_load);
     arc.get_input_output_delay_map()[analysis_type][input_trans_type][output_trans_type] = delay;
     if (arc.get_trans_delay_map()[analysis_type].count(input_trans_type) == 0
         || (analysis_type == AnalysisType::kMin && delay < arc.get_trans_delay_map()[analysis_type][input_trans_type])
@@ -2030,7 +2034,8 @@ ParasiticArnoldiTimingResult& TimingPropagator::getParasiticArnoldiTimingResult(
                                                                                 AnalysisType analysis_type, TransType output_trans_type,
                                                                                 double input_slew, double output_load)
 {
-  std::string timing_result_key = getParasiticArnoldiTimingResultKey(output_pin, timing_arc, analysis_type, output_trans_type, input_slew);
+  ParasiticArnoldiTimingResultKey timing_result_key
+      = getParasiticArnoldiTimingResultKey(output_pin, timing_arc, analysis_type, output_trans_type, input_slew);
   if (_parasitic_arnoldi_timing_result_cache.count(timing_result_key) == 0) {
     _parasitic_arnoldi_timing_result_cache[timing_result_key]
         = calcParasiticArnoldiTimingResult(output_pin, timing_arc, analysis_type, output_trans_type, input_slew, output_load);
@@ -2038,13 +2043,11 @@ ParasiticArnoldiTimingResult& TimingPropagator::getParasiticArnoldiTimingResult(
   return _parasitic_arnoldi_timing_result_cache[timing_result_key];
 }
 
-std::string TimingPropagator::getParasiticArnoldiTimingResultKey(std::string& output_pin, TimingArc& timing_arc, AnalysisType analysis_type,
-                                                                 TransType output_trans_type, double input_slew)
+ParasiticArnoldiTimingResultKey TimingPropagator::getParasiticArnoldiTimingResultKey(std::string& output_pin, TimingArc& timing_arc,
+                                                                                     AnalysisType analysis_type, TransType output_trans_type,
+                                                                                     double input_slew)
 {
-  std::stringstream key_stream;
-  key_stream << output_pin << "|" << reinterpret_cast<std::uintptr_t>(&timing_arc) << "|" << static_cast<int32_t>(analysis_type) << "|"
-             << static_cast<int32_t>(output_trans_type) << "|" << std::setprecision(17) << input_slew;
-  return key_stream.str();
+  return std::make_tuple(output_pin, reinterpret_cast<std::uintptr_t>(&timing_arc), analysis_type, output_trans_type, input_slew);
 }
 
 ParasiticArnoldiTimingResult TimingPropagator::calcParasiticArnoldiTimingResult(std::string& output_pin, TimingArc& timing_arc,
@@ -2247,17 +2250,15 @@ double TimingPropagator::getTimingCellInputThreshold(TimingCell& timing_cell, Tr
 void TimingPropagator::cacheParasiticArnoldiDriverResult(std::string& output_pin, AnalysisType analysis_type, TransType output_trans_type,
                                                         double driver_slew, ParasiticArnoldiTimingResult& timing_result)
 {
-  std::string driver_result_key = getParasiticArnoldiDriverResultKey(output_pin, analysis_type, output_trans_type, driver_slew);
+  ParasiticArnoldiDriverResultKey driver_result_key
+      = getParasiticArnoldiDriverResultKey(output_pin, analysis_type, output_trans_type, driver_slew);
   _parasitic_arnoldi_driver_result_cache[driver_result_key] = timing_result;
 }
 
-std::string TimingPropagator::getParasiticArnoldiDriverResultKey(std::string& output_pin, AnalysisType analysis_type, TransType output_trans_type,
-                                                                 double driver_slew)
+ParasiticArnoldiDriverResultKey TimingPropagator::getParasiticArnoldiDriverResultKey(std::string& output_pin, AnalysisType analysis_type,
+                                                                                     TransType output_trans_type, double driver_slew)
 {
-  std::stringstream key_stream;
-  key_stream << output_pin << "|" << static_cast<int32_t>(analysis_type) << "|" << static_cast<int32_t>(output_trans_type) << "|"
-             << std::setprecision(12) << driver_slew;
-  return key_stream.str();
+  return std::make_tuple(output_pin, analysis_type, output_trans_type, driver_slew);
 }
 
 std::optional<double> TimingPropagator::getParasiticArnoldiCachedWireDelay(Arc& arc, AnalysisType analysis_type, TransType trans_type, double input_slew)
@@ -2266,7 +2267,7 @@ std::optional<double> TimingPropagator::getParasiticArnoldiCachedWireDelay(Arc& 
     return std::nullopt;
   }
   std::string& source_pin = arc.get_source_pin();
-  std::string driver_result_key = getParasiticArnoldiDriverResultKey(source_pin, analysis_type, trans_type, input_slew);
+  ParasiticArnoldiDriverResultKey driver_result_key = getParasiticArnoldiDriverResultKey(source_pin, analysis_type, trans_type, input_slew);
   if (_parasitic_arnoldi_driver_result_cache.count(driver_result_key) == 0) {
     return std::nullopt;
   }
@@ -2284,7 +2285,7 @@ std::optional<double> TimingPropagator::getParasiticArnoldiCachedLoadSlew(Arc& a
     return std::nullopt;
   }
   std::string& source_pin = arc.get_source_pin();
-  std::string driver_result_key = getParasiticArnoldiDriverResultKey(source_pin, analysis_type, trans_type, input_slew);
+  ParasiticArnoldiDriverResultKey driver_result_key = getParasiticArnoldiDriverResultKey(source_pin, analysis_type, trans_type, input_slew);
   if (_parasitic_arnoldi_driver_result_cache.count(driver_result_key) == 0) {
     return std::nullopt;
   }
@@ -2299,20 +2300,17 @@ std::optional<double> TimingPropagator::getParasiticArnoldiCachedLoadSlew(Arc& a
 ParasiticArnoldiModel& TimingPropagator::getParasiticArnoldiModel(ParasiticNet& parasitic_net, std::string& source_node_name,
                                                                   AnalysisType analysis_type, TransType trans_type)
 {
-  std::string arnoldi_model_key = getParasiticArnoldiModelKey(parasitic_net, source_node_name, analysis_type, trans_type);
+  ParasiticArnoldiModelKey arnoldi_model_key = getParasiticArnoldiModelKey(parasitic_net, source_node_name, analysis_type, trans_type);
   if (_parasitic_arnoldi_model_cache.count(arnoldi_model_key) == 0) {
     _parasitic_arnoldi_model_cache[arnoldi_model_key] = buildParasiticArnoldiModel(parasitic_net, source_node_name, analysis_type, trans_type);
   }
   return _parasitic_arnoldi_model_cache[arnoldi_model_key];
 }
 
-std::string TimingPropagator::getParasiticArnoldiModelKey(ParasiticNet& parasitic_net, std::string& source_node_name, AnalysisType analysis_type,
-                                                          TransType trans_type)
+ParasiticArnoldiModelKey TimingPropagator::getParasiticArnoldiModelKey(ParasiticNet& parasitic_net, std::string& source_node_name,
+                                                                       AnalysisType analysis_type, TransType trans_type)
 {
-  std::stringstream key_stream;
-  key_stream << parasitic_net.get_net_name() << "|" << source_node_name << "|" << static_cast<int32_t>(analysis_type) << "|"
-             << static_cast<int32_t>(trans_type);
-  return key_stream.str();
+  return std::make_tuple(parasitic_net.get_net_name(), source_node_name, analysis_type, trans_type);
 }
 
 ParasiticArnoldiModel TimingPropagator::buildParasiticArnoldiModel(ParasiticNet& parasitic_net, std::string& source_node_name,
@@ -2346,7 +2344,8 @@ ParasiticArnoldiModel TimingPropagator::buildParasiticArnoldiModel(ParasiticNet&
     return arnoldi_model;
   }
 
-  updateParasiticArnoldiModel(arnoldi_model, parent_idx_list, resistance_list, capacitance_list, term_point_idx_list);
+  updateParasiticArnoldiModel(arnoldi_model, parasitic_net, node_name_list, parent_idx_list, resistance_list, capacitance_list,
+                              term_point_idx_list);
   return arnoldi_model;
 }
 
@@ -2430,7 +2429,8 @@ void TimingPropagator::initParasiticArnoldiTerm(ParasiticArnoldiModel& arnoldi_m
   }
 }
 
-void TimingPropagator::updateParasiticArnoldiModel(ParasiticArnoldiModel& arnoldi_model, std::vector<int32_t>& parent_idx_list,
+void TimingPropagator::updateParasiticArnoldiModel(ParasiticArnoldiModel& arnoldi_model, ParasiticNet& parasitic_net,
+                                                   std::vector<std::string>& node_name_list, std::vector<int32_t>& parent_idx_list,
                                                    std::vector<double>& resistance_list, std::vector<double>& capacitance_list,
                                                    std::vector<std::size_t>& term_point_idx_list)
 {
@@ -2453,6 +2453,51 @@ void TimingPropagator::updateParasiticArnoldiModel(ParasiticArnoldiModel& arnold
   std::vector<std::vector<double>> projection_list(order, std::vector<double>(term_point_idx_list.size(), 0.0));
   int32_t final_order = order;
 
+  std::map<std::string, std::size_t> node_idx_map;
+  for (std::size_t node_idx = 0; node_idx < node_name_list.size(); node_idx++) {
+    node_idx_map[node_name_list[node_idx]] = node_idx;
+  }
+  std::size_t network_resistance_num = 0;
+  for (ParasiticResistor& parasitic_resistor : parasitic_net.get_resistor_list()) {
+    if (node_idx_map.count(parasitic_resistor.get_source_node()) == 0 || node_idx_map.count(parasitic_resistor.get_sink_node()) == 0
+        || parasitic_resistor.get_source_node() == parasitic_resistor.get_sink_node()) {
+      continue;
+    }
+    network_resistance_num++;
+  }
+
+  bool has_resistance_loop = network_resistance_num + 1 > node_num;
+  Eigen::SparseMatrix<double> conductance_matrix;
+  Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper, Eigen::IncompleteCholesky<double>> conductance_solver;
+  if (has_resistance_loop) {
+    std::vector<Eigen::Triplet<double>> conductance_triplet_list;
+    for (ParasiticResistor& parasitic_resistor : parasitic_net.get_resistor_list()) {
+      if (node_idx_map.count(parasitic_resistor.get_source_node()) == 0 || node_idx_map.count(parasitic_resistor.get_sink_node()) == 0) {
+        continue;
+      }
+      std::size_t source_idx = node_idx_map[parasitic_resistor.get_source_node()];
+      std::size_t sink_idx = node_idx_map[parasitic_resistor.get_sink_node()];
+      if (source_idx == sink_idx) {
+        continue;
+      }
+      double conductance = 1.0 / (parasitic_resistor.get_resistance() * 1E-3);
+      if (source_idx > 0) {
+        conductance_triplet_list.emplace_back(source_idx - 1, source_idx - 1, conductance);
+      }
+      if (sink_idx > 0) {
+        conductance_triplet_list.emplace_back(sink_idx - 1, sink_idx - 1, conductance);
+      }
+      if (source_idx > 0 && sink_idx > 0) {
+        conductance_triplet_list.emplace_back(source_idx - 1, sink_idx - 1, -conductance);
+        conductance_triplet_list.emplace_back(sink_idx - 1, source_idx - 1, -conductance);
+      }
+    }
+    conductance_matrix.resize(node_num - 1, node_num - 1);
+    conductance_matrix.setFromTriplets(conductance_triplet_list.begin(), conductance_triplet_list.end());
+    conductance_solver.compute(conductance_matrix);
+    has_resistance_loop = conductance_solver.info() == Eigen::Success;
+  }
+
   for (int32_t order_idx = 0; order_idx < order; order_idx++) {
     updateParasiticArnoldiProjection(arnoldi_model, current_basis_list, term_point_idx_list, order_idx);
     if (arnoldi_model.get_projection_list().empty()) {
@@ -2461,16 +2506,26 @@ void TimingPropagator::updateParasiticArnoldiModel(ParasiticArnoldiModel& arnold
       projection_list = arnoldi_model.get_projection_list();
     }
 
-    std::vector<double> current_load_list(node_num, 0.0);
-    for (int32_t node_idx = static_cast<int32_t>(node_num) - 1; node_idx > 0; node_idx--) {
-      current_load_list[node_idx] += capacitance_list[node_idx] * current_basis_list[node_idx];
-      current_load_list[parent_idx_list[node_idx]] += current_load_list[node_idx];
-    }
-    current_load_list[0] += capacitance_list[0] * current_basis_list[0];
-
     std::vector<double> response_list(node_num, 0.0);
-    for (std::size_t node_idx = 1; node_idx < node_num; node_idx++) {
-      response_list[node_idx] = response_list[parent_idx_list[node_idx]] + resistance_list[node_idx] * current_load_list[node_idx];
+    if (has_resistance_loop) {
+      Eigen::VectorXd current_load_vector(node_num - 1);
+      for (std::size_t node_idx = 1; node_idx < node_num; node_idx++) {
+        current_load_vector[node_idx - 1] = capacitance_list[node_idx] * current_basis_list[node_idx];
+      }
+      Eigen::VectorXd response_vector = conductance_solver.solve(current_load_vector);
+      for (std::size_t node_idx = 1; node_idx < node_num; node_idx++) {
+        response_list[node_idx] = response_vector[node_idx - 1];
+      }
+    } else {
+      std::vector<double> current_load_list(node_num, 0.0);
+      for (int32_t node_idx = static_cast<int32_t>(node_num) - 1; node_idx > 0; node_idx--) {
+        current_load_list[node_idx] += capacitance_list[node_idx] * current_basis_list[node_idx];
+        current_load_list[parent_idx_list[node_idx]] += current_load_list[node_idx];
+      }
+      current_load_list[0] += capacitance_list[0] * current_basis_list[0];
+      for (std::size_t node_idx = 1; node_idx < node_num; node_idx++) {
+        response_list[node_idx] = response_list[parent_idx_list[node_idx]] + resistance_list[node_idx] * current_load_list[node_idx];
+      }
     }
 
     double diagonal = 0.0;
@@ -2481,7 +2536,7 @@ void TimingPropagator::updateParasiticArnoldiModel(ParasiticArnoldiModel& arnold
     if (order_idx == order - 1) {
       break;
     }
-    if (diagonal < 1E-4) {
+    if (diagonal < STA_ERROR) {
       final_order = order_idx + 1;
       break;
     }
@@ -2497,7 +2552,7 @@ void TimingPropagator::updateParasiticArnoldiModel(ParasiticArnoldiModel& arnold
     for (std::size_t node_idx = 0; node_idx < node_num; node_idx++) {
       off_diagonal += capacitance_list[node_idx] * response_list[node_idx] * response_list[node_idx];
     }
-    if (off_diagonal < 1E-12) {
+    if (off_diagonal < STA_ERROR * STA_ERROR) {
       final_order = order_idx + 1;
       break;
     }
@@ -3496,6 +3551,7 @@ void TimingPropagator::propagateClockArrival()
       seedClockArrival(clock_source);
     }
   }
+  propagateClockSlewDelay();
 
   for (std::string& pin_name : database.get_timing_order_list()) {
     TimingPoint& timing_point = database.get_timing_point_map()[pin_name];
@@ -3532,6 +3588,66 @@ void TimingPropagator::seedClockArrival(std::string& clock_source)
   timing_point.get_clock_slew_map()[AnalysisType::kMin][TransType::kFall] = 0.0;
 }
 
+void TimingPropagator::propagateClockSlewDelay()
+{
+  Database& database = STADM.getDatabase();
+  for (std::string& pin_name : database.get_timing_order_list()) {
+    TimingPoint& timing_point = database.get_timing_point_map()[pin_name];
+    if (!timing_point.get_is_clock_point() || shouldStopClockPropagation(pin_name)) {
+      continue;
+    }
+    for (std::size_t arc_idx : database.get_outgoing_arc_list_map()[pin_name]) {
+      if (isDisableArc(database.get_arc_list()[arc_idx])) {
+        continue;
+      }
+      propagateClockSlewDelayArc(arc_idx, AnalysisType::kMax);
+      propagateClockSlewDelayArc(arc_idx, AnalysisType::kMin);
+    }
+  }
+}
+
+void TimingPropagator::propagateClockSlewDelayArc(std::size_t arc_idx, AnalysisType analysis_type)
+{
+  propagateClockSlewDelayArc(arc_idx, analysis_type, TransType::kRise);
+  propagateClockSlewDelayArc(arc_idx, analysis_type, TransType::kFall);
+}
+
+void TimingPropagator::propagateClockSlewDelayArc(std::size_t arc_idx, AnalysisType analysis_type, TransType input_trans_type)
+{
+  Database& database = STADM.getDatabase();
+  Arc& arc = database.get_arc_list()[arc_idx];
+  TimingPoint& source_point = database.get_timing_point_map()[arc.get_source_pin()];
+  TimingPoint& sink_point = database.get_timing_point_map()[arc.get_sink_pin()];
+  if (!source_point.get_is_clock_point() || !sink_point.get_is_clock_point()) {
+    return;
+  }
+  if (source_point.get_clock_slew_map().count(analysis_type) == 0
+      || source_point.get_clock_slew_map()[analysis_type].count(input_trans_type) == 0) {
+    return;
+  }
+  if (!isClockArcTriggerTrans(arc, input_trans_type)) {
+    return;
+  }
+
+  for (TransType output_trans_type : getOutputTransTypeList(arc, analysis_type, input_trans_type)) {
+    updateClockSlewDelay(arc, source_point, sink_point, analysis_type, input_trans_type, output_trans_type);
+  }
+}
+
+void TimingPropagator::updateClockSlewDelay(Arc& arc, TimingPoint& source_point, TimingPoint& sink_point, AnalysisType analysis_type,
+                                            TransType input_trans_type, TransType output_trans_type)
+{
+  double input_slew = source_point.get_clock_slew_map()[analysis_type][input_trans_type];
+  double arc_delay = calcArcDelay(arc, analysis_type, input_trans_type, output_trans_type, input_slew);
+  double output_slew = calcArcSlew(arc, analysis_type, input_trans_type, output_trans_type, input_slew);
+  updateGraphArcDelay(arc, analysis_type, input_trans_type, output_trans_type, arc_delay);
+  if (sink_point.get_clock_slew_map().count(analysis_type) == 0
+      || sink_point.get_clock_slew_map()[analysis_type].count(output_trans_type) == 0
+      || isBetterSlew(output_slew, sink_point.get_clock_slew_map()[analysis_type][output_trans_type], analysis_type)) {
+    sink_point.get_clock_slew_map()[analysis_type][output_trans_type] = output_slew;
+  }
+}
+
 void TimingPropagator::propagateClockArrivalArc(std::size_t arc_idx, AnalysisType analysis_type)
 {
   propagateClockArrivalArc(arc_idx, analysis_type, TransType::kRise);
@@ -3565,15 +3681,12 @@ void TimingPropagator::propagateClockArrivalArc(std::size_t arc_idx, AnalysisTyp
 void TimingPropagator::updateClockPathState(Arc& arc, TimingPoint& source_point, TimingPoint& sink_point, AnalysisType analysis_type,
                                             TransType input_trans_type, TransType output_trans_type)
 {
-  double source_slew = source_point.get_clock_slew_map()[analysis_type][input_trans_type];
-  double arc_delay = calcArcDelay(arc, analysis_type, input_trans_type, output_trans_type, source_slew);
+  double arc_delay = getArcDelay(arc, analysis_type, input_trans_type, output_trans_type);
   double candidate_arrival = roundTime(getClockArrival(source_point, analysis_type, input_trans_type) + arc_delay);
   if (!hasClockArrival(sink_point, analysis_type, output_trans_type)
       || isBetterArrival(candidate_arrival, getClockArrival(sink_point, analysis_type, output_trans_type), analysis_type)) {
     updateClockArrival(sink_point, analysis_type, output_trans_type, candidate_arrival);
     updateClockPredecessor(sink_point, analysis_type, output_trans_type, input_trans_type, arc, arc_delay);
-    sink_point.get_clock_slew_map()[analysis_type][output_trans_type]
-        = calcArcSlew(arc, analysis_type, input_trans_type, output_trans_type, source_slew);
   }
 }
 
