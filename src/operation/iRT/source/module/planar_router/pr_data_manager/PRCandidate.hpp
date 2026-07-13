@@ -22,7 +22,7 @@
 
 namespace irt {
 
-struct TGCandidateCost
+struct PRCandidateCost
 {
   int32_t total_corner_num = 0;
   int32_t total_wire_length = 0;
@@ -40,11 +40,11 @@ struct TGCandidateCost
   double getTotalCost() const { return total_usage_cost + total_saturation_cost + total_hotspot_cost + total_overflow_cost; }
 };
 
-class TGCandidate
+class PRCandidate
 {
  public:
-  TGCandidate() = default;
-  TGCandidate(int32_t topo_idx, const std::vector<Segment<PlanarCoord>>& routing_segment_list, int32_t total_corner_num, int32_t total_wire_length,
+  PRCandidate() = default;
+  PRCandidate(int32_t topo_idx, const std::vector<Segment<PlanarCoord>>& routing_segment_list, int32_t total_corner_num, int32_t total_wire_length,
               bool is_path_blocked, double total_overflow_cost, double total_usage_cost = 0.0, double total_overflow = 0.0,
               int32_t overflow_node_num = 0)
   {
@@ -58,7 +58,7 @@ class TGCandidate
     _total_overflow = total_overflow;
     _overflow_node_num = overflow_node_num;
   }
-  ~TGCandidate() = default;
+  ~PRCandidate() = default;
   // getter
   int32_t get_topo_idx() const { return _topo_idx; }
   std::vector<Segment<PlanarCoord>>& get_routing_segment_list() { return _routing_segment_list; }
@@ -90,7 +90,7 @@ class TGCandidate
   void set_saturation_node_num(const int32_t saturation_node_num) { _saturation_node_num = saturation_node_num; }
   void set_hotspot_node_num(const int32_t hotspot_node_num) { _hotspot_node_num = hotspot_node_num; }
   void set_overflow_node_num(const int32_t overflow_node_num) { _overflow_node_num = overflow_node_num; }
-  void set_candidate_cost(const TGCandidateCost& candidate_cost)
+  void set_candidate_cost(const PRCandidateCost& candidate_cost)
   {
     _total_corner_num = candidate_cost.total_corner_num;
     _total_wire_length = candidate_cost.total_wire_length;

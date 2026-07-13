@@ -28,7 +28,8 @@
 #include "RTInterface.hpp"
 #include "SpaceRouter.hpp"
 #include "SupplyAnalyzer.hpp"
-#include "TopologyGenerator.hpp"
+#include "TOPOBuilder.hpp"
+#include "PlanarRouter.hpp"
 #include "TrackAssigner.hpp"
 #include "ViolationReporter.hpp"
 #include "api/TimingEngine.hh"
@@ -84,6 +85,7 @@ void RTInterface::initRT(std::map<std::string, std::any> config_map)
 
   DataManager::initInst();
   RTDM.input(config_map);
+  TOPOBuilder::initInst();
   DRCEngine::initInst();
   GDSPlotter::initInst();
 
@@ -95,14 +97,14 @@ void RTInterface::runERT(std::map<std::string, std::any> config_map)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  initFlute();
+  RTTB.init();
   RTGP.init();
 
   EarlyRouter::initInst();
   RTER.route(config_map);
   EarlyRouter::destroyInst();
 
-  destroyFlute();
+  RTTB.destroy();
   RTGP.destroy();
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -113,7 +115,7 @@ void RTInterface::runRT()
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  initFlute();
+  RTTB.init();
   RTGP.init();
   RTDE.init();
 
@@ -125,9 +127,9 @@ void RTInterface::runRT()
   RTSA.analyze();
   SupplyAnalyzer::destroyInst();
 
-  TopologyGenerator::initInst();
-  RTTG.generate();
-  TopologyGenerator::destroyInst();
+  PlanarRouter::initInst();
+  RTPR.generate();
+  PlanarRouter::destroyInst();
   
   LayerAssigner::initInst();
   RTLA.assign();
@@ -149,7 +151,7 @@ void RTInterface::runRT()
   RTVR.report();
   ViolationReporter::destroyInst();
 
-  destroyFlute();
+  RTTB.destroy();
   RTGP.destroy();
   RTDE.destroy();
 
@@ -163,6 +165,7 @@ void RTInterface::destroyRT()
 
   GDSPlotter::destroyInst();
   DRCEngine::destroyInst();
+  TOPOBuilder::destroyInst();
   RTDM.output();
   DataManager::destroyInst();
 
@@ -1446,12 +1449,12 @@ void RTInterface::outputSummary()
     top_rt_summary.sa_summary.routing_supply_map = rt_summary.sa_summary.routing_supply_map;
     top_rt_summary.sa_summary.total_supply = rt_summary.sa_summary.total_supply;
   }
-  // tg_summary
+  // pr_summary
   {
-    top_rt_summary.tg_summary.total_demand = rt_summary.tg_summary.total_demand;
-    top_rt_summary.tg_summary.total_overflow = rt_summary.tg_summary.total_overflow;
-    top_rt_summary.tg_summary.total_wire_length = rt_summary.tg_summary.total_wire_length;
-    top_rt_summary.tg_summary.clock_timing_map = rt_summary.tg_summary.clock_timing_map;
+    top_rt_summary.pr_summary.total_demand = rt_summary.pr_summary.total_demand;
+    top_rt_summary.pr_summary.total_overflow = rt_summary.pr_summary.total_overflow;
+    top_rt_summary.pr_summary.total_wire_length = rt_summary.pr_summary.total_wire_length;
+    top_rt_summary.pr_summary.clock_timing_map = rt_summary.pr_summary.clock_timing_map;
   }
   // la_summary
   {

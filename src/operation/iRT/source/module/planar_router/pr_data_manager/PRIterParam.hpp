@@ -16,21 +16,15 @@
 // ***************************************************************************************
 #pragma once
 
-#include "Pin.hpp"
-
 namespace irt {
 
-class TGPin : public Pin
+class PRIterParam
 {
  public:
-  TGPin() = default;
-  explicit TGPin(const Pin& pin) : Pin(pin) {}
-  ~TGPin() = default;
+  PRIterParam() = default;
+  ~PRIterParam() = default;
   // getter
-
   // setter
-
-  // function
 
  private:
 };

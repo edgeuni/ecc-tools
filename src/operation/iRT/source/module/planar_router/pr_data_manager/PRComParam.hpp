@@ -18,11 +18,11 @@
 
 namespace irt {
 
-class TGComParam
+class PRComParam
 {
  public:
-  TGComParam() = default;
-  TGComParam(int32_t topo_spilt_length, int32_t expand_step_num, int32_t expand_step_length, double overflow_unit,
+  PRComParam() = default;
+  PRComParam(int32_t topo_spilt_length, int32_t expand_step_num, int32_t expand_step_length, double overflow_unit,
              double corner_weight = 0.3)
   {
     _topo_spilt_length = topo_spilt_length;
@@ -31,7 +31,7 @@ class TGComParam
     _overflow_unit = overflow_unit;
     _corner_weight = corner_weight;
   }
-  ~TGComParam() = default;
+  ~PRComParam() = default;
   // getter
   int32_t get_topo_spilt_length() const { return _topo_spilt_length; }
   int32_t get_expand_step_num() const { return _expand_step_num; }
