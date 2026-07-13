@@ -354,8 +354,7 @@ void PlanarRouter::initSingleTask(PRModel& pr_model, PRNet* pr_task)
 
 std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentList(PRModel& pr_model)
 {
-  std::vector<Segment<PlanarCoord>> raw_topo_list = getPlanarTopoList(pr_model);
-  std::vector<Segment<PlanarCoord>> planar_topo_list = legalizePlanarTopoByMacro(pr_model, raw_topo_list);
+  std::vector<Segment<PlanarCoord>> planar_topo_list = getPlanarTopoList(pr_model);
   std::set<PlanarCoord, CmpPlanarCoordByXASC> terminal_coord_set = getCurrTerminalCoordSet(pr_model);
 
   PRShadowDemandMap self_shadow;
@@ -538,50 +537,18 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_mo
   }
   TBTask tb_task;
   tb_task.set_planar_coord_list(planar_coord_list);
-  return RTTB.getPlanarTopoList(tb_task);
-}
-
-std::vector<Segment<PlanarCoord>> PlanarRouter::legalizePlanarTopoByMacro(PRModel& pr_model,
-                                                                               std::vector<Segment<PlanarCoord>>& raw_topo_list)
-{
-  if (pr_model.get_pr_macro_region_list().empty()) {
-    return raw_topo_list;
+  GridMap<bool>& macro_body_forbidden_map = pr_model.get_macro_body_forbidden_map();
+  if (!macro_body_forbidden_map.empty()) {
+    tb_task.set_steiner_forbidden_map(&macro_body_forbidden_map);
   }
 
-  std::set<PlanarCoord, CmpPlanarCoordByXASC> terminal_coord_set = getCurrTerminalCoordSet(pr_model);
-  std::map<PlanarCoord, PlanarCoord, CmpPlanarCoordByXASC> steiner_legal_coord_map;
-
-  auto legalizeSteinerCoord = [&](PlanarCoord coord) {
-    if (terminal_coord_set.find(coord) != terminal_coord_set.end() || !isMacroForbiddenCoord(pr_model, coord)) {
-      return coord;
-    }
-    auto legal_iter = steiner_legal_coord_map.find(coord);
-    if (legal_iter != steiner_legal_coord_map.end()) {
-      return legal_iter->second;
-    }
-
-    pr_model.get_pr_macro_repair_stat().raw_steiner_in_macro++;
-    PlanarCoord legal_coord = getNearestLegalMacroBoundaryCoord(pr_model, coord);
-    steiner_legal_coord_map[coord] = legal_coord;
-    if (isMacroForbiddenCoord(pr_model, legal_coord)) {
-      pr_model.get_pr_macro_repair_stat().failed_steiner_legalize_num++;
-    } else {
-      pr_model.get_pr_macro_repair_stat().fixed_steiner_in_macro++;
-    }
-    return legal_coord;
-  };
-
-  std::vector<Segment<PlanarCoord>> legal_topo_list;
-  legal_topo_list.reserve(raw_topo_list.size());
-  for (Segment<PlanarCoord>& raw_topo : raw_topo_list) {
-    PlanarCoord first_coord = legalizeSteinerCoord(raw_topo.get_first());
-    PlanarCoord second_coord = legalizeSteinerCoord(raw_topo.get_second());
-    if (first_coord == second_coord) {
-      continue;
-    }
-    legal_topo_list.emplace_back(first_coord, second_coord);
-  }
-  return legal_topo_list;
+  TBResult tb_result = RTTB.buildPlanarTopo(tb_task);
+  const TBSteinerRepairStat& tb_stat = tb_result.get_steiner_repair_stat();
+  PRMacroRepairStat& pr_stat = pr_model.get_pr_macro_repair_stat();
+  pr_stat.raw_steiner_in_macro += tb_stat.raw_steiner_in_macro;
+  pr_stat.fixed_steiner_in_macro += tb_stat.fixed_steiner_in_macro;
+  pr_stat.failed_steiner_legalize_num += tb_stat.failed_steiner_legalize_num;
+  return std::move(tb_result.get_planar_topo_list());
 }
 
 std::set<PlanarCoord, CmpPlanarCoordByXASC> PlanarRouter::getCurrTerminalCoordSet(PRModel& pr_model)
@@ -591,46 +558,6 @@ std::set<PlanarCoord, CmpPlanarCoordByXASC> PlanarRouter::getCurrTerminalCoordSe
     terminal_coord_set.insert(pr_pin.get_access_point().get_grid_coord());
   }
   return terminal_coord_set;
-}
-
-PlanarCoord PlanarRouter::getNearestLegalMacroBoundaryCoord(PRModel& pr_model, PlanarCoord coord)
-{
-  GridMap<bool>& macro_body_forbidden_map = pr_model.get_macro_body_forbidden_map();
-  if (macro_body_forbidden_map.empty() || !macro_body_forbidden_map.isInside(coord.get_x(), coord.get_y())
-      || !isMacroForbiddenCoord(pr_model, coord)) {
-    return coord;
-  }
-
-  PlanarCoord best_coord = coord;
-  int32_t best_distance = INT_MAX;
-  auto updateBestCoord = [&](int32_t x, int32_t y) {
-    if (!macro_body_forbidden_map.isInside(x, y) || macro_body_forbidden_map[x][y]) {
-      return;
-    }
-    PlanarCoord candidate_coord(x, y);
-    int32_t distance = RTUTIL.getManhattanDistance(coord, candidate_coord);
-    if (distance < best_distance
-        || (distance == best_distance && CmpPlanarCoordByXASC()(candidate_coord, best_coord))) {
-      best_distance = distance;
-      best_coord = candidate_coord;
-    }
-  };
-
-  int32_t max_radius = macro_body_forbidden_map.get_x_size() + macro_body_forbidden_map.get_y_size();
-  for (int32_t radius = 1; radius <= max_radius; radius++) {
-    for (int32_t dx = -radius; dx <= radius; dx++) {
-      updateBestCoord(coord.get_x() + dx, coord.get_y() - radius);
-      updateBestCoord(coord.get_x() + dx, coord.get_y() + radius);
-    }
-    for (int32_t dy = -radius + 1; dy <= radius - 1; dy++) {
-      updateBestCoord(coord.get_x() - radius, coord.get_y() + dy);
-      updateBestCoord(coord.get_x() + radius, coord.get_y() + dy);
-    }
-    if (best_distance != INT_MAX) {
-      return best_coord;
-    }
-  }
-  return coord;
 }
 
 bool PlanarRouter::isMacroForbiddenCoord(PRModel& pr_model, const PlanarCoord& coord)

@@ -20,6 +20,7 @@
 #include "Monitor.hpp"
 #include "PlanarCoord.hpp"
 #include "Segment.hpp"
+#include "TBResult.hpp"
 #include "TBTask.hpp"
 
 namespace irt {
@@ -34,7 +35,8 @@ class TOPOBuilder
   static void destroyInst();
   // function
   void init();
-  std::vector<Segment<PlanarCoord>> getPlanarTopoList(TBTask& tb_task);
+  TBResult buildPlanarTopo(const TBTask& tb_task);
+  std::vector<Segment<PlanarCoord>> getPlanarTopoList(const TBTask& tb_task);
   void destroy();
 
  private:
@@ -47,6 +49,12 @@ class TOPOBuilder
   ~TOPOBuilder() = default;
   TOPOBuilder& operator=(const TOPOBuilder& other) = delete;
   TOPOBuilder& operator=(TOPOBuilder&& other) = delete;
+  // function
+  std::vector<Segment<PlanarCoord>> getFlutePlanarTopoList(const std::vector<PlanarCoord>& planar_coord_list);
+  std::vector<Segment<PlanarCoord>> legalizePlanarTopo(const TBTask& tb_task, std::vector<Segment<PlanarCoord>> raw_topo_list,
+                                                      TBSteinerRepairStat& steiner_repair_stat);
+  PlanarCoord getNearestLegalCoord(const GridMap<bool>& steiner_forbidden_map, const PlanarCoord& coord);
+  bool isSteinerForbiddenCoord(const GridMap<bool>* steiner_forbidden_map, const PlanarCoord& coord);
 };
 
 }  // namespace irt

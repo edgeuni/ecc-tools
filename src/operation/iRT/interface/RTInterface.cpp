@@ -36,7 +36,6 @@
 #include "api/TimingIDBAdapter.hh"
 #include "feature_irt.h"
 #include "feature_manager.h"
-#include "flute3/flute.h"
 #include "idm.h"
 #include "tool_api/ista_io/ista_io.h"
 
@@ -1930,48 +1929,6 @@ void RTInterface::updateTiming(std::vector<std::map<std::string, std::vector<Lay
     clock_timing[clk_name]["Freq(MHz)"] = suggest_freq;
   });
 #endif
-}
-
-#endif
-
-#if 1  // flute
-
-void RTInterface::initFlute()
-{
-  Flute::readLUT();
-}
-
-void RTInterface::destroyFlute()
-{
-  Flute::deleteLUT();
-}
-
-std::vector<Segment<PlanarCoord>> RTInterface::getPlanarTopoList(std::vector<PlanarCoord> planar_coord_list)
-{
-  std::vector<Segment<PlanarCoord>> planar_topo_list;
-  if (planar_coord_list.size() > 1) {
-    int32_t point_num = static_cast<int32_t>(planar_coord_list.size());
-    Flute::DTYPE* x_list = (Flute::DTYPE*) malloc(sizeof(Flute::DTYPE) * (point_num));
-    Flute::DTYPE* y_list = (Flute::DTYPE*) malloc(sizeof(Flute::DTYPE) * (point_num));
-    for (int32_t i = 0; i < point_num; i++) {
-      x_list[i] = planar_coord_list[i].get_x();
-      y_list[i] = planar_coord_list[i].get_y();
-    }
-    Flute::Tree flute_tree = Flute::flute(point_num, x_list, y_list, FLUTE_ACCURACY);
-    free(x_list);
-    free(y_list);
-
-    for (int32_t i = 0; i < 2 * flute_tree.deg - 2; i++) {
-      int32_t n_id = flute_tree.branch[i].n;
-      PlanarCoord first_coord(flute_tree.branch[i].x, flute_tree.branch[i].y);
-      PlanarCoord second_coord(flute_tree.branch[n_id].x, flute_tree.branch[n_id].y);
-      if (first_coord != second_coord) {
-        planar_topo_list.emplace_back(first_coord, second_coord);
-      }
-    }
-    Flute::free_tree(flute_tree);
-  }
-  return planar_topo_list;
 }
 
 #endif

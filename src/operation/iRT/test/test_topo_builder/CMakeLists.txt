@@ -5,7 +5,6 @@ add_executable(test_topo_builder
 target_link_libraries(test_topo_builder
     PRIVATE
     irt_topo_builder
-    irt_interface
     irt_toolkit
 )
 

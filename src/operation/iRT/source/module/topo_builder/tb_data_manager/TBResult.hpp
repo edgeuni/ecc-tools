@@ -16,30 +16,37 @@
 // ***************************************************************************************
 #pragma once
 
-#include "GridMap.hpp"
 #include "PlanarCoord.hpp"
 #include "RTHeader.hpp"
+#include "Segment.hpp"
 
 namespace irt {
 
-class TBTask
+struct TBSteinerRepairStat
+{
+  int32_t raw_steiner_in_macro = 0;
+  int32_t fixed_steiner_in_macro = 0;
+  int32_t failed_steiner_legalize_num = 0;
+};
+
+class TBResult
 {
  public:
-  TBTask() = default;
-  ~TBTask() = default;
+  TBResult() = default;
+  ~TBResult() = default;
   // getter
-  std::vector<PlanarCoord>& get_planar_coord_list() { return _planar_coord_list; }
-  const GridMap<bool>* get_steiner_forbidden_map() const { return _steiner_forbidden_map; }
+  std::vector<Segment<PlanarCoord>>& get_planar_topo_list() { return _planar_topo_list; }
+  TBSteinerRepairStat& get_steiner_repair_stat() { return _steiner_repair_stat; }
   // const getter
-  const std::vector<PlanarCoord>& get_planar_coord_list() const { return _planar_coord_list; }
+  const std::vector<Segment<PlanarCoord>>& get_planar_topo_list() const { return _planar_topo_list; }
+  const TBSteinerRepairStat& get_steiner_repair_stat() const { return _steiner_repair_stat; }
   // setter
-  void set_planar_coord_list(std::vector<PlanarCoord> planar_coord_list) { _planar_coord_list = std::move(planar_coord_list); }
-  void set_steiner_forbidden_map(const GridMap<bool>* steiner_forbidden_map) { _steiner_forbidden_map = steiner_forbidden_map; }
-  // function
+  void set_planar_topo_list(std::vector<Segment<PlanarCoord>> planar_topo_list) { _planar_topo_list = std::move(planar_topo_list); }
+  void set_steiner_repair_stat(const TBSteinerRepairStat& steiner_repair_stat) { _steiner_repair_stat = steiner_repair_stat; }
+
  private:
-  std::vector<PlanarCoord> _planar_coord_list;
-  // The caller owns this map and must keep it alive for the synchronous build call.
-  const GridMap<bool>* _steiner_forbidden_map = nullptr;
+  std::vector<Segment<PlanarCoord>> _planar_topo_list;
+  TBSteinerRepairStat _steiner_repair_stat;
 };
 
 }  // namespace irt
