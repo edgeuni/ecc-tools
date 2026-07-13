@@ -1390,7 +1390,10 @@ void PinAccessor::routePABoxMap(PAModel& pa_model)
           pa_box.get_pattern_fallback_task_idx_set().insert(pa_task->get_task_idx());
         }
       }
-      buildRouteViolation(pa_box);
+#pragma omp critical(PAGCellMap)
+      {
+        buildRouteViolation(pa_box);
+      }
       if (!needRouting(pa_box)) {
         freePABox(pa_box);
         continue;
