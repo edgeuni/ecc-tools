@@ -113,6 +113,7 @@ class GraphBuilder
   void updateSinkLevel(Arc& arc);
   void updateSinkIndegree(Arc& arc, std::map<std::string, std::size_t>& indegree_map, std::queue<std::string>& pin_queue);
   void printLoopInfo();
+  void initializeArcTiming();
 };
 
 }  // namespace ista

@@ -461,9 +461,6 @@ bool TimingReporter::isMatchAnalysisType(TimingPath& timing_path, DelayType dela
 
 bool TimingReporter::isMatchStartEndType(TimingPath& timing_path, StartEndType start_end_type)
 {
-  if (isPowerGroundPin(timing_path.get_start_point()) || isPowerGroundPin(timing_path.get_end_point())) {
-    return false;
-  }
   bool start_is_port = isPort(timing_path.get_start_point());
   bool end_is_port = isPort(timing_path.get_end_point());
   if (start_end_type == StartEndType::kInToOut) {
@@ -536,13 +533,6 @@ bool TimingReporter::isClockSourceStartPoint(std::string& pin_name)
     }
   }
   return false;
-}
-
-bool TimingReporter::isPowerGroundPin(std::string& pin_name)
-{
-  Database& database = STADM.getDatabase();
-  Pin& pin = database.get_pin_map()[pin_name];
-  return pin.get_pin_name() == "VDD" || pin.get_pin_name() == "VSS" || pin.get_pin_name() == "VDDIO" || pin.get_pin_name() == "VSSIO";
 }
 
 void TimingReporter::outputTimingPath(std::ofstream* report_file, TimingPath& timing_path, std::string& path_group_name,
@@ -770,9 +760,6 @@ std::size_t TimingReporter::getTimingLineLabelWidth(TimingPath& timing_path, Del
 bool TimingReporter::shouldOutputTimingPoint(TimingPath& timing_path, TimingPathPoint& path_point)
 {
   Database& database = STADM.getDatabase();
-  if (isPowerGroundPin(path_point.get_pin_name())) {
-    return false;
-  }
   Pin& pin = database.get_pin_map()[path_point.get_pin_name()];
   if (pin.get_is_port()) {
     return true;

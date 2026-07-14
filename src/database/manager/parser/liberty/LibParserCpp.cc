@@ -453,6 +453,15 @@ unsigned LibertyReader::visitSimpleAttri(LibertySimpleAttrStmt* attri) {
       }
     }
     liberty_free_string_value(attri_value_handle);
+  } else if (is_attri("sdf_cond")) {
+    auto* attri_value_handle = liberty_convert_string_value(attri_value);
+    const char* sdf_cond = attri_value_handle->value;
+    if (own_port_type == LibBuilder::LibertyOwnPortType::kTimingArc) {
+      if (lib_arc) {
+        lib_arc->set_sdf_cond(sdf_cond);
+      }
+    }
+    liberty_free_string_value(attri_value_handle);
   } else if (is_attri("value")) {
     if (liberty_is_string_value(attri_value)) {
       auto* attri_value_handle = liberty_convert_string_value(attri_value);
@@ -1358,7 +1367,7 @@ unsigned LibertyReader::visitTable(LibertyGroupStmt* group) {
   std::unique_ptr<LibTableModel> table_model;
 
   if (!lib_model) {
-    if (lib_arc->isCheckArc()) {
+    if (lib_arc->isCheckTableArc()) {
       table_model = std::make_unique<LibCheckTableModel>();
     } else {
       table_model = std::make_unique<LibDelayTableModel>();
@@ -1843,7 +1852,7 @@ unsigned LibertyReader::visitTable(liberty_ast::LibGroup* group) {
   std::unique_ptr<LibTableModel> table_model;
 
   if (!lib_model) {
-    if (lib_arc->isCheckArc()) {
+    if (lib_arc->isCheckTableArc()) {
       table_model = std::make_unique<LibCheckTableModel>();
     } else {
       table_model = std::make_unique<LibDelayTableModel>();

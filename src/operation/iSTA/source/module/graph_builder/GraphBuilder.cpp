@@ -17,6 +17,7 @@
 #include "GraphBuilder.hpp"
 
 #include "DataManager.hpp"
+#include "DelayCalculator.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "Utility.hpp"
@@ -63,6 +64,7 @@ void GraphBuilder::build()
   breakLoopArcList();
   buildTimingOrder();
   printLoopInfo();
+  initializeArcTiming();
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -115,6 +117,9 @@ bool GraphBuilder::buildLibraryCellArcs(Instance& instance)
   }
 
   for (TimingCellArc& timing_cell_arc : timing_cell.get_cell_arc_list()) {
+    if (!timing_cell_arc.get_is_timing_graph_arc()) {
+      continue;
+    }
     addCellArc(instance, timing_cell_arc);
   }
   return true;
@@ -850,6 +855,17 @@ void GraphBuilder::printLoopInfo()
   std::size_t loop_pin_num = database.get_timing_point_map().size() - database.get_timing_order_list().size();
   if (loop_pin_num > 0) {
     STALOG.warn(Loc::current(), "Detected ", loop_pin_num, " vertex(es) in combinational loop or unresolved dependency.");
+  }
+}
+
+void GraphBuilder::initializeArcTiming()
+{
+  Database& database = STADM.getDatabase();
+  for (Arc& arc : database.get_arc_list()) {
+    DCTask dc_task;
+    dc_task.set_proc_type(DCProcType::kInitialize);
+    dc_task.set_arc(&arc);
+    STADC.calculate(dc_task);
   }
 }
 

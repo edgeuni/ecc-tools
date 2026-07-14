@@ -1,5 +1,3 @@
-find_package(Eigen3 REQUIRED NO_MODULE)
-
 if(DEBUG_ISTA_TIMING_PROPAGATOR)
     message(STATUS "iSTA: DEBUG_ISTA_TIMING_PROPAGATOR")
     set(CMAKE_BUILD_TYPE "Debug")
@@ -13,9 +11,8 @@ add_library(ista_timing_propagator
 )
 
 target_link_libraries(ista_timing_propagator
-    PRIVATE
-    Eigen3::Eigen
     PUBLIC
+    ista_delay_calculator
     ista_data_manager
     ista_toolkit
 )

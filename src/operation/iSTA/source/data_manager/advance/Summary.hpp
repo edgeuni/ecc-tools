@@ -48,11 +48,11 @@ class CMSummary
   ~CMSummary() = default;
 };
 
-class TPSummary
+class TASummary
 {
  public:
-  TPSummary() = default;
-  ~TPSummary() = default;
+  TASummary() = default;
+  ~TASummary() = default;
   std::size_t timing_path_num = 0;
   std::size_t checked_end_point_num = 0;
   std::size_t unconstrained_end_point_num = 0;
@@ -78,7 +78,7 @@ class Summary
   CMSummary cm_summary;
   GBSummary gb_summary;
   DCSummary dc_summary;
-  TPSummary tp_summary;
+  TASummary ta_summary;
   TRSummary tr_summary;
 };
 
