@@ -839,6 +839,8 @@ class LibArc : public LibObject
   bool isMatchTimingType(TransType trans_type);
   void set_when(const char* when) { _when = when; }
   auto& get_when() { return _when; }
+  void set_sdf_cond(const char* sdf_cond) { _sdf_cond = sdf_cond; }
+  auto& get_sdf_cond() { return _sdf_cond; }
 
   void set_owner_cell(LibCell* ower_cell) { _owner_cell = ower_cell; }
   LibCell* get_owner_cell() { return _owner_cell; }
@@ -849,6 +851,7 @@ class LibArc : public LibObject
   unsigned isCheckArc();
   unsigned isDelayArc();
   unsigned isMpwArc();
+  unsigned isCheckTableArc();
   unsigned isClockGateCheckArc();
   unsigned isClearPresetArc() { return _timing_type == TimingType::kClear || _timing_type == TimingType::kPreset; }
 
@@ -922,6 +925,7 @@ class LibArc : public LibObject
   TimingSense _timing_sense;                       //!< The arc timing sense.
   TimingType _timing_type = TimingType::kDefault;  //!< The arc timing type.
   std::string _when;                               //!< The timing arc condition.
+  std::string _sdf_cond;                           //!< The timing arc SDF condition.
 
   std::unique_ptr<LibTableModel> _table_model;  //!< The arc timing model.
 

@@ -43,6 +43,8 @@ class Config
   std::string tc_temp_directory_path;  // building
   // **********  TimingReporter   ********** //
   std::string tr_temp_directory_path;  // building
+  // ************  SDFWriter  ************* //
+  std::string sw_temp_directory_path;  // building
   /////////////////////////////////////////////
 };
 

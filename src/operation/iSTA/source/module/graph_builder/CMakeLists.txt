@@ -12,6 +12,7 @@ add_library(ista_graph_builder
 
 target_link_libraries(ista_graph_builder
     PUBLIC
+    ista_delay_calculator
     ista_data_manager
     ista_toolkit
 )

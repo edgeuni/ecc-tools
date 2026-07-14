@@ -17,9 +17,11 @@
 #include "STAInterface.hpp"
 
 #include "DataManager.hpp"
+#include "DelayCalculator.hpp"
 #include "GraphBuilder.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "SDFWriter.hpp"
 #include "STAHeader.hpp"
 #include "TimingCharacterizer.hpp"
 #include "TimingPropagator.hpp"
@@ -72,6 +74,7 @@ void STAInterface::initSTA(std::map<std::string, std::any> config_map)
 
   DataManager::initInst();
   STADM.input(config_map);
+  DelayCalculator::initInst();
 
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -80,6 +83,8 @@ void STAInterface::runSTA()
 {
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
+
+  STADC.init();
 
   GraphBuilder::initInst();
   STAGB.build();
@@ -93,6 +98,12 @@ void STAInterface::runSTA()
   STATR.report();
   TimingReporter::destroyInst();
 
+  SDFWriter::initInst();
+  STASW.write();
+  SDFWriter::destroyInst();
+
+  STADC.destroy();
+
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -100,6 +111,8 @@ void STAInterface::extractLib()
 {
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
+
+  STADC.init();
 
   GraphBuilder::initInst();
   STAGB.build();
@@ -113,6 +126,8 @@ void STAInterface::extractLib()
   STATC.characterize();
   TimingCharacterizer::destroyInst();
 
+  STADC.destroy();
+
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -121,6 +136,7 @@ void STAInterface::destroySTA()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
+  DelayCalculator::destroyInst();
   STADM.output();
   DataManager::destroyInst();
 

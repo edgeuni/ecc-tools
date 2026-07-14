@@ -97,6 +97,8 @@ void DataManager::buildConfig()
   _config.tc_temp_directory_path = _config.temp_directory_path + "timing_characterizer/";
   // **********  TimingReporter   ********** //
   _config.tr_temp_directory_path = _config.temp_directory_path + "timing_reporter/";
+  // ************  SDFWriter  ************* //
+  _config.sw_temp_directory_path = _config.temp_directory_path + "sdf_writer/";
   /////////////////////////////////////////////
   // **********        STA        ********** //
   STAUTIL.removeDir(_config.temp_directory_path);
@@ -112,6 +114,8 @@ void DataManager::buildConfig()
   STAUTIL.createDir(_config.tc_temp_directory_path);
   // **********  TimingReporter   ********** //
   STAUTIL.createDir(_config.tr_temp_directory_path);
+  // ************  SDFWriter  ************* //
+  STAUTIL.createDir(_config.sw_temp_directory_path);
   /////////////////////////////////////////////
   STALOG.openLogFileStream(_config.log_file_path);
 }
@@ -318,17 +322,42 @@ void DataManager::makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_
 void DataManager::makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib_arc_set)
 {
   idb::LibArc* lib_arc = lib_arc_set->front();
-  if (lib_arc->isDelayArc()) {
-    timing_cell.get_cell_arc_list().push_back(makeDelayArc(lib_arc_set));
-  } else if (lib_arc->isClearPresetArc()) {
-    updateClearPresetArc(timing_cell, lib_arc);
-  } else if (lib_arc->isCheckArc()) {
+  if (isSDFDelayArc(lib_arc)) {
+    TimingCellArc timing_cell_arc = makeDelayArc(lib_arc_set);
+    timing_cell_arc.set_is_timing_graph_arc(lib_arc->isDelayArc());
+    timing_cell.get_cell_arc_list().push_back(timing_cell_arc);
+    if (lib_arc->isClearPresetArc()) {
+      updateClearPresetArc(timing_cell, lib_arc);
+    }
+    return;
+  }
+  if (isSDFCheckArc(lib_arc)) {
     TimingCheckArc timing_check_arc = makeCheckArc(lib_arc_set);
+    timing_cell.get_sdf_check_arc_list().push_back(timing_check_arc);
+    if (!lib_arc->isCheckArc()) {
+      return;
+    }
     timing_cell.get_check_arc_list().push_back(timing_check_arc);
     if (timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
       timing_cell.get_setup_arc_list().push_back(timing_check_arc);
     }
   }
+}
+
+bool DataManager::isSDFDelayArc(idb::LibArc* lib_arc)
+{
+  if (lib_arc->isDelayArc() || lib_arc->isClearPresetArc()) {
+    return true;
+  }
+  idb::LibArc::TimingType timing_type = lib_arc->get_timing_type();
+  return timing_type == idb::LibArc::TimingType::kThreeStateEnable || timing_type == idb::LibArc::TimingType::kThreeStateEnableRise
+         || timing_type == idb::LibArc::TimingType::kThreeStateEnableFall || timing_type == idb::LibArc::TimingType::kThreeStateDisable
+         || timing_type == idb::LibArc::TimingType::kThreeStateDisableRise || timing_type == idb::LibArc::TimingType::kThreeStateDisableFall;
+}
+
+bool DataManager::isSDFCheckArc(idb::LibArc* lib_arc)
+{
+  return lib_arc->isCheckTableArc();
 }
 
 TimingCellArc DataManager::makeDelayArc(idb::LibArcSet* lib_arc_set)
@@ -337,9 +366,10 @@ TimingCellArc DataManager::makeDelayArc(idb::LibArcSet* lib_arc_set)
   TimingCellArc timing_cell_arc;
   timing_cell_arc.set_source_port(lib_arc->get_src_port());
   timing_cell_arc.set_sink_port(lib_arc->get_snk_port());
-  timing_cell_arc.set_delay(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
-  timing_cell_arc.set_delay_max(timing_cell_arc.get_delay());
-  timing_cell_arc.set_delay_min(timing_cell_arc.get_delay());
+  double delay = lib_arc->isDelayArc() ? lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0) : 0.0;
+  timing_cell_arc.set_delay(delay);
+  timing_cell_arc.set_delay_max(delay);
+  timing_cell_arc.set_delay_min(delay);
   timing_cell_arc.set_timing_arc_list(makeTimingArcList(lib_arc_set));
   timing_cell_arc.set_is_clock_arc(lib_arc->isRisingTriggerArc() || lib_arc->isFallingTriggerArc());
   timing_cell_arc.set_is_disable_arc(lib_arc->isDisableArc());
@@ -362,7 +392,9 @@ TimingCheckArc DataManager::makeCheckArc(idb::LibArcSet* lib_arc_set)
   timing_check_arc.set_clock_port(lib_arc->get_src_port());
   timing_check_arc.set_data_port(lib_arc->get_snk_port());
   timing_check_arc.set_check_type(getTimingCheckType(lib_arc));
-  timing_check_arc.set_check_time(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
+  if (lib_arc->isCheckArc()) {
+    timing_check_arc.set_check_time(lib_arc->getDelayOrConstrainCheckNs(idb::TransType::kRise, 0.0, 0.0));
+  }
   timing_check_arc.set_timing_arc_list(makeTimingArcList(lib_arc_set));
   timing_check_arc.set_clock_trans_type(getCheckTransType(lib_arc));
   if (timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
@@ -374,11 +406,14 @@ TimingCheckArc DataManager::makeCheckArc(idb::LibArcSet* lib_arc_set)
 std::vector<TimingArc> DataManager::makeTimingArcList(idb::LibArcSet* lib_arc_set)
 {
   std::vector<TimingArc> timing_arc_list;
+  int32_t arc_idx = 0;
   for (std::unique_ptr<idb::LibArc>& lib_arc : lib_arc_set->get_arcs()) {
     if (lib_arc->isDisableArc()) {
       continue;
     }
-    timing_arc_list.push_back(makeTimingArc(lib_arc.get()));
+    TimingArc timing_arc = makeTimingArc(lib_arc.get());
+    timing_arc.set_arc_idx(arc_idx++);
+    timing_arc_list.push_back(timing_arc);
   }
   return timing_arc_list;
 }
@@ -391,6 +426,7 @@ TimingArc DataManager::makeTimingArc(idb::LibArc* lib_arc)
   timing_arc.set_trigger_trans_type(getTriggerTransType(lib_arc));
   timing_arc.set_check_trans_type(getCheckTransType(lib_arc));
   timing_arc.set_library_name(lib_library->get_lib_name());
+  timing_arc.set_sdf_cond(lib_arc->get_sdf_cond());
   timing_arc.set_time_unit_scale(getLibTimeUnitScale(lib_library));
   timing_arc.set_cap_unit_scale(getLibCapUnitScale(lib_library));
   timing_arc.set_slew_derate(lib_library->get_slew_derate_from_library());
@@ -412,7 +448,7 @@ void DataManager::makeTimingArcTable(TimingArc& timing_arc, idb::LibArc* lib_arc
   if (table_model == nullptr) {
     return;
   }
-  if (lib_arc->isDelayArc()) {
+  if (table_model->isDelayModel()) {
     idb::LibTable* rise_delay_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kCellRise));
     idb::LibTable* fall_delay_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kCellFall));
     idb::LibTable* rise_slew_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kRiseTransition));
@@ -429,6 +465,9 @@ void DataManager::makeTimingArcTable(TimingArc& timing_arc, idb::LibArc* lib_arc
     if (fall_slew_table != nullptr) {
       timing_arc.get_slew_table_map()[TransType::kFall] = makeTimingTable(fall_slew_table);
     }
+    return;
+  }
+  if (!table_model->isCheckModel()) {
     return;
   }
   idb::LibTable* rise_check_table = table_model->getTable(CAST_TYPE_TO_INDEX(idb::LibTable::TableType::kRiseConstrain));
@@ -550,6 +589,12 @@ TimingCheckType DataManager::getTimingCheckType(idb::LibArc* lib_arc)
   }
   if (lib_arc->isRemovalArc()) {
     return TimingCheckType::kRemoval;
+  }
+  if (lib_arc->isMpwArc()) {
+    return TimingCheckType::kWidth;
+  }
+  if (lib_arc->get_timing_type() == idb::LibArc::TimingType::kMinimunPeriod) {
+    return TimingCheckType::kPeriod;
   }
   return TimingCheckType::kNone;
 }

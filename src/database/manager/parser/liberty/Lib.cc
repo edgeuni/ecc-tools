@@ -1056,6 +1056,7 @@ LibArc::LibArc(LibArc&& other) noexcept
       _timing_sense(other._timing_sense),
       _timing_type(other._timing_type),
       _when(std::move(other._when)),
+      _sdf_cond(std::move(other._sdf_cond)),
       _table_model(std::move(other._table_model))
 {
   other._table_model = nullptr;
@@ -1070,11 +1071,13 @@ LibArc& LibArc::operator=(LibArc&& rhs) noexcept
     _timing_sense = rhs._timing_sense;
     _timing_type = rhs._timing_type;
     _when = std::move(rhs._when);
+    _sdf_cond = std::move(rhs._sdf_cond);
     _table_model = std::move(rhs._table_model);
 
     rhs._src_port = nullptr;
     rhs._snk_port = nullptr;
     rhs._when.clear();
+    rhs._sdf_cond.clear();
     rhs._table_model = nullptr;
   }
 
@@ -1167,6 +1170,11 @@ unsigned LibArc::isDelayArc()
 unsigned LibArc::isMpwArc()
 {
   return _timing_type == TimingType::kMinPulseWidth;
+}
+
+unsigned LibArc::isCheckTableArc()
+{
+  return isCheckArc() || isMpwArc() || _timing_type == TimingType::kMinimunPeriod;
 }
 
 /**

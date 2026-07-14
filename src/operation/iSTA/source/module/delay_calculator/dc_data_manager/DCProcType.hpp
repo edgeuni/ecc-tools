@@ -9,9 +9,8 @@
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
@@ -20,49 +19,33 @@
 
 namespace ista {
 
-enum class TimingCheckType
+enum class DCProcType
 {
   kNone,
-  kSetup,
-  kHold,
-  kRecovery,
-  kRemoval,
-  kWidth,
-  kPeriod
+  kInitialize,
+  kCalculate
 };
 
-struct GetTimingCheckTypeName
+struct GetDCProcTypeName
 {
-  std::string operator()(const TimingCheckType& timing_check_type) const
+  std::string operator()(const DCProcType& proc_type) const
   {
-    std::string timing_check_type_name;
-    switch (timing_check_type) {
-      case TimingCheckType::kNone:
-        timing_check_type_name = "none";
+    std::string proc_type_name;
+    switch (proc_type) {
+      case DCProcType::kNone:
+        proc_type_name = "none";
         break;
-      case TimingCheckType::kSetup:
-        timing_check_type_name = "setup";
+      case DCProcType::kInitialize:
+        proc_type_name = "initialize";
         break;
-      case TimingCheckType::kHold:
-        timing_check_type_name = "hold";
-        break;
-      case TimingCheckType::kRecovery:
-        timing_check_type_name = "recovery";
-        break;
-      case TimingCheckType::kRemoval:
-        timing_check_type_name = "removal";
-        break;
-      case TimingCheckType::kWidth:
-        timing_check_type_name = "width";
-        break;
-      case TimingCheckType::kPeriod:
-        timing_check_type_name = "period";
+      case DCProcType::kCalculate:
+        proc_type_name = "calculate";
         break;
       default:
         STALOG.error(Loc::current(), "Unrecognized type!");
         break;
     }
-    return timing_check_type_name;
+    return proc_type_name;
   }
 };
 

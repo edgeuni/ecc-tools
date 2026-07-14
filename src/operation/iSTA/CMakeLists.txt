@@ -25,6 +25,7 @@ set(CMAKE_CXX_STANDARD 20)
 # set(DEBUG_ISTA_DELAY_CALCULATOR ON)
 # set(DEBUG_ISTA_TIMING_PROPAGATOR ON)
 # set(DEBUG_ISTA_TIMING_REPORTER ON)
+# set(DEBUG_ISTA_SDF_WRITER ON)
 
 ############################ debug source toolkit ############################
 
