@@ -37,8 +37,14 @@ class Config
   std::string dm_temp_directory_path;  // building
   // **********   GraphBuilder    ********** //
   std::string gb_temp_directory_path;  // building
+  // ********* DelayCalculator   ********* //
+  std::string dc_temp_directory_path;  // building
+  // ******** ClockPropagator    ********* //
+  std::string cp_temp_directory_path;  // building
   // ********* TimingPropagator   ********* //
   std::string tp_temp_directory_path;  // building
+  // ********** TimingAnalyzer   ********* //
+  std::string ta_temp_directory_path;  // building
   // ******* TimingCharacterizer ******* //
   std::string tc_temp_directory_path;  // building
   // **********  TimingReporter   ********** //

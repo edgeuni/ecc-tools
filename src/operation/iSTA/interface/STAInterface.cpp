@@ -18,12 +18,14 @@
 
 #include "DataManager.hpp"
 #include "DelayCalculator.hpp"
+#include "ClockPropagator.hpp"
 #include "GraphBuilder.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "SDFWriter.hpp"
 #include "STAHeader.hpp"
 #include "TimingCharacterizer.hpp"
+#include "TimingAnalyzer.hpp"
 #include "TimingPropagator.hpp"
 #include "TimingReporter.hpp"
 #include "Utility.hpp"
@@ -90,9 +92,17 @@ void STAInterface::runSTA()
   STAGB.build();
   GraphBuilder::destroyInst();
 
+  ClockPropagator::initInst();
+  STACP.propagate();
+  ClockPropagator::destroyInst();
+
   TimingPropagator::initInst();
   STATP.propagate();
   TimingPropagator::destroyInst();
+
+  TimingAnalyzer::initInst();
+  STATA.analyze();
+  TimingAnalyzer::destroyInst();
 
   TimingReporter::initInst();
   STATR.report();
@@ -118,9 +128,17 @@ void STAInterface::extractLib()
   STAGB.build();
   GraphBuilder::destroyInst();
 
+  ClockPropagator::initInst();
+  STACP.propagate();
+  ClockPropagator::destroyInst();
+
   TimingPropagator::initInst();
   STATP.propagate();
   TimingPropagator::destroyInst();
+
+  TimingAnalyzer::initInst();
+  STATA.analyze();
+  TimingAnalyzer::destroyInst();
 
   TimingCharacterizer::initInst();
   STATC.characterize();
