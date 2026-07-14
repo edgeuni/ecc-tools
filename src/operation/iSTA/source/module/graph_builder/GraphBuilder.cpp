@@ -654,7 +654,7 @@ std::size_t GraphBuilder::breakLoopArcFromStart()
 {
   Database& database = STADM.getDatabase();
   std::size_t disabled_loop_num = 0;
-  std::map<std::string, int32_t> color_map;
+  std::map<std::string, GBColorType> color_map;
   for (std::string& start_point : database.get_start_point_list()) {
     for (std::size_t arc_idx : database.get_outgoing_arc_list_map()[start_point]) {
       Arc& arc = database.get_arc_list()[arc_idx];
@@ -667,7 +667,7 @@ std::size_t GraphBuilder::breakLoopArcFromStart()
   return disabled_loop_num;
 }
 
-bool GraphBuilder::traverseDataPath(std::string& pin_name, bool is_forward, std::map<std::string, int32_t>& color_map,
+bool GraphBuilder::traverseDataPath(std::string& pin_name, bool is_forward, std::map<std::string, GBColorType>& color_map,
                                     std::size_t& disabled_loop_num)
 {
   Database& database = STADM.getDatabase();
@@ -678,7 +678,7 @@ bool GraphBuilder::traverseDataPath(std::string& pin_name, bool is_forward, std:
     return true;
   }
 
-  color_map[pin_name] = 1;
+  color_map[pin_name] = GBColorType::kGray;
   std::vector<std::size_t>& arc_idx_list
       = is_forward ? database.get_outgoing_arc_list_map()[pin_name] : database.get_incoming_arc_list_map()[pin_name];
   for (std::size_t arc_idx : arc_idx_list) {
@@ -704,7 +704,7 @@ bool GraphBuilder::traverseDataPath(std::string& pin_name, bool is_forward, std:
       continue;
     }
   }
-  color_map[pin_name] = 2;
+  color_map[pin_name] = GBColorType::kBlack;
   return false;
 }
 
@@ -717,14 +717,14 @@ bool GraphBuilder::stopTraverse(std::string& pin_name, bool is_forward)
   return STAUTIL.exist(database.get_start_point_list(), pin_name);
 }
 
-bool GraphBuilder::isBlack(std::map<std::string, int32_t>& color_map, std::string& pin_name)
+bool GraphBuilder::isBlack(std::map<std::string, GBColorType>& color_map, std::string& pin_name)
 {
-  return color_map.count(pin_name) > 0 && color_map[pin_name] == 2;
+  return color_map.count(pin_name) > 0 && color_map[pin_name] == GBColorType::kBlack;
 }
 
-bool GraphBuilder::isGray(std::map<std::string, int32_t>& color_map, std::string& pin_name)
+bool GraphBuilder::isGray(std::map<std::string, GBColorType>& color_map, std::string& pin_name)
 {
-  return color_map.count(pin_name) > 0 && color_map[pin_name] == 1;
+  return color_map.count(pin_name) > 0 && color_map[pin_name] == GBColorType::kGray;
 }
 
 bool GraphBuilder::disableLoopArc(Arc& arc)
@@ -740,7 +740,7 @@ std::size_t GraphBuilder::breakLoopArcFromEnd()
 {
   Database& database = STADM.getDatabase();
   std::size_t disabled_loop_num = 0;
-  std::map<std::string, int32_t> color_map;
+  std::map<std::string, GBColorType> color_map;
   for (std::string& end_point : database.get_end_point_list()) {
     for (std::size_t arc_idx : database.get_incoming_arc_list_map()[end_point]) {
       Arc& arc = database.get_arc_list()[arc_idx];
@@ -757,7 +757,7 @@ std::size_t GraphBuilder::breakLoopArcFromFloating()
 {
   Database& database = STADM.getDatabase();
   std::size_t disabled_loop_num = 0;
-  std::map<std::string, int32_t> color_map;
+  std::map<std::string, GBColorType> color_map;
   for (std::pair<const std::string, TimingPoint>& timing_pair : database.get_timing_point_map()) {
     std::string pin_name = timing_pair.first;
     traverseFloatingDataPath(pin_name, color_map, disabled_loop_num);
@@ -765,7 +765,7 @@ std::size_t GraphBuilder::breakLoopArcFromFloating()
   return disabled_loop_num;
 }
 
-void GraphBuilder::traverseFloatingDataPath(std::string& pin_name, std::map<std::string, int32_t>& color_map,
+void GraphBuilder::traverseFloatingDataPath(std::string& pin_name, std::map<std::string, GBColorType>& color_map,
                                             std::size_t& disabled_loop_num)
 {
   if (isBlack(color_map, pin_name)) {

@@ -17,6 +17,7 @@
 #pragma once
 
 #include "Database.hpp"
+#include "GBColorType.hpp"
 
 namespace ista {
 
@@ -96,15 +97,15 @@ class GraphBuilder
   void appendUnique(std::vector<std::string>& list, const std::string& value);
   void breakLoopArcList();
   std::size_t breakLoopArcFromStart();
-  bool traverseDataPath(std::string& pin_name, bool is_forward, std::map<std::string, int32_t>& color_map,
+  bool traverseDataPath(std::string& pin_name, bool is_forward, std::map<std::string, GBColorType>& color_map,
                         std::size_t& disabled_loop_num);
   bool stopTraverse(std::string& pin_name, bool is_forward);
-  bool isBlack(std::map<std::string, int32_t>& color_map, std::string& pin_name);
-  bool isGray(std::map<std::string, int32_t>& color_map, std::string& pin_name);
+  bool isBlack(std::map<std::string, GBColorType>& color_map, std::string& pin_name);
+  bool isGray(std::map<std::string, GBColorType>& color_map, std::string& pin_name);
   bool disableLoopArc(Arc& arc);
   std::size_t breakLoopArcFromEnd();
   std::size_t breakLoopArcFromFloating();
-  void traverseFloatingDataPath(std::string& pin_name, std::map<std::string, int32_t>& color_map,
+  void traverseFloatingDataPath(std::string& pin_name, std::map<std::string, GBColorType>& color_map,
                                 std::size_t& disabled_loop_num);
   void buildTimingOrder();
   std::map<std::string, std::size_t> makeIndegreeMap();
