@@ -203,6 +203,10 @@ void STAInterface::wrapInstancePinList(idb::IdbInstance* idb_instance)
 
 void STAInterface::wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin)
 {
+  if (!wrapSignalConnectType(idb_pin->get_term()->get_type())) {
+    return;
+  }
+
   std::string full_name = wrapInstancePinName(idb_instance, idb_pin);
   Pin pin;
   pin.set_pin_name(idb_pin->get_pin_name());
@@ -211,6 +215,12 @@ void STAInterface::wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* 
   pin.set_direction(wrapPinDirection(idb_pin->get_term()->get_direction()));
   wrapPinCoordinate(pin, idb_pin);
   STADM.getDatabase().get_pin_map()[full_name] = pin;
+}
+
+bool STAInterface::wrapSignalConnectType(idb::IdbConnectType connect_type)
+{
+  return connect_type == idb::IdbConnectType::kNone || connect_type == idb::IdbConnectType::kSignal || connect_type == idb::IdbConnectType::kClock
+         || connect_type == idb::IdbConnectType::kReset || connect_type == idb::IdbConnectType::kScan || connect_type == idb::IdbConnectType::kTieOff;
 }
 
 std::string STAInterface::wrapInstancePinName(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin)
@@ -252,6 +262,10 @@ void STAInterface::wrapPortList()
 
 void STAInterface::wrapPortPin(idb::IdbPin* idb_pin)
 {
+  if (!wrapSignalConnectType(idb_pin->get_term()->get_type())) {
+    return;
+  }
+
   std::string full_name = wrapPinName(idb_pin);
   Pin pin;
   pin.set_pin_name(idb_pin->get_pin_name());
@@ -277,7 +291,7 @@ void STAInterface::wrapNetList()
 
 void STAInterface::wrapNet(idb::IdbNet* idb_net)
 {
-  if (!wrapSignalNet(idb_net->get_connect_type())) {
+  if (!wrapSignalConnectType(idb_net->get_connect_type())) {
     return;
   }
 
@@ -285,12 +299,6 @@ void STAInterface::wrapNet(idb::IdbNet* idb_net)
   net.set_net_name(idb_net->get_net_name());
   wrapNetPinList(idb_net, net);
   wrapNetToDatabase(net);
-}
-
-bool STAInterface::wrapSignalNet(idb::IdbConnectType connect_type)
-{
-  return connect_type == idb::IdbConnectType::kNone || connect_type == idb::IdbConnectType::kSignal || connect_type == idb::IdbConnectType::kClock
-         || connect_type == idb::IdbConnectType::kReset || connect_type == idb::IdbConnectType::kScan || connect_type == idb::IdbConnectType::kTieOff;
 }
 
 void STAInterface::wrapNetPinList(idb::IdbNet* idb_net, Net& net)

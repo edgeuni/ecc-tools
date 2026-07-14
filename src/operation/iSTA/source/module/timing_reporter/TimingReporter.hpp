@@ -77,7 +77,6 @@ class TimingReporter
   bool isRegisterEndPoint(std::string& pin_name);
   bool hasClockPoint(std::string& pin_name);
   bool isClockSourceStartPoint(std::string& pin_name);
-  bool isPowerGroundPin(std::string& pin_name);
   void outputTimingPath(std::ofstream* report_file, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
   void outputTimingPathHeader(std::ofstream* report_file, TimingPath& timing_path, std::string& path_group_name, DelayType delay_type);
   void outputStartEndPoint(std::ofstream* report_file, std::string label, std::string text);
