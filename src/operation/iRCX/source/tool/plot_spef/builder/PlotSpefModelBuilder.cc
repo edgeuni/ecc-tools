@@ -14,25 +14,28 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefModelBuilder.cc
+ * @brief SPEF-to-plot model builder implementation.
+ */
 #include "builder/PlotSpefModelBuilder.hh"
-
-#include <omp.h>
 
 #include <algorithm>
 #include <cctype>
-#include <cstddef>
-#include <filesystem>
 #include <fstream>
 #include <optional>
-#include <string>
-#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
+#include "ParallelUtils.hh"
+#include "PathUtils.hh"
+#include "SpefParser.hh"
 #include "StringUtils.hh"
 #include "Types.hh"
+#include "config/PlotSpefConfig.hh"
 #include "log/Log.hh"
+#include "model/PlotSpefModel.hh"
 #include "resolver/PlotSpefCapResolver.hh"
 
 namespace ircx::plot_spef {
@@ -48,8 +51,8 @@ enum class ScanSection
 
 struct ScanGeometry
 {
-  double length = 0.0;
-  double width = 0.0;
+  F64 length = 0.0;
+  F64 width = 0.0;
   int layer = 0;
   int direction = -1;
   int llx = 0;
@@ -63,26 +66,19 @@ struct ScanGeometry
   bool has_box = false;
 };
 
-auto threadCount(const Config& config, std::size_t work_items) -> int
-{
-  if (work_items == 0) {
-    return 1;
-  }
-  const int requested = config.cores > 0 ? config.cores : 1;
-  return std::min<int>({requested, omp_get_max_threads(), static_cast<int>(work_items)});
-}
-
 auto hasCoord(const spef::Coord& coord) -> bool
 {
   return coord.x >= 0.0 && coord.y >= 0.0;
 }
 
-auto expandScanName(const spef::Exchange& exchange, std::string_view name) -> std::string
+auto expandScanName(const spef::Exchange& exchange,
+                    std::string_view name) -> std::string
 {
   return spef::removeEscapes(spef::stripQuotes(spef::expandName(exchange, std::string{name})));
 }
 
-auto extractGeometry(std::string_view text, int dbu) -> ScanGeometry
+auto extractGeometry(std::string_view text,
+                     int dbu) -> ScanGeometry
 {
   ScanGeometry geometry;
   bool has_llx = false;
@@ -91,43 +87,49 @@ auto extractGeometry(std::string_view text, int dbu) -> ScanGeometry
   bool has_ury = false;
 
   while (true) {
-    const auto token = string::take_token(text);
+    const auto token = string::takeToken(text);
     if (token.empty()) {
       break;
     }
 
-    if (auto llx = string::parse_double_after_prefix(token, "$llx=")) {
-      geometry.llx = unit::to_dbu(*llx, dbu);
+    if (auto llx = string::parseDoubleAfterPrefix(token, "$llx=")) {
+      geometry.llx = unit::toDbu(*llx, dbu);
       has_llx = true;
-    } else if (auto lly = string::parse_double_after_prefix(token, "$lly=")) {
-      geometry.lly = unit::to_dbu(*lly, dbu);
+    } else if (auto lly = string::parseDoubleAfterPrefix(token, "$lly=")) {
+      geometry.lly = unit::toDbu(*lly, dbu);
       has_lly = true;
-    } else if (auto urx = string::parse_double_after_prefix(token, "$urx=")) {
-      geometry.urx = unit::to_dbu(*urx, dbu);
+    } else if (auto urx = string::parseDoubleAfterPrefix(token, "$urx=")) {
+      geometry.urx = unit::toDbu(*urx, dbu);
       has_urx = true;
-    } else if (auto ury = string::parse_double_after_prefix(token, "$ury=")) {
-      geometry.ury = unit::to_dbu(*ury, dbu);
+    } else if (auto ury = string::parseDoubleAfterPrefix(token, "$ury=")) {
+      geometry.ury = unit::toDbu(*ury, dbu);
       has_ury = true;
-    } else if (auto layer = string::parse_int_after_prefix(token, "$lvl=")) {
+    } else if (auto layer = string::parseIntAfterPrefix(token, "$lvl=")) {
       geometry.layer = *layer;
       geometry.has_layer = true;
-    } else if (auto length = string::parse_double_after_prefix(token, "$l=")) {
+    } else if (auto length = string::parseDoubleAfterPrefix(token, "$l=")) {
       geometry.length = *length;
       geometry.has_length = true;
-    } else if (auto width = string::parse_double_after_prefix(token, "$w=")) {
+    } else if (auto width = string::parseDoubleAfterPrefix(token, "$w=")) {
       geometry.width = *width;
       geometry.has_width = true;
-    } else if (auto direction = string::parse_int_after_prefix(token, "$dir=")) {
+    } else if (auto direction = string::parseIntAfterPrefix(token, "$dir=")) {
       geometry.direction = *direction;
       geometry.has_direction = true;
     }
   }
 
-  geometry.has_box = has_llx && has_lly && has_urx && has_ury && geometry.llx != geometry.urx && geometry.lly != geometry.ury;
+  geometry.has_box = has_llx
+                     && has_lly
+                     && has_urx
+                     && has_ury
+                     && geometry.llx != geometry.urx
+                     && geometry.lly != geometry.ury;
   return geometry;
 }
 
-auto getDesignName(const spef::Exchange& exchange, const std::string& spef_file) -> std::string
+auto getDesignName(const spef::Exchange& exchange,
+                   const std::string& spef_file) -> std::string
 {
   for (const auto& header : exchange.header) {
     if (header.key == "*DESIGN" && !header.value.empty()) {
@@ -135,11 +137,11 @@ auto getDesignName(const spef::Exchange& exchange, const std::string& spef_file)
     }
   }
 
-  const auto stem = std::filesystem::path(spef_file).stem().string();
-  return stem.empty() ? std::string{"plot_spef"} : stem;
+  return path::stemOr(spef_file, "plot_spef");
 }
 
-auto getHeaderValue(const spef::Exchange& exchange, const std::string& key) -> std::string
+auto getHeaderValue(const spef::Exchange& exchange,
+                    const std::string& key) -> std::string
 {
   for (const auto& header : exchange.header) {
     if (header.key == key) {
@@ -149,7 +151,8 @@ auto getHeaderValue(const spef::Exchange& exchange, const std::string& key) -> s
   return {};
 }
 
-auto normalizeNetFilterName(const spef::Exchange& exchange, const std::string& name) -> std::string
+auto normalizeNetFilterName(const spef::Exchange& exchange,
+                            const std::string& name) -> std::string
 {
   return spef::removeEscapes(spef::stripQuotes(spef::expandName(exchange, name)));
 }
@@ -170,21 +173,22 @@ auto fallbackBox(Node& node) -> void
   node.has_box = true;
 }
 
-auto buildNode(const spef::ConnEntry& conn, int dbu) -> Node
+auto buildNode(const spef::ConnEntry& conn,
+               int dbu) -> Node
 {
   Node node;
   node.name = conn.pin_port_name;
   node.layer = std::max(conn.layer, 0);
   if (hasCoord(conn.coordinate)) {
-    node.x = unit::to_dbu(conn.coordinate.x, dbu);
-    node.y = unit::to_dbu(conn.coordinate.y, dbu);
+    node.x = unit::toDbu(conn.coordinate.x, dbu);
+    node.y = unit::toDbu(conn.coordinate.y, dbu);
     node.has_point = true;
   }
   if (hasCoord(conn.ll_coordinate) && hasCoord(conn.ur_coordinate)) {
-    node.llx = unit::to_dbu(conn.ll_coordinate.x, dbu);
-    node.lly = unit::to_dbu(conn.ll_coordinate.y, dbu);
-    node.urx = unit::to_dbu(conn.ur_coordinate.x, dbu);
-    node.ury = unit::to_dbu(conn.ur_coordinate.y, dbu);
+    node.llx = unit::toDbu(conn.ll_coordinate.x, dbu);
+    node.lly = unit::toDbu(conn.ll_coordinate.y, dbu);
+    node.urx = unit::toDbu(conn.ur_coordinate.x, dbu);
+    node.ury = unit::toDbu(conn.ur_coordinate.y, dbu);
     node.has_box = node.llx != node.urx && node.lly != node.ury;
   }
   if (!node.has_box && node.has_point) {
@@ -193,7 +197,8 @@ auto buildNode(const spef::ConnEntry& conn, int dbu) -> Node
   return node;
 }
 
-auto applyGeometry(Node& node, const ScanGeometry& geometry) -> void
+auto applyGeometry(Node& node,
+                   const ScanGeometry& geometry) -> void
 {
   if (geometry.has_layer) {
     node.layer = geometry.layer;
@@ -207,7 +212,8 @@ auto applyGeometry(Node& node, const ScanGeometry& geometry) -> void
   }
 }
 
-auto applyGeometry(Resistor& resistor, const ScanGeometry& geometry) -> void
+auto applyGeometry(Resistor& resistor,
+                   const ScanGeometry& geometry) -> void
 {
   if (geometry.has_length) {
     resistor.length = geometry.length;
@@ -234,26 +240,28 @@ auto applyGeometry(Resistor& resistor, const ScanGeometry& geometry) -> void
   }
 }
 
-auto applyNodeGeometry(Model& model, Net& net, const std::string& node_name, const ScanGeometry& geometry) -> void
+auto applyNodeGeometry(Model& model,
+                       Net& net,
+                       const std::string& node_name,
+                       const ScanGeometry& geometry) -> void
 {
-  auto local_node_it = net.nodes_by_name.find(node_name);
-  if (local_node_it != net.nodes_by_name.end()) {
-    applyGeometry(*local_node_it->second, geometry);
+  if (auto* node = findNode(net, node_name)) {
+    applyGeometry(*node, geometry);
     return;
   }
 
-  auto node_it = model.nodes_by_name.find(node_name);
-  if (node_it != model.nodes_by_name.end()) {
-    applyGeometry(*node_it->second, geometry);
+  if (auto* node = findNode(model, node_name)) {
+    applyGeometry(*node, geometry);
   }
 }
 
-auto parseLayerMapLine(std::string_view line, Model& model) -> void
+auto parseLayerMapLine(std::string_view line,
+                       Model& model) -> void
 {
-  auto payload = string::trim_view(line.substr(2));
-  const auto index = string::take_token(payload);
-  const auto name = string::take_token(payload);
-  auto layer_id = string::parse_prefixed_index<int>(index);
+  auto payload = string::trimView(line.substr(2));
+  const auto index = string::takeToken(payload);
+  const auto name = string::takeToken(payload);
+  auto layer_id = string::parsePrefixedIndex<int>(index);
   if (!layer_id.has_value() || name.empty()) {
     return;
   }
@@ -270,12 +278,14 @@ auto buildNetMap(Model& model) -> std::unordered_map<std::string, Net*>
   return net_map;
 }
 
-auto shouldBuildNet(const std::optional<std::unordered_set<std::string>>& visible_net_names, const std::string& net_name) -> bool
+auto shouldBuildNet(const std::optional<std::unordered_set<std::string>>& visible_net_names,
+                    const std::string& net_name) -> bool
 {
   return !visible_net_names.has_value() || visible_net_names->contains(net_name);
 }
 
-auto initModelMetadata(const spef::Exchange& exchange, const Config& config) -> Model
+auto initModelMetadata(const spef::Exchange& exchange,
+                       const Config& config) -> Model
 {
   Model model;
   model.design_name = getDesignName(exchange, config.spef_file);
@@ -292,8 +302,14 @@ auto initModelMetadata(const spef::Exchange& exchange, const Config& config) -> 
 class TextGeometryAugmenter
 {
  public:
-  TextGeometryAugmenter(const spef::Exchange& exchange, Model& model, const Config& config)
-      : exchange_(exchange), model_(model), config_(config), net_map_(buildNetMap(model))
+  TextGeometryAugmenter(
+      const spef::Exchange& exchange,
+      Model& model,
+      const Config& config)
+      : exchange_(exchange),
+        model_(model),
+        config_(config),
+        net_map_(buildNetMap(model))
   {
   }
 
@@ -313,16 +329,20 @@ class TextGeometryAugmenter
  private:
   auto scanLine(const std::string& line) -> void
   {
-    const auto stripped = string::trim_view(line);
+    const auto stripped = string::trimView(line);
     if (stripped.empty() || scanStandaloneComment(stripped)) {
       return;
     }
     in_layer_map_ = false;
 
     const auto comment_pos = line.find("//");
-    const auto content
-        = string::trim_view(comment_pos == std::string::npos ? std::string_view{line} : std::string_view{line}.substr(0, comment_pos));
-    const auto comment = comment_pos == std::string::npos ? std::string_view{} : std::string_view{line}.substr(comment_pos + 2);
+    const auto content = string::trimView(
+        comment_pos == std::string::npos
+            ? std::string_view{line}
+            : std::string_view{line}.substr(0, comment_pos));
+    const auto comment = comment_pos == std::string::npos
+                             ? std::string_view{}
+                             : std::string_view{line}.substr(comment_pos + 2);
     if (content.empty() || scanSectionHeader(content)) {
       return;
     }
@@ -335,8 +355,8 @@ class TextGeometryAugmenter
 
   auto scanStandaloneComment(std::string_view stripped) -> bool
   {
-    if (string::starts_with(stripped, "//")) {
-      if (string::starts_with(stripped, "// *LAYER_MAP")) {
+    if (string::startsWith(stripped, "//")) {
+      if (string::startsWith(stripped, "// *LAYER_MAP")) {
         in_layer_map_ = true;
         return true;
       }
@@ -350,24 +370,24 @@ class TextGeometryAugmenter
 
   auto scanSectionHeader(std::string_view content) -> bool
   {
-    if (string::starts_with(content, "*D_NET")) {
+    if (string::startsWith(content, "*D_NET")) {
       beginNet(content);
       return true;
     }
-    if (string::starts_with(content, "*END")) {
+    if (string::startsWith(content, "*END")) {
       current_net_ = nullptr;
       section_ = ScanSection::kNone;
       return true;
     }
-    if (string::starts_with(content, "*CONN")) {
+    if (string::startsWith(content, "*CONN")) {
       section_ = ScanSection::kConn;
       return true;
     }
-    if (string::starts_with(content, "*CAP")) {
+    if (string::startsWith(content, "*CAP")) {
       section_ = ScanSection::kCap;
       return true;
     }
-    if (string::starts_with(content, "*RES")) {
+    if (string::startsWith(content, "*RES")) {
       section_ = ScanSection::kRes;
       res_index_ = 0;
       return true;
@@ -378,8 +398,8 @@ class TextGeometryAugmenter
   auto beginNet(std::string_view content) -> void
   {
     auto content_tail = content;
-    static_cast<void>(string::take_token(content_tail));
-    auto net_name_token = string::take_token(content_tail);
+    static_cast<void>(string::takeToken(content_tail));
+    auto net_name_token = string::takeToken(content_tail);
     if (net_name_token.empty()) {
       current_net_ = nullptr;
       section_ = ScanSection::kNone;
@@ -393,24 +413,30 @@ class TextGeometryAugmenter
     res_index_ = 0;
   }
 
-  auto scanSectionPayload(std::string_view content, std::string_view comment) -> void
+  auto scanSectionPayload(std::string_view content,
+                          std::string_view comment) -> void
   {
     if (section_ == ScanSection::kConn
-        && (string::starts_with(content, "*I") || string::starts_with(content, "*P") || string::starts_with(content, "*N"))) {
+        && (string::startsWith(content, "*I")
+            || string::startsWith(content, "*P")
+            || string::startsWith(content, "*N"))) {
       scanConnectionGeometry(content, comment);
       return;
     }
 
-    if (section_ == ScanSection::kRes && !content.empty() && std::isdigit(static_cast<unsigned char>(content.front()))) {
+    if (section_ == ScanSection::kRes
+        && !content.empty()
+        && std::isdigit(static_cast<unsigned char>(content.front()))) {
       scanResistanceGeometry(comment);
     }
   }
 
-  auto scanConnectionGeometry(std::string_view content, std::string_view comment) -> void
+  auto scanConnectionGeometry(std::string_view content,
+                              std::string_view comment) -> void
   {
     auto content_tail = content;
-    static_cast<void>(string::take_token(content_tail));
-    const auto node_name_token = string::take_token(content_tail);
+    static_cast<void>(string::takeToken(content_tail));
+    const auto node_name_token = string::takeToken(content_tail);
     if (node_name_token.empty()) {
       return;
     }
@@ -434,7 +460,7 @@ class TextGeometryAugmenter
   Net* current_net_ = nullptr;
   ScanSection section_ = ScanSection::kNone;
   bool in_layer_map_ = false;
-  std::size_t res_index_ = 0;
+  Size res_index_ = 0;
 };
 
 // A focused net plot still needs directly coupled neighbors so Cc shapes can be
@@ -442,7 +468,10 @@ class TextGeometryAugmenter
 class PlotScope
 {
  public:
-  PlotScope(const spef::Exchange& exchange, const Config& config) : exchange_(exchange), config_(config) {}
+  PlotScope(const spef::Exchange& exchange, const Config& config)
+      : exchange_(exchange), config_(config)
+  {
+  }
 
   auto netNamesToBuild() const -> std::optional<std::unordered_set<std::string>>
   {
@@ -450,7 +479,7 @@ class PlotScope
       return std::nullopt;
     }
 
-    const std::string target_net = targetNetName();
+    const std::string target_net = get_target_net_name();
     std::unordered_set<std::string> visible_nets;
     visible_nets.insert(target_net);
 
@@ -479,7 +508,7 @@ class PlotScope
       return;
     }
 
-    const std::string target_net = targetNetName();
+    const std::string target_net = get_target_net_name();
     auto net_map = buildNetMap(model);
     const bool found_target = showOnlyTarget(model, target_net);
     showCoupledContext(model, net_map, target_net);
@@ -489,7 +518,10 @@ class PlotScope
   }
 
  private:
-  auto targetNetName() const -> std::string { return normalizeNetFilterName(exchange_, config_.net_name); }
+  auto get_target_net_name() const -> std::string
+  {
+    return normalizeNetFilterName(exchange_, config_.net_name);
+  }
 
   static auto showAll(Model& model) -> void
   {
@@ -505,7 +537,8 @@ class PlotScope
     }
   }
 
-  static auto showOnlyTarget(Model& model, const std::string& target_net) -> bool
+  static auto showOnlyTarget(Model& model,
+                             const std::string& target_net) -> bool
   {
     bool found_target = false;
     for (auto& net : model.nets) {
@@ -523,7 +556,9 @@ class PlotScope
     return found_target;
   }
 
-  auto showCoupledContext(Model& model, std::unordered_map<std::string, Net*>& net_map, const std::string& target_net) const -> void
+  auto showCoupledContext(Model& model,
+                          std::unordered_map<std::string, Net*>& net_map,
+                          const std::string& target_net) const -> void
   {
     for (const auto& net : model.nets) {
       for (const auto& cap : net.coupling_caps) {
@@ -539,11 +574,12 @@ class PlotScope
     }
   }
 
-  static auto showNode(Model& model, std::unordered_map<std::string, Net*>& net_map, const std::string& node_name) -> void
+  static auto showNode(Model& model,
+                       std::unordered_map<std::string, Net*>& net_map,
+                       const std::string& node_name) -> void
   {
-    const auto node_it = model.nodes_by_name.find(node_name);
-    if (node_it != model.nodes_by_name.end()) {
-      node_it->second->visible = true;
+    if (auto* node = findNode(model, node_name)) {
+      node->visible = true;
     }
     const auto net_it = net_map.find(owningNetName(node_name));
     if (net_it != net_map.end()) {
@@ -551,7 +587,9 @@ class PlotScope
     }
   }
 
-  static auto showEdge(Model& model, std::unordered_map<std::string, Net*>& net_map, const EdgeRef& edge_ref) -> void
+  static auto showEdge(Model& model,
+                       std::unordered_map<std::string, Net*>& net_map,
+                       const EdgeRef& edge_ref) -> void
   {
     if (!edge_ref.valid || edge_ref.net_index >= model.nets.size()) {
       return;
@@ -574,8 +612,10 @@ class PlotScope
 class ModelAssembler
 {
  public:
-  ModelAssembler(const spef::Exchange& exchange, const Config& config,
-                 const std::optional<std::unordered_set<std::string>>& visible_net_names)
+  ModelAssembler(
+      const spef::Exchange& exchange,
+      const Config& config,
+      const std::optional<std::unordered_set<std::string>>& visible_net_names)
       : exchange_(exchange), config_(config), visible_net_names_(visible_net_names)
   {
   }
@@ -585,20 +625,20 @@ class ModelAssembler
     Model model = initModelMetadata(exchange_, config_);
     const auto jobs = collectJobs();
     model.nets.reserve(jobs.size());
-    model.nodes_by_name.reserve(countNodes(jobs));
+    model.node_refs_by_name.reserve(countNodes(jobs));
 
     // Each thread builds one independent Net. The final Model vector and node
-    // pointer indexes are populated serially to keep pointer ownership stable.
+    // reference indexes are populated serially after the vector is stable.
     std::vector<Net> built_nets(jobs.size());
-    const int threads = threadCount(config_, jobs.size());
+    const int threads = parallel::threadCount(jobs.size(), config_.cores);
 #pragma omp parallel for schedule(dynamic, 64) num_threads(threads)
-    for (std::ptrdiff_t index = 0; index < static_cast<std::ptrdiff_t>(jobs.size()); ++index) {
+    for (I64 index = 0; index < static_cast<I64>(jobs.size()); ++index) {
       built_nets[index] = buildNet(*jobs[index]);
     }
 
     for (auto& net : built_nets) {
       model.nets.push_back(std::move(net));
-      indexNetNodes(model, model.nets.back());
+      indexNetNodes(model, model.nets.size() - 1);
     }
     return model;
   }
@@ -606,12 +646,18 @@ class ModelAssembler
  private:
   using NetJobs = std::vector<const spef::Net*>;
 
-  auto shouldBuild(const std::string& net_name) const -> bool { return shouldBuildNet(visible_net_names_, net_name); }
+  auto shouldBuild(const std::string& net_name) const -> bool
+  {
+    return shouldBuildNet(visible_net_names_, net_name);
+  }
 
   auto collectJobs() const -> NetJobs
   {
     NetJobs jobs;
-    jobs.reserve(visible_net_names_.has_value() ? std::min(exchange_.nets.size(), visible_net_names_->size()) : exchange_.nets.size());
+    jobs.reserve(
+        visible_net_names_.has_value()
+            ? std::min(exchange_.nets.size(), visible_net_names_->size())
+            : exchange_.nets.size());
     for (const auto& spef_net : exchange_.nets) {
       if (shouldBuild(spef_net.name)) {
         jobs.push_back(&spef_net);
@@ -620,9 +666,9 @@ class ModelAssembler
     return jobs;
   }
 
-  static auto countNodes(const NetJobs& jobs) -> std::size_t
+  static auto countNodes(const NetJobs& jobs) -> Size
   {
-    std::size_t node_count = 0;
+    Size node_count = 0;
     for (const auto* spef_net : jobs) {
       node_count += spef_net->conns.size();
     }
@@ -634,10 +680,14 @@ class ModelAssembler
     Net net;
     net.name = spef_net.name;
     net.nodes.reserve(spef_net.conns.size());
-    net.nodes_by_name.reserve(spef_net.conns.size());
+    net.node_index_by_name.reserve(spef_net.conns.size());
 
-    const bool need_resistors = config_.plotResistance() || config_.plotCouplingCap() || config_.plotGroundCap();
-    const bool need_coupling_caps = config_.plotCouplingCap() || config_.plotGroundCap() || config_.hasNetFilter();
+    const bool need_resistors = config_.plotResistance()
+                                || config_.plotCouplingCap()
+                                || config_.plotGroundCap();
+    const bool need_coupling_caps = config_.plotCouplingCap()
+                                    || config_.plotGroundCap()
+                                    || config_.hasNetFilter();
     if (need_resistors) {
       net.resistors.reserve(spef_net.ress.size());
     }
@@ -651,14 +701,16 @@ class ModelAssembler
     return net;
   }
 
-  auto reserveCapacitors(Net& net, const spef::Net& spef_net, bool need_coupling_caps) const -> void
+  auto reserveCapacitors(Net& net,
+                         const spef::Net& spef_net,
+                         bool need_coupling_caps) const -> void
   {
     if (!need_coupling_caps && !config_.plotGroundCap()) {
       return;
     }
 
-    std::size_t coupling_cap_count = 0;
-    std::size_t ground_cap_count = 0;
+    Size coupling_cap_count = 0;
+    Size ground_cap_count = 0;
     for (const auto& cap : spef_net.caps) {
       if (cap.node2.empty()) {
         ground_cap_count++;
@@ -674,14 +726,19 @@ class ModelAssembler
     }
   }
 
-  auto appendCapacitors(Net& net, const spef::Net& spef_net, bool need_coupling_caps) const -> void
+  auto appendCapacitors(Net& net,
+                        const spef::Net& spef_net,
+                        bool need_coupling_caps) const -> void
   {
     if (!need_coupling_caps && !config_.plotGroundCap()) {
       return;
     }
 
     for (const auto& cap : spef_net.caps) {
-      Capacitor capacitor{.node1 = cap.node1, .node2 = cap.node2, .value = cap.res_or_cap};
+      Capacitor capacitor{
+          .node1 = cap.node1,
+          .node2 = cap.node2,
+          .value = cap.res_or_cap};
       if (cap.node2.empty()) {
         if (config_.plotGroundCap()) {
           net.ground_caps.push_back(std::move(capacitor));
@@ -692,27 +749,37 @@ class ModelAssembler
     }
   }
 
-  auto appendNodes(Net& net, const spef::Net& spef_net) const -> void
+  auto appendNodes(Net& net,
+                   const spef::Net& spef_net) const -> void
   {
     for (const auto& conn : spef_net.conns) {
       net.nodes.push_back(buildNode(conn, config_.dbu));
+      net.node_index_by_name[net.nodes.back().name] = net.nodes.size() - 1;
     }
   }
 
-  static auto indexNetNodes(Model& model, Net& net) -> void
+  static auto indexNetNodes(Model& model,
+                            Size net_index) -> void
   {
-    for (auto& node : net.nodes) {
-      model.nodes_by_name[node.name] = &node;
-      net.nodes_by_name[node.name] = &node;
+    auto& net = model.nets[net_index];
+    for (Size node_index = 0; node_index < net.nodes.size(); ++node_index) {
+      model.node_refs_by_name[net.nodes[node_index].name] = NodeRef{
+          .net_index = net_index,
+          .node_index = node_index,
+          .valid = true};
     }
   }
 
-
-  static auto appendResistors(Net& net, const spef::Net& spef_net) -> void
+  static auto appendResistors(Net& net,
+                              const spef::Net& spef_net) -> void
   {
-    for (std::size_t res_index = 0; res_index < spef_net.ress.size(); ++res_index) {
+    for (Size res_index = 0; res_index < spef_net.ress.size(); ++res_index) {
       const auto& res = spef_net.ress[res_index];
-      net.resistors.push_back(Resistor{.node1 = res.node1, .node2 = res.node2, .value = res.res_or_cap, .index = res_index});
+      net.resistors.push_back(Resistor{
+          .node1 = res.node1,
+          .node2 = res.node2,
+          .value = res.res_or_cap,
+          .index = res_index});
     }
   }
 
@@ -723,7 +790,8 @@ class ModelAssembler
 
 }  // namespace
 
-auto ModelBuilder::build(const spef::Exchange& exchange, const Config& config) const -> Model
+auto ModelBuilder::build(const spef::Exchange& exchange,
+                         const Config& config) const -> Model
 {
   const PlotScope scope(exchange, config);
   const auto visible_net_names = scope.netNamesToBuild();

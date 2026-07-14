@@ -14,20 +14,24 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefLypWriter.cc
+ * @brief plot_spef implementation detail.
+ */
 #include "lyp/PlotSpefLypWriter.hh"
 
 #include <algorithm>
-#include <cstddef>
 #include <fstream>
 #include <set>
-#include <string>
 #include <vector>
 
+#include "config/PlotSpefConfig.hh"
 #include "FormatUtils.hh"
 #include "PathUtils.hh"
 #include "StringUtils.hh"
 #include "log/Log.hh"
 #include "model/PlotSpefGdsType.hh"
+#include "model/PlotSpefModel.hh"
 
 namespace ircx::plot_spef {
 namespace {
@@ -46,24 +50,32 @@ struct LayerProperty
 };
 
 constexpr const char* kMacaronColors[] = {
-    "#FADADD", "#F8BBD0", "#F6D6E8", "#EADCF8", "#DCCEF8", "#D7E3FC", "#CDE7F0", "#BDE0FE", "#A2D2FF", "#A8DADC", "#B2F7EF",
-    "#B8F2E6", "#CDEAC0", "#D0F4DE", "#E9F5DB", "#F1F7B5", "#FFF3B0", "#FFF9C4", "#FFE5B4", "#FFD6A5", "#FBC4AB", "#FFADAD",
-    "#FFCBD1", "#F7C6C7", "#DDBEA9", "#D7CCC8", "#E2F0CB", "#B5EAD7", "#C7CEEA", "#C3B1E1", "#F1C0E8", "#CFBAF0", "#A3C4F3",
-    "#90DBF4", "#8EECF5", "#98F5E1", "#B9FBC0", "#FBF8CC", "#FDE4CF", "#FFCFD2", "#E4C1F9", "#D0BFFF", "#C1D3FE", "#ABC4FF",
-    "#CAE9FF", "#ADE8F4", "#CAF0F8", "#B7E4C7", "#D8F3DC", "#EDEEC9", "#FFF1A8", "#FFE8A3", "#FFD6BA", "#FFB4A2", "#EAC7C7",
-    "#E7D8C9", "#D5ECC2", "#C9E4DE", "#C9DAEA", "#DBCDF0", "#F2D7EE", "#F0D7A7", "#D8F3F0", "#DCEBFF",
+    "#FADADD", "#F8BBD0", "#F6D6E8", "#EADCF8", "#DCCEF8",
+    "#D7E3FC", "#CDE7F0", "#BDE0FE", "#A2D2FF", "#A8DADC",
+    "#B2F7EF", "#B8F2E6", "#CDEAC0", "#D0F4DE", "#E9F5DB",
+    "#F1F7B5", "#FFF3B0", "#FFF9C4", "#FFE5B4", "#FFD6A5",
+    "#FBC4AB", "#FFADAD", "#FFCBD1", "#F7C6C7", "#DDBEA9",
+    "#D7CCC8", "#E2F0CB", "#B5EAD7", "#C7CEEA", "#C3B1E1",
+    "#F1C0E8", "#CFBAF0", "#A3C4F3", "#90DBF4", "#8EECF5",
+    "#98F5E1", "#B9FBC0", "#FBF8CC", "#FDE4CF", "#FFCFD2",
+    "#E4C1F9", "#D0BFFF", "#C1D3FE", "#ABC4FF", "#CAE9FF",
+    "#ADE8F4", "#CAF0F8", "#B7E4C7", "#D8F3DC", "#EDEEC9",
+    "#FFF1A8", "#FFE8A3", "#FFD6BA", "#FFB4A2", "#EAC7C7",
+    "#E7D8C9", "#D5ECC2", "#C9E4DE", "#C9DAEA", "#DBCDF0",
+    "#F2D7EE", "#F0D7A7", "#D8F3F0", "#DCEBFF",
 };
 
-constexpr std::size_t kMacaronColorCount = sizeof(kMacaronColors) / sizeof(kMacaronColors[0]);
+constexpr Size kMacaronColorCount = sizeof(kMacaronColors) / sizeof(kMacaronColors[0]);
 
-auto resistorPlotLayer(const Model& model, const Resistor& resistor) -> int
+auto resistorPlotLayer(const Model& model,
+                       const Resistor& resistor) -> int
 {
   if (resistor.has_layer) {
     return resistor.layer;
   }
 
-  const auto node_it = model.nodes_by_name.find(resistor.node1);
-  return node_it == model.nodes_by_name.end() ? 0 : node_it->second->layer;
+  const auto* node = findNode(model, resistor.node1);
+  return node == nullptr ? 0 : node->layer;
 }
 
 auto collectLayers(const Model& model) -> std::vector<int>
@@ -94,7 +106,8 @@ auto collectLayers(const Model& model) -> std::vector<int>
   return {layers.begin(), layers.end()};
 }
 
-auto layerName(const Model& model, int layer) -> std::string
+auto layerName(const Model& model,
+               int layer) -> std::string
 {
   const auto it = model.layer_names.find(layer);
   if (it != model.layer_names.end() && !it->second.empty()) {
@@ -103,22 +116,23 @@ auto layerName(const Model& model, int layer) -> std::string
   return "Layer" + std::to_string(layer);
 }
 
-auto macaronColor(std::size_t index) -> std::string
+auto macaronColor(Size index) -> std::string
 {
   return kMacaronColors[index % kMacaronColorCount];
 }
 
-auto nodeColor(std::size_t color_index) -> std::string
+auto nodeColor(Size color_index) -> std::string
 {
   return macaronColor(color_index * 2);
 }
 
-auto edgeColor(std::size_t color_index) -> std::string
+auto edgeColor(Size color_index) -> std::string
 {
   return macaronColor(color_index * 2 + 1);
 }
 
-auto hasVisibleContextEdgeOnLayer(const Model& model, int layer) -> bool
+auto hasVisibleContextEdgeOnLayer(const Model& model,
+                                  int layer) -> bool
 {
   for (const auto& net : model.nets) {
     if (!net.visible || !net.context_only) {
@@ -133,7 +147,10 @@ auto hasVisibleContextEdgeOnLayer(const Model& model, int layer) -> bool
   return false;
 }
 
-auto makePropertiesForLayer(const Model& model, const Config& config, int layer, std::size_t color_index) -> std::vector<LayerProperty>
+auto makePropertiesForLayer(const Model& model,
+                            const Config& config,
+                            int layer,
+                            Size color_index) -> std::vector<LayerProperty>
 {
   const std::string prefix = layerName(model, layer) + "_";
   std::vector<LayerProperty> properties = {
@@ -145,7 +162,11 @@ auto makePropertiesForLayer(const Model& model, const Config& config, int layer,
        .line_style = 0,
        .width = 1,
        .filled = false},
-      {.layer = layer, .data_type = kTextNode, .name = prefix + "TextNode", .frame_color = "#0050d8", .fill_color = "#0050d8"},
+      {.layer = layer,
+       .data_type = kTextNode,
+       .name = prefix + "TextNode",
+       .frame_color = "#0050d8",
+       .fill_color = "#0050d8"},
   };
   const bool plot_edge = config.plotResistance() || hasVisibleContextEdgeOnLayer(model, layer);
   if (plot_edge) {
@@ -159,12 +180,18 @@ auto makePropertiesForLayer(const Model& model, const Config& config, int layer,
                           .filled = true});
   }
   if (config.plotResistance()) {
-    properties.push_back(
-        {.layer = layer, .data_type = kTextRes, .name = prefix + "TextRes", .frame_color = "#b000e8", .fill_color = "#b000e8"});
+    properties.push_back({.layer = layer,
+                          .data_type = kTextRes,
+                          .name = prefix + "TextRes",
+                          .frame_color = "#b000e8",
+                          .fill_color = "#b000e8"});
   }
   if (config.plotGroundCap()) {
-    properties.push_back(
-        {.layer = layer, .data_type = kTextCg, .name = prefix + "TextCg", .frame_color = "#008a00", .fill_color = "#008a00"});
+    properties.push_back({.layer = layer,
+                          .data_type = kTextCg,
+                          .name = prefix + "TextCg",
+                          .frame_color = "#008a00",
+                          .fill_color = "#008a00"});
   }
   if (config.plotCouplingCap()) {
     properties.push_back({.layer = layer,
@@ -175,24 +202,29 @@ auto makePropertiesForLayer(const Model& model, const Config& config, int layer,
                           .line_style = 2,
                           .width = 1,
                           .filled = false});
-    properties.push_back(
-        {.layer = layer, .data_type = kTextCc, .name = prefix + "TextCc", .frame_color = "#d06b00", .fill_color = "#d06b00"});
+    properties.push_back({.layer = layer,
+                          .data_type = kTextCc,
+                          .name = prefix + "TextCc",
+                          .frame_color = "#d06b00",
+                          .fill_color = "#d06b00"});
   }
   return properties;
 }
 
-auto makeProperties(const Model& model, const Config& config) -> std::vector<LayerProperty>
+auto makeProperties(const Model& model,
+                    const Config& config) -> std::vector<LayerProperty>
 {
   std::vector<LayerProperty> properties;
   const auto layers = collectLayers(model);
-  for (std::size_t index = 0; index < layers.size(); ++index) {
+  for (Size index = 0; index < layers.size(); ++index) {
     const auto layer_properties = makePropertiesForLayer(model, config, layers[index], index);
     properties.insert(properties.end(), layer_properties.begin(), layer_properties.end());
   }
   return properties;
 }
 
-auto writeProperty(std::ostream& os, const LayerProperty& property) -> void
+auto writeProperty(std::ostream& os,
+                   const LayerProperty& property) -> void
 {
   os << "<properties>\n";
   os << "<frame-color>" << property.frame_color << "</frame-color>\n";
@@ -208,16 +240,20 @@ auto writeProperty(std::ostream& os, const LayerProperty& property) -> void
   os << "<marked>false</marked>\n";
   os << "<xfill>" << (property.filled ? "false" : "true") << "</xfill>\n";
   os << "<animation>0</animation>\n";
-  os << "<name>" << format::escape_xml(property.name) << "</name>\n";
+  os << "<name>" << format::escapeXml(property.name) << "</name>\n";
   os << "<source>" << property.layer << "/" << property.data_type << "@1</source>\n";
   os << "</properties>\n";
 }
 
 }  // namespace
 
-auto LypWriter::write(const Model& model, const Config& config) const -> bool
+auto LypWriter::write(const Model& model,
+                      const Config& config) const -> bool
 {
-  const auto lyp_file = path::file_under_dir(config.output_dir, string::identifier(model.design_name, "plot_spef"), ".lyp");
+  const auto lyp_file = path::fileUnderDir(
+      config.output_dir,
+      string::identifier(model.design_name, "plot_spef"),
+      ".lyp");
   std::ofstream os(lyp_file);
   if (!os.is_open()) {
     LOG_ERROR << "plot_spef failed: cannot open LYP output file " << lyp_file.string();

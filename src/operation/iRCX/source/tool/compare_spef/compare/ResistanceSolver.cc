@@ -14,15 +14,16 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file ResistanceSolver.cc
+ * @brief compare_spef implementation detail.
+ */
 #include "compare/ResistanceSolver.hh"
 
 #include <Eigen/Dense>
 #include <Eigen/SparseLU>
-
 #include <cmath>
-#include <cstddef>
 #include <memory>
-#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -49,7 +50,8 @@ class NetResistanceContext
     buildComponents();
   }
 
-  auto solve(const std::string& from_node, const std::string& to_node) -> std::optional<double>
+  auto solve(const std::string& from_node,
+             const std::string& to_node) -> std::optional<F64>
   {
     if (from_node == to_node) {
       return 0.0;
@@ -77,9 +79,10 @@ class NetResistanceContext
     return solveFromUnknown(ground_solve, from_unknown);
   }
 
-  auto solveMany(const std::vector<NodePair>& pairs, const std::vector<std::size_t>& pair_indices) -> std::vector<std::optional<double>>
+  auto solveMany(const std::vector<NodePair>& pairs,
+                 const std::vector<Size>& pair_indices) -> std::vector<std::optional<F64>>
   {
-    std::vector<std::optional<double>> values;
+    std::vector<std::optional<F64>> values;
     values.resize(pair_indices.size());
 
     const auto endpoint_counts = countPairEndpoints(pairs, pair_indices);
@@ -91,26 +94,27 @@ class NetResistanceContext
  private:
   struct SolveRequest
   {
-    std::size_t output_index = 0;
-    std::size_t source_index = 0;
+    Size output_index = 0;
+    Size source_index = 0;
   };
 
   struct GroundSolve
   {
-    std::size_t matrix_size = 0;
+    Size matrix_size = 0;
     std::vector<int> unknown_index;
-    std::unique_ptr<Eigen::SparseLU<Eigen::SparseMatrix<double>>> solver;
+    std::unique_ptr<Eigen::SparseLU<Eigen::SparseMatrix<F64>>> solver;
     bool invertible = false;
   };
 
-  using EndpointCounts = std::unordered_map<std::string, std::size_t>;
-  using GroundRequests = std::unordered_map<std::size_t, std::vector<SolveRequest>>;
+  using EndpointCounts = std::unordered_map<std::string, Size>;
+  using GroundRequests = std::unordered_map<Size, std::vector<SolveRequest>>;
 
-  auto countPairEndpoints(const std::vector<NodePair>& pairs, const std::vector<std::size_t>& pair_indices) const -> EndpointCounts
+  auto countPairEndpoints(const std::vector<NodePair>& pairs,
+                          const std::vector<Size>& pair_indices) const -> EndpointCounts
   {
     EndpointCounts endpoint_counts;
     endpoint_counts.reserve(pair_indices.size() * 2);
-    for (std::size_t pair_index : pair_indices) {
+    for (Size pair_index : pair_indices) {
       const NodePair& pair = pairs[pair_index];
       endpoint_counts[pair.first]++;
       endpoint_counts[pair.second]++;
@@ -118,12 +122,14 @@ class NetResistanceContext
     return endpoint_counts;
   }
 
-  auto groupSolveRequests(const std::vector<NodePair>& pairs, const std::vector<std::size_t>& pair_indices,
-                          const EndpointCounts& endpoint_counts, std::vector<std::optional<double>>& values) const -> GroundRequests
+  auto groupSolveRequests(const std::vector<NodePair>& pairs,
+                          const std::vector<Size>& pair_indices,
+                          const EndpointCounts& endpoint_counts,
+                          std::vector<std::optional<F64>>& values) const -> GroundRequests
   {
     GroundRequests requests_by_ground;
     requests_by_ground.reserve(pair_indices.size());
-    for (std::size_t output_index = 0; output_index < pair_indices.size(); ++output_index) {
+    for (Size output_index = 0; output_index < pair_indices.size(); ++output_index) {
       const NodePair& pair = pairs[pair_indices[output_index]];
       if (pair.first == pair.second) {
         values[output_index] = 0.0;
@@ -139,18 +145,23 @@ class NetResistanceContext
         continue;
       }
 
-      const std::size_t first_count = endpoint_counts.at(pair.first);
-      const std::size_t second_count = endpoint_counts.at(pair.second);
+      const Size first_count = endpoint_counts.at(pair.first);
+      const Size second_count = endpoint_counts.at(pair.second);
       if (first_count > second_count) {
-        requests_by_ground[first_it->second].push_back(SolveRequest{.output_index = output_index, .source_index = second_it->second});
+        requests_by_ground[first_it->second].push_back(SolveRequest{
+            .output_index = output_index,
+            .source_index = second_it->second});
       } else {
-        requests_by_ground[second_it->second].push_back(SolveRequest{.output_index = output_index, .source_index = first_it->second});
+        requests_by_ground[second_it->second].push_back(SolveRequest{
+            .output_index = output_index,
+            .source_index = first_it->second});
       }
     }
     return requests_by_ground;
   }
 
-  void solveGroupedRequests(const GroundRequests& requests_by_ground, std::vector<std::optional<double>>& values)
+  void solveGroupedRequests(const GroundRequests& requests_by_ground,
+                            std::vector<std::optional<F64>>& values)
   {
     for (const auto& [ground, requests] : requests_by_ground) {
       GroundSolve ground_solve = buildGroundSolve(ground);
@@ -159,7 +170,7 @@ class NetResistanceContext
       }
 
       Eigen::MatrixXd rhs = Eigen::MatrixXd::Zero(ground_solve.matrix_size, requests.size());
-      for (std::size_t column = 0; column < requests.size(); ++column) {
+      for (Size column = 0; column < requests.size(); ++column) {
         const int source_unknown = ground_solve.unknown_index[requests[column].source_index];
         if (source_unknown >= 0) {
           rhs(source_unknown, column) = 1.0;
@@ -170,13 +181,13 @@ class NetResistanceContext
       if (ground_solve.solver->info() != Eigen::Success) {
         continue;
       }
-      for (std::size_t column = 0; column < requests.size(); ++column) {
+      for (Size column = 0; column < requests.size(); ++column) {
         const SolveRequest& request = requests[column];
         const int source_unknown = ground_solve.unknown_index[request.source_index];
         if (source_unknown < 0) {
           continue;
         }
-        const double value = solution(source_unknown, column);
+        const F64 value = solution(source_unknown, column);
         if (std::isfinite(value)) {
           values[request.output_index] = std::abs(value);
         }
@@ -184,7 +195,8 @@ class NetResistanceContext
     }
   }
 
-  auto solveFromUnknown(const GroundSolve& ground_solve, int from_unknown) const -> std::optional<double>
+  auto solveFromUnknown(const GroundSolve& ground_solve,
+                        int from_unknown) const -> std::optional<F64>
   {
     if (ground_solve.matrix_size == 0) {
       return std::nullopt;
@@ -196,7 +208,7 @@ class NetResistanceContext
     if (ground_solve.solver->info() != Eigen::Success) {
       return std::nullopt;
     }
-    const double value = solution[from_unknown];
+    const F64 value = solution[from_unknown];
     if (!std::isfinite(value)) {
       return std::nullopt;
     }
@@ -217,17 +229,17 @@ class NetResistanceContext
       return;
     }
 
-    std::vector<std::vector<std::size_t>> adjacency(node_to_index_.size());
+    std::vector<std::vector<Size>> adjacency(node_to_index_.size());
     for (const auto* resistor : resistors_) {
-      const std::size_t idx1 = node_to_index_.at(resistor->node1);
-      const std::size_t idx2 = node_to_index_.at(resistor->node2);
+      const Size idx1 = node_to_index_.at(resistor->node1);
+      const Size idx2 = node_to_index_.at(resistor->node2);
       adjacency[idx1].push_back(idx2);
       adjacency[idx2].push_back(idx1);
     }
 
     int next_component = 0;
-    std::vector<std::size_t> stack;
-    for (std::size_t index = 0; index < component_by_node_.size(); ++index) {
+    std::vector<Size> stack;
+    for (Size index = 0; index < component_by_node_.size(); ++index) {
       if (component_by_node_[index] >= 0) {
         continue;
       }
@@ -235,9 +247,9 @@ class NetResistanceContext
       component_by_node_[index] = next_component;
       stack.push_back(index);
       while (!stack.empty()) {
-        const std::size_t node = stack.back();
+        const Size node = stack.back();
         stack.pop_back();
-        for (std::size_t adjacent : adjacency[node]) {
+        for (Size adjacent : adjacency[node]) {
           if (component_by_node_[adjacent] < 0) {
             component_by_node_[adjacent] = next_component;
             stack.push_back(adjacent);
@@ -248,13 +260,16 @@ class NetResistanceContext
     }
   }
 
-  auto sameComponent(std::size_t node1, std::size_t node2) const -> bool
+  auto sameComponent(Size node1,
+                     Size node2) const -> bool
   {
-    return node1 < component_by_node_.size() && node2 < component_by_node_.size() && component_by_node_[node1] >= 0
+    return node1 < component_by_node_.size()
+           && node2 < component_by_node_.size()
+           && component_by_node_[node1] >= 0
            && component_by_node_[node1] == component_by_node_[node2];
   }
 
-  auto buildGroundSolve(std::size_t ground) const -> GroundSolve
+  auto buildGroundSolve(Size ground) const -> GroundSolve
   {
     GroundSolve solve;
     solve.unknown_index.assign(node_to_index_.size(), -1);
@@ -263,7 +278,7 @@ class NetResistanceContext
     }
 
     const int ground_component = component_by_node_[ground];
-    std::size_t component_node_count = 0;
+    Size component_node_count = 0;
     for (int component : component_by_node_) {
       if (component == ground_component) {
         component_node_count++;
@@ -276,21 +291,22 @@ class NetResistanceContext
     }
 
     int next_unknown = 0;
-    for (std::size_t index = 0; index < node_to_index_.size(); ++index) {
+    for (Size index = 0; index < node_to_index_.size(); ++index) {
       if (index != ground && component_by_node_[index] == ground_component) {
         solve.unknown_index[index] = next_unknown++;
       }
     }
 
-    std::vector<Eigen::Triplet<double>> triplets;
+    std::vector<Eigen::Triplet<F64>> triplets;
     triplets.reserve(resistors_.size() * 4);
     for (const auto* resistor : resistors_) {
-      const std::size_t idx1 = node_to_index_.at(resistor->node1);
-      const std::size_t idx2 = node_to_index_.at(resistor->node2);
-      if (component_by_node_[idx1] != ground_component || component_by_node_[idx2] != ground_component) {
+      const Size idx1 = node_to_index_.at(resistor->node1);
+      const Size idx2 = node_to_index_.at(resistor->node2);
+      if (component_by_node_[idx1] != ground_component
+          || component_by_node_[idx2] != ground_component) {
         continue;
       }
-      const double g = 1.0 / resistor->resistance;
+      const F64 g = 1.0 / resistor->resistance;
       const int u = solve.unknown_index[idx1];
       const int v = solve.unknown_index[idx2];
       if (u >= 0) {
@@ -305,42 +321,48 @@ class NetResistanceContext
       }
     }
 
-    Eigen::SparseMatrix<double> conductance(solve.matrix_size, solve.matrix_size);
+    Eigen::SparseMatrix<F64> conductance(solve.matrix_size, solve.matrix_size);
     conductance.setFromTriplets(triplets.begin(), triplets.end());
     conductance.makeCompressed();
-    solve.solver = std::make_unique<Eigen::SparseLU<Eigen::SparseMatrix<double>>>();
+    solve.solver = std::make_unique<Eigen::SparseLU<Eigen::SparseMatrix<F64>>>();
     solve.solver->compute(conductance);
     solve.invertible = solve.solver->info() == Eigen::Success;
     return solve;
   }
 
-  std::unordered_map<std::string, std::size_t> node_to_index_;
+  std::unordered_map<std::string, Size> node_to_index_;
   std::vector<const Resistor*> resistors_;
   std::vector<int> component_by_node_;
 };
 
 }  // namespace
 
-auto ResistanceSolver::equivalentResistance(const Net& net, const std::string& from_node,
-                                            const std::string& to_node) const -> std::optional<double>
+auto ResistanceSolver::equivalentResistance(const Net& net,
+                                            const std::string& from_node,
+                                            const std::string& to_node) const
+    -> std::optional<F64>
 {
   NetResistanceContext context(net);
   return context.solve(from_node, to_node);
 }
 
-auto ResistanceSolver::equivalentResistances(const Net& net, const std::vector<NodePair>& pairs) const -> std::vector<std::optional<double>>
+auto ResistanceSolver::equivalentResistances(const Net& net,
+                                             const std::vector<NodePair>& pairs) const
+    -> std::vector<std::optional<F64>>
 {
-  std::vector<std::size_t> pair_indices;
+  std::vector<Size> pair_indices;
   pair_indices.reserve(pairs.size());
-  for (std::size_t index = 0; index < pairs.size(); ++index) {
+  for (Size index = 0; index < pairs.size(); ++index) {
     pair_indices.push_back(index);
   }
 
   return equivalentResistances(net, pairs, pair_indices);
 }
 
-auto ResistanceSolver::equivalentResistances(const Net& net, const std::vector<NodePair>& pairs,
-                                             const std::vector<std::size_t>& pair_indices) const -> std::vector<std::optional<double>>
+auto ResistanceSolver::equivalentResistances(const Net& net,
+                                             const std::vector<NodePair>& pairs,
+                                             const std::vector<Size>& pair_indices) const
+    -> std::vector<std::optional<F64>>
 {
   NetResistanceContext context(net);
   return context.solveMany(pairs, pair_indices);

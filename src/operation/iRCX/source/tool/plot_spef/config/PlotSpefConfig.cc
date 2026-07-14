@@ -14,6 +14,10 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefConfig.cc
+ * @brief plot_spef implementation detail.
+ */
 #include "config/PlotSpefConfig.hh"
 
 #include "PathUtils.hh"
@@ -23,7 +27,7 @@ namespace ircx::plot_spef {
 
 auto ConfigValidator::validate(const Config& config) const -> bool
 {
-  if (!path::file_exists(config.spef_file, "plot_spef SPEF file")) {
+  if (!path::fileExists(config.spef_file, "plot_spef SPEF file")) {
     return false;
   }
 
@@ -42,7 +46,7 @@ auto ConfigValidator::validate(const Config& config) const -> bool
     return false;
   }
 
-  if (!path::ensure_dir(config.output_dir, "plot_spef output directory")) {
+  if (!path::ensureDir(config.output_dir, "plot_spef output directory")) {
     return false;
   }
 

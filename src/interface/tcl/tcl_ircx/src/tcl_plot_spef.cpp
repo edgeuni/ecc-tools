@@ -26,14 +26,15 @@
 #include <utility>
 
 #include "RCXAPI.hh"
+#include "config/PlotSpefConfig.hh"
 #include "log/Log.hh"
 #include "tcl_ircx.h"
 
 namespace tcl {
 namespace {
 
-constexpr const char* kSpefArg = "spef";
-constexpr const char* kOutputDirArg = "output_dir";
+constexpr const char* kFirstArg = "first_arg";
+constexpr const char* kSecondArg = "second_arg";
 
 auto getStringValue(TclOption* option) -> const char*
 {
@@ -82,10 +83,11 @@ auto setIntOption(TclOption* option, const char* option_name, int& value) -> boo
 
 TclPlotSpef::TclPlotSpef(const char* cmd_name) : TclCmd(cmd_name)
 {
-  addOption(new TclStringOption(kSpefArg, 1, nullptr));
-  addOption(new TclStringOption(kOutputDirArg, 1, nullptr));
-  addOption(new TclStringOption("-net", 1, nullptr));
-  addOption(new TclStringOption("-cores", 1, nullptr));
+  addOption(new TclStringOption(kFirstArg, 1, nullptr));
+  addOption(new TclStringOption(kSecondArg, 1, nullptr));
+  addOption(new TclStringOption("-net", 0, nullptr));
+  addOption(new TclStringOption("-dbu", 0, nullptr));
+  addOption(new TclStringOption("-cores", 0, nullptr));
   addOption(new TclSwitchOption("-R"));
   addOption(new TclSwitchOption("-Cc"));
   addOption(new TclSwitchOption("-Cg"));
@@ -93,8 +95,8 @@ TclPlotSpef::TclPlotSpef(const char* cmd_name) : TclCmd(cmd_name)
 
 unsigned TclPlotSpef::check()
 {
-  if (getStringValue(getOptionOrArg(kSpefArg)) == nullptr || getStringValue(getOptionOrArg(kOutputDirArg)) == nullptr) {
-    LOG_ERROR << "plot_spef requires spef and output directory arguments.";
+  if (getStringValue(getOptionOrArg(kFirstArg)) == nullptr) {
+    LOG_ERROR << "plot_spef requires an output directory, or external SPEF and output directory.";
     return 0;
   }
   return 1;
@@ -107,10 +109,19 @@ unsigned TclPlotSpef::exec()
   }
 
   ircx::plot_spef::Config config;
-  config.spef_file = getStringValue(getOptionOrArg(kSpefArg));
-  config.output_dir = getStringValue(getOptionOrArg(kOutputDirArg));
+  const char* first_arg = getStringValue(getOptionOrArg(kFirstArg));
+  const char* second_arg = getStringValue(getOptionOrArg(kSecondArg));
+  if (second_arg == nullptr) {
+    config.output_dir = first_arg;
+  } else {
+    config.spef_file = first_arg;
+    config.output_dir = second_arg;
+  }
   if (const char* net_name = getStringValue(getOptionOrArg("-net")); net_name != nullptr) {
     config.net_name = net_name;
+  }
+  if (!setIntOption(getOptionOrArg("-dbu"), "-dbu", config.dbu)) {
+    return 0;
   }
   if (!setIntOption(getOptionOrArg("-cores"), "-cores", config.cores)) {
     return 0;

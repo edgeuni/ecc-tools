@@ -14,12 +14,18 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file SpefUnit.hh
+ * @brief compare_spef implementation detail.
+ */
 #pragma once
 
 #include <algorithm>
 #include <cctype>
-#include <sstream>
-#include <string>
+#include <utility>
+
+#include "StringUtils.hh"
+#include "Types.hh"
 
 namespace ircx {
 namespace compare_spef {
@@ -32,13 +38,24 @@ inline auto uppercase(std::string text) -> std::string
   return text;
 }
 
-inline auto capacitanceScaleToFf(const std::string& unit_text) -> double
+inline auto parseUnitText(const std::string& unit_text) -> std::pair<F64, std::string>
 {
-  double multiplier = 1.0;
-  std::string unit;
-  std::istringstream iss(unit_text);
-  iss >> multiplier >> unit;
-  unit = uppercase(unit);
+  std::string_view payload = unit_text;
+  const std::string first{string::takeToken(payload)};
+  const std::string second{string::takeToken(payload)};
+
+  if (first.empty()) {
+    return {1.0, {}};
+  }
+  if (auto multiplier = string::parseNumber<F64>(first)) {
+    return {*multiplier, uppercase(second)};
+  }
+  return {1.0, uppercase(first)};
+}
+
+inline auto capacitanceScaleToFf(const std::string& unit_text) -> F64
+{
+  const auto [multiplier, unit] = parseUnitText(unit_text);
 
   if (unit == "F") {
     return multiplier * 1.0e15;
@@ -58,13 +75,9 @@ inline auto capacitanceScaleToFf(const std::string& unit_text) -> double
   return 1.0;
 }
 
-inline auto resistanceScaleToOhm(const std::string& unit_text) -> double
+inline auto resistanceScaleToOhm(const std::string& unit_text) -> F64
 {
-  double multiplier = 1.0;
-  std::string unit;
-  std::istringstream iss(unit_text);
-  iss >> multiplier >> unit;
-  unit = uppercase(unit);
+  const auto [multiplier, unit] = parseUnitText(unit_text);
 
   if (unit == "OHM" || unit == "OHMS") {
     return multiplier;

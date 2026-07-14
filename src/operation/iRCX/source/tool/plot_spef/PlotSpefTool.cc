@@ -14,13 +14,20 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefTool.cc
+ * @brief plot_spef implementation detail.
+ */
 #include "PlotSpefTool.hh"
 
 #include "SpefParser.hh"
 #include "builder/PlotSpefModelBuilder.hh"
+#include "config/PlotSpefConfig.hh"
 #include "gds/PlotSpefGdsWriter.hh"
+#include "internal/InternalPlotSpefWriter.hh"
 #include "log/Log.hh"
 #include "lyp/PlotSpefLypWriter.hh"
+#include "model/PlotSpefModel.hh"
 
 namespace ircx {
 
@@ -33,7 +40,7 @@ auto PlotSpefTool::run(plot_spef::Config config) -> bool
 
   spef::SpefReader reader;
   if (!reader.read(config.spef_file)) {
-    LOG_ERROR << "plot_spef failed: read SPEF failed: " << config.spef_file;
+    LOG_ERROR << "plot_spef failed: read external SPEF failed: " << config.spef_file;
     return false;
   }
   reader.expandName();
@@ -59,6 +66,12 @@ auto PlotSpefTool::run(plot_spef::Config config) -> bool
 
   LOG_INFO << "plot_spef wrote reports to " << config.output_dir;
   return true;
+}
+
+auto PlotSpefTool::run(const RCXData& data,
+                       plot_spef::Config config) -> bool
+{
+  return writeInternalPlotSpef(data, config);
 }
 
 }  // namespace ircx
