@@ -77,6 +77,7 @@ class Arc
       const std::map<int32_t, std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>>>& timing_arc_delay_map)
   {
     _timing_arc_delay_map = timing_arc_delay_map;
+    _timing_arc_delay_fallback_key_set.clear();
   }
   void set_trans_type_map(const std::map<TransType, TransType>& trans_type_map) { _trans_type_map = trans_type_map; }
   void set_timing_cell_arc(TimingCellArc* timing_cell_arc) { _timing_cell_arc = timing_cell_arc; }
@@ -84,6 +85,37 @@ class Arc
   void set_is_disable_arc(const bool is_disable_arc) { _is_disable_arc = is_disable_arc; }
   void set_is_loop_disable(const bool is_loop_disable) { _is_loop_disable = is_loop_disable; }
   // function
+  void update_timing_arc_delay(int32_t timing_arc_idx, AnalysisType analysis_type, TransType input_trans_type, TransType output_trans_type, double delay,
+                               bool is_initialization)
+  {
+    std::tuple<int32_t, AnalysisType, TransType, TransType> fallback_key = std::make_tuple(timing_arc_idx, analysis_type, input_trans_type, output_trans_type);
+    auto& analysis_delay_map = _timing_arc_delay_map[timing_arc_idx];
+    bool has_delay = analysis_delay_map.count(analysis_type) > 0 && analysis_delay_map[analysis_type].count(input_trans_type) > 0
+                     && analysis_delay_map[analysis_type][input_trans_type].count(output_trans_type) > 0;
+
+    if (!has_delay) {
+      analysis_delay_map[analysis_type][input_trans_type][output_trans_type] = delay;
+      if (is_initialization) {
+        _timing_arc_delay_fallback_key_set.insert(fallback_key);
+      }
+      return;
+    }
+
+    bool is_fallback = _timing_arc_delay_fallback_key_set.count(fallback_key) > 0;
+    if (!is_initialization && is_fallback) {
+      analysis_delay_map[analysis_type][input_trans_type][output_trans_type] = delay;
+      _timing_arc_delay_fallback_key_set.erase(fallback_key);
+      return;
+    }
+    if (is_initialization && !is_fallback) {
+      return;
+    }
+
+    double& cached_delay = analysis_delay_map[analysis_type][input_trans_type][output_trans_type];
+    if ((analysis_type == AnalysisType::kMin && delay < cached_delay) || (analysis_type == AnalysisType::kMax && delay > cached_delay)) {
+      cached_delay = delay;
+    }
+  }
 
  private:
   std::string _arc_name;
@@ -100,6 +132,7 @@ class Arc
   std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>> _input_output_delay_map;
   std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>> _graph_delay_map;
   std::map<int32_t, std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>>> _timing_arc_delay_map;
+  std::set<std::tuple<int32_t, AnalysisType, TransType, TransType>> _timing_arc_delay_fallback_key_set;
   std::map<TransType, TransType> _trans_type_map;
   TimingCellArc* _timing_cell_arc = nullptr;
   bool _is_clock_arc = false;
