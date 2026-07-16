@@ -771,7 +771,7 @@ void DataManager::buildDatabase()
   buildLayerInfo();
   buildGCellAxis();
   buildDie();
-  buildMacroRouteHaloList();
+  buildMacroList();
   buildLayerViaMasterList();
   buildLayerViaMasterInfo();
   buildObstacleList();
@@ -1111,82 +1111,37 @@ void DataManager::checkDie()
   }
 }
 
-void DataManager::buildMacroRouteHaloList()
+void DataManager::buildMacroList()
 {
-  transMacroRouteHaloList();
-  makeMacroRouteHaloList();
-  checkMacroRouteHaloList();
+  makeMacroList();
+  checkMacroList();
 }
 
-void DataManager::transMacroRouteHaloList()
-{
-  std::map<int32_t, int32_t>& routing_idb_layer_id_to_idx_map = _database.get_routing_idb_layer_id_to_idx_map();
-  std::vector<MacroRouteHalo>& macro_route_halo_list = _database.get_macro_route_halo_list();
-  int32_t bottom_routing_layer_idx = _config.bottom_routing_layer_idx;
-  int32_t top_routing_layer_idx = _config.top_routing_layer_idx;
-
-  for (MacroRouteHalo& macro_route_halo : macro_route_halo_list) {
-    std::vector<int32_t> layer_idx_list;
-    for (int32_t idb_layer_idx : macro_route_halo.get_layer_idx_list()) {
-      auto iter = routing_idb_layer_id_to_idx_map.find(idb_layer_idx);
-      if (iter == routing_idb_layer_id_to_idx_map.end()) {
-        continue;
-      }
-      int32_t routing_layer_idx = iter->second;
-      if (bottom_routing_layer_idx <= routing_layer_idx && routing_layer_idx <= top_routing_layer_idx) {
-        layer_idx_list.push_back(routing_layer_idx);
-      }
-    }
-    std::sort(layer_idx_list.begin(), layer_idx_list.end());
-    layer_idx_list.erase(std::unique(layer_idx_list.begin(), layer_idx_list.end()), layer_idx_list.end());
-    macro_route_halo.set_layer_idx_list(layer_idx_list);
-  }
-}
-
-void DataManager::makeMacroRouteHaloList()
+void DataManager::makeMacroList()
 {
   Die& die = _database.get_die();
-  std::vector<MacroRouteHalo>& macro_route_halo_list = _database.get_macro_route_halo_list();
-  std::vector<MacroRouteHalo> valid_macro_route_halo_list;
-  valid_macro_route_halo_list.reserve(macro_route_halo_list.size());
+  std::vector<Macro>& macro_list = _database.get_macro_list();
+  std::vector<Macro> valid_macro_list;
+  valid_macro_list.reserve(macro_list.size());
 
-  for (MacroRouteHalo& macro_route_halo : macro_route_halo_list) {
-    if (macro_route_halo.get_layer_idx_list().empty()) {
+  for (Macro& macro : macro_list) {
+    if (!RTUTIL.hasRegularRect(macro.get_body_rect(), die.get_real_rect())) {
       continue;
     }
-    if (!RTUTIL.hasRegularRect(macro_route_halo.get_body_rect(), die.get_real_rect())
-        || !RTUTIL.hasRegularRect(macro_route_halo.get_halo_rect(), die.get_real_rect())) {
-      continue;
-    }
-    macro_route_halo.set_body_rect(RTUTIL.getRegularRect(macro_route_halo.get_body_rect(), die.get_real_rect()));
-    macro_route_halo.set_halo_rect(RTUTIL.getRegularRect(macro_route_halo.get_halo_rect(), die.get_real_rect()));
-    valid_macro_route_halo_list.push_back(macro_route_halo);
+    macro.set_body_rect(RTUTIL.getRegularRect(macro.get_body_rect(), die.get_real_rect()));
+    valid_macro_list.push_back(macro);
   }
-  macro_route_halo_list = valid_macro_route_halo_list;
+  macro_list = valid_macro_list;
 }
 
-void DataManager::checkMacroRouteHaloList()
+void DataManager::checkMacroList()
 {
   Die& die = _database.get_die();
-  std::vector<RoutingLayer>& routing_layer_list = _database.get_routing_layer_list();
-  std::vector<MacroRouteHalo>& macro_route_halo_list = _database.get_macro_route_halo_list();
+  std::vector<Macro>& macro_list = _database.get_macro_list();
 
-  for (MacroRouteHalo& macro_route_halo : macro_route_halo_list) {
-    if (macro_route_halo.get_layer_idx_list().empty()) {
-      RTLOG.error(Loc::current(), "The macro route halo layer list is empty for instance ", macro_route_halo.get_inst_name());
-    }
-    PlanarRect& body_rect = macro_route_halo.get_body_rect();
-    PlanarRect& halo_rect = macro_route_halo.get_halo_rect();
-    if (!RTUTIL.isClosedOverlap(halo_rect, body_rect)) {
-      RTLOG.error(Loc::current(), "The macro route halo does not cover body for instance ", macro_route_halo.get_inst_name());
-    }
-    if (!RTUTIL.hasRegularRect(body_rect, die.get_real_rect()) || !RTUTIL.hasRegularRect(halo_rect, die.get_real_rect())) {
-      RTLOG.error(Loc::current(), "The macro route halo is outside die for instance ", macro_route_halo.get_inst_name());
-    }
-    for (int32_t layer_idx : macro_route_halo.get_layer_idx_list()) {
-      if (layer_idx < 0 || static_cast<int32_t>(routing_layer_list.size()) <= layer_idx) {
-        RTLOG.error(Loc::current(), "The macro route halo layer idx is wrong for instance ", macro_route_halo.get_inst_name());
-      }
+  for (Macro& macro : macro_list) {
+    if (!RTUTIL.hasRegularRect(macro.get_body_rect(), die.get_real_rect())) {
+      RTLOG.error(Loc::current(), "The macro is outside die for instance ", macro.get_inst_name());
     }
   }
 }

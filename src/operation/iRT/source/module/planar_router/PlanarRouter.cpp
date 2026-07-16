@@ -151,13 +151,13 @@ PlanarRouter* PlanarRouter::_pr_instance = nullptr;
 PRModel PlanarRouter::initPRModel()
 {
   std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
-  std::vector<MacroRouteHalo>& macro_route_halo_list = RTDM.getDatabase().get_macro_route_halo_list();
+  std::vector<Macro>& macro_list = RTDM.getDatabase().get_macro_list();
 
   PRModel pr_model;
   pr_model.set_pr_net_list(convertToPRNetList(net_list));
-  pr_model.set_enable_astar_fallback(!macro_route_halo_list.empty());
+  pr_model.set_enable_astar_fallback(!macro_list.empty());
   RTLOG.info(Loc::current(), "enable_astar_fallback: ", pr_model.get_enable_astar_fallback(),
-             ", macro_route_halo_num: ", macro_route_halo_list.size());
+             ", macro_num: ", macro_list.size());
   return pr_model;
 }
 
@@ -306,23 +306,21 @@ void PlanarRouter::buildPRMacroRegion(PRModel& pr_model)
 
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
-  std::vector<MacroRouteHalo>& macro_route_halo_list = RTDM.getDatabase().get_macro_route_halo_list();
+  std::vector<Macro>& macro_list = RTDM.getDatabase().get_macro_list();
 
   std::vector<PRMacroRegion>& pr_macro_region_list = pr_model.get_pr_macro_region_list();
   GridMap<bool>& macro_body_forbidden_map = pr_model.get_macro_body_forbidden_map();
   macro_body_forbidden_map.init(gcell_map.get_x_size(), gcell_map.get_y_size(), false);
   pr_macro_region_list.clear();
-  pr_macro_region_list.reserve(macro_route_halo_list.size());
+  pr_macro_region_list.reserve(macro_list.size());
 
   int32_t forbidden_gcell_num = 0;
-  for (MacroRouteHalo& macro_route_halo : macro_route_halo_list) {
-    PlanarRect& body_rect = macro_route_halo.get_body_rect();
-    PlanarRect& halo_rect = macro_route_halo.get_halo_rect();
+  for (Macro& macro : macro_list) {
+    PlanarRect& body_rect = macro.get_body_rect();
 
     PRMacroRegion pr_macro_region;
-    pr_macro_region.inst_name = macro_route_halo.get_inst_name();
+    pr_macro_region.inst_name = macro.get_inst_name();
     pr_macro_region.body_grid_rect = RTUTIL.getClosedGCellGridRect(body_rect, gcell_axis);
-    pr_macro_region.halo_grid_rect = RTUTIL.getClosedGCellGridRect(halo_rect, gcell_axis);
     pr_macro_region_list.push_back(pr_macro_region);
 
     PlanarRect& body_grid_rect = pr_macro_region_list.back().body_grid_rect;

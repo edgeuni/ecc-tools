@@ -385,7 +385,7 @@ void RTInterface::wrapDatabase()
   wrapLayerInfo();
   wrapLayerViaMasterList();
   wrapObstacleList();
-  wrapMacroRouteHaloList();
+  wrapMacroList();
   wrapNetList();
 }
 
@@ -719,6 +719,25 @@ void RTInterface::wrapObstacleList()
   std::vector<idb::IdbInstance*>& idb_instance_list = idb_design->get_instance_list()->get_instance_list();
   std::vector<idb::IdbSpecialNet*>& idb_special_net_list = idb_design->get_special_net_list()->get_net_list();
   std::vector<idb::IdbPin*>& idb_io_pin_list = idb_design->get_io_pin_list()->get_pin_list();
+  std::vector<idb::IdbLayer*> idb_routing_layer_list = dmInst->get_idb_lef_service()->get_layout()->get_layers()->get_routing_layers();
+  std::vector<int32_t> active_routing_layer_id_list;
+  if (!idb_routing_layer_list.empty()) {
+    int32_t bottom_layer_idx = 0;
+    int32_t top_layer_idx = static_cast<int32_t>(idb_routing_layer_list.size()) - 1;
+    std::string& bottom_routing_layer = RTDM.getConfig().bottom_routing_layer;
+    std::string& top_routing_layer = RTDM.getConfig().top_routing_layer;
+    for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(idb_routing_layer_list.size()); layer_idx++) {
+      if (!bottom_routing_layer.empty() && idb_routing_layer_list[layer_idx]->get_name() == bottom_routing_layer) {
+        bottom_layer_idx = layer_idx;
+      }
+      if (!top_routing_layer.empty() && idb_routing_layer_list[layer_idx]->get_name() == top_routing_layer) {
+        top_layer_idx = layer_idx;
+      }
+    }
+    for (int32_t layer_idx = bottom_layer_idx; layer_idx <= top_layer_idx; layer_idx++) {
+      active_routing_layer_id_list.push_back(idb_routing_layer_list[layer_idx]->get_id());
+    }
+  }
 
   size_t total_routing_obstacle_num = 0;
   size_t total_cut_obstacle_num = 0;
@@ -864,6 +883,67 @@ void RTInterface::wrapObstacleList()
           }
         }
       }
+      // 按照macro的obs边界切块，如果某个块只有一层可用，也设置为obs
+      idb::IdbCellMaster* cell_master = idb_instance->get_cell_master();
+      if (cell_master == nullptr || !cell_master->is_block() || active_routing_layer_id_list.empty()) {
+        continue;
+      }
+      idb_instance->set_bounding_box();
+      idb::IdbRect* idb_bbox = idb_instance->get_bounding_box();
+      if (idb_bbox == nullptr) {
+        continue;
+      }
+      PlanarRect body_rect(idb_bbox->get_low_x(), idb_bbox->get_low_y(), idb_bbox->get_high_x(), idb_bbox->get_high_y());
+      std::map<int32_t, std::vector<PlanarRect>> routing_obs_rect_list_map;
+      std::vector<int32_t> x_coord_list = {body_rect.get_ll_x(), body_rect.get_ur_x()};
+      std::vector<int32_t> y_coord_list = {body_rect.get_ll_y(), body_rect.get_ur_y()};
+      for (idb::IdbLayerShape* obs_box : idb_instance->get_obs_box_list()) {
+        int32_t layer_id = obs_box == nullptr || obs_box->get_layer() == nullptr ? -1 : static_cast<int32_t>(obs_box->get_layer()->get_id());
+        if (layer_id == -1 || !obs_box->get_layer()->is_routing() || !RTUTIL.exist(active_routing_layer_id_list, layer_id)) {
+          continue;
+        }
+        for (idb::IdbRect* idb_rect : obs_box->get_rect_list()) {
+          PlanarRect obs_rect(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y());
+          if (!RTUTIL.isOpenOverlap(body_rect, obs_rect)) {
+            continue;
+          }
+          PlanarRect overlap_rect = RTUTIL.getOverlap(body_rect, obs_rect);
+          routing_obs_rect_list_map[layer_id].push_back(overlap_rect);
+          x_coord_list.push_back(overlap_rect.get_ll_x());
+          x_coord_list.push_back(overlap_rect.get_ur_x());
+          y_coord_list.push_back(overlap_rect.get_ll_y());
+          y_coord_list.push_back(overlap_rect.get_ur_y());
+        }
+      }
+      std::sort(x_coord_list.begin(), x_coord_list.end());
+      x_coord_list.erase(std::unique(x_coord_list.begin(), x_coord_list.end()), x_coord_list.end());
+      std::sort(y_coord_list.begin(), y_coord_list.end());
+      y_coord_list.erase(std::unique(y_coord_list.begin(), y_coord_list.end()), y_coord_list.end());
+      for (int32_t x_idx = 0; x_idx + 1 < static_cast<int32_t>(x_coord_list.size()); x_idx++) {
+        for (int32_t y_idx = 0; y_idx + 1 < static_cast<int32_t>(y_coord_list.size()); y_idx++) {
+          PlanarRect grid_rect(x_coord_list[x_idx], y_coord_list[y_idx], x_coord_list[x_idx + 1], y_coord_list[y_idx + 1]);
+          std::vector<int32_t> available_layer_id_list;
+          for (int32_t layer_id : active_routing_layer_id_list) {
+            bool is_blocked = false;
+            for (PlanarRect& obs_rect : routing_obs_rect_list_map[layer_id]) {
+              if (RTUTIL.isOpenOverlap(grid_rect, obs_rect)) {
+                is_blocked = true;
+                break;
+              }
+            }
+            if (!is_blocked) {
+              available_layer_id_list.push_back(layer_id);
+            }
+          }
+          if (available_layer_id_list.size() != 1) {
+            continue;
+          }
+          Obstacle obstacle;
+          obstacle.set_real_rect(grid_rect);
+          obstacle.set_layer_idx(available_layer_id_list.front());
+          routing_obstacle_list.push_back(std::move(obstacle));
+        }
+      }
     }
     // special net
     for (idb::IdbSpecialNet* idb_net : idb_special_net_list) {
@@ -939,51 +1019,25 @@ void RTInterface::wrapObstacleList()
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void RTInterface::wrapMacroRouteHaloList()
+void RTInterface::wrapMacroList()
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  std::vector<MacroRouteHalo>& macro_route_halo_list = RTDM.getDatabase().get_macro_route_halo_list();
+  std::vector<Macro>& macro_list = RTDM.getDatabase().get_macro_list();
   auto* idb_design = dmInst->get_idb_def_service()->get_design();
   std::vector<idb::IdbInstance*>& idb_instance_list = idb_design->get_instance_list()->get_instance_list();
-  std::vector<idb::IdbLayer*> idb_routing_layer_list = dmInst->get_idb_lef_service()->get_layout()->get_layers()->get_routing_layers();
 
-  size_t total_macro_route_halo_num = 0;
+  size_t total_macro_num = 0;
   for (idb::IdbInstance* idb_instance : idb_instance_list) {
-    if (idb_instance != nullptr && idb_instance->get_route_halo() != nullptr) {
-      total_macro_route_halo_num++;
+    if (idb_instance != nullptr && idb_instance->get_cell_master() != nullptr && idb_instance->get_cell_master()->is_block()) {
+      total_macro_num++;
     }
   }
-  macro_route_halo_list.reserve(total_macro_route_halo_num);
-
-  auto getLayerIdxList = [&](idb::IdbLayer* bottom_layer, idb::IdbLayer* top_layer) {
-    std::vector<int32_t> layer_idx_list;
-    if (bottom_layer == nullptr || top_layer == nullptr) {
-      return layer_idx_list;
-    }
-    bool in_range = false;
-    for (idb::IdbLayer* idb_layer : idb_routing_layer_list) {
-      if (idb_layer == bottom_layer || idb_layer->get_id() == bottom_layer->get_id()) {
-        in_range = true;
-      }
-      if (in_range) {
-        layer_idx_list.push_back(idb_layer->get_id());
-      }
-      if (idb_layer == top_layer || idb_layer->get_id() == top_layer->get_id()) {
-        break;
-      }
-    }
-    return layer_idx_list;
-  };
+  macro_list.reserve(total_macro_num);
 
   for (idb::IdbInstance* idb_instance : idb_instance_list) {
-    if (idb_instance == nullptr || idb_instance->get_route_halo() == nullptr) {
-      continue;
-    }
-    idb::IdbRouteHalo* idb_route_halo = idb_instance->get_route_halo();
-    std::vector<int32_t> layer_idx_list = getLayerIdxList(idb_route_halo->get_layer_bottom(), idb_route_halo->get_layer_top());
-    if (layer_idx_list.empty()) {
+    if (idb_instance == nullptr || idb_instance->get_cell_master() == nullptr || !idb_instance->get_cell_master()->is_block()) {
       continue;
     }
     idb_instance->set_bounding_box();
@@ -992,17 +1046,12 @@ void RTInterface::wrapMacroRouteHaloList()
       continue;
     }
 
-    int32_t route_distance = idb_route_halo->get_route_distance();
     PlanarRect body_rect(idb_bbox->get_low_x(), idb_bbox->get_low_y(), idb_bbox->get_high_x(), idb_bbox->get_high_y());
-    PlanarRect halo_rect(body_rect.get_ll_x() - route_distance, body_rect.get_ll_y() - route_distance, body_rect.get_ur_x() + route_distance,
-                         body_rect.get_ur_y() + route_distance);
 
-    MacroRouteHalo macro_route_halo;
-    macro_route_halo.set_inst_name(idb_instance->get_name());
-    macro_route_halo.set_body_rect(body_rect);
-    macro_route_halo.set_halo_rect(halo_rect);
-    macro_route_halo.set_layer_idx_list(layer_idx_list);
-    macro_route_halo_list.push_back(std::move(macro_route_halo));
+    Macro macro;
+    macro.set_inst_name(idb_instance->get_name());
+    macro.set_body_rect(body_rect);
+    macro_list.push_back(std::move(macro));
   }
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());

@@ -58,7 +58,6 @@ void SupplyAnalyzer::analyze()
   setSAComParam(sa_model);
   buildSupplySchedule(sa_model);
   analyzeSupply(sa_model);
-  applyMacroRouteHaloSupply(sa_model);
   buildIgnoreNet(sa_model);
   buildMacroPinEscapeIgnore(sa_model);
   analyzeDemandUnit(sa_model);
@@ -300,58 +299,6 @@ bool SupplyAnalyzer::isAccess(LayerRect& wire, std::vector<PlanarRect>& obs_rect
   return true;
 }
 
-void SupplyAnalyzer::applyMacroRouteHaloSupply(SAModel& sa_model)
-{
-  (void) sa_model;
-  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
-  std::vector<MacroRouteHalo>& macro_route_halo_list = RTDM.getDatabase().get_macro_route_halo_list();
-
-  auto validRect = [](PlanarRect& rect) { return rect.get_ll_x() < rect.get_ur_x() && rect.get_ll_y() < rect.get_ur_y(); };
-
-  auto updateSupply = [&](PlanarRect rect, std::vector<int32_t>& layer_idx_list, const std::set<Orientation>& zero_orient_set) {
-    if (!validRect(rect)) {
-      return;
-    }
-    PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(rect, gcell_axis);
-    for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
-      for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
-        if (!RTUTIL.isOpenOverlap(gcell_map[x][y], rect)) {
-          continue;
-        }
-        for (int32_t layer_idx : layer_idx_list) {
-          std::map<Orientation, int32_t>& orient_supply_map = gcell_map[x][y].get_routing_orient_supply_map()[layer_idx];
-          for (Orientation orient : zero_orient_set) {
-            orient_supply_map[orient] = 0;
-          }
-        }
-      }
-    }
-  };
-
-  const std::set<Orientation> all_orient_set = {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth};
-  const std::set<Orientation> horizontal_block_orient_set = {Orientation::kEast, Orientation::kWest};
-  const std::set<Orientation> vertical_block_orient_set = {Orientation::kSouth, Orientation::kNorth};
-
-  for (MacroRouteHalo& macro_route_halo : macro_route_halo_list) {
-    PlanarRect& body_rect = macro_route_halo.get_body_rect();
-    PlanarRect& halo_rect = macro_route_halo.get_halo_rect();
-    std::vector<int32_t>& layer_idx_list = macro_route_halo.get_layer_idx_list();
-
-    updateSupply(body_rect, layer_idx_list, all_orient_set);
-
-    PlanarRect left_strip(halo_rect.get_ll_x(), halo_rect.get_ll_y(), body_rect.get_ll_x(), halo_rect.get_ur_y());
-    PlanarRect right_strip(body_rect.get_ur_x(), halo_rect.get_ll_y(), halo_rect.get_ur_x(), halo_rect.get_ur_y());
-    PlanarRect bottom_strip(body_rect.get_ll_x(), halo_rect.get_ll_y(), body_rect.get_ur_x(), body_rect.get_ll_y());
-    PlanarRect top_strip(body_rect.get_ll_x(), body_rect.get_ur_y(), body_rect.get_ur_x(), halo_rect.get_ur_y());
-
-    updateSupply(left_strip, layer_idx_list, vertical_block_orient_set);
-    updateSupply(right_strip, layer_idx_list, vertical_block_orient_set);
-    updateSupply(bottom_strip, layer_idx_list, horizontal_block_orient_set);
-    updateSupply(top_strip, layer_idx_list, horizontal_block_orient_set);
-  }
-}
-
 void SupplyAnalyzer::buildIgnoreNet(SAModel& sa_model)
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
@@ -448,6 +395,9 @@ void SupplyAnalyzer::buildMacroPinEscapeIgnore(SAModel& sa_model)
     for (int32_t layer_idx : layer_idx_list) {
       std::set<Orientation>& gcell_orient_set = gcell_map[x][y].get_routing_ignore_net_orient_map()[layer_idx][net_idx];
       gcell_orient_set.insert(orient_set.begin(), orient_set.end());
+      for (auto& [orient, supply] : gcell_map[x][y].get_routing_orient_supply_map()[layer_idx]) {
+        supply = 0;
+      }
     }
   };
 

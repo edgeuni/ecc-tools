@@ -28,7 +28,6 @@ struct PRMacroRegion
 {
   std::string inst_name;
   PlanarRect body_grid_rect;
-  PlanarRect halo_grid_rect;
 };
 
 struct PRMacroRepairStat

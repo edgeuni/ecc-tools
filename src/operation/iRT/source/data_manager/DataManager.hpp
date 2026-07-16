@@ -107,10 +107,9 @@ class DataManager
   void buildDie();
   void makeDie();
   void checkDie();
-  void buildMacroRouteHaloList();
-  void transMacroRouteHaloList();
-  void makeMacroRouteHaloList();
-  void checkMacroRouteHaloList();
+  void buildMacroList();
+  void makeMacroList();
+  void checkMacroList();
   void buildLayerViaMasterList();
   void transLayerViaMasterList();
   void makeLayerViaMasterList();
