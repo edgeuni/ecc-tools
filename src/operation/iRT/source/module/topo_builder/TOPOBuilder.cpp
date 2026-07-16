@@ -58,20 +58,17 @@ void TOPOBuilder::init()
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-TBResult TOPOBuilder::buildPlanarTopo(const TBTask& tb_task)
-{
-  TBResult tb_result;
-  TBSteinerRepairStat steiner_repair_stat;
-  std::vector<Segment<PlanarCoord>> raw_topo_list = getFlutePlanarTopoList(tb_task.get_planar_coord_list());
-  tb_result.set_planar_topo_list(legalizePlanarTopo(tb_task, std::move(raw_topo_list), steiner_repair_stat));
-  tb_result.set_steiner_repair_stat(steiner_repair_stat);
-  return tb_result;
-}
-
 std::vector<Segment<PlanarCoord>> TOPOBuilder::getPlanarTopoList(const TBTask& tb_task)
 {
-  TBResult tb_result = buildPlanarTopo(tb_task);
-  return std::move(tb_result.get_planar_topo_list());
+  TBSteinerRepairStat steiner_repair_stat;
+  return getPlanarTopoList(tb_task, steiner_repair_stat);
+}
+
+std::vector<Segment<PlanarCoord>> TOPOBuilder::getPlanarTopoList(const TBTask& tb_task, TBSteinerRepairStat& steiner_repair_stat)
+{
+  steiner_repair_stat = {};
+  std::vector<Segment<PlanarCoord>> raw_topo_list = getFlutePlanarTopoList(tb_task.get_planar_coord_list());
+  return legalizePlanarTopo(tb_task, std::move(raw_topo_list), steiner_repair_stat);
 }
 
 void TOPOBuilder::destroy()

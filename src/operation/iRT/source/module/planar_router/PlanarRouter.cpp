@@ -583,13 +583,13 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_mo
         PlanarRect(0, 0, macro_body_forbidden_map.get_x_size() - 1, macro_body_forbidden_map.get_y_size() - 1));
   }
 
-  TBResult tb_result = RTTB.buildPlanarTopo(tb_task);
-  const TBSteinerRepairStat& tb_stat = tb_result.get_steiner_repair_stat();
+  TBSteinerRepairStat tb_stat;
+  std::vector<Segment<PlanarCoord>> planar_topo_list = RTTB.getPlanarTopoList(tb_task, tb_stat);
   PRMacroRepairStat& pr_stat = pr_model.get_pr_macro_repair_stat();
   pr_stat.raw_steiner_in_macro += tb_stat.raw_steiner_in_macro;
   pr_stat.fixed_steiner_in_macro += tb_stat.fixed_steiner_in_macro;
   pr_stat.failed_steiner_legalize_num += tb_stat.failed_steiner_legalize_num;
-  return std::move(tb_result.get_planar_topo_list());
+  return planar_topo_list;
 }
 
 std::set<PlanarCoord, CmpPlanarCoordByXASC> PlanarRouter::getCurrTerminalCoordSet(PRModel& pr_model)

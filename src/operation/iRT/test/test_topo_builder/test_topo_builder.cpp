@@ -68,14 +68,14 @@ bool checkSteinerLegalization()
   std::vector<PlanarCoord> terminal_list = {PlanarCoord(0, 0), PlanarCoord(10, 30), PlanarCoord(30, 10), PlanarCoord(40, 40)};
   std::vector<irt::PlanarRect> planar_obs_list = {irt::PlanarRect(30, 30, 31, 31), irt::PlanarRect(30, 10, 30, 10)};
 
-  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, planar_obs_list));
+  irt::TBSteinerRepairStat stat = {1, 1, 1};
+  std::vector<Segment<PlanarCoord>> actual = RTTB.getPlanarTopoList(makeTask(terminal_list, planar_obs_list), stat);
   std::vector<Segment<PlanarCoord>> expected = {{PlanarCoord(0, 0), PlanarCoord(30, 10)},
                                                {PlanarCoord(10, 30), PlanarCoord(29, 30)},
                                                {PlanarCoord(40, 40), PlanarCoord(29, 30)},
                                                {PlanarCoord(30, 10), PlanarCoord(29, 30)}};
-  const irt::TBSteinerRepairStat& stat = tb_result.get_steiner_repair_stat();
   bool passed = true;
-  passed = check(isSameTopo(expected, tb_result.get_planar_topo_list()), "move Steiner point and keep forbidden terminal") && passed;
+  passed = check(isSameTopo(expected, actual), "move Steiner point and keep forbidden terminal") && passed;
   passed = check(stat.raw_steiner_in_macro == 1, "count raw forbidden Steiner point") && passed;
   passed = check(stat.fixed_steiner_in_macro == 1, "count fixed Steiner point") && passed;
   passed = check(stat.failed_steiner_legalize_num == 0, "no failed Steiner legalization") && passed;
@@ -87,14 +87,14 @@ bool checkFailedSteinerLegalization()
   std::vector<PlanarCoord> terminal_list = {PlanarCoord(0, 0), PlanarCoord(10, 30), PlanarCoord(30, 10), PlanarCoord(40, 40)};
   std::vector<irt::PlanarRect> planar_obs_list = {irt::PlanarRect(0, 0, 49, 49)};
 
-  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, planar_obs_list));
+  irt::TBSteinerRepairStat stat = {1, 1, 1};
+  std::vector<Segment<PlanarCoord>> actual = RTTB.getPlanarTopoList(makeTask(terminal_list, planar_obs_list), stat);
   std::vector<Segment<PlanarCoord>> expected = {{PlanarCoord(0, 0), PlanarCoord(30, 10)},
                                                {PlanarCoord(10, 30), PlanarCoord(30, 30)},
                                                {PlanarCoord(40, 40), PlanarCoord(30, 30)},
                                                {PlanarCoord(30, 10), PlanarCoord(30, 30)}};
-  const irt::TBSteinerRepairStat& stat = tb_result.get_steiner_repair_stat();
   bool passed = true;
-  passed = check(isSameTopo(expected, tb_result.get_planar_topo_list()), "keep topology when Steiner legalization fails") && passed;
+  passed = check(isSameTopo(expected, actual), "keep topology when Steiner legalization fails") && passed;
   passed = check(stat.raw_steiner_in_macro == 1, "count unrepairable Steiner point") && passed;
   passed = check(stat.fixed_steiner_in_macro == 0, "do not count failed Steiner point as fixed") && passed;
   passed = check(stat.failed_steiner_legalize_num == 1, "count failed Steiner legalization") && passed;
@@ -107,11 +107,11 @@ bool checkCollapsedSteinerEdgeRemoval()
   std::vector<irt::PlanarRect> planar_obs_list = {irt::PlanarRect(0, 0, 29, 49), irt::PlanarRect(31, 0, 49, 49),
                                                    irt::PlanarRect(30, 0, 30, 9), irt::PlanarRect(30, 11, 30, 49)};
 
-  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, planar_obs_list));
   std::vector<Segment<PlanarCoord>> expected = {{PlanarCoord(0, 0), PlanarCoord(30, 10)},
                                                {PlanarCoord(10, 30), PlanarCoord(30, 10)},
                                                {PlanarCoord(40, 40), PlanarCoord(30, 10)}};
-  return check(isSameTopo(expected, tb_result.get_planar_topo_list()), "remove edge collapsed by Steiner movement");
+  return check(isSameTopo(expected, RTTB.getPlanarTopoList(makeTask(terminal_list, planar_obs_list))),
+               "remove edge collapsed by Steiner movement");
 }
 
 }  // namespace

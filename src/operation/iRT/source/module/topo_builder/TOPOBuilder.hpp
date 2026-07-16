@@ -20,12 +20,18 @@
 #include "Monitor.hpp"
 #include "PlanarCoord.hpp"
 #include "Segment.hpp"
-#include "TBResult.hpp"
 #include "TBTask.hpp"
 
 namespace irt {
 
 #define RTTB (irt::TOPOBuilder::getInst())
+
+struct TBSteinerRepairStat
+{
+  int32_t raw_steiner_in_macro = 0;
+  int32_t fixed_steiner_in_macro = 0;
+  int32_t failed_steiner_legalize_num = 0;
+};
 
 class TOPOBuilder
 {
@@ -35,8 +41,8 @@ class TOPOBuilder
   static void destroyInst();
   // function
   void init();
-  TBResult buildPlanarTopo(const TBTask& tb_task);
   std::vector<Segment<PlanarCoord>> getPlanarTopoList(const TBTask& tb_task);
+  std::vector<Segment<PlanarCoord>> getPlanarTopoList(const TBTask& tb_task, TBSteinerRepairStat& steiner_repair_stat);
   void destroy();
 
  private:
