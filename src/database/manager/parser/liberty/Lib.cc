@@ -169,9 +169,10 @@ LibTable& LibTable::operator=(LibTable&& rhs) noexcept
 Vector<std::unique_ptr<LibAxis>>& LibTable::get_axes()
 {
   if (_axes.empty()) {
-    auto* table_template = get_table_template();
-    auto& template_table_axes = table_template->get_axes();
-    return template_table_axes;
+    LibLutTableTemplate* table_template = get_table_template();
+    if (table_template != nullptr) {
+      return table_template->get_axes();
+    }
   }
   return _axes;
 }
