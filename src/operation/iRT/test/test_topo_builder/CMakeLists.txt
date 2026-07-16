@@ -1,4 +1,5 @@
 add_executable(test_topo_builder
+    TopoSvgPlotter.cpp
     test_topo_builder.cpp
 )
 

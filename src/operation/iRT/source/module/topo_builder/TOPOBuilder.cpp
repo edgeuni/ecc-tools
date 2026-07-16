@@ -133,6 +133,11 @@ std::vector<Segment<PlanarCoord>> TOPOBuilder::legalizePlanarTopo(const TBTask& 
 
   std::set<PlanarCoord, CmpPlanarCoordByXASC> terminal_coord_set(tb_task.get_planar_coord_list().begin(),
                                                                 tb_task.get_planar_coord_list().end());
+  auto isInsideSearchRegion = [&](const PlanarCoord& coord) {
+    const PlanarRect& planar_search_region = tb_task.get_planar_search_region();
+    return planar_search_region.get_ll_x() <= coord.get_x() && coord.get_x() <= planar_search_region.get_ur_x()
+           && planar_search_region.get_ll_y() <= coord.get_y() && coord.get_y() <= planar_search_region.get_ur_y();
+  };
   std::map<PlanarCoord, PlanarCoord, CmpPlanarCoordByXASC> steiner_legal_coord_map;
   auto legalizeSteinerCoord = [&](const PlanarCoord& coord) {
     if (terminal_coord_set.find(coord) != terminal_coord_set.end() || !isSteinerForbiddenCoord(planar_obs_list, coord)) {
@@ -148,6 +153,12 @@ std::vector<Segment<PlanarCoord>> TOPOBuilder::legalizePlanarTopo(const TBTask& 
     steiner_legal_coord_map[coord] = legal_coord;
     if (isSteinerForbiddenCoord(planar_obs_list, legal_coord)) {
       steiner_repair_stat.failed_steiner_legalize_num++;
+      const PlanarRect& planar_search_region = tb_task.get_planar_search_region();
+      RTLOG.warn(Loc::current(), "steiner_legalize_failed, coord: (", coord.get_x(), ",", coord.get_y(), "), reason: ",
+                 isInsideSearchRegion(coord) ? "no_legal_coordinate_in_search_region" : "raw_steiner_outside_search_region",
+                 ", search_region: (", planar_search_region.get_ll_x(), ",", planar_search_region.get_ll_y(), ")-(",
+                 planar_search_region.get_ur_x(), ",", planar_search_region.get_ur_y(), "), obstacle_num: ", planar_obs_list.size(),
+                 ", terminal_num: ", terminal_coord_set.size());
     } else {
       steiner_repair_stat.fixed_steiner_in_macro++;
     }
