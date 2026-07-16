@@ -159,7 +159,7 @@ void DelayCalculator::initializeTransArcTiming(Arc& arc, AnalysisType analysis_t
   }
 
   for (TransType output_trans_type : getOutputTransTypeList(*timing_cell_arc, input_trans_type)) {
-    double delay = calcTimingCellArcDelay(arc, *timing_cell_arc, analysis_type, input_trans_type, output_trans_type, 0.0);
+    double delay = calcTimingCellArcDelay(arc, *timing_cell_arc, analysis_type, input_trans_type, output_trans_type, 0.0, true);
     arc.get_input_output_delay_map()[analysis_type][input_trans_type][output_trans_type] = delay;
     if (arc.get_trans_delay_map()[analysis_type].count(input_trans_type) == 0
         || (analysis_type == AnalysisType::kMin && delay < arc.get_trans_delay_map()[analysis_type][input_trans_type])
@@ -339,7 +339,7 @@ double DelayCalculator::calcTimingCellArcDelay(Arc& arc, TimingCellArc& timing_c
       continue;
     }
     double delay = calcTimingArcDelay(arc.get_sink_pin(), *timing_arc, analysis_type, output_trans_type, input_slew, raw_output_load);
-    updateTimingArcDelay(arc, *timing_arc, analysis_type, input_trans_type, output_trans_type, delay);
+    updateTimingArcDelay(arc, *timing_arc, analysis_type, input_trans_type, output_trans_type, delay, false);
     delay_list.push_back(delay);
   }
   if (delay_list.empty()) {
@@ -359,7 +359,8 @@ double DelayCalculator::calcTimingCellArcDelay(Arc& arc, TimingCellArc& timing_c
 }
 
 double DelayCalculator::calcTimingCellArcDelay(Arc& arc, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,
-                                                TransType input_trans_type, TransType output_trans_type, double input_slew)
+                                                TransType input_trans_type, TransType output_trans_type, double input_slew,
+                                                bool is_initialization)
 {
   if (timing_cell_arc.get_timing_arc_list().empty()) {
     if (analysis_type == AnalysisType::kMin) {
@@ -377,7 +378,7 @@ double DelayCalculator::calcTimingCellArcDelay(Arc& arc, TimingCellArc& timing_c
       continue;
     }
     double delay = calcTimingArcDelay(arc.get_sink_pin(), *timing_arc, analysis_type, output_trans_type, input_slew, raw_output_load);
-    updateTimingArcDelay(arc, *timing_arc, analysis_type, input_trans_type, output_trans_type, delay);
+    updateTimingArcDelay(arc, *timing_arc, analysis_type, input_trans_type, output_trans_type, delay, is_initialization);
     delay_list.push_back(delay);
   }
   if (delay_list.empty()) {
@@ -391,16 +392,9 @@ double DelayCalculator::calcTimingCellArcDelay(Arc& arc, TimingCellArc& timing_c
 }
 
 void DelayCalculator::updateTimingArcDelay(Arc& arc, TimingArc& timing_arc, AnalysisType analysis_type, TransType input_trans_type,
-                                            TransType output_trans_type, double delay)
+                                            TransType output_trans_type, double delay, bool is_initialization)
 {
-  std::map<AnalysisType, std::map<TransType, std::map<TransType, double>>>& analysis_delay_map
-      = arc.get_timing_arc_delay_map()[timing_arc.get_arc_idx()];
-  if (analysis_delay_map.count(analysis_type) == 0 || analysis_delay_map[analysis_type].count(input_trans_type) == 0
-      || analysis_delay_map[analysis_type][input_trans_type].count(output_trans_type) == 0
-      || (analysis_type == AnalysisType::kMin && delay < analysis_delay_map[analysis_type][input_trans_type][output_trans_type])
-      || (analysis_type == AnalysisType::kMax && delay > analysis_delay_map[analysis_type][input_trans_type][output_trans_type])) {
-    analysis_delay_map[analysis_type][input_trans_type][output_trans_type] = delay;
-  }
+  arc.update_timing_arc_delay(timing_arc.get_arc_idx(), analysis_type, input_trans_type, output_trans_type, delay, is_initialization);
 }
 
 double DelayCalculator::calcTimingCellArcSlew(Arc& arc, TimingCellArc& timing_cell_arc, AnalysisType analysis_type,

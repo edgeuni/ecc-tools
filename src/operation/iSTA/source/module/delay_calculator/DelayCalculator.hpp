@@ -127,9 +127,9 @@ class DelayCalculator
   double calcTimingCellArcDelay(Arc& arc, TimingCellArc& timing_cell_arc, AnalysisType analysis_type, TransType input_trans_type,
                                 TransType output_trans_type);
   double calcTimingCellArcDelay(Arc& arc, TimingCellArc& timing_cell_arc, AnalysisType analysis_type, TransType input_trans_type,
-                                TransType output_trans_type, double input_slew);
+                                TransType output_trans_type, double input_slew, bool is_initialization = false);
   void updateTimingArcDelay(Arc& arc, TimingArc& timing_arc, AnalysisType analysis_type, TransType input_trans_type,
-                            TransType output_trans_type, double delay);
+                            TransType output_trans_type, double delay, bool is_initialization);
   double calcTimingCellArcSlew(Arc& arc, TimingCellArc& timing_cell_arc, AnalysisType analysis_type, TransType input_trans_type,
                                TransType output_trans_type, double input_slew);
   double calcTimingCellArcDelay(TimingCellArc& timing_cell_arc, AnalysisType analysis_type, TransType input_trans_type,
