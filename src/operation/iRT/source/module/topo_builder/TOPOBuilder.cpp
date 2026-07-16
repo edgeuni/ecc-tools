@@ -119,16 +119,26 @@ std::vector<Segment<PlanarCoord>> TOPOBuilder::legalizePlanarTopo(const TBTask& 
                                                                  std::vector<Segment<PlanarCoord>> raw_topo_list,
                                                                  TBSteinerRepairStat& steiner_repair_stat)
 {
-  const GridMap<bool>* steiner_forbidden_map = tb_task.get_steiner_forbidden_map();
-  if (steiner_forbidden_map == nullptr || steiner_forbidden_map->empty()) {
+  const std::vector<PlanarRect>& planar_obs_list = tb_task.get_planar_obs_list();
+  if (planar_obs_list.empty()) {
     return raw_topo_list;
+  }
+  if (!tb_task.has_planar_search_region() || tb_task.get_planar_search_region().isIncorrect()) {
+    RTLOG.error(Loc::current(), "The planar search region is invalid!");
+    return raw_topo_list;
+  }
+  for (const PlanarRect& planar_obs : planar_obs_list) {
+    if (planar_obs.isIncorrect()) {
+      RTLOG.error(Loc::current(), "The planar obstacle is invalid!");
+      return raw_topo_list;
+    }
   }
 
   std::set<PlanarCoord, CmpPlanarCoordByXASC> terminal_coord_set(tb_task.get_planar_coord_list().begin(),
                                                                 tb_task.get_planar_coord_list().end());
   std::map<PlanarCoord, PlanarCoord, CmpPlanarCoordByXASC> steiner_legal_coord_map;
   auto legalizeSteinerCoord = [&](const PlanarCoord& coord) {
-    if (terminal_coord_set.find(coord) != terminal_coord_set.end() || !isSteinerForbiddenCoord(steiner_forbidden_map, coord)) {
+    if (terminal_coord_set.find(coord) != terminal_coord_set.end() || !isSteinerForbiddenCoord(planar_obs_list, coord)) {
       return coord;
     }
     auto legal_iter = steiner_legal_coord_map.find(coord);
@@ -137,9 +147,9 @@ std::vector<Segment<PlanarCoord>> TOPOBuilder::legalizePlanarTopo(const TBTask& 
     }
 
     steiner_repair_stat.raw_steiner_in_macro++;
-    PlanarCoord legal_coord = getNearestLegalCoord(*steiner_forbidden_map, coord);
+    PlanarCoord legal_coord = getNearestLegalCoord(planar_obs_list, tb_task.get_planar_search_region(), coord);
     steiner_legal_coord_map[coord] = legal_coord;
-    if (isSteinerForbiddenCoord(steiner_forbidden_map, legal_coord)) {
+    if (isSteinerForbiddenCoord(planar_obs_list, legal_coord)) {
       steiner_repair_stat.failed_steiner_legalize_num++;
     } else {
       steiner_repair_stat.fixed_steiner_in_macro++;
@@ -159,51 +169,63 @@ std::vector<Segment<PlanarCoord>> TOPOBuilder::legalizePlanarTopo(const TBTask& 
   return legal_topo_list;
 }
 
-PlanarCoord TOPOBuilder::getNearestLegalCoord(const GridMap<bool>& steiner_forbidden_map, const PlanarCoord& coord)
+PlanarCoord TOPOBuilder::getNearestLegalCoord(const std::vector<PlanarRect>& planar_obs_list, const PlanarRect& planar_search_region,
+                                              const PlanarCoord& coord)
 {
-  if (steiner_forbidden_map.empty() || !steiner_forbidden_map.isInside(coord.get_x(), coord.get_y())
-      || !isSteinerForbiddenCoord(&steiner_forbidden_map, coord)) {
+  auto isInsideSearchRegion = [&](const PlanarCoord& candidate_coord) {
+    return planar_search_region.get_ll_x() <= candidate_coord.get_x() && candidate_coord.get_x() <= planar_search_region.get_ur_x()
+           && planar_search_region.get_ll_y() <= candidate_coord.get_y() && candidate_coord.get_y() <= planar_search_region.get_ur_y();
+  };
+  if (!isInsideSearchRegion(coord) || !isSteinerForbiddenCoord(planar_obs_list, coord)) {
     return coord;
   }
 
-  PlanarCoord best_coord = coord;
-  int32_t best_distance = INT_MAX;
-  auto updateBestCoord = [&](int32_t x, int32_t y) {
-    if (!steiner_forbidden_map.isInside(x, y) || steiner_forbidden_map[x][y]) {
-      return;
-    }
-    PlanarCoord candidate_coord(x, y);
-    int32_t distance = RTUTIL.getManhattanDistance(coord, candidate_coord);
-    if (distance < best_distance || (distance == best_distance && CmpPlanarCoordByXASC()(candidate_coord, best_coord))) {
-      best_distance = distance;
-      best_coord = candidate_coord;
-    }
-  };
-
-  int32_t max_radius = steiner_forbidden_map.get_x_size() + steiner_forbidden_map.get_y_size();
+  int32_t max_radius = 0;
+  for (const PlanarCoord& corner : {planar_search_region.get_ll(), PlanarCoord(planar_search_region.get_ll_x(), planar_search_region.get_ur_y()),
+                                    PlanarCoord(planar_search_region.get_ur_x(), planar_search_region.get_ll_y()), planar_search_region.get_ur()}) {
+    max_radius = std::max(max_radius, RTUTIL.getManhattanDistance(coord, corner));
+  }
   for (int32_t radius = 1; radius <= max_radius; radius++) {
+    bool found_legal_coord = false;
+    bool best_is_axis_aligned = false;
+    PlanarCoord best_coord;
+    auto updateBest = [&](int32_t x, int32_t y) {
+      PlanarCoord candidate_coord(x, y);
+      if (!isInsideSearchRegion(candidate_coord) || isSteinerForbiddenCoord(planar_obs_list, candidate_coord)) {
+        return;
+      }
+      bool candidate_is_axis_aligned = candidate_coord.get_x() == coord.get_x() || candidate_coord.get_y() == coord.get_y();
+      if (!found_legal_coord || (candidate_is_axis_aligned && !best_is_axis_aligned)
+          || (candidate_is_axis_aligned == best_is_axis_aligned && CmpPlanarCoordByXASC()(candidate_coord, best_coord))) {
+        best_coord = candidate_coord;
+        best_is_axis_aligned = candidate_is_axis_aligned;
+        found_legal_coord = true;
+      }
+    };
     for (int32_t dx = -radius; dx <= radius; dx++) {
-      updateBestCoord(coord.get_x() + dx, coord.get_y() - radius);
-      updateBestCoord(coord.get_x() + dx, coord.get_y() + radius);
+      updateBest(coord.get_x() + dx, coord.get_y() - radius);
+      updateBest(coord.get_x() + dx, coord.get_y() + radius);
     }
     for (int32_t dy = -radius + 1; dy <= radius - 1; dy++) {
-      updateBestCoord(coord.get_x() - radius, coord.get_y() + dy);
-      updateBestCoord(coord.get_x() + radius, coord.get_y() + dy);
+      updateBest(coord.get_x() - radius, coord.get_y() + dy);
+      updateBest(coord.get_x() + radius, coord.get_y() + dy);
     }
-    if (best_distance != INT_MAX) {
+    if (found_legal_coord) {
       return best_coord;
     }
   }
   return coord;
 }
 
-bool TOPOBuilder::isSteinerForbiddenCoord(const GridMap<bool>* steiner_forbidden_map, const PlanarCoord& coord)
+bool TOPOBuilder::isSteinerForbiddenCoord(const std::vector<PlanarRect>& planar_obs_list, const PlanarCoord& coord)
 {
-  if (steiner_forbidden_map == nullptr || steiner_forbidden_map->empty()
-      || !steiner_forbidden_map->isInside(coord.get_x(), coord.get_y())) {
-    return false;
+  for (const PlanarRect& planar_obs : planar_obs_list) {
+    if (planar_obs.get_ll_x() <= coord.get_x() && coord.get_x() <= planar_obs.get_ur_x()
+        && planar_obs.get_ll_y() <= coord.get_y() && coord.get_y() <= planar_obs.get_ur_y()) {
+      return true;
+    }
   }
-  return (*steiner_forbidden_map)[coord.get_x()][coord.get_y()];
+  return false;
 }
 
 }  // namespace irt

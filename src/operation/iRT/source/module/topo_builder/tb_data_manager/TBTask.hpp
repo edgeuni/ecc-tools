@@ -16,8 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include "GridMap.hpp"
 #include "PlanarCoord.hpp"
+#include "PlanarRect.hpp"
 #include "RTHeader.hpp"
 
 namespace irt {
@@ -29,17 +29,26 @@ class TBTask
   ~TBTask() = default;
   // getter
   std::vector<PlanarCoord>& get_planar_coord_list() { return _planar_coord_list; }
-  const GridMap<bool>* get_steiner_forbidden_map() const { return _steiner_forbidden_map; }
+  const std::vector<PlanarRect>& get_planar_obs_list() const { return _planar_obs_list; }
+  const PlanarRect& get_planar_search_region() const { return _planar_search_region; }
+  bool has_planar_search_region() const { return _has_planar_search_region; }
   // const getter
   const std::vector<PlanarCoord>& get_planar_coord_list() const { return _planar_coord_list; }
   // setter
   void set_planar_coord_list(std::vector<PlanarCoord> planar_coord_list) { _planar_coord_list = std::move(planar_coord_list); }
-  void set_steiner_forbidden_map(const GridMap<bool>* steiner_forbidden_map) { _steiner_forbidden_map = steiner_forbidden_map; }
+  void set_planar_obs_list(std::vector<PlanarRect> planar_obs_list) { _planar_obs_list = std::move(planar_obs_list); }
+  void set_planar_search_region(const PlanarRect& planar_search_region)
+  {
+    _planar_search_region = planar_search_region;
+    _has_planar_search_region = true;
+  }
   // function
  private:
   std::vector<PlanarCoord> _planar_coord_list;
-  // The caller owns this map and must keep it alive for the synchronous build call.
-  const GridMap<bool>* _steiner_forbidden_map = nullptr;
+  // GCell-coordinate obstacles with inclusive lower and upper bounds.
+  std::vector<PlanarRect> _planar_obs_list;
+  PlanarRect _planar_search_region;
+  bool _has_planar_search_region = false;
 };
 
 }  // namespace irt

@@ -28,6 +28,43 @@
 
 namespace irt {
 
+namespace {
+
+std::vector<PlanarRect> getPlanarObsList(const GridMap<bool>& forbidden_map)
+{
+  std::vector<PlanarRect> planar_obs_list;
+  std::map<std::pair<int32_t, int32_t>, int32_t> active_interval_rect_idx_map;
+
+  for (int32_t y = 0; y < forbidden_map.get_y_size(); y++) {
+    std::map<std::pair<int32_t, int32_t>, int32_t> curr_interval_rect_idx_map;
+    for (int32_t x = 0; x < forbidden_map.get_x_size();) {
+      if (!forbidden_map[x][y]) {
+        x++;
+        continue;
+      }
+      int32_t ll_x = x;
+      while (x + 1 < forbidden_map.get_x_size() && forbidden_map[x + 1][y]) {
+        x++;
+      }
+      int32_t ur_x = x;
+      std::pair<int32_t, int32_t> interval(ll_x, ur_x);
+      auto active_iter = active_interval_rect_idx_map.find(interval);
+      if (active_iter != active_interval_rect_idx_map.end()) {
+        planar_obs_list[active_iter->second].set_ur_y(y);
+        curr_interval_rect_idx_map[interval] = active_iter->second;
+      } else {
+        planar_obs_list.emplace_back(ll_x, y, ur_x, y);
+        curr_interval_rect_idx_map[interval] = static_cast<int32_t>(planar_obs_list.size()) - 1;
+      }
+      x++;
+    }
+    active_interval_rect_idx_map = std::move(curr_interval_rect_idx_map);
+  }
+  return planar_obs_list;
+}
+
+}  // namespace
+
 // public
 
 void PlanarRouter::initInst()
@@ -301,6 +338,7 @@ void PlanarRouter::buildPRMacroRegion(PRModel& pr_model)
       }
     }
   }
+  pr_model.set_macro_body_obs_list(getPlanarObsList(macro_body_forbidden_map));
 
   RTLOG.info(Loc::current(), "macro_region_num: ", pr_macro_region_list.size(), ", macro_body_forbidden_gcell_num: ", forbidden_gcell_num);
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -538,8 +576,11 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_mo
   TBTask tb_task;
   tb_task.set_planar_coord_list(planar_coord_list);
   GridMap<bool>& macro_body_forbidden_map = pr_model.get_macro_body_forbidden_map();
-  if (!macro_body_forbidden_map.empty()) {
-    tb_task.set_steiner_forbidden_map(&macro_body_forbidden_map);
+  const std::vector<PlanarRect>& macro_body_obs_list = pr_model.get_macro_body_obs_list();
+  if (!macro_body_obs_list.empty()) {
+    tb_task.set_planar_obs_list(macro_body_obs_list);
+    tb_task.set_planar_search_region(
+        PlanarRect(0, 0, macro_body_forbidden_map.get_x_size() - 1, macro_body_forbidden_map.get_y_size() - 1));
   }
 
   TBResult tb_result = RTTB.buildPlanarTopo(tb_task);

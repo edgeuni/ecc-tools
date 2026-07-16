@@ -1,9 +1,10 @@
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "GridMap.hpp"
 #include "Logger.hpp"
+#include "PlanarRect.hpp"
 #include "TOPOBuilder.hpp"
 
 namespace {
@@ -32,11 +33,13 @@ bool check(bool condition, const std::string& case_name)
   return condition;
 }
 
-irt::TBTask makeTask(const std::vector<PlanarCoord>& planar_coord_list, const irt::GridMap<bool>* steiner_forbidden_map = nullptr)
+irt::TBTask makeTask(const std::vector<PlanarCoord>& planar_coord_list, std::vector<irt::PlanarRect> planar_obs_list = {},
+                     irt::PlanarRect planar_search_region = irt::PlanarRect(0, 0, 49, 49))
 {
   irt::TBTask tb_task;
   tb_task.set_planar_coord_list(planar_coord_list);
-  tb_task.set_steiner_forbidden_map(steiner_forbidden_map);
+  tb_task.set_planar_obs_list(std::move(planar_obs_list));
+  tb_task.set_planar_search_region(planar_search_region);
   return tb_task;
 }
 
@@ -63,11 +66,9 @@ bool checkFluteGolden()
 bool checkSteinerLegalization()
 {
   std::vector<PlanarCoord> terminal_list = {PlanarCoord(0, 0), PlanarCoord(10, 30), PlanarCoord(30, 10), PlanarCoord(40, 40)};
-  irt::GridMap<bool> forbidden_map(50, 50, false);
-  forbidden_map[30][30] = true;
-  forbidden_map[30][10] = true;
+  std::vector<irt::PlanarRect> planar_obs_list = {irt::PlanarRect(30, 30, 31, 31), irt::PlanarRect(30, 10, 30, 10)};
 
-  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, &forbidden_map));
+  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, planar_obs_list));
   std::vector<Segment<PlanarCoord>> expected = {{PlanarCoord(0, 0), PlanarCoord(30, 10)},
                                                {PlanarCoord(10, 30), PlanarCoord(29, 30)},
                                                {PlanarCoord(40, 40), PlanarCoord(29, 30)},
@@ -84,9 +85,9 @@ bool checkSteinerLegalization()
 bool checkFailedSteinerLegalization()
 {
   std::vector<PlanarCoord> terminal_list = {PlanarCoord(0, 0), PlanarCoord(10, 30), PlanarCoord(30, 10), PlanarCoord(40, 40)};
-  irt::GridMap<bool> forbidden_map(50, 50, true);
+  std::vector<irt::PlanarRect> planar_obs_list = {irt::PlanarRect(0, 0, 49, 49)};
 
-  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, &forbidden_map));
+  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, planar_obs_list));
   std::vector<Segment<PlanarCoord>> expected = {{PlanarCoord(0, 0), PlanarCoord(30, 10)},
                                                {PlanarCoord(10, 30), PlanarCoord(30, 30)},
                                                {PlanarCoord(40, 40), PlanarCoord(30, 30)},
@@ -103,10 +104,10 @@ bool checkFailedSteinerLegalization()
 bool checkCollapsedSteinerEdgeRemoval()
 {
   std::vector<PlanarCoord> terminal_list = {PlanarCoord(0, 0), PlanarCoord(10, 30), PlanarCoord(30, 10), PlanarCoord(40, 40)};
-  irt::GridMap<bool> forbidden_map(50, 50, true);
-  forbidden_map[30][10] = false;
+  std::vector<irt::PlanarRect> planar_obs_list = {irt::PlanarRect(0, 0, 29, 49), irt::PlanarRect(31, 0, 49, 49),
+                                                   irt::PlanarRect(30, 0, 30, 9), irt::PlanarRect(30, 11, 30, 49)};
 
-  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, &forbidden_map));
+  irt::TBResult tb_result = RTTB.buildPlanarTopo(makeTask(terminal_list, planar_obs_list));
   std::vector<Segment<PlanarCoord>> expected = {{PlanarCoord(0, 0), PlanarCoord(30, 10)},
                                                {PlanarCoord(10, 30), PlanarCoord(30, 10)},
                                                {PlanarCoord(40, 40), PlanarCoord(30, 10)}};

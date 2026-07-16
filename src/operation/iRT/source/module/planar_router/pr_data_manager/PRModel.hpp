@@ -70,6 +70,7 @@ class PRModel
   GridMap<PRNode>& get_pr_node_map() { return _pr_node_map; }
   std::vector<PRMacroRegion>& get_pr_macro_region_list() { return _pr_macro_region_list; }
   GridMap<bool>& get_macro_body_forbidden_map() { return _macro_body_forbidden_map; }
+  const std::vector<PlanarRect>& get_macro_body_obs_list() const { return _macro_body_obs_list; }
   PRMacroRepairStat& get_pr_macro_repair_stat() { return _pr_macro_repair_stat; }
   bool get_enable_astar_fallback() const { return _enable_astar_fallback; }
   // setter
@@ -79,6 +80,7 @@ class PRModel
   void set_pr_node_map(const GridMap<PRNode>& pr_node_map) { _pr_node_map = pr_node_map; }
   void set_pr_macro_region_list(const std::vector<PRMacroRegion>& pr_macro_region_list) { _pr_macro_region_list = pr_macro_region_list; }
   void set_macro_body_forbidden_map(const GridMap<bool>& macro_body_forbidden_map) { _macro_body_forbidden_map = macro_body_forbidden_map; }
+  void set_macro_body_obs_list(std::vector<PlanarRect> macro_body_obs_list) { _macro_body_obs_list = std::move(macro_body_obs_list); }
   void set_pr_macro_repair_stat(const PRMacroRepairStat& pr_macro_repair_stat) { _pr_macro_repair_stat = pr_macro_repair_stat; }
   void set_enable_astar_fallback(const bool enable_astar_fallback) { _enable_astar_fallback = enable_astar_fallback; }
 #if 1
@@ -94,6 +96,7 @@ class PRModel
   GridMap<PRNode> _pr_node_map;
   std::vector<PRMacroRegion> _pr_macro_region_list;
   GridMap<bool> _macro_body_forbidden_map;
+  std::vector<PlanarRect> _macro_body_obs_list;
   PRMacroRepairStat _pr_macro_repair_stat;
   bool _enable_astar_fallback = false;
 #if 1
