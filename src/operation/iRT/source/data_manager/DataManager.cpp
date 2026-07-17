@@ -1792,6 +1792,10 @@ void DataManager::printDatabase()
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(2), _database.get_routing_obstacle_list().size());
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(1), "cut_obstacle_num");
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(2), _database.get_cut_obstacle_list().size());
+  // **********       Macro       ********** //
+  std::vector<Macro>& macro_list = _database.get_macro_list();
+  RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(1), "macro_num");
+  RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(2), macro_list.size());
   // **********        Net        ********** //
   std::vector<Net>& net_list = _database.get_net_list();
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(1), "net_num");

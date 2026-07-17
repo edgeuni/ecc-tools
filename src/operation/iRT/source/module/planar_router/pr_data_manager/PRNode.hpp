@@ -22,6 +22,7 @@
 #include "Direction.hpp"
 #include "LayerCoord.hpp"
 #include "Orientation.hpp"
+#include "RoutingAllowedNet.hpp"
 #include "RTHeader.hpp"
 #include "Utility.hpp"
 
@@ -139,6 +140,7 @@ class PRNode : public PlanarCoord
   std::map<Orientation, PRNode*>& get_neighbor_node_map() { return _neighbor_node_map; }
   std::map<Orientation, int32_t>& get_orient_supply_map() { return _orient_supply_map; }
   std::map<int32_t, std::set<Orientation>>& get_ignore_net_orient_map() { return _ignore_net_orient_map; }
+  RoutingOrientAllowedNetMap& get_orient_allowed_net_map() { return _orient_allowed_net_map; }
   std::map<Orientation, std::set<int32_t>>& get_orient_net_map() { return _orient_net_map; }
   std::map<int32_t, std::set<Orientation>>& get_net_orient_map() { return _net_orient_map; }
   std::map<Orientation, std::map<int32_t, int32_t>>& get_orient_net_ref_count_map() { return _orient_net_ref_count_map; }
@@ -162,6 +164,11 @@ class PRNode : public PlanarCoord
   void set_ignore_net_orient_map(const std::map<int32_t, std::set<Orientation>>& ignore_net_orient_map)
   {
     _ignore_net_orient_map = ignore_net_orient_map;
+    rebuildFastDemand();
+  }
+  void set_orient_allowed_net_map(const RoutingOrientAllowedNetMap& orient_allowed_net_map)
+  {
+    _orient_allowed_net_map = orient_allowed_net_map;
     rebuildFastDemand();
   }
   void set_orient_net_map(const std::map<Orientation, std::set<int32_t>>& orient_net_map)
@@ -254,6 +261,7 @@ class PRNode : public PlanarCoord
       }
       node_cost.addCost(calcCost(internal_demand, internal_supply, overflow_unit));
     }
+    addPolicyOverflow(node_cost, getRoutingPolicyOverflow(_orient_allowed_net_map, net_orient_map), overflow_unit);
     return node_cost;
   }
   double getOverflowCost(int32_t net_idx, Direction direction, double overflow_unit,
@@ -266,7 +274,7 @@ class PRNode : public PlanarCoord
     if (!validDemandUnit()) {
       RTLOG.error(Loc::current(), "The demand unit is error!");
     }
-    return getFastCostByDemandCount(_orient_demand_count, _internal_demand_count, orient_mask, overflow_unit);
+    return getFastCostByDemandCount(_orient_demand_count, _internal_demand_count, orient_mask, _policy_overflow, overflow_unit);
   }
   PRNodeCost getFastCost(int32_t net_idx, uint8_t orient_mask, double overflow_unit, bool ignore_curr_net)
   {
@@ -275,6 +283,7 @@ class PRNode : public PlanarCoord
     }
     std::array<int32_t, 4> orient_demand_count = _orient_demand_count;
     int32_t internal_demand_count = _internal_demand_count;
+    int32_t policy_overflow = _policy_overflow;
     uint8_t add_orient_mask = orient_mask;
     for (int32_t orient_idx = 0; orient_idx < 4; orient_idx++) {
       Orientation orient = getPROrientationByIndex(orient_idx);
@@ -284,6 +293,9 @@ class PRNode : public PlanarCoord
     }
     if (RTUTIL.exist(_net_orient_map, net_idx)) {
       for (Orientation orient : _net_orient_map[net_idx]) {
+        if (ignore_curr_net && !isRoutingNetAllowed(_orient_allowed_net_map, net_idx, orient)) {
+          policy_overflow--;
+        }
         if (isIgnored(net_idx, orient)) {
           continue;
         }
@@ -295,7 +307,16 @@ class PRNode : public PlanarCoord
         }
       }
     }
-    return getFastCostByDemandCount(orient_demand_count, internal_demand_count, add_orient_mask, overflow_unit);
+    for (int32_t orient_idx = 0; orient_idx < 4; orient_idx++) {
+      Orientation orient = getPROrientationByIndex(orient_idx);
+      bool has_curr_orient = RTUTIL.exist(_net_orient_map, net_idx) && RTUTIL.exist(_net_orient_map[net_idx], orient);
+      if ((orient_mask & (1 << orient_idx)) && (ignore_curr_net || !has_curr_orient)
+          && !isRoutingNetAllowed(_orient_allowed_net_map, net_idx, orient)) {
+        policy_overflow++;
+      }
+    }
+    return getFastCostByDemandCount(orient_demand_count, internal_demand_count, add_orient_mask,
+                                    policy_overflow, overflow_unit);
   }
   bool validDemandUnit()
   {
@@ -421,7 +442,7 @@ class PRNode : public PlanarCoord
       }
       internal_overflow += std::max(0.0, internal_demand - internal_supply);
     }
-    return (boundary_overflow + internal_overflow);
+    return (boundary_overflow + internal_overflow + _policy_overflow);
   }
   void updateDemand(int32_t net_idx, std::set<Orientation> orient_set, ChangeType change_type)
   {
@@ -473,6 +494,7 @@ class PRNode : public PlanarCoord
   {
     _orient_demand_count.fill(0);
     _internal_demand_count = 0;
+    _policy_overflow = 0;
   }
   void rebuildFastDemand()
   {
@@ -505,6 +527,9 @@ class PRNode : public PlanarCoord
   }
   void addFastDemand(int32_t net_idx, Orientation orient)
   {
+    if (!isRoutingNetAllowed(_orient_allowed_net_map, net_idx, orient)) {
+      _policy_overflow++;
+    }
     if (isIgnored(net_idx, orient)) {
       return;
     }
@@ -513,14 +538,23 @@ class PRNode : public PlanarCoord
   }
   void delFastDemand(int32_t net_idx, Orientation orient)
   {
+    if (!isRoutingNetAllowed(_orient_allowed_net_map, net_idx, orient)) {
+      _policy_overflow--;
+    }
     if (isIgnored(net_idx, orient)) {
       return;
     }
     _orient_demand_count[getPROrientIndex(orient)]--;
     _internal_demand_count--;
   }
+  void addPolicyOverflow(PRNodeCost& node_cost, int32_t policy_overflow, double overflow_unit)
+  {
+    if (policy_overflow > 0) {
+      node_cost.addCost(calcCost(policy_overflow, 0, overflow_unit));
+    }
+  }
   PRNodeCost getFastCostByDemandCount(const std::array<int32_t, 4>& orient_demand_count, int32_t internal_demand_count,
-                                      uint8_t orient_mask, double overflow_unit)
+                                      uint8_t orient_mask, int32_t policy_overflow, double overflow_unit)
   {
     PRNodeCost node_cost;
     for (int32_t orient_idx = 0; orient_idx < 4; orient_idx++) {
@@ -532,6 +566,7 @@ class PRNode : public PlanarCoord
     }
     int32_t total_internal_demand_count = internal_demand_count + getPRMaskBitNum(orient_mask);
     node_cost.addCost(calcCost(total_internal_demand_count * _internal_wire_unit, _internal_supply_count, overflow_unit));
+    addPolicyOverflow(node_cost, policy_overflow, overflow_unit);
     return node_cost;
   }
 
@@ -542,9 +577,11 @@ class PRNode : public PlanarCoord
   std::array<int32_t, 4> _orient_supply_count = {0, 0, 0, 0};
   int32_t _internal_demand_count = 0;
   int32_t _internal_supply_count = 0;
+  int32_t _policy_overflow = 0;
   std::map<Orientation, PRNode*> _neighbor_node_map;
   std::map<Orientation, int32_t> _orient_supply_map;
   std::map<int32_t, std::set<Orientation>> _ignore_net_orient_map;
+  RoutingOrientAllowedNetMap _orient_allowed_net_map;
   std::map<Orientation, std::map<int32_t, int32_t>> _orient_net_ref_count_map;
   std::map<Orientation, std::set<int32_t>> _orient_net_map;
   std::map<int32_t, std::set<Orientation>> _net_orient_map;

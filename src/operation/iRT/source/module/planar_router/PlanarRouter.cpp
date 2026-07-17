@@ -241,6 +241,24 @@ void PlanarRouter::buildPRNodeMap(PRModel& pr_model)
           pr_node.get_ignore_net_orient_map()[net_idx].insert(orient_set.begin(), orient_set.end());
         }
       }
+      std::map<Orientation, std::set<int32_t>> planar_orient_allowed_net_map;
+      std::set<Orientation> unrestricted_orient_set;
+      for (auto& [layer_idx, orient_supply_map] : gcell_map[x][y].get_routing_orient_supply_map()) {
+        for (auto& [orient, supply] : orient_supply_map) {
+          if (supply <= 0 || RTUTIL.exist(unrestricted_orient_set, orient)) {
+            continue;
+          }
+          RoutingLayerAllowedNetMap& routing_allowed_net_map = gcell_map[x][y].get_routing_allowed_net_map();
+          if (!RTUTIL.exist(routing_allowed_net_map, layer_idx) || !RTUTIL.exist(routing_allowed_net_map[layer_idx], orient)) {
+            planar_orient_allowed_net_map.erase(orient);
+            unrestricted_orient_set.insert(orient);
+          } else {
+            planar_orient_allowed_net_map[orient].insert(routing_allowed_net_map[layer_idx][orient].begin(),
+                                                         routing_allowed_net_map[layer_idx][orient].end());
+          }
+        }
+      }
+      pr_node.set_orient_allowed_net_map(planar_orient_allowed_net_map);
     }
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -576,7 +594,14 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_mo
   GridMap<bool>& macro_body_forbidden_map = pr_model.get_macro_body_forbidden_map();
   const std::vector<PlanarRect>& macro_body_obs_list = pr_model.get_macro_body_obs_list();
   if (!macro_body_obs_list.empty()) {
-    tb_task.set_planar_obs_list(macro_body_obs_list);
+    std::vector<PlanarRect> tb_macro_body_obs_list;
+    tb_macro_body_obs_list.reserve(macro_body_obs_list.size());
+    for (const PlanarRect& macro_body_obs : macro_body_obs_list) {
+      tb_macro_body_obs_list.emplace_back(std::max(0, macro_body_obs.get_ll_x() - 1), std::max(0, macro_body_obs.get_ll_y() - 1),
+                                          std::min(macro_body_forbidden_map.get_x_size() - 1, macro_body_obs.get_ur_x() + 1),
+                                          std::min(macro_body_forbidden_map.get_y_size() - 1, macro_body_obs.get_ur_y() + 1));
+    }
+    tb_task.set_planar_obs_list(std::move(tb_macro_body_obs_list));
     tb_task.set_planar_search_region(
         PlanarRect(0, 0, macro_body_forbidden_map.get_x_size() - 1, macro_body_forbidden_map.get_y_size() - 1));
   }
