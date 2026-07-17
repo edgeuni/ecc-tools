@@ -8,8 +8,7 @@ routeSRModel:迭代SRModel
     buildBoxSchedule:构建Box布线时间表
     splitNetResult:以Box为边界分割线网结果
     routeSRBoxMap:
-        buildNetResult:将Gcellmap中的global结果拷贝到Box内，并在GCellmap中删除
-        initSRTaskList:初始化SRTask列表
+        initSRTaskList:提取Box内线段，按连通分量初始化SRTask列表
         buildOverflow:从顶层graph加载overflow
         buildBoxTrackAxis:构建Box内的track_axis
         buildLayerNodeMap:构建Box的Graph,只有节点,其他信息后续构建
@@ -27,7 +26,6 @@ routeSRModel:迭代SRModel
     uploadNetResult:将所有的box布线结果去环优化,然后删除所有GCellMap的结果再添加
     reviseNodeDemand:重新加载demand
     updateBestResult:更新SRModel中的最优结果
-
 
 
 

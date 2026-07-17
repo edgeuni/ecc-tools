@@ -303,6 +303,8 @@ void SpaceRouter::initSRBoxMap(SRModel& sr_model)
       sr_box.set_sr_box_id(sr_box_id);
       sr_box.set_sr_iter_param(&sr_iter_param);
       sr_box.set_initial_routing(sr_model.get_initial_routing());
+      sr_box.set_has_best_result(false);
+      sr_box.set_best_total_overflow(0);
     }
   }
 }
@@ -451,7 +453,6 @@ void SpaceRouter::routeSRBoxMap(SRModel& sr_model)
 #pragma omp parallel for
     for (SRBoxId& sr_box_id : sr_box_id_list) {
       SRBox& sr_box = sr_box_map[sr_box_id.get_x()][sr_box_id.get_y()];
-      buildNetResult(sr_box);
       initSRTaskList(sr_model, sr_box);
       buildOverflow(sr_model, sr_box);
       if (needRouting(sr_model, sr_box)) {
@@ -476,27 +477,6 @@ void SpaceRouter::routeSRBoxMap(SRModel& sr_model)
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void SpaceRouter::buildNetResult(SRBox& sr_box)
-{
-  PlanarRect& box_grid_rect = sr_box.get_box_rect().get_grid_rect();
-
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(sr_box.get_box_rect())) {
-    for (Segment<LayerCoord>* segment : segment_set) {
-      bool least_one_coord_in_box = false;
-      if (RTUTIL.isInside(box_grid_rect, segment->get_first()) && RTUTIL.isInside(box_grid_rect, segment->get_second())) {
-        if (RTUTIL.isInside(box_grid_rect, segment->get_first(), false) || RTUTIL.isInside(box_grid_rect, segment->get_second(), false)) {
-          // 线段在box_grid_rect内,但不贴边的
-          least_one_coord_in_box = true;
-        }
-      }
-      if (least_one_coord_in_box) {
-        sr_box.get_net_task_global_result_map()[net_idx].push_back(*segment);
-        RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
-      }
-    }
-  }
-}
-
 void SpaceRouter::initSRTaskList(SRModel& sr_model, SRBox& sr_box)
 {
   std::vector<SRNet>& sr_net_list = sr_model.get_sr_net_list();
@@ -505,88 +485,175 @@ void SpaceRouter::initSRTaskList(SRModel& sr_model, SRBox& sr_box)
   EXTPlanarRect& box_rect = sr_box.get_box_rect();
   PlanarRect& box_grid_rect = box_rect.get_grid_rect();
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> net_access_point_map = RTDM.getNetAccessPointMap(box_rect);
-  std::map<int32_t, std::vector<Segment<LayerCoord>>>& net_task_global_result_map = sr_box.get_net_task_global_result_map();
-
-  std::map<int32_t, std::vector<SRGroup>> net_group_list_map;
-  {
-    for (auto& [net_idx, access_point_set] : net_access_point_map) {
-      std::map<int32_t, SRGroup> pin_group_map;
-      for (AccessPoint* access_point : access_point_set) {
-        if (!RTUTIL.isInside(box_grid_rect, access_point->get_grid_coord())) {
-          continue;
-        }
-        pin_group_map[access_point->get_pin_idx()].get_coord_list().push_back(access_point->getGridLayerCoord());
+  std::map<int32_t, std::vector<Segment<LayerCoord>>> net_segment_list_map;
+  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(box_rect)) {
+    for (Segment<LayerCoord>* segment : segment_set) {
+      if (!RTUTIL.isInside(box_grid_rect, segment->get_first()) || !RTUTIL.isInside(box_grid_rect, segment->get_second())) {
+        continue;
       }
-      for (auto& [pin_idx, group] : pin_group_map) {
-        net_group_list_map[net_idx].push_back(group);
+      if (!RTUTIL.isInside(box_grid_rect, segment->get_first(), false) && !RTUTIL.isInside(box_grid_rect, segment->get_second(), false)) {
+        continue;
       }
-    }
-    for (auto& [net_idx, segment_list] : net_task_global_result_map) {
-      std::vector<LayerCoord> coord_list;
-      for (const Segment<LayerCoord>& segment : segment_list) {
-        const LayerCoord& first = segment.get_first();
-        const LayerCoord& second = segment.get_second();
-        if (first.get_layer_idx() != second.get_layer_idx()) {
-          continue;
-        }
-        if (RTUTIL.isHorizontal(first, second)) {
-          int32_t first_x = first.get_x();
-          int32_t second_x = second.get_x();
-          if (first.get_y() < box_grid_rect.get_ll_y() || box_grid_rect.get_ur_y() < first.get_y()) {
-            continue;
-          }
-          RTUTIL.swapByASC(first_x, second_x);
-          if (first_x <= box_grid_rect.get_ll_x() && box_grid_rect.get_ll_x() <= second_x) {
-            coord_list.emplace_back(box_grid_rect.get_ll_x(), first.get_y(), first.get_layer_idx());
-          }
-          if (first_x <= box_grid_rect.get_ur_x() && box_grid_rect.get_ur_x() <= second_x) {
-            coord_list.emplace_back(box_grid_rect.get_ur_x(), first.get_y(), first.get_layer_idx());
-          }
-        } else if (RTUTIL.isVertical(first, second)) {
-          int32_t first_y = first.get_y();
-          int32_t second_y = second.get_y();
-          if (first.get_x() < box_grid_rect.get_ll_x() || box_grid_rect.get_ur_x() < first.get_x()) {
-            continue;
-          }
-          RTUTIL.swapByASC(first_y, second_y);
-          if (first_y <= box_grid_rect.get_ll_y() && box_grid_rect.get_ll_y() <= second_y) {
-            coord_list.emplace_back(first.get_x(), box_grid_rect.get_ll_y(), first.get_layer_idx());
-          }
-          if (first_y <= box_grid_rect.get_ur_y() && box_grid_rect.get_ur_y() <= second_y) {
-            coord_list.emplace_back(first.get_x(), box_grid_rect.get_ur_y(), first.get_layer_idx());
-          }
-        } else {
-          RTLOG.error(Loc::current(), "The segment is oblique!");
-        }
-      }
-      for (LayerCoord& coord : coord_list) {
-        SRGroup sr_group;
-        sr_group.get_coord_list().push_back(coord);
-        net_group_list_map[net_idx].push_back(sr_group);
-      }
+      net_segment_list_map[net_idx].push_back(*segment);
+      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
     }
   }
-  for (auto& [net_idx, sr_group_list] : net_group_list_map) {
-    if (sr_group_list.size() < 2) {
-      continue;
+
+  std::map<int32_t, std::vector<SRGroup>> net_group_list_map;
+  for (auto& [net_idx, access_point_set] : net_access_point_map) {
+    std::map<int32_t, SRGroup> pin_group_map;
+    for (AccessPoint* access_point : access_point_set) {
+      if (RTUTIL.isInside(box_grid_rect, access_point->get_grid_coord())) {
+        pin_group_map[access_point->get_pin_idx()].get_coord_list().push_back(access_point->getGridLayerCoord());
+      }
     }
-    std::sort(sr_group_list.begin(), sr_group_list.end(),
-              [](SRGroup& a, SRGroup& b) { return CmpLayerCoordByXASC()(a.get_coord_list().front(), b.get_coord_list().front()); });
-    SRTask* sr_task = new SRTask();
-    sr_task->set_net_idx(net_idx);
-    sr_task->set_connect_type(sr_net_list[net_idx].get_connect_type());
-    sr_task->set_sr_group_list(sr_group_list);
-    {
+    for (auto& [pin_idx, group] : pin_group_map) {
+      net_group_list_map[net_idx].push_back(group);
+    }
+  }
+  for (auto& [net_idx, segment_list] : net_segment_list_map) {
+    std::set<LayerCoord, CmpLayerCoordByXASC> boundary_coord_set;
+    for (const Segment<LayerCoord>& segment : segment_list) {
+      const LayerCoord& first = segment.get_first();
+      const LayerCoord& second = segment.get_second();
+      if (first.get_layer_idx() != second.get_layer_idx()) {
+        continue;
+      }
+      if (RTUTIL.isHorizontal(first, second)) {
+        int32_t first_x = first.get_x();
+        int32_t second_x = second.get_x();
+        RTUTIL.swapByASC(first_x, second_x);
+        if (first_x <= box_grid_rect.get_ll_x() && box_grid_rect.get_ll_x() <= second_x) {
+          boundary_coord_set.emplace(box_grid_rect.get_ll_x(), first.get_y(), first.get_layer_idx());
+        }
+        if (first_x <= box_grid_rect.get_ur_x() && box_grid_rect.get_ur_x() <= second_x) {
+          boundary_coord_set.emplace(box_grid_rect.get_ur_x(), first.get_y(), first.get_layer_idx());
+        }
+      } else if (RTUTIL.isVertical(first, second)) {
+        int32_t first_y = first.get_y();
+        int32_t second_y = second.get_y();
+        RTUTIL.swapByASC(first_y, second_y);
+        if (first_y <= box_grid_rect.get_ll_y() && box_grid_rect.get_ll_y() <= second_y) {
+          boundary_coord_set.emplace(first.get_x(), box_grid_rect.get_ll_y(), first.get_layer_idx());
+        }
+        if (first_y <= box_grid_rect.get_ur_y() && box_grid_rect.get_ur_y() <= second_y) {
+          boundary_coord_set.emplace(first.get_x(), box_grid_rect.get_ur_y(), first.get_layer_idx());
+        }
+      } else {
+        RTLOG.error(Loc::current(), "The segment is oblique!");
+      }
+    }
+    for (const LayerCoord& coord : boundary_coord_set) {
+      SRGroup sr_group;
+      sr_group.get_coord_list().push_back(coord);
+      net_group_list_map[net_idx].push_back(sr_group);
+    }
+  }
+  std::set<int32_t> net_idx_set;
+  for (auto& [net_idx, group_list] : net_group_list_map) {
+    net_idx_set.insert(net_idx);
+  }
+  for (auto& [net_idx, segment_list] : net_segment_list_map) {
+    net_idx_set.insert(net_idx);
+  }
+  for (int32_t net_idx : net_idx_set) {
+    std::vector<SRGroup>& sr_group_list = net_group_list_map[net_idx];
+    std::vector<Segment<LayerCoord>>& segment_list = net_segment_list_map[net_idx];
+    std::map<LayerCoord, std::set<LayerCoord, CmpLayerCoordByXASC>, CmpLayerCoordByXASC> coord_neighbor_map;
+    for (const Segment<LayerCoord>& segment : segment_list) {
+      coord_neighbor_map[segment.get_first()].insert(segment.get_second());
+      coord_neighbor_map[segment.get_second()].insert(segment.get_first());
+    }
+    for (size_t i = 0; i < segment_list.size(); i++) {
+      const Segment<LayerCoord>& first_segment = segment_list[i];
+      for (size_t j = i + 1; j < segment_list.size(); j++) {
+        const Segment<LayerCoord>& second_segment = segment_list[j];
+        for (const LayerCoord& coord : {first_segment.get_first(), first_segment.get_second()}) {
+          if (RTUTIL.isInside(second_segment, coord)) {
+            coord_neighbor_map[coord].insert(second_segment.get_first());
+            coord_neighbor_map[second_segment.get_first()].insert(coord);
+          }
+        }
+        for (const LayerCoord& coord : {second_segment.get_first(), second_segment.get_second()}) {
+          if (RTUTIL.isInside(first_segment, coord)) {
+            coord_neighbor_map[coord].insert(first_segment.get_first());
+            coord_neighbor_map[first_segment.get_first()].insert(coord);
+          }
+        }
+      }
+    }
+    for (const SRGroup& sr_group : sr_group_list) {
+      const std::vector<LayerCoord>& coord_list = sr_group.get_coord_list();
+      if (coord_list.empty()) {
+        continue;
+      }
+      const LayerCoord& first = coord_list.front();
+      coord_neighbor_map[first];
+      for (const LayerCoord& coord : coord_list) {
+        coord_neighbor_map[first].insert(coord);
+        coord_neighbor_map[coord].insert(first);
+        for (const Segment<LayerCoord>& segment : segment_list) {
+          if (RTUTIL.isInside(segment, coord)) {
+            coord_neighbor_map[coord].insert(segment.get_first());
+            coord_neighbor_map[coord].insert(segment.get_second());
+            coord_neighbor_map[segment.get_first()].insert(coord);
+            coord_neighbor_map[segment.get_second()].insert(coord);
+          }
+        }
+      }
+    }
+    std::map<LayerCoord, int32_t, CmpLayerCoordByXASC> coord_component_idx_map;
+    int32_t component_num = 0;
+    for (auto& [root_coord, neighbor_coord_set] : coord_neighbor_map) {
+      if (RTUTIL.exist(coord_component_idx_map, root_coord)) {
+        continue;
+      }
+      std::vector<LayerCoord> search_coord_list = {root_coord};
+      coord_component_idx_map[root_coord] = component_num;
+      for (size_t i = 0; i < search_coord_list.size(); i++) {
+        for (const LayerCoord& neighbor_coord : coord_neighbor_map[search_coord_list[i]]) {
+          if (!RTUTIL.exist(coord_component_idx_map, neighbor_coord)) {
+            coord_component_idx_map[neighbor_coord] = component_num;
+            search_coord_list.push_back(neighbor_coord);
+          }
+        }
+      }
+      component_num++;
+    }
+    std::vector<std::vector<SRGroup>> component_group_list_list(component_num);
+    std::vector<std::vector<Segment<LayerCoord>>> component_segment_list_list(component_num);
+    for (const SRGroup& sr_group : sr_group_list) {
+      if (!sr_group.get_coord_list().empty()) {
+        component_group_list_list[coord_component_idx_map[sr_group.get_coord_list().front()]].push_back(sr_group);
+      }
+    }
+    for (const Segment<LayerCoord>& segment : segment_list) {
+      component_segment_list_list[coord_component_idx_map[segment.get_first()]].push_back(segment);
+    }
+    for (int32_t component_idx = 0; component_idx < component_num; component_idx++) {
+      std::vector<SRGroup>& component_group_list = component_group_list_list[component_idx];
+      std::vector<Segment<LayerCoord>>& component_segment_list = component_segment_list_list[component_idx];
+      std::sort(component_group_list.begin(), component_group_list.end(),
+                [](SRGroup& a, SRGroup& b) { return CmpLayerCoordByXASC()(a.get_coord_list().front(), b.get_coord_list().front()); });
+      SRTask* sr_task = new SRTask();
+      sr_task->set_net_idx(net_idx);
+      sr_task->set_connect_type(sr_net_list[net_idx].get_connect_type());
+      sr_task->set_sr_group_list(component_group_list);
+      sr_task->set_current_routing_segment_list(component_segment_list);
       std::vector<PlanarCoord> coord_list;
-      for (SRGroup& sr_group : sr_task->get_sr_group_list()) {
-        for (LayerCoord& coord : sr_group.get_coord_list()) {
+      for (const SRGroup& sr_group : component_group_list) {
+        for (const LayerCoord& coord : sr_group.get_coord_list()) {
           coord_list.push_back(coord);
         }
       }
+      for (const Segment<LayerCoord>& segment : component_segment_list) {
+        coord_list.push_back(segment.get_first());
+        coord_list.push_back(segment.get_second());
+      }
       sr_task->set_bounding_box(RTUTIL.getBoundingBox(coord_list));
+      sr_task->set_routed_times(0);
+      sr_task_list.push_back(sr_task);
     }
-    sr_task->set_routed_times(0);
-    sr_task_list.push_back(sr_task);
   }
   std::sort(sr_task_list.begin(), sr_task_list.end(), CmpSRTask());
 }
@@ -614,13 +681,15 @@ void SpaceRouter::buildOverflow(SRModel& sr_model, SRBox& sr_box)
 
 bool SpaceRouter::needRouting(SRModel& sr_model, SRBox& sr_box)
 {
-  if (sr_box.get_sr_task_list().empty()) {
-    return false;
+  for (SRTask* sr_task : sr_box.get_sr_task_list()) {
+    if (sr_task->get_sr_group_list().size() >= 2) {
+      if (sr_box.get_initial_routing() || sr_box.get_total_overflow() > 0) {
+        return true;
+      }
+      return false;
+    }
   }
-  if (sr_box.get_initial_routing() == false && sr_box.get_total_overflow() <= 0) {
-    return false;
-  }
-  return true;
+  return false;
 }
 
 void SpaceRouter::buildBoxTrackAxis(SRBox& sr_box)
@@ -789,7 +858,9 @@ std::vector<SRTask*> SpaceRouter::initTaskSchedule(SRBox& sr_box)
   std::vector<SRTask*> routing_task_list;
   if (initial_routing) {
     for (SRTask* sr_task : sr_box.get_sr_task_list()) {
-      routing_task_list.push_back(sr_task);
+      if (sr_task->get_sr_group_list().size() >= 2) {
+        routing_task_list.push_back(sr_task);
+      }
     }
   } else {
     updateTaskSchedule(sr_box, routing_task_list);
@@ -1012,10 +1083,11 @@ void SpaceRouter::updateTaskResult(SRBox& sr_box)
 {
   std::vector<Segment<LayerCoord>> new_routing_segment_list = getRoutingSegmentList(sr_box);
 
-  int32_t curr_net_idx = sr_box.get_curr_sr_task()->get_net_idx();
-  std::vector<Segment<LayerCoord>>& routing_segment_list = sr_box.get_net_task_global_result_map()[curr_net_idx];
+  SRTask* curr_sr_task = sr_box.get_curr_sr_task();
+  int32_t curr_net_idx = curr_sr_task->get_net_idx();
+  std::vector<Segment<LayerCoord>>& routing_segment_list = curr_sr_task->get_current_routing_segment_list();
 
-  // 原结果从graph删除,由于task有对应net_idx,所以不需要在布线前进行删除也不会影响结果
+  // 仅替换当前连通分量的结果
   updateDemandToGraph(sr_box, ChangeType::kDel, curr_net_idx, routing_segment_list);
   routing_segment_list = new_routing_segment_list;
   // 新结果添加到graph
@@ -1205,16 +1277,16 @@ void SpaceRouter::updateOverflow(SRBox& sr_box)
 
 void SpaceRouter::updateBestResult(SRBox& sr_box)
 {
-  std::map<int32_t, std::vector<Segment<LayerCoord>>>& best_net_task_global_result_map = sr_box.get_best_net_task_global_result_map();
   double best_total_overflow = sr_box.get_best_total_overflow();
 
   double curr_total_overflow = sr_box.get_total_overflow();
-  if (!best_net_task_global_result_map.empty()) {
-    if (best_total_overflow < curr_total_overflow) {
-      return;
-    }
+  if (sr_box.get_has_best_result() && best_total_overflow < curr_total_overflow) {
+    return;
   }
-  best_net_task_global_result_map = sr_box.get_net_task_global_result_map();
+  for (SRTask* sr_task : sr_box.get_sr_task_list()) {
+    sr_task->set_best_routing_segment_list(sr_task->get_current_routing_segment_list());
+  }
+  sr_box.set_has_best_result(true);
   sr_box.set_best_total_overflow(curr_total_overflow);
 }
 
@@ -1226,14 +1298,13 @@ void SpaceRouter::updateTaskSchedule(SRBox& sr_box, std::vector<SRTask*>& routin
   std::vector<SRTask*> new_routing_task_list;
   for (std::set<int32_t>& overflow_net_set : sr_box.get_overflow_net_set_list()) {
     for (SRTask* sr_task : sr_box.get_sr_task_list()) {
-      if (!RTUTIL.exist(overflow_net_set, sr_task->get_net_idx())) {
+      if (sr_task->get_sr_group_list().size() < 2 || !RTUTIL.exist(overflow_net_set, sr_task->get_net_idx())) {
         continue;
       }
       if (sr_task->get_routed_times() < max_routed_times && !RTUTIL.exist(visited_routing_task_set, sr_task)) {
         visited_routing_task_set.insert(sr_task);
         new_routing_task_list.push_back(sr_task);
       }
-      break;
     }
   }
   routing_task_list = new_routing_task_list;
@@ -1258,9 +1329,9 @@ void SpaceRouter::selectBestResult(SRBox& sr_box)
 
 void SpaceRouter::uploadBestResult(SRBox& sr_box)
 {
-  for (auto& [net_idx, segment_list] : sr_box.get_best_net_task_global_result_map()) {
-    for (Segment<LayerCoord>& segment : segment_list) {
-      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(segment));
+  for (SRTask* sr_task : sr_box.get_sr_task_list()) {
+    for (Segment<LayerCoord>& segment : sr_task->get_best_routing_segment_list()) {
+      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, sr_task->get_net_idx(), new Segment<LayerCoord>(segment));
     }
   }
 }
