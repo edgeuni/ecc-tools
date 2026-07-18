@@ -4,8 +4,8 @@
 // Copyright (c) 2023-2025 Beijing Institute of Open Source Chip
 //
 // iEDA is licensed under Mulan PSL v2.
-// You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of Mulan PSL v2 at:
+// You can use this software according to the terms and conditions of Mulan PSL v2.
+// You may obtain a copy of the Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
@@ -16,23 +16,27 @@
 // ***************************************************************************************
 #pragma once
 
+#include "PlanarRect.hpp"
 #include "RTHeader.hpp"
 
 namespace irt {
 
-class PAComParam
+class Macro
 {
  public:
-  PAComParam() = default;
-  PAComParam(int32_t max_candidate_point_num) { _max_candidate_point_num = max_candidate_point_num; }
-  ~PAComParam() = default;
+  Macro() = default;
+  ~Macro() = default;
   // getter
-  int32_t get_max_candidate_point_num() const { return _max_candidate_point_num; }
+  std::string& get_inst_name() { return _inst_name; }
+  PlanarRect& get_body_rect() { return _body_rect; }
   // setter
-  void set_max_candidate_point_num(const int32_t max_candidate_point_num) { _max_candidate_point_num = max_candidate_point_num; }
+  void set_inst_name(const std::string& inst_name) { _inst_name = inst_name; }
+  void set_body_rect(const PlanarRect& body_rect) { _body_rect = body_rect; }
+  // function
 
  private:
-  int32_t _max_candidate_point_num = 0;
+  std::string _inst_name;
+  PlanarRect _body_rect;
 };
 
 }  // namespace irt
