@@ -28,6 +28,7 @@ class Instance
   Instance() = default;
   ~Instance() = default;
   // getter
+  uint64_t get_instance_id() const { return _instance_id; }
   std::string& get_instance_name() { return _instance_name; }
   std::string& get_cell_name() { return _cell_name; }
   std::vector<std::string>& get_pin_name_list() { return _pin_name_list; }
@@ -41,7 +42,9 @@ class Instance
   bool get_is_sequential() const { return _is_sequential; }
   bool get_has_clear_arc() const { return _has_clear_arc; }
   bool get_has_preset_arc() const { return _has_preset_arc; }
+  bool get_is_io_cell() const { return _is_io_cell; }
   // setter
+  void set_instance_id(const uint64_t instance_id) { _instance_id = instance_id; }
   void set_instance_name(const std::string& instance_name) { _instance_name = instance_name; }
   void set_cell_name(const std::string& cell_name) { _cell_name = cell_name; }
   void set_pin_name_list(const std::vector<std::string>& pin_name_list) { _pin_name_list = pin_name_list; }
@@ -55,9 +58,11 @@ class Instance
   void set_is_sequential(const bool is_sequential) { _is_sequential = is_sequential; }
   void set_has_clear_arc(const bool has_clear_arc) { _has_clear_arc = has_clear_arc; }
   void set_has_preset_arc(const bool has_preset_arc) { _has_preset_arc = has_preset_arc; }
+  void set_is_io_cell(const bool is_io_cell) { _is_io_cell = is_io_cell; }
   // function
 
  private:
+  uint64_t _instance_id = 0;
   std::string _instance_name;
   std::string _cell_name;
   std::vector<std::string> _pin_name_list;
@@ -71,6 +76,7 @@ class Instance
   bool _is_sequential = false;
   bool _has_clear_arc = false;
   bool _has_preset_arc = false;
+  bool _is_io_cell = false;
 };
 
 }  // namespace ista

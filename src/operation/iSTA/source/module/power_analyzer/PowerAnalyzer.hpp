@@ -16,6 +16,7 @@
 #pragma once
 
 #include "Database.hpp"
+#include "PALeakageSummary.hpp"
 #include "PAModel.hpp"
 
 namespace ista {
@@ -43,7 +44,27 @@ class PowerAnalyzer
   PowerAnalyzer& operator=(PowerAnalyzer&& other) = delete;
   // function
   PAModel initPAModel();
+  void buildInstanceNameList(PAModel& pa_model);
   void analyzePower(PAModel& pa_model);
+  InstancePower analyzeInstancePower(std::string& instance_name);
+  PowerValue getInstancePowerValue(Instance& instance);
+  void analyzeInternalPower(Instance& instance, PowerValue& power_value);
+  double getTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc);
+  double getTimingPowerArcEnergy(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
+  double getTimingPowerArcInputSlew(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
+  double getTimingPowerArcOutputLoad(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
+  double getTimingPowerArcConditionProbability(Instance& instance, TimingPowerArc& timing_power_arc);
+  void analyzeSwitchingPower(Instance& instance, PowerValue& power_value);
+  void analyzeLeakagePower(Instance& instance, PowerValue& power_value);
+  double getLeakageConditionProbability(Instance& instance, TimingLeakagePower& timing_leakage_power);
+  std::map<std::string, PowerActivity> getPortActivityMap(Instance& instance);
+  PowerActivity getPinActivity(std::string& pin_name);
+  double getPinSlew(std::string& pin_name, TransType trans_type);
+  double getInstanceVoltage(Instance& instance);
+  PowerGroupType getPowerGroupType(Instance& instance);
+  bool isClockNetwork(Instance& instance);
+  void updatePowerSummary(PAModel& pa_model);
+  std::vector<PowerGroupType> getPowerGroupTypeList();
 };
 
 }  // namespace ista

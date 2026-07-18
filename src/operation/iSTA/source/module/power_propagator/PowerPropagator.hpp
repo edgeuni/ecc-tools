@@ -43,7 +43,28 @@ class PowerPropagator
   PowerPropagator& operator=(PowerPropagator&& other) = delete;
   // function
   PPModel initPPModel();
+  void buildMinimumClockPeriod(PPModel& pp_model);
+  void buildSeedPinList(PPModel& pp_model);
+  void buildSequentialInstanceNameList(PPModel& pp_model);
   void propagateActivity(PPModel& pp_model);
+  void clearPowerActivity();
+  void seedActivity(PPModel& pp_model);
+  PowerActivity getSeedActivity(std::string& pin_name, PPModel& pp_model);
+  PowerActivity getClockActivity(std::string& pin_name);
+  PowerActivity getInputActivity(PPModel& pp_model);
+  void propagateCombinationalActivity();
+  void propagateOutputActivity(std::string& pin_name);
+  PowerActivity getOutputActivity(std::string& pin_name);
+  std::map<std::string, PowerActivity> getInputActivityMap(Instance& instance);
+  PowerActivity getFallbackInputActivity(std::string& pin_name);
+  void propagateNetActivity(Arc& arc);
+  void propagateSequentialActivity(PPModel& pp_model);
+  PowerActivity getSequentialOutputActivity(Instance& instance);
+  PowerActivity getPinActivity(std::string& pin_name);
+  bool setPinActivity(std::string& pin_name, PowerActivity& activity);
+  bool isOutputPin(std::string& pin_name);
+  bool isClockSource(std::string& pin_name);
+  bool isActivityChanged(PowerActivity& left_activity, PowerActivity& right_activity);
 };
 
 }  // namespace ista

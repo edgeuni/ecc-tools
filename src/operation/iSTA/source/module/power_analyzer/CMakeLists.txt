@@ -13,6 +13,7 @@ add_library(ista_power_analyzer
 target_link_libraries(ista_power_analyzer
     PUBLIC
     ista_data_manager
+    ista_delay_calculator
     ista_toolkit
 )
 

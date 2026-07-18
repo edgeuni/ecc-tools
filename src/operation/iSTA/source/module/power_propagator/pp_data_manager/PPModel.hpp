@@ -25,13 +25,25 @@ class PPModel
   PPModel() = default;
   ~PPModel() = default;
   // getter
+  double get_minimum_clock_period() const { return _minimum_clock_period; }
+  int32_t get_max_activity_pass_num() const { return _max_activity_pass_num; }
   std::vector<std::string>& get_seed_pin_list() { return _seed_pin_list; }
+  std::vector<std::string>& get_sequential_instance_name_list() { return _sequential_instance_name_list; }
   // setter
+  void set_minimum_clock_period(const double minimum_clock_period) { _minimum_clock_period = minimum_clock_period; }
+  void set_max_activity_pass_num(const int32_t max_activity_pass_num) { _max_activity_pass_num = max_activity_pass_num; }
   void set_seed_pin_list(const std::vector<std::string>& seed_pin_list) { _seed_pin_list = seed_pin_list; }
+  void set_sequential_instance_name_list(const std::vector<std::string>& sequential_instance_name_list)
+  {
+    _sequential_instance_name_list = sequential_instance_name_list;
+  }
   // function
 
  private:
+  double _minimum_clock_period = 1.0;
+  int32_t _max_activity_pass_num = 10;
   std::vector<std::string> _seed_pin_list;
+  std::vector<std::string> _sequential_instance_name_list;
 };
 
 }  // namespace ista

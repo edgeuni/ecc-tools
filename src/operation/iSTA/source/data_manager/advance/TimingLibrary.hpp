@@ -34,6 +34,7 @@ class TimingLibrary
   std::optional<std::string>& get_comment() { return _comment; }
   std::optional<bool>& get_simulation() { return _simulation; }
   std::vector<std::string>& get_library_feature_list() { return _library_feature_list; }
+  std::vector<std::string>& get_library_name_list() { return _library_name_list; }
   std::optional<std::string>& get_leakage_power_unit() { return _leakage_power_unit; }
   std::optional<std::string>& get_current_unit_name() { return _current_unit_name; }
   std::optional<std::string>& get_voltage_unit_name() { return _voltage_unit_name; }
@@ -61,6 +62,7 @@ class TimingLibrary
   void set_comment(const std::optional<std::string>& comment) { _comment = comment; }
   void set_simulation(const std::optional<bool>& simulation) { _simulation = simulation; }
   void set_library_feature_list(const std::vector<std::string>& library_feature_list) { _library_feature_list = library_feature_list; }
+  void set_library_name_list(const std::vector<std::string>& library_name_list) { _library_name_list = library_name_list; }
   void set_leakage_power_unit(const std::optional<std::string>& leakage_power_unit) { _leakage_power_unit = leakage_power_unit; }
   void set_current_unit_name(const std::optional<std::string>& current_unit_name) { _current_unit_name = current_unit_name; }
   void set_voltage_unit_name(const std::optional<std::string>& voltage_unit_name) { _voltage_unit_name = voltage_unit_name; }
@@ -102,6 +104,7 @@ class TimingLibrary
   std::optional<std::string> _comment;
   std::optional<bool> _simulation;
   std::vector<std::string> _library_feature_list;
+  std::vector<std::string> _library_name_list;
   std::optional<std::string> _leakage_power_unit;
   std::optional<std::string> _current_unit_name;
   std::optional<std::string> _voltage_unit_name;
