@@ -32,12 +32,9 @@
 #include "PlanarRouter.hpp"
 #include "TrackAssigner.hpp"
 #include "ViolationReporter.hpp"
-#include "api/TimingEngine.hh"
-#include "api/TimingIDBAdapter.hh"
 #include "feature_irt.h"
 #include "feature_manager.h"
 #include "idm.h"
-#include "tool_api/ista_io/ista_io.h"
 
 namespace irt {
 
@@ -1773,6 +1770,7 @@ void RTInterface::updateTiming(std::vector<std::map<std::string, std::vector<Lay
                                        std::vector<std::vector<Segment<LayerCoord>>>& routing_segment_list_list,
                                        std::map<std::string, std::map<std::string, double>>& clock_timing)
 {
+#if 0
 #if 1  // 数据结构定义
   struct RCPin
   {
@@ -1977,6 +1975,7 @@ void RTInterface::updateTiming(std::vector<std::map<std::string, std::vector<Lay
     clock_timing[clk_name]["WNS"] = setup_wns;
     clock_timing[clk_name]["Freq(MHz)"] = suggest_freq;
   });
+#endif
 #endif
 }
 
