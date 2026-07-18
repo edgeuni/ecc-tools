@@ -22,6 +22,9 @@
 #include "GraphBuilder.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "PowerAnalyzer.hpp"
+#include "PowerPropagator.hpp"
+#include "PowerReporter.hpp"
 #include "SDFWriter.hpp"
 #include "STAHeader.hpp"
 #include "TimingCharacterizer.hpp"
@@ -100,13 +103,25 @@ void STAInterface::runSTA()
   STATP.propagate();
   TimingPropagator::destroyInst();
 
+  PowerPropagator::initInst();
+  STAPP.propagate();
+  PowerPropagator::destroyInst();
+
   TimingAnalyzer::initInst();
   STATA.analyze();
   TimingAnalyzer::destroyInst();
 
+  PowerAnalyzer::initInst();
+  STAPA.analyze();
+  PowerAnalyzer::destroyInst();
+
   TimingReporter::initInst();
   STATR.report();
   TimingReporter::destroyInst();
+
+  PowerReporter::initInst();
+  STAPR.report();
+  PowerReporter::destroyInst();
 
   SDFWriter::initInst();
   STASW.write();
