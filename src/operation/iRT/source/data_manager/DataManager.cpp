@@ -1120,7 +1120,6 @@ void DataManager::buildMacroList()
 void DataManager::makeMacroList()
 {
   Die& die = _database.get_die();
-  std::map<int32_t, int32_t>& routing_idb_layer_id_to_idx_map = _database.get_routing_idb_layer_id_to_idx_map();
   std::vector<Macro>& macro_list = _database.get_macro_list();
   std::vector<Macro> valid_macro_list;
   valid_macro_list.reserve(macro_list.size());
@@ -1130,26 +1129,6 @@ void DataManager::makeMacroList()
       continue;
     }
     macro.set_body_rect(RTUTIL.getRegularRect(macro.get_body_rect(), die.get_real_rect()));
-    std::vector<int32_t> route_halo_layer_idx_list;
-    for (int32_t idb_layer_idx : macro.get_route_halo_layer_idx_list()) {
-      auto iter = routing_idb_layer_id_to_idx_map.find(idb_layer_idx);
-      if (iter != routing_idb_layer_id_to_idx_map.end() && _config.bottom_routing_layer_idx <= iter->second && iter->second <= _config.top_routing_layer_idx) {
-        route_halo_layer_idx_list.push_back(iter->second);
-      }
-    }
-    std::sort(route_halo_layer_idx_list.begin(), route_halo_layer_idx_list.end());
-    route_halo_layer_idx_list.erase(std::unique(route_halo_layer_idx_list.begin(), route_halo_layer_idx_list.end()), route_halo_layer_idx_list.end());
-    macro.set_route_halo_layer_idx_list(route_halo_layer_idx_list);
-    if (!route_halo_layer_idx_list.empty()) {
-      if (!RTUTIL.hasRegularRect(macro.get_route_halo_rect(), die.get_real_rect())) {
-        macro.get_route_halo_layer_idx_list().clear();
-      } else {
-        macro.set_route_halo_rect(RTUTIL.getRegularRect(macro.get_route_halo_rect(), die.get_real_rect()));
-        if (!RTUTIL.isInside(macro.get_route_halo_rect(), macro.get_body_rect())) {
-          macro.get_route_halo_layer_idx_list().clear();
-        }
-      }
-    }
     valid_macro_list.push_back(macro);
   }
   macro_list = valid_macro_list;

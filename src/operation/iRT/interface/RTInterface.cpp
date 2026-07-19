@@ -1027,7 +1027,6 @@ void RTInterface::wrapMacroList()
   std::vector<Macro>& macro_list = RTDM.getDatabase().get_macro_list();
   auto* idb_design = dmInst->get_idb_def_service()->get_design();
   std::vector<idb::IdbInstance*>& idb_instance_list = idb_design->get_instance_list()->get_instance_list();
-  std::vector<idb::IdbLayer*> idb_routing_layer_list = dmInst->get_idb_lef_service()->get_layout()->get_layers()->get_routing_layers();
 
   size_t total_macro_num = 0;
   for (idb::IdbInstance* idb_instance : idb_instance_list) {
@@ -1052,29 +1051,6 @@ void RTInterface::wrapMacroList()
     Macro macro;
     macro.set_inst_name(idb_instance->get_name());
     macro.set_body_rect(body_rect);
-    idb::IdbRouteHalo* idb_route_halo = idb_instance->get_route_halo();
-    if (idb_route_halo != nullptr && idb_route_halo->get_route_distance() >= 0 && idb_route_halo->get_layer_bottom() != nullptr
-        && idb_route_halo->get_layer_top() != nullptr) {
-      std::vector<int32_t> route_halo_layer_idx_list;
-      bool in_layer_range = false;
-      for (idb::IdbLayer* idb_layer : idb_routing_layer_list) {
-        if (idb_layer == idb_route_halo->get_layer_bottom() || idb_layer->get_id() == idb_route_halo->get_layer_bottom()->get_id()) {
-          in_layer_range = true;
-        }
-        if (in_layer_range) {
-          route_halo_layer_idx_list.push_back(idb_layer->get_id());
-        }
-        if (idb_layer == idb_route_halo->get_layer_top() || idb_layer->get_id() == idb_route_halo->get_layer_top()->get_id()) {
-          break;
-        }
-      }
-      if (!route_halo_layer_idx_list.empty() && route_halo_layer_idx_list.back() == static_cast<int32_t>(idb_route_halo->get_layer_top()->get_id())) {
-        int32_t route_distance = idb_route_halo->get_route_distance();
-        macro.set_route_halo_rect(PlanarRect(body_rect.get_ll_x() - route_distance, body_rect.get_ll_y() - route_distance,
-                                             body_rect.get_ur_x() + route_distance, body_rect.get_ur_y() + route_distance));
-        macro.set_route_halo_layer_idx_list(route_halo_layer_idx_list);
-      }
-    }
     macro_list.push_back(std::move(macro));
   }
 

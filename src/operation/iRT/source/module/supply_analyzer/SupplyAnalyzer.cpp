@@ -60,7 +60,6 @@ void SupplyAnalyzer::analyze()
   analyzeSupply(sa_model);
   buildIgnoreNet(sa_model);
   buildMacroPinEscapeIgnore(sa_model);
-  buildMacroRouteHaloAllowedNet(sa_model);
   analyzeDemandUnit(sa_model);
   // debugPlotSAModel(sa_model);
   updateSummary(sa_model);
@@ -438,52 +437,6 @@ void SupplyAnalyzer::buildMacroPinEscapeIgnore(SAModel& sa_model)
           gcell_orient_set.insert(orient_set.begin(), orient_set.end());
           for (auto& [orient, supply] : gcell.get_routing_orient_supply_map()[layer_idx]) {
             supply = 0;
-          }
-        }
-      }
-    }
-  }
-}
-
-void SupplyAnalyzer::buildMacroRouteHaloAllowedNet(SAModel& sa_model)
-{
-  (void) sa_model;
-  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
-  std::vector<Macro>& macro_list = RTDM.getDatabase().get_macro_list();
-  std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
-
-  std::map<std::string, std::set<int32_t>> inst_allowed_net_map;
-  for (Net& net : net_list) {
-    for (Pin& pin : net.get_pin_list()) {
-      if (pin.get_is_macro() && !pin.get_inst_name().empty()) {
-        inst_allowed_net_map[pin.get_inst_name()].insert(net.get_net_idx());
-      }
-    }
-  }
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      gcell_map[x][y].get_routing_allowed_net_map().clear();
-    }
-  }
-  for (Macro& macro : macro_list) {
-    auto iter = inst_allowed_net_map.find(macro.get_inst_name());
-    if (macro.get_route_halo_layer_idx_list().empty() || iter == inst_allowed_net_map.end()) {
-      continue;
-    }
-    std::set<int32_t>& macro_allowed_net_set = iter->second;
-    PlanarRect halo_grid_rect = RTUTIL.getClosedGCellGridRect(macro.get_route_halo_rect(), gcell_axis);
-    for (int32_t x = halo_grid_rect.get_ll_x(); x <= halo_grid_rect.get_ur_x(); x++) {
-      for (int32_t y = halo_grid_rect.get_ll_y(); y <= halo_grid_rect.get_ur_y(); y++) {
-        GCell& gcell = gcell_map[x][y];
-        if (!RTUTIL.isInside(macro.get_route_halo_rect(), gcell) || RTUTIL.isOpenOverlap(gcell, macro.get_body_rect())) {
-          continue;
-        }
-        for (int32_t layer_idx : macro.get_route_halo_layer_idx_list()) {
-          for (Orientation orient :
-               {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth, Orientation::kAbove, Orientation::kBelow}) {
-            std::set<int32_t>& allowed_net_set = gcell.get_routing_allowed_net_map()[layer_idx][orient];
-            allowed_net_set.insert(macro_allowed_net_set.begin(), macro_allowed_net_set.end());
           }
         }
       }

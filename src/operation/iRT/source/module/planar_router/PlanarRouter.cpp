@@ -174,24 +174,6 @@ void PlanarRouter::buildPRNodeMap(PRModel& pr_model)
           pr_node.get_ignore_net_orient_map()[net_idx].insert(orient_set.begin(), orient_set.end());
         }
       }
-      std::map<Orientation, std::set<int32_t>> planar_orient_allowed_net_map;
-      std::set<Orientation> unrestricted_orient_set;
-      for (auto& [layer_idx, orient_supply_map] : gcell_map[x][y].get_routing_orient_supply_map()) {
-        for (auto& [orient, supply] : orient_supply_map) {
-          if (supply <= 0 || RTUTIL.exist(unrestricted_orient_set, orient)) {
-            continue;
-          }
-          RoutingLayerAllowedNetMap& routing_allowed_net_map = gcell_map[x][y].get_routing_allowed_net_map();
-          if (!RTUTIL.exist(routing_allowed_net_map, layer_idx) || !RTUTIL.exist(routing_allowed_net_map[layer_idx], orient)) {
-            planar_orient_allowed_net_map.erase(orient);
-            unrestricted_orient_set.insert(orient);
-          } else {
-            planar_orient_allowed_net_map[orient].insert(routing_allowed_net_map[layer_idx][orient].begin(),
-                                                         routing_allowed_net_map[layer_idx][orient].end());
-          }
-        }
-      }
-      pr_node.set_orient_allowed_net_map(planar_orient_allowed_net_map);
     }
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());

@@ -121,9 +121,6 @@ void SpaceRouter::buildLayerNodeMap(SRModel& sr_model)
         if (RTUTIL.exist(gcell_map[x][y].get_routing_ignore_net_orient_map(), layer_idx)) {
           sr_node.set_ignore_net_orient_map(gcell_map[x][y].get_routing_ignore_net_orient_map()[layer_idx]);
         }
-        if (RTUTIL.exist(gcell_map[x][y].get_routing_allowed_net_map(), layer_idx)) {
-          sr_node.set_orient_allowed_net_map(gcell_map[x][y].get_routing_allowed_net_map()[layer_idx]);
-        }
       }
     }
   }
@@ -750,7 +747,6 @@ void SpaceRouter::buildLayerNodeMap(SRModel& sr_model, SRBox& sr_box)
         sr_node.set_internal_wire_unit(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_internal_wire_unit());
         sr_node.set_internal_via_unit(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_internal_via_unit());
         sr_node.set_ignore_net_orient_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_ignore_net_orient_map());
-        sr_node.set_orient_allowed_net_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_orient_allowed_net_map());
       }
     }
   }

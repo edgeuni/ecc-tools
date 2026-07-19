@@ -178,9 +178,6 @@ void LayerAssigner::buildLayerNodeMap(LAModel& la_model)
         if (RTUTIL.exist(gcell_map[x][y].get_routing_ignore_net_orient_map(), layer_idx)) {
           la_node.set_ignore_net_orient_map(gcell_map[x][y].get_routing_ignore_net_orient_map()[layer_idx]);
         }
-        if (RTUTIL.exist(gcell_map[x][y].get_routing_allowed_net_map(), layer_idx)) {
-          la_node.set_orient_allowed_net_map(gcell_map[x][y].get_routing_allowed_net_map()[layer_idx]);
-        }
       }
     }
   }
