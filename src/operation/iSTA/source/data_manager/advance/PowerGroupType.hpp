@@ -17,6 +17,7 @@
 #pragma once
 
 #include "Logger.hpp"
+#include "STAHeader.hpp"
 
 namespace ista {
 
@@ -67,6 +68,15 @@ struct GetPowerGroupTypeName
         break;
     }
     return power_group_type_name;
+  }
+};
+
+struct GetPowerGroupTypeList
+{
+  std::vector<PowerGroupType> operator()() const
+  {
+    return {PowerGroupType::kIOPad, PowerGroupType::kMemory, PowerGroupType::kBlackBox, PowerGroupType::kClockNetwork,
+            PowerGroupType::kRegister, PowerGroupType::kSequential, PowerGroupType::kCombinational};
   }
 };
 

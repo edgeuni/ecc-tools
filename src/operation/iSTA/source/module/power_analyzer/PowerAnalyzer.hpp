@@ -50,6 +50,10 @@ class PowerAnalyzer
   PowerValue getInstancePowerValue(Instance& instance);
   void analyzeInternalPower(Instance& instance, PowerValue& power_value);
   double getTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc);
+  double getInputTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc);
+  double getOutputTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc);
+  double getOutputTimingPowerArcWeight(Instance& instance, TimingPowerArc& timing_power_arc);
+  double getOutputTimingPowerArcWeightSum(Instance& instance, TimingPowerArc& timing_power_arc);
   double getTimingPowerArcEnergy(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
   double getTimingPowerArcInputSlew(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
   double getTimingPowerArcOutputLoad(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
@@ -64,7 +68,6 @@ class PowerAnalyzer
   PowerGroupType getPowerGroupType(Instance& instance);
   bool isClockNetwork(Instance& instance);
   void updatePowerSummary(PAModel& pa_model);
-  std::vector<PowerGroupType> getPowerGroupTypeList();
 };
 
 }  // namespace ista

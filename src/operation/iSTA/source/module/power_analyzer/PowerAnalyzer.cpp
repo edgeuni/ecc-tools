@@ -79,7 +79,7 @@ void PowerAnalyzer::buildInstanceNameList(PAModel& pa_model)
     instance_name_list.push_back(instance_pair.first);
   }
   pa_model.set_instance_name_list(instance_name_list);
-  for (PowerGroupType power_group_type : getPowerGroupTypeList()) {
+  for (PowerGroupType power_group_type : GetPowerGroupTypeList()()) {
     pa_model.get_group_power_map()[power_group_type] = PowerValue();
   }
 }
@@ -135,6 +135,14 @@ void PowerAnalyzer::analyzeInternalPower(Instance& instance, PowerValue& power_v
 
 double PowerAnalyzer::getTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc)
 {
+  if (timing_power_arc.get_source_port().empty()) {
+    return getInputTimingPowerArcPower(instance, timing_power_arc);
+  }
+  return getOutputTimingPowerArcPower(instance, timing_power_arc);
+}
+
+double PowerAnalyzer::getInputTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc)
+{
   if (timing_power_arc.get_sink_port().empty()) {
     return 0.0;
   }
@@ -155,6 +163,62 @@ double PowerAnalyzer::getTimingPowerArcPower(Instance& instance, TimingPowerArc&
     internal_power += energy * transition_density * condition_probability * 1E-3;
   }
   return internal_power;
+}
+
+double PowerAnalyzer::getOutputTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc)
+{
+  if (timing_power_arc.get_sink_port().empty()) {
+    return 0.0;
+  }
+  std::string sink_pin_name = instance.get_instance_name() + ":" + timing_power_arc.get_sink_port();
+  PowerActivity sink_activity = getPinActivity(sink_pin_name);
+  if (!sink_activity.get_is_valid()) {
+    return 0.0;
+  }
+  double timing_power_arc_weight = getOutputTimingPowerArcWeight(instance, timing_power_arc);
+  double timing_power_arc_weight_sum = getOutputTimingPowerArcWeightSum(instance, timing_power_arc);
+  if (timing_power_arc_weight <= STA_ERROR || timing_power_arc_weight_sum <= STA_ERROR) {
+    return 0.0;
+  }
+  double internal_power = 0.0;
+  for (TransType trans_type : {TransType::kRise, TransType::kFall}) {
+    double transition_density = trans_type == TransType::kRise ? sink_activity.get_rise_transition_density()
+                                                                 : sink_activity.get_fall_transition_density();
+    double energy = getTimingPowerArcEnergy(instance, timing_power_arc, trans_type);
+    internal_power += energy * transition_density * timing_power_arc_weight / timing_power_arc_weight_sum * 1E-3;
+  }
+  return internal_power;
+}
+
+double PowerAnalyzer::getOutputTimingPowerArcWeight(Instance& instance, TimingPowerArc& timing_power_arc)
+{
+  std::string source_pin_name = instance.get_instance_name() + ":" + timing_power_arc.get_source_port();
+  PowerActivity source_activity = getPinActivity(source_pin_name);
+  if (!source_activity.get_is_valid()) {
+    return 0.0;
+  }
+  double condition_probability = timing_power_arc.get_when_expression().get_is_empty()
+                                     ? 0.5
+                                     : getTimingPowerArcConditionProbability(instance, timing_power_arc);
+  return source_activity.get_transition_density() * condition_probability;
+}
+
+double PowerAnalyzer::getOutputTimingPowerArcWeightSum(Instance& instance, TimingPowerArc& timing_power_arc)
+{
+  Database& database = STADM.getDatabase();
+  if (database.get_timing_library().get_cell_map().count(instance.get_cell_name()) == 0) {
+    return 0.0;
+  }
+  TimingCell& timing_cell = database.get_timing_library().get_cell_map()[instance.get_cell_name()];
+  double timing_power_arc_weight_sum = 0.0;
+  for (TimingPowerArc& candidate_power_arc : timing_cell.get_power_arc_list()) {
+    if (candidate_power_arc.get_source_port().empty() || candidate_power_arc.get_sink_port() != timing_power_arc.get_sink_port()
+        || candidate_power_arc.get_related_pg_port() != timing_power_arc.get_related_pg_port()) {
+      continue;
+    }
+    timing_power_arc_weight_sum += getOutputTimingPowerArcWeight(instance, candidate_power_arc);
+  }
+  return timing_power_arc_weight_sum;
 }
 
 double PowerAnalyzer::getTimingPowerArcEnergy(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type)
@@ -365,12 +429,6 @@ void PowerAnalyzer::updatePowerSummary(PAModel& pa_model)
     power_summary.get_total_power_value().add_power_value(power_value);
   }
   database.get_power_summary() = power_summary;
-}
-
-std::vector<PowerGroupType> PowerAnalyzer::getPowerGroupTypeList()
-{
-  return {PowerGroupType::kIOPad, PowerGroupType::kMemory, PowerGroupType::kBlackBox, PowerGroupType::kClockNetwork,
-          PowerGroupType::kRegister, PowerGroupType::kSequential, PowerGroupType::kCombinational};
 }
 
 }  // namespace ista

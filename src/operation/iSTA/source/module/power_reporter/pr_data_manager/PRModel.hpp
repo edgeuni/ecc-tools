@@ -25,16 +25,16 @@ class PRModel
   PRModel() = default;
   ~PRModel() = default;
   // getter
-  std::vector<std::string>& get_report_file_path_list() { return _report_file_path_list; }
+  std::string& get_power_report_file_path() { return _power_report_file_path; }
+  std::string& get_instance_power_file_path() { return _instance_power_file_path; }
   // setter
-  void set_report_file_path_list(const std::vector<std::string>& report_file_path_list)
-  {
-    _report_file_path_list = report_file_path_list;
-  }
+  void set_power_report_file_path(const std::string& power_report_file_path) { _power_report_file_path = power_report_file_path; }
+  void set_instance_power_file_path(const std::string& instance_power_file_path) { _instance_power_file_path = instance_power_file_path; }
   // function
 
  private:
-  std::vector<std::string> _report_file_path_list;
+  std::string _power_report_file_path;
+  std::string _instance_power_file_path;
 };
 
 }  // namespace ista

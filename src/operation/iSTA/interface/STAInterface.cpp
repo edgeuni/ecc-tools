@@ -462,6 +462,8 @@ void STAInterface::wrapTimingLibraryInfo(std::vector<std::unique_ptr<idb::LibLib
   timing_library.set_comment(reference_lib->get_comment());
   timing_library.set_simulation(reference_lib->get_simulation());
   timing_library.set_library_feature_list(reference_lib->get_library_features());
+  timing_library.set_default_operating_conditions(reference_lib->get_default_operating_conditions());
+  timing_library.set_default_wire_load(reference_lib->get_default_wire_load());
   timing_library.set_leakage_power_unit(reference_lib->get_leakage_power_unit());
   timing_library.set_current_unit_name(reference_lib->get_current_unit_name());
   timing_library.set_voltage_unit_name(reference_lib->get_voltage_unit_name());
