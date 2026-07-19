@@ -121,6 +121,9 @@ void SpaceRouter::buildLayerNodeMap(SRModel& sr_model)
         if (RTUTIL.exist(gcell_map[x][y].get_routing_ignore_net_orient_map(), layer_idx)) {
           sr_node.set_ignore_net_orient_map(gcell_map[x][y].get_routing_ignore_net_orient_map()[layer_idx]);
         }
+        if (RTUTIL.exist(gcell_map[x][y].get_routing_allowed_net_map(), layer_idx)) {
+          sr_node.set_orient_allowed_net_map(gcell_map[x][y].get_routing_allowed_net_map()[layer_idx]);
+        }
       }
     }
   }
@@ -159,8 +162,7 @@ void SpaceRouter::reviseNodeDemand(SRModel& sr_model)
   for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
     for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
       for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_node_map.size()); layer_idx++) {
-        layer_node_map[layer_idx][x][y].get_orient_net_map().clear();
-        layer_node_map[layer_idx][x][y].get_net_orient_map().clear();
+        layer_node_map[layer_idx][x][y].clearDemand();
       }
     }
   }
@@ -180,9 +182,9 @@ void SpaceRouter::routeSRModel(SRModel& sr_model)
    */
   std::vector<SRIterParam> sr_iter_param_list;
   // clang-format off
-  sr_iter_param_list.emplace_back(prefer_wire_unit, via_unit, 30, 0, 3, overflow_unit, 3);
-  sr_iter_param_list.emplace_back(prefer_wire_unit, via_unit, 30, 10, 3, overflow_unit, 3);
-  sr_iter_param_list.emplace_back(prefer_wire_unit, via_unit, 30, 20, 3, overflow_unit, 3);
+  sr_iter_param_list.emplace_back(prefer_wire_unit, via_unit, 12, 0, 3, overflow_unit, 3);
+  sr_iter_param_list.emplace_back(prefer_wire_unit, via_unit, 12, 4, 3, overflow_unit, 3);
+  sr_iter_param_list.emplace_back(prefer_wire_unit, via_unit, 12, 8, 3, overflow_unit, 3);
   // clang-format on
   initRoutingState(sr_model);
   for (int32_t i = 0, iter = 1; i < static_cast<int32_t>(sr_iter_param_list.size()); i++, iter++) {
@@ -679,6 +681,7 @@ void SpaceRouter::buildLayerNodeMap(SRModel& sr_model, SRBox& sr_box)
         sr_node.set_internal_wire_unit(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_internal_wire_unit());
         sr_node.set_internal_via_unit(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_internal_via_unit());
         sr_node.set_ignore_net_orient_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_ignore_net_orient_map());
+        sr_node.set_orient_allowed_net_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_orient_allowed_net_map());
       }
     }
   }
@@ -759,6 +762,7 @@ void SpaceRouter::buildOrientDemand(SRModel& sr_model, SRBox& sr_box)
         SRNode& sr_node = sr_node_map[x][y];
         sr_node.set_orient_net_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_orient_net_map());
         sr_node.set_net_orient_map(top_sr_node_map[sr_node.get_x()][sr_node.get_y()].get_net_orient_map());
+        sr_node.rebuildFastDemand();
       }
     }
   }
@@ -1109,7 +1113,7 @@ double SpaceRouter::getNodeCost(SRBox& sr_box, SRNode* curr_node, Direction dire
   double overflow_unit = sr_box.get_sr_iter_param()->get_overflow_unit();
 
   double node_cost = 0;
-  node_cost += curr_node->getOverflowCost(sr_box.get_curr_sr_task()->get_net_idx(), direction, overflow_unit);
+  node_cost += curr_node->getFastCost(sr_box.get_curr_sr_task()->get_net_idx(), direction, overflow_unit);
   return node_cost;
 }
 

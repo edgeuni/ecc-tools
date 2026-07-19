@@ -17,11 +17,15 @@
 #include "STAInterface.hpp"
 
 #include "DataManager.hpp"
+#include "DelayCalculator.hpp"
+#include "ClockPropagator.hpp"
 #include "GraphBuilder.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "SDFWriter.hpp"
 #include "STAHeader.hpp"
 #include "TimingCharacterizer.hpp"
+#include "TimingAnalyzer.hpp"
 #include "TimingPropagator.hpp"
 #include "TimingReporter.hpp"
 #include "Utility.hpp"
@@ -72,6 +76,7 @@ void STAInterface::initSTA(std::map<std::string, std::any> config_map)
 
   DataManager::initInst();
   STADM.input(config_map);
+  DelayCalculator::initInst();
 
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -81,17 +86,33 @@ void STAInterface::runSTA()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
+  STADC.init();
+
   GraphBuilder::initInst();
   STAGB.build();
   GraphBuilder::destroyInst();
+
+  ClockPropagator::initInst();
+  STACP.propagate();
+  ClockPropagator::destroyInst();
 
   TimingPropagator::initInst();
   STATP.propagate();
   TimingPropagator::destroyInst();
 
+  TimingAnalyzer::initInst();
+  STATA.analyze();
+  TimingAnalyzer::destroyInst();
+
   TimingReporter::initInst();
   STATR.report();
   TimingReporter::destroyInst();
+
+  SDFWriter::initInst();
+  STASW.write();
+  SDFWriter::destroyInst();
+
+  STADC.destroy();
 
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -101,17 +122,29 @@ void STAInterface::extractLib()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
+  STADC.init();
+
   GraphBuilder::initInst();
   STAGB.build();
   GraphBuilder::destroyInst();
+
+  ClockPropagator::initInst();
+  STACP.propagate();
+  ClockPropagator::destroyInst();
 
   TimingPropagator::initInst();
   STATP.propagate();
   TimingPropagator::destroyInst();
 
+  TimingAnalyzer::initInst();
+  STATA.analyze();
+  TimingAnalyzer::destroyInst();
+
   TimingCharacterizer::initInst();
   STATC.characterize();
   TimingCharacterizer::destroyInst();
+
+  STADC.destroy();
 
   STALOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -121,6 +154,7 @@ void STAInterface::destroySTA()
   Monitor monitor;
   STALOG.info(Loc::current(), "Starting...");
 
+  DelayCalculator::destroyInst();
   STADM.output();
   DataManager::destroyInst();
 
@@ -203,6 +237,10 @@ void STAInterface::wrapInstancePinList(idb::IdbInstance* idb_instance)
 
 void STAInterface::wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin)
 {
+  if (!wrapSignalConnectType(idb_pin->get_term()->get_type())) {
+    return;
+  }
+
   std::string full_name = wrapInstancePinName(idb_instance, idb_pin);
   Pin pin;
   pin.set_pin_name(idb_pin->get_pin_name());
@@ -211,6 +249,12 @@ void STAInterface::wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* 
   pin.set_direction(wrapPinDirection(idb_pin->get_term()->get_direction()));
   wrapPinCoordinate(pin, idb_pin);
   STADM.getDatabase().get_pin_map()[full_name] = pin;
+}
+
+bool STAInterface::wrapSignalConnectType(idb::IdbConnectType connect_type)
+{
+  return connect_type == idb::IdbConnectType::kNone || connect_type == idb::IdbConnectType::kSignal || connect_type == idb::IdbConnectType::kClock
+         || connect_type == idb::IdbConnectType::kReset || connect_type == idb::IdbConnectType::kScan || connect_type == idb::IdbConnectType::kTieOff;
 }
 
 std::string STAInterface::wrapInstancePinName(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin)
@@ -252,6 +296,10 @@ void STAInterface::wrapPortList()
 
 void STAInterface::wrapPortPin(idb::IdbPin* idb_pin)
 {
+  if (!wrapSignalConnectType(idb_pin->get_term()->get_type())) {
+    return;
+  }
+
   std::string full_name = wrapPinName(idb_pin);
   Pin pin;
   pin.set_pin_name(idb_pin->get_pin_name());
@@ -277,7 +325,7 @@ void STAInterface::wrapNetList()
 
 void STAInterface::wrapNet(idb::IdbNet* idb_net)
 {
-  if (!wrapSignalNet(idb_net->get_connect_type())) {
+  if (!wrapSignalConnectType(idb_net->get_connect_type())) {
     return;
   }
 
@@ -285,12 +333,6 @@ void STAInterface::wrapNet(idb::IdbNet* idb_net)
   net.set_net_name(idb_net->get_net_name());
   wrapNetPinList(idb_net, net);
   wrapNetToDatabase(net);
-}
-
-bool STAInterface::wrapSignalNet(idb::IdbConnectType connect_type)
-{
-  return connect_type == idb::IdbConnectType::kNone || connect_type == idb::IdbConnectType::kSignal || connect_type == idb::IdbConnectType::kClock
-         || connect_type == idb::IdbConnectType::kReset || connect_type == idb::IdbConnectType::kScan || connect_type == idb::IdbConnectType::kTieOff;
 }
 
 void STAInterface::wrapNetPinList(idb::IdbNet* idb_net, Net& net)

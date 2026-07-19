@@ -19,6 +19,8 @@
 #include "DataManager.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "TCCheckArcCandidate.hpp"
+#include "TCDelayArcCandidate.hpp"
 #include "Utility.hpp"
 
 namespace ista {
@@ -298,18 +300,7 @@ void TimingCharacterizer::buildClockPathArc(idb::LibCell& design_cell, std::stri
 
 void TimingCharacterizer::buildCheckArcList(idb::LibCell& design_cell, AnalysisType analysis_type)
 {
-  struct CheckArcCandidate
-  {
-    std::string source_port;
-    std::string sink_port;
-    std::string timing_type;
-    double rise_constraint = 0.0;
-    double fall_constraint = 0.0;
-    bool has_rise_constraint = false;
-    bool has_fall_constraint = false;
-  };
-
-  std::map<std::tuple<std::string, std::string, std::string>, CheckArcCandidate> candidate_map;
+  std::map<std::tuple<std::string, std::string, std::string>, TCCheckArcCandidate> candidate_map;
   for (TimingPath* timing_path : getTimingPathList(analysis_type)) {
     if (isInputPort(timing_path->get_start_point()) && isRegisterEndPoint(timing_path->get_end_point())) {
       std::string timing_type = getTimingCheckType(*timing_path, analysis_type);
@@ -319,24 +310,24 @@ void TimingCharacterizer::buildCheckArcList(idb::LibCell& design_cell, AnalysisT
       }
       std::string sink_port = timing_path->get_start_point();
       std::tuple<std::string, std::string, std::string> candidate_key = std::make_tuple(related_clock_port, sink_port, timing_type);
-      CheckArcCandidate& candidate = candidate_map[candidate_key];
-      candidate.source_port = related_clock_port;
-      candidate.sink_port = sink_port;
-      candidate.timing_type = timing_type;
+      TCCheckArcCandidate& candidate = candidate_map[candidate_key];
+      candidate.set_source_port(related_clock_port);
+      candidate.set_sink_port(sink_port);
+      candidate.set_timing_type(timing_type);
       double constraint = getCheckConstraint(*timing_path, analysis_type);
       if (timing_path->get_trans_type() == TransType::kFall) {
-        candidate.fall_constraint = candidate.has_fall_constraint ? std::max(candidate.fall_constraint, constraint) : constraint;
-        candidate.has_fall_constraint = true;
+        candidate.set_fall_constraint(candidate.get_has_fall_constraint() ? std::max(candidate.get_fall_constraint(), constraint) : constraint);
+        candidate.set_has_fall_constraint(true);
       } else {
-        candidate.rise_constraint = candidate.has_rise_constraint ? std::max(candidate.rise_constraint, constraint) : constraint;
-        candidate.has_rise_constraint = true;
+        candidate.set_rise_constraint(candidate.get_has_rise_constraint() ? std::max(candidate.get_rise_constraint(), constraint) : constraint);
+        candidate.set_has_rise_constraint(true);
       }
     }
   }
-  for (std::pair<const std::tuple<std::string, std::string, std::string>, CheckArcCandidate>& candidate_pair : candidate_map) {
-    CheckArcCandidate& candidate = candidate_pair.second;
-    buildCheckArc(design_cell, candidate.source_port, candidate.sink_port, candidate.timing_type, candidate.rise_constraint, candidate.fall_constraint,
-                  candidate.has_rise_constraint, candidate.has_fall_constraint);
+  for (std::pair<const std::tuple<std::string, std::string, std::string>, TCCheckArcCandidate>& candidate_pair : candidate_map) {
+    TCCheckArcCandidate& candidate = candidate_pair.second;
+    buildCheckArc(design_cell, candidate.get_source_port(), candidate.get_sink_port(), candidate.get_timing_type(), candidate.get_rise_constraint(),
+                  candidate.get_fall_constraint(), candidate.get_has_rise_constraint(), candidate.get_has_fall_constraint());
   }
 }
 
@@ -436,19 +427,7 @@ double TimingCharacterizer::getCheckConstraint(TimingPath& timing_path, Analysis
 
 void TimingCharacterizer::buildDelayArcList(idb::LibCell& design_cell, AnalysisType analysis_type)
 {
-  struct DelayArcCandidate
-  {
-    std::string source_port;
-    std::string sink_port;
-    std::string timing_type;
-    std::string timing_sense;
-    double rise_delay = 0.0;
-    double fall_delay = 0.0;
-    bool has_rise_delay = false;
-    bool has_fall_delay = false;
-  };
-
-  std::map<std::tuple<std::string, std::string, std::string>, DelayArcCandidate> candidate_map;
+  std::map<std::tuple<std::string, std::string, std::string>, TCDelayArcCandidate> candidate_map;
   for (TimingPath* timing_path : getTimingPathList(analysis_type)) {
     if (isOutputPort(timing_path->get_end_point())) {
       std::string source_port = getDelayArcRelatedPin(*timing_path);
@@ -458,25 +437,25 @@ void TimingCharacterizer::buildDelayArcList(idb::LibCell& design_cell, AnalysisT
       std::string sink_port = timing_path->get_end_point();
       std::string timing_type = getDelayArcTimingType(*timing_path);
       std::tuple<std::string, std::string, std::string> candidate_key = std::make_tuple(source_port, sink_port, timing_type);
-      DelayArcCandidate& candidate = candidate_map[candidate_key];
-      candidate.source_port = source_port;
-      candidate.sink_port = sink_port;
-      candidate.timing_type = timing_type;
-      candidate.timing_sense = getDelayArcTimingSense(*timing_path);
+      TCDelayArcCandidate& candidate = candidate_map[candidate_key];
+      candidate.set_source_port(source_port);
+      candidate.set_sink_port(sink_port);
+      candidate.set_timing_type(timing_type);
+      candidate.set_timing_sense(getDelayArcTimingSense(*timing_path));
       double delay = getDelayArcValue(*timing_path);
       if (timing_path->get_trans_type() == TransType::kFall) {
-        candidate.fall_delay = getWorseDelay(candidate.fall_delay, delay, candidate.has_fall_delay, analysis_type);
-        candidate.has_fall_delay = true;
+        candidate.set_fall_delay(getWorseDelay(candidate.get_fall_delay(), delay, candidate.get_has_fall_delay(), analysis_type));
+        candidate.set_has_fall_delay(true);
       } else {
-        candidate.rise_delay = getWorseDelay(candidate.rise_delay, delay, candidate.has_rise_delay, analysis_type);
-        candidate.has_rise_delay = true;
+        candidate.set_rise_delay(getWorseDelay(candidate.get_rise_delay(), delay, candidate.get_has_rise_delay(), analysis_type));
+        candidate.set_has_rise_delay(true);
       }
     }
   }
-  for (std::pair<const std::tuple<std::string, std::string, std::string>, DelayArcCandidate>& candidate_pair : candidate_map) {
-    DelayArcCandidate& candidate = candidate_pair.second;
-    buildDelayArc(design_cell, candidate.source_port, candidate.sink_port, candidate.timing_type, candidate.timing_sense, candidate.rise_delay,
-                  candidate.fall_delay, candidate.has_rise_delay, candidate.has_fall_delay);
+  for (std::pair<const std::tuple<std::string, std::string, std::string>, TCDelayArcCandidate>& candidate_pair : candidate_map) {
+    TCDelayArcCandidate& candidate = candidate_pair.second;
+    buildDelayArc(design_cell, candidate.get_source_port(), candidate.get_sink_port(), candidate.get_timing_type(), candidate.get_timing_sense(),
+                  candidate.get_rise_delay(), candidate.get_fall_delay(), candidate.get_has_rise_delay(), candidate.get_has_fall_delay());
   }
 }
 

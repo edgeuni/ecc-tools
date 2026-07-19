@@ -78,6 +78,8 @@ class DataManager
   void makeTimingCell(idb::LibCell* lib_cell);
   void makeTimingCellPort(TimingCell& timing_cell, idb::LibPort* lib_port);
   void makeTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* lib_arc_set);
+  bool isSDFDelayArc(idb::LibArc* lib_arc);
+  bool isSDFCheckArc(idb::LibArc* lib_arc);
   TimingCellArc makeDelayArc(idb::LibArcSet* lib_arc_set);
   void updateClearPresetArc(TimingCell& timing_cell, idb::LibArc* lib_arc);
   TimingCheckArc makeCheckArc(idb::LibArcSet* lib_arc_set);
@@ -111,6 +113,9 @@ class DataManager
   void makeParasiticConnection(ParasiticNet& parasitic_net, spef::ConnEntry& spef_conn);
   void makeParasiticCapacitance(ParasiticNet& parasitic_net, spef::ResCap& spef_cap);
   void makeParasiticResistance(ParasiticNet& parasitic_net, spef::ResCap& spef_res);
+  double getParasiticCapacitance(double spef_capacitance);
+  double getParasiticResistance(double spef_resistance);
+  double getSpefUnitScale(std::string& spef_unit, std::string& target_unit);
   ParasiticNode& getParasiticNode(ParasiticNet& parasitic_net, const std::string& node_name);
   void readConstraint();
   std::vector<std::vector<std::string>> readCommandList(std::string& sdc_file_path);

@@ -26,7 +26,9 @@ enum class TimingCheckType
   kSetup,
   kHold,
   kRecovery,
-  kRemoval
+  kRemoval,
+  kWidth,
+  kPeriod
 };
 
 struct GetTimingCheckTypeName
@@ -49,6 +51,12 @@ struct GetTimingCheckTypeName
         break;
       case TimingCheckType::kRemoval:
         timing_check_type_name = "removal";
+        break;
+      case TimingCheckType::kWidth:
+        timing_check_type_name = "width";
+        break;
+      case TimingCheckType::kPeriod:
+        timing_check_type_name = "period";
         break;
       default:
         STALOG.error(Loc::current(), "Unrecognized type!");

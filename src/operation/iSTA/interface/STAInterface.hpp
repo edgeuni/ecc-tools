@@ -75,6 +75,7 @@ class STAInterface
   void wrapInstance(idb::IdbInstance* idb_instance);
   void wrapInstancePinList(idb::IdbInstance* idb_instance);
   void wrapInstancePin(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin);
+  bool wrapSignalConnectType(idb::IdbConnectType connect_type);
   std::string wrapInstancePinName(idb::IdbInstance* idb_instance, idb::IdbPin* idb_pin);
   PinDirection wrapPinDirection(idb::IdbConnectDirection idb_direction);
   void wrapPinCoordinate(Pin& pin, idb::IdbPin* idb_pin);
@@ -83,7 +84,6 @@ class STAInterface
   std::string wrapPinName(idb::IdbPin* idb_pin);
   void wrapNetList();
   void wrapNet(idb::IdbNet* idb_net);
-  bool wrapSignalNet(idb::IdbConnectType connect_type);
   void wrapNetPinList(idb::IdbNet* idb_net, Net& net);
   void wrapNetPinList(idb::IdbPins* io_pin_list, idb::IdbPins* instance_pin_list, Net& net);
   void wrapNetPin(idb::IdbPin* idb_pin, Net& net);

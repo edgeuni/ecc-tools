@@ -96,7 +96,6 @@ class DetailedRouter
   void resetSinglePath(DRBox& dr_box);
   void updateTaskResult(DRBox& dr_box);
   std::vector<Segment<LayerCoord>> getRoutingSegmentList(DRBox& dr_box);
-  void updateSegmentViaMaster(Segment<LayerCoord>& segment);
   void resetSingleRouteTask(DRBox& dr_box);
   void pushToOpenList(DRBox& dr_box, DRNode* curr_node);
   DRNode* popFromOpenList(DRBox& dr_box);
@@ -126,8 +125,6 @@ class DetailedRouter
   void resetSinglePatchTask(DRBox& dr_box);
   void updateRouteViolationList(DRBox& dr_box);
   std::vector<Violation> getRouteViolationList(DRBox& dr_box);
-  int32_t getViolationWeight(ViolationType violation_type);
-  int32_t getViolationScore(const std::vector<Violation>& violation_list);
   void updateBestResult(DRBox& dr_box);
   void updateTaskSchedule(DRBox& dr_box, std::vector<DRTask*>& routing_task_list);
   void selectBestResult(DRBox& dr_box);
@@ -141,9 +138,6 @@ class DetailedRouter
   void updateBestResult(DRModel& dr_model);
   bool stopIteration(DRModel& dr_model, std::vector<DRIterParam>& dr_iter_param_list);
   void selectBestResult(DRModel& dr_model);
-  void patchFinalMinArea(DRModel& dr_model);
-  void buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box);
-  void uploadFinalPatch(DRBox& dr_box);
   void uploadBestResult(DRModel& dr_model);
 
 #if 1  // update env
@@ -155,10 +149,9 @@ class DetailedRouter
   void updateRoutedRectToGraph(DRBox& dr_box, ChangeType change_type, int32_t net_idx, EXTLayerRect& routed_rect, bool is_routing);
   void addRouteViolationToGraph(DRBox& dr_box, Violation& violation);
   void addRouteViolationToGraph(DRBox& dr_box, LayerRect& searched_rect, std::vector<Segment<LayerCoord>>& overlap_segment_list);
-  void updateNetShapeToGraph(DRBox& dr_box, ChangeType change_type, NetShape& net_shape, bool is_fixed);
-  void updateRoutingNetShapeToGraph(DRBox& dr_box, ChangeType change_type, NetShape& net_shape, bool is_fixed);
-  void updateCutNetShapeToGraph(DRBox& dr_box, ChangeType change_type, NetShape& net_shape, bool is_fixed);
-  void updateNodeNetToGraph(DRNode& dr_node, ChangeType change_type, int32_t net_idx, Orientation orientation, bool is_fixed);
+  std::map<DRNode*, std::set<Orientation>> getNodeOrientationMap(DRBox& dr_box, NetShape& net_shape);
+  std::map<DRNode*, std::set<Orientation>> getRoutingNodeOrientationMap(DRBox& dr_box, NetShape& net_shape);
+  std::map<DRNode*, std::set<Orientation>> getCutNodeOrientationMap(DRBox& dr_box, NetShape& net_shape);
   void updateFixedRectToShadow(DRBox& dr_box, ChangeType change_type, int32_t net_idx, EXTLayerRect* fixed_rect, bool is_routing);
   void updateFixedRectToShadow(DRBox& dr_box, ChangeType change_type, int32_t net_idx, LayerRect& real_rect, bool is_routing);
   void updateFixedRectToShadow(DRBox& dr_box, ChangeType change_type, int32_t net_idx, Segment<LayerCoord>* segment);
@@ -190,7 +183,6 @@ class DetailedRouter
 #if 1  // debug
   void debugPlotDRModel(DRModel& dr_model, std::string flag);
   void debugCheckDRBox(DRBox& dr_box);
-  void debugPlotBestDRBox(DRModel& dr_model, DRBox& dr_box, std::string flag);
   void debugPlotDRBox(DRBox& dr_box, std::string flag);
 #endif
 };
