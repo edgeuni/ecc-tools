@@ -92,7 +92,6 @@ void PowerReporter::outputPowerReport(PRModel& pr_model)
   outputPowerGroupList(power_report_file);
   outputPowerAttribute(power_report_file);
   STAUTIL.closeFileStream(power_report_file);
-  STALOG.info(Loc::current(), "Output iSTA power report: ", pr_model.get_power_report_file_path());
 }
 
 void PowerReporter::outputPowerDesignInfo(std::ofstream* power_report_file)
@@ -176,7 +175,6 @@ void PowerReporter::outputInstancePower(PRModel& pr_model)
     outputInstancePowerRecord(instance_power_file, instance_power_pair.second);
   }
   STAUTIL.closeFileStream(instance_power_file);
-  STALOG.info(Loc::current(), "Output iSTA instance power: ", pr_model.get_instance_power_file_path());
 }
 
 void PowerReporter::outputInstancePowerHeader(std::ofstream* instance_power_file)
