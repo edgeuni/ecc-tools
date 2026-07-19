@@ -116,6 +116,8 @@ class STAInterface
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
+  void wrapVcdActivity();
+  std::string wrapVcdPinName(std::string& vcd_signal_name);
   void wrapDBInfo();
   void wrapConstraintFilePath();
   void wrapInstanceList();

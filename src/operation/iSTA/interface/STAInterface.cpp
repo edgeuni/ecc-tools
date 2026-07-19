@@ -33,6 +33,7 @@
 #include "TimingPropagator.hpp"
 #include "TimingReporter.hpp"
 #include "Utility.hpp"
+#include "VcdParser.hh"
 #include "idm.h"
 #include "Lib.hh"
 #include "spef/SpefParser.hh"
@@ -212,9 +213,6 @@ void STAInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   /////////////////////////////////////////////
   STADM.getConfig().temp_directory_path = STAUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./sta_temp_directory");
   STADM.getConfig().thread_number = STAUTIL.getConfigValue<int32_t>(config_map, "-thread_number", 128);
-  if (config_map.count("-vcd_file_path") > 0) {
-    STADM.getConfig().vcd_file_path = std::any_cast<std::string>(config_map["-vcd_file_path"]);
-  }
   omp_set_num_threads(std::max(STADM.getConfig().thread_number, 1));
   /////////////////////////////////////////////
 }
@@ -227,6 +225,43 @@ void STAInterface::wrapDatabase()
   wrapNetList();
   wrapTimingLibrary();
   wrapParasiticLibrary();
+  wrapVcdActivity();
+}
+
+void STAInterface::wrapVcdActivity()
+{
+  Database& database = STADM.getDatabase();
+  database.get_vcd_activity_map().clear();
+  vcd::VcdReader* vcd_reader = dmInst->get_vcd_reader();
+  if (vcd_reader == nullptr) {
+    return;
+  }
+  for (std::pair<const std::string, vcd::VcdSignalActivity>& activity_pair : vcd_reader->get_signal_activity_map()) {
+    std::string vcd_signal_name = activity_pair.first;
+    std::string pin_name = wrapVcdPinName(vcd_signal_name);
+    if (pin_name.empty() || database.get_pin_map().count(pin_name) == 0) {
+      continue;
+    }
+    PowerActivity activity;
+    activity.set_transition_density(activity_pair.second.get_transition_density());
+    activity.set_static_probability(activity_pair.second.get_static_probability());
+    activity.set_origin(PowerActivityOrigin::kVcd);
+    activity.set_is_valid(true);
+    database.get_vcd_activity_map()[pin_name] = activity;
+  }
+}
+
+std::string STAInterface::wrapVcdPinName(std::string& vcd_signal_name)
+{
+  Database& database = STADM.getDatabase();
+  std::string top_scope_path = database.get_design_name() + "/";
+  std::size_t top_scope_pos = vcd_signal_name.find(top_scope_path);
+  if (top_scope_pos == std::string::npos || (top_scope_pos != 0 && vcd_signal_name[top_scope_pos - 1] != '/')) {
+    return "";
+  }
+  std::string pin_name = vcd_signal_name.substr(top_scope_pos + top_scope_path.size());
+  std::replace(pin_name.begin(), pin_name.end(), '/', ':');
+  return pin_name;
 }
 
 void STAInterface::wrapDBInfo()

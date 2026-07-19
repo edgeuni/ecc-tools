@@ -49,7 +49,6 @@ class PowerPropagator
   void propagateActivity(PPModel& pp_model);
   void clearPowerActivity();
   void seedVcdActivity();
-  std::string getVcdPinName(std::string& vcd_signal_name);
   bool setPinActivity(std::string& pin_name, PowerActivity& activity);
   void limitTransitionDensity(std::string& pin_name, PowerActivity& activity);
   double getMinimumSlew(std::string& pin_name);

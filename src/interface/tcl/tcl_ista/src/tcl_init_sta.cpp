@@ -28,8 +28,6 @@ TclInitSTA::TclInitSTA(const char* cmd_name) : TclCmd(cmd_name)
   _config_list.push_back(std::make_pair("-temp_directory_path", ValueType::kString));
   // int32_t thread_number;            // optional
   _config_list.push_back(std::make_pair("-thread_number", ValueType::kInt));
-  // std::string vcd_file_path;        // optional
-  _config_list.push_back(std::make_pair("-vcd_file_path", ValueType::kString));
 
   TclUtil::addOption(this, _config_list);
 }

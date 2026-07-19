@@ -948,8 +948,6 @@ void DataManager::printConfig()
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.thread_number);
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "path_report_number");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.path_report_number);
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "vcd_file_path");
-  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.vcd_file_path);
   // **********        STA        ********** //
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(0), "STA_CONFIG_BUILD");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "log_file_path");

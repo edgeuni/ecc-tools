@@ -19,7 +19,6 @@
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "Utility.hpp"
-#include "VcdParserRustC.hh"
 
 namespace ista {
 
@@ -146,89 +145,18 @@ void PowerPropagator::clearPowerActivity()
 void PowerPropagator::seedVcdActivity()
 {
   Database& database = STADM.getDatabase();
-  Config& config = STADM.getConfig();
-  if (config.vcd_file_path.empty()) {
+  if (database.get_vcd_activity_map().empty()) {
     return;
   }
-
-  ipower::RustVcdReader vcd_reader;
-  void* vcd_file_ptr = vcd_reader.readVcdFile(config.vcd_file_path.c_str());
-  RustVCDFile* vcd_file = rust_convert_vcd_file(vcd_file_ptr);
-  std::string top_instance_name = database.get_design_name();
-  RustTcAndSpResVecs* activity_result = rust_calc_scope_tc_sp_with_scope(top_instance_name.c_str(), vcd_file_ptr);
-  std::map<std::string, double> toggle_map;
-  RustVec toggle_vec = activity_result->signal_tc_vec;
-  void* toggle_ptr = nullptr;
-  FOREACH_VEC_ELEM(&toggle_vec, void, toggle_ptr)
-  {
-    RustSignalTC* toggle = rust_convert_signal_tc(toggle_ptr);
-    toggle_map[toggle->signal_name] = toggle->signal_tc;
-  }
-
-  double time_unit_scale = 1.0;
-  switch (vcd_file->time_unit) {
-    case 0:
-      time_unit_scale = 1E9;
-      break;
-    case 1:
-      time_unit_scale = 1E6;
-      break;
-    case 2:
-      time_unit_scale = 1E3;
-      break;
-    case 3:
-      time_unit_scale = 1.0;
-      break;
-    case 4:
-      time_unit_scale = 1E-3;
-      break;
-    case 5:
-      time_unit_scale = 1E-6;
-      break;
-    default:
-      STALOG.error(Loc::current(), "Unrecognized VCD time unit.");
-      break;
-  }
-
   std::size_t annotated_pin_num = 0;
-  double simulation_duration = static_cast<double>(vcd_file->end_time - vcd_file->start_time) * static_cast<double>(vcd_file->time_resolution)
-                               * time_unit_scale;
-  if (simulation_duration <= STA_ERROR) {
-    return;
-  }
-  RustVec duration_vec = activity_result->signal_duration_vec;
-  void* duration_ptr = nullptr;
-  FOREACH_VEC_ELEM(&duration_vec, void, duration_ptr)
-  {
-    RustSignalDuration* duration = rust_convert_signal_duration(duration_ptr);
-    std::string vcd_signal_name = duration->signal_name;
-    std::string pin_name = getVcdPinName(vcd_signal_name);
-    if (database.get_pin_map().count(pin_name) == 0 || toggle_map.count(vcd_signal_name) == 0) {
-      continue;
-    }
-    double total_duration = static_cast<double>(duration->bit_0_duration) + static_cast<double>(duration->bit_1_duration)
-                            + static_cast<double>(duration->bit_x_duration) + static_cast<double>(duration->bit_z_duration);
-    if (total_duration <= STA_ERROR) {
-      continue;
-    }
-    PowerActivity activity;
-    activity.set_transition_density(static_cast<double>(toggle_map[vcd_signal_name]) / simulation_duration);
-    activity.set_static_probability(static_cast<double>(duration->bit_1_duration) * static_cast<double>(vcd_file->time_resolution) * time_unit_scale
-                                    / simulation_duration);
-    activity.set_origin(PowerActivityOrigin::kVcd);
-    activity.set_is_valid(true);
+  for (std::pair<const std::string, PowerActivity>& activity_pair : database.get_vcd_activity_map()) {
+    std::string pin_name = activity_pair.first;
+    PowerActivity activity = activity_pair.second;
     if (setPinActivity(pin_name, activity)) {
       annotated_pin_num++;
     }
   }
   STALOG.info(Loc::current(), "Annotated ", annotated_pin_num, " power activities from VCD.");
-}
-
-std::string PowerPropagator::getVcdPinName(std::string& vcd_signal_name)
-{
-  std::string pin_name = vcd_signal_name;
-  std::replace(pin_name.begin(), pin_name.end(), '/', ':');
-  return pin_name;
 }
 
 bool PowerPropagator::setPinActivity(std::string& pin_name, PowerActivity& activity)

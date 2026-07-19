@@ -30,7 +30,6 @@ class Config
   std::string temp_directory_path;  // required
   int32_t thread_number;            // optional
   int32_t path_report_number;       // optional
-  std::string vcd_file_path;        // optional
   /////////////////////////////////////////////
   // **********        STA        ********** //
   std::string log_file_path;  // building
