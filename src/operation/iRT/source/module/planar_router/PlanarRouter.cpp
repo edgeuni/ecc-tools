@@ -16,7 +16,6 @@
 // ***************************************************************************************
 #include "PlanarRouter.hpp"
 
-#include <chrono>
 #include <cmath>
 
 #include "GDSPlotter.hpp"
@@ -27,43 +26,6 @@
 #include "Utility.hpp"
 
 namespace irt {
-
-namespace {
-
-std::vector<PlanarRect> getPlanarObsList(const GridMap<bool>& forbidden_map)
-{
-  std::vector<PlanarRect> planar_obs_list;
-  std::map<std::pair<int32_t, int32_t>, int32_t> active_interval_rect_idx_map;
-
-  for (int32_t y = 0; y < forbidden_map.get_y_size(); y++) {
-    std::map<std::pair<int32_t, int32_t>, int32_t> curr_interval_rect_idx_map;
-    for (int32_t x = 0; x < forbidden_map.get_x_size();) {
-      if (!forbidden_map[x][y]) {
-        x++;
-        continue;
-      }
-      int32_t ll_x = x;
-      while (x + 1 < forbidden_map.get_x_size() && forbidden_map[x + 1][y]) {
-        x++;
-      }
-      int32_t ur_x = x;
-      std::pair<int32_t, int32_t> interval(ll_x, ur_x);
-      auto active_iter = active_interval_rect_idx_map.find(interval);
-      if (active_iter != active_interval_rect_idx_map.end()) {
-        planar_obs_list[active_iter->second].set_ur_y(y);
-        curr_interval_rect_idx_map[interval] = active_iter->second;
-      } else {
-        planar_obs_list.emplace_back(ll_x, y, ur_x, y);
-        curr_interval_rect_idx_map[interval] = static_cast<int32_t>(planar_obs_list.size()) - 1;
-      }
-      x++;
-    }
-    active_interval_rect_idx_map = std::move(curr_interval_rect_idx_map);
-  }
-  return planar_obs_list;
-}
-
-}  // namespace
 
 // public
 
@@ -96,44 +58,19 @@ void PlanarRouter::generate()
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
+
   PRModel pr_model = initPRModel();
   setPRComParam(pr_model);
   initPRTaskList(pr_model);
+
   buildPRNodeMap(pr_model);
   buildPRNodeNeighbor(pr_model);
   buildOrientSupply(pr_model);
-  if (pr_model.get_enable_astar_fallback()) {
-    buildPRMacroRegion(pr_model);
-  }
+  buildPRBlockage(pr_model);
+
   // debugCheckPRModel(pr_model);
-  generatePRModel(pr_model);
-  PRMacroRepairStat& macro_repair_stat = pr_model.get_pr_macro_repair_stat();
-  if (!pr_model.get_pr_macro_region_list().empty()) {
-    RTLOG.info(Loc::current(), "macro_region_num: ", pr_model.get_pr_macro_region_list().size(),
-               ", raw_steiner_in_macro: ", macro_repair_stat.raw_steiner_in_macro,
-               ", fixed_steiner_in_macro: ", macro_repair_stat.fixed_steiner_in_macro,
-               ", failed_steiner_legalize_num: ", macro_repair_stat.failed_steiner_legalize_num,
-               ", filtered_macro_cross_candidate_num: ", macro_repair_stat.filtered_macro_cross_candidate_num,
-               ", astar_fallback_attempt_num: ", macro_repair_stat.astar_fallback_attempt_num,
-               ", astar_fallback_success_num: ", macro_repair_stat.astar_fallback_success_num,
-               ", astar_fallback_failed_num: ", macro_repair_stat.astar_fallback_failed_num,
-               ", astar_search_num: ", macro_repair_stat.astar_search_num,
-               ", astar_escape_pair_num: ", macro_repair_stat.astar_escape_pair_num,
-               ", astar_pruned_pair_num: ", macro_repair_stat.astar_pruned_pair_num,
-               ", astar_max_workspace_cell_num: ", macro_repair_stat.astar_max_workspace_cell_num,
-               ", astar_expanded_node_num: ", macro_repair_stat.astar_expanded_node_num,
-               ", astar_push_node_num: ", macro_repair_stat.astar_push_node_num,
-               ", astar_stale_pop_num: ", macro_repair_stat.astar_stale_pop_num,
-               ", astar_cost_cache_hit_num: ", macro_repair_stat.astar_cost_cache_hit_num,
-               ", astar_cost_cache_miss_num: ", macro_repair_stat.astar_cost_cache_miss_num,
-               ", astar_prepare_time_ms: ", macro_repair_stat.astar_prepare_time_ms,
-               ", astar_search_time_ms: ", macro_repair_stat.astar_search_time_ms,
-               ", astar_validate_time_ms: ", macro_repair_stat.astar_validate_time_ms,
-               ", failed_routing_edge_num: ", macro_repair_stat.failed_routing_edge_num,
-               ", failed_routing_net_num: ", macro_repair_stat.failed_routing_net_set.size(),
-               ", pattern_astar_macro_cross_edge_num: ", macro_repair_stat.pattern_astar_macro_cross_edge_num,
-               ", pattern_astar_macro_cross_net_num: ", macro_repair_stat.pattern_astar_macro_cross_net_set.size());
-  }
+  runRouteFlow(pr_model);
+
   // debugPlotPRModel(pr_model, "after");
   updateSummary(pr_model);
   printSummary(pr_model);
@@ -151,13 +88,9 @@ PlanarRouter* PlanarRouter::_pr_instance = nullptr;
 PRModel PlanarRouter::initPRModel()
 {
   std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
-  std::vector<Macro>& macro_list = RTDM.getDatabase().get_macro_list();
 
   PRModel pr_model;
   pr_model.set_pr_net_list(convertToPRNetList(net_list));
-  pr_model.set_enable_astar_fallback(!macro_list.empty());
-  RTLOG.info(Loc::current(), "enable_astar_fallback: ", pr_model.get_enable_astar_fallback(),
-             ", macro_num: ", macro_list.size());
   return pr_model;
 }
 
@@ -241,24 +174,6 @@ void PlanarRouter::buildPRNodeMap(PRModel& pr_model)
           pr_node.get_ignore_net_orient_map()[net_idx].insert(orient_set.begin(), orient_set.end());
         }
       }
-      std::map<Orientation, std::set<int32_t>> planar_orient_allowed_net_map;
-      std::set<Orientation> unrestricted_orient_set;
-      for (auto& [layer_idx, orient_supply_map] : gcell_map[x][y].get_routing_orient_supply_map()) {
-        for (auto& [orient, supply] : orient_supply_map) {
-          if (supply <= 0 || RTUTIL.exist(unrestricted_orient_set, orient)) {
-            continue;
-          }
-          RoutingLayerAllowedNetMap& routing_allowed_net_map = gcell_map[x][y].get_routing_allowed_net_map();
-          if (!RTUTIL.exist(routing_allowed_net_map, layer_idx) || !RTUTIL.exist(routing_allowed_net_map[layer_idx], orient)) {
-            planar_orient_allowed_net_map.erase(orient);
-            unrestricted_orient_set.insert(orient);
-          } else {
-            planar_orient_allowed_net_map[orient].insert(routing_allowed_net_map[layer_idx][orient].begin(),
-                                                         routing_allowed_net_map[layer_idx][orient].end());
-          }
-        }
-      }
-      pr_node.set_orient_allowed_net_map(planar_orient_allowed_net_map);
     }
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -317,7 +232,7 @@ void PlanarRouter::buildOrientSupply(PRModel& pr_model)
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void PlanarRouter::buildPRMacroRegion(PRModel& pr_model)
+void PlanarRouter::buildPRBlockage(PRModel& pr_model)
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
@@ -332,7 +247,6 @@ void PlanarRouter::buildPRMacroRegion(PRModel& pr_model)
   pr_macro_region_list.clear();
   pr_macro_region_list.reserve(macro_list.size());
 
-  int32_t forbidden_gcell_num = 0;
   for (Macro& macro : macro_list) {
     PlanarRect& body_rect = macro.get_body_rect();
 
@@ -347,20 +261,44 @@ void PlanarRouter::buildPRMacroRegion(PRModel& pr_model)
         if (!macro_body_forbidden_map.isInside(x, y) || !RTUTIL.isOpenOverlap(gcell_map[x][y], body_rect)) {
           continue;
         }
-        if (!macro_body_forbidden_map[x][y]) {
-          forbidden_gcell_num++;
-        }
         macro_body_forbidden_map[x][y] = true;
       }
     }
   }
-  pr_model.set_macro_body_obs_list(getPlanarObsList(macro_body_forbidden_map));
 
-  RTLOG.info(Loc::current(), "macro_region_num: ", pr_macro_region_list.size(), ", macro_body_forbidden_gcell_num: ", forbidden_gcell_num);
+  std::vector<PlanarRect> macro_body_obs_list;
+  std::map<std::pair<int32_t, int32_t>, int32_t> active_interval_rect_idx_map;
+  for (int32_t y = 0; y < macro_body_forbidden_map.get_y_size(); y++) {
+    std::map<std::pair<int32_t, int32_t>, int32_t> curr_interval_rect_idx_map;
+    for (int32_t x = 0; x < macro_body_forbidden_map.get_x_size();) {
+      if (!macro_body_forbidden_map[x][y]) {
+        x++;
+        continue;
+      }
+      int32_t ll_x = x;
+      while (x + 1 < macro_body_forbidden_map.get_x_size() && macro_body_forbidden_map[x + 1][y]) {
+        x++;
+      }
+      int32_t ur_x = x;
+      std::pair<int32_t, int32_t> interval(ll_x, ur_x);
+      auto active_iter = active_interval_rect_idx_map.find(interval);
+      if (active_iter != active_interval_rect_idx_map.end()) {
+        macro_body_obs_list[active_iter->second].set_ur_y(y);
+        curr_interval_rect_idx_map[interval] = active_iter->second;
+      } else {
+        macro_body_obs_list.emplace_back(ll_x, y, ur_x, y);
+        curr_interval_rect_idx_map[interval] = static_cast<int32_t>(macro_body_obs_list.size()) - 1;
+      }
+      x++;
+    }
+    active_interval_rect_idx_map = std::move(curr_interval_rect_idx_map);
+  }
+  pr_model.set_macro_body_obs_list(std::move(macro_body_obs_list));
+
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void PlanarRouter::generatePRModel(PRModel& pr_model)
+void PlanarRouter::runRouteFlow(PRModel& pr_model)
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
@@ -371,7 +309,7 @@ void PlanarRouter::generatePRModel(PRModel& pr_model)
 
   Monitor stage_monitor;
   for (size_t i = 0; i < pr_task_list.size(); i++) {
-    routePRTask(pr_model, pr_task_list[i]);
+    routePRNet(pr_model, pr_task_list[i]);
     if ((i + 1) % batch_size == 0 || (i + 1) == pr_task_list.size()) {
       RTLOG.info(Loc::current(), "Routed ", (i + 1), "/", pr_task_list.size(), "(", RTUTIL.getPercentage(i + 1, pr_task_list.size()), ") nets",
                  stage_monitor.getStatsInfo());
@@ -379,48 +317,34 @@ void PlanarRouter::generatePRModel(PRModel& pr_model)
   }
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
-  PRMacroRepairStat& macro_repair_stat = pr_model.get_pr_macro_repair_stat();
-  if (!macro_repair_stat.failed_routing_net_set.empty()) {
-    RTLOG.error(Loc::current(), "PR stopped because no complete routing topology was found for ",
-                macro_repair_stat.failed_routing_net_set.size(), " nets, edge_num: ", macro_repair_stat.failed_routing_edge_num);
-  }
 }
 
-void PlanarRouter::routePRTask(PRModel& pr_model, PRNet* pr_task)
+void PlanarRouter::routePRNet(PRModel& pr_model, PRNet* pr_net)
 {
-  initSingleTask(pr_model, pr_task);
-  std::vector<Segment<PlanarCoord>> routing_segment_list = getRoutingSegmentList(pr_model);
-  std::set<int32_t>& failed_routing_net_set = pr_model.get_pr_macro_repair_stat().failed_routing_net_set;
-  if (failed_routing_net_set.find(pr_task->get_net_idx()) != failed_routing_net_set.end()) {
-    resetSingleTask(pr_model);
+  pr_model.set_curr_pr_task(pr_net);
+  std::vector<Segment<PlanarCoord>> routing_segment_list;
+  if (!getRoutingSegmentList(pr_model, routing_segment_list)) {
+    pr_model.set_curr_pr_task(nullptr);
     return;
   }
   MTree<PlanarCoord> coord_tree = getCoordTree(pr_model, routing_segment_list);
   updateDemandToGraph(pr_model, ChangeType::kAdd, coord_tree);
   uploadNetResult(pr_model, coord_tree);
-  resetSingleTask(pr_model);
+  pr_model.set_curr_pr_task(nullptr);
 }
 
-void PlanarRouter::initSingleTask(PRModel& pr_model, PRNet* pr_task)
-{
-  pr_model.set_curr_pr_task(pr_task);
-}
-
-std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentList(PRModel& pr_model)
+bool PlanarRouter::getRoutingSegmentList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list)
 {
   std::vector<Segment<PlanarCoord>> planar_topo_list = getPlanarTopoList(pr_model);
   std::set<PlanarCoord, CmpPlanarCoordByXASC> terminal_coord_set = getCurrTerminalCoordSet(pr_model);
 
   PRShadowDemandMap self_shadow;
-  std::vector<Segment<PlanarCoord>> routing_segment_list;
+  bool routing_failed = false;
 
   for (size_t topo_idx = 0; topo_idx < planar_topo_list.size(); topo_idx++) {
     const PRShadowDemandMap* shadow_ptr = self_shadow.empty() ? nullptr : &self_shadow;
-    PRMacroRepairStat& macro_repair_stat = pr_model.get_pr_macro_repair_stat();
-    int32_t filtered_macro_cross_candidate_num = macro_repair_stat.filtered_macro_cross_candidate_num;
     std::vector<PRCandidate> candidate_list
         = getPRCandidateListByTopo(pr_model, static_cast<int32_t>(topo_idx), planar_topo_list[topo_idx], terminal_coord_set, shadow_ptr);
-    bool has_pattern_macro_cross_candidate = (macro_repair_stat.filtered_macro_cross_candidate_num > filtered_macro_cross_candidate_num);
 
 #pragma omp parallel for
     for (int32_t candidate_idx = 0; candidate_idx < static_cast<int32_t>(candidate_list.size()); candidate_idx++) {
@@ -435,30 +359,12 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentList(PRModel& p
       }
     }
     bool pattern_route_failed = !has_unblocked_candidate;
-    if (pr_model.get_enable_astar_fallback() && pattern_route_failed) {
-      macro_repair_stat.astar_fallback_attempt_num++;
+    if (pattern_route_failed) {
       std::vector<Segment<PlanarCoord>> astar_segment_list
           = getRoutingSegmentListByAStarWithEscape(pr_model, planar_topo_list[topo_idx], terminal_coord_set, shadow_ptr);
-      bool astar_macro_cross = (!astar_segment_list.empty() && isMacroBlockedRoutingSegmentList(pr_model, astar_segment_list, terminal_coord_set));
-      if (!astar_segment_list.empty() && !astar_macro_cross) {
+      if (!astar_segment_list.empty() && !isBlockedRoutingSegmentList(pr_model, astar_segment_list, terminal_coord_set)) {
         candidate_list.emplace_back(static_cast<int32_t>(topo_idx), astar_segment_list, 0, 0, false, 0);
         updatePRCandidate(pr_model, candidate_list.back(), shadow_ptr);
-        macro_repair_stat.astar_fallback_success_num++;
-      } else {
-        macro_repair_stat.astar_fallback_failed_num++;
-        if (candidate_list.empty() && has_pattern_macro_cross_candidate && astar_macro_cross) {
-          PRNet* curr_pr_task = pr_model.get_curr_pr_task();
-          int32_t curr_net_idx = curr_pr_task->get_net_idx();
-          macro_repair_stat.pattern_astar_macro_cross_edge_num++;
-          if (macro_repair_stat.pattern_astar_macro_cross_net_set.insert(curr_net_idx).second) {
-            std::string net_name = curr_pr_task->get_origin_net() == nullptr ? "" : curr_pr_task->get_origin_net()->get_net_name();
-            PlanarCoord& first_coord = planar_topo_list[topo_idx].get_first();
-            PlanarCoord& second_coord = planar_topo_list[topo_idx].get_second();
-            RTLOG.warn(Loc::current(), "Pattern routing and A* both cross macro, net_idx: ", curr_net_idx,
-                       ", net_name: ", net_name, ", topo_idx: ", topo_idx, ", topo_edge: (", first_coord.get_x(), ",",
-                       first_coord.get_y(), ")-(", second_coord.get_x(), ",", second_coord.get_y(), ")");
-          }
-        }
       }
     }
 
@@ -471,15 +377,13 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentList(PRModel& p
     if (best_candidate == nullptr) {
       PRNet* curr_pr_task = pr_model.get_curr_pr_task();
       int32_t curr_net_idx = curr_pr_task->get_net_idx();
-      macro_repair_stat.failed_routing_edge_num++;
-      macro_repair_stat.failed_routing_net_set.insert(curr_net_idx);
       std::string net_name = curr_pr_task->get_origin_net() == nullptr ? "" : curr_pr_task->get_origin_net()->get_net_name();
       PlanarCoord& first_coord = planar_topo_list[topo_idx].get_first();
       PlanarCoord& second_coord = planar_topo_list[topo_idx].get_second();
       RTLOG.warn(Loc::current(), "No routing candidate, net_idx: ", curr_net_idx, ", net_name: ", net_name,
                  ", topo_idx: ", topo_idx, ", topo_edge: (", first_coord.get_x(), ",", first_coord.get_y(), ")-(",
-                 second_coord.get_x(), ",", second_coord.get_y(), "), astar_fallback: ",
-                 pr_model.get_enable_astar_fallback() ? "failed" : "disabled");
+                 second_coord.get_x(), ",", second_coord.get_y(), ")");
+      routing_failed = true;
       continue;
     }
     for (Segment<PlanarCoord>& routing_segment : best_candidate->get_routing_segment_list()) {
@@ -487,7 +391,7 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentList(PRModel& p
     }
     addCandidateToShadow(self_shadow, *best_candidate);
   }
-  return routing_segment_list;
+  return !routing_failed;
 }
 
 bool PlanarRouter::isBetterCandidate(PRModel& pr_model, PRCandidate& candidate, PRCandidate& current_best)
@@ -547,8 +451,7 @@ std::vector<PRCandidate> PlanarRouter::getPRCandidateListByTopo(
   auto appendCandidateList = [&](int32_t corner_num, std::vector<std::vector<Segment<PlanarCoord>>> routing_segment_list_list) {
     for (const std::vector<Segment<PlanarCoord>>& routing_segment_list : routing_segment_list_list) {
       std::vector<Segment<PlanarCoord>> candidate_segment_list = routing_segment_list;
-      if (isMacroBlockedRoutingSegmentList(pr_model, candidate_segment_list, terminal_coord_set)) {
-        pr_model.get_pr_macro_repair_stat().filtered_macro_cross_candidate_num++;
+      if (isBlockedRoutingSegmentList(pr_model, candidate_segment_list, terminal_coord_set)) {
         continue;
       }
       pr_candidate_list.emplace_back(topo_idx, candidate_segment_list, corner_num, 0, false, 0);
@@ -567,18 +470,6 @@ std::vector<PRCandidate> PlanarRouter::getPRCandidateListByTopo(
   return pr_candidate_list;
 }
 
-std::vector<PRCandidate> PlanarRouter::getPRCandidateList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& planar_topo_list)
-{
-  std::set<PlanarCoord, CmpPlanarCoordByXASC> terminal_coord_set = getCurrTerminalCoordSet(pr_model);
-  std::vector<PRCandidate> pr_candidate_list;
-  for (size_t i = 0; i < planar_topo_list.size(); i++) {
-    std::vector<PRCandidate> topo_candidate_list
-        = getPRCandidateListByTopo(pr_model, static_cast<int32_t>(i), planar_topo_list[i], terminal_coord_set);
-    pr_candidate_list.insert(pr_candidate_list.end(), topo_candidate_list.begin(), topo_candidate_list.end());
-  }
-  return pr_candidate_list;
-}
-
 std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_model)
 {
   std::vector<PlanarCoord> planar_coord_list;
@@ -593,26 +484,18 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_mo
   tb_task.set_planar_coord_list(planar_coord_list);
   GridMap<bool>& macro_body_forbidden_map = pr_model.get_macro_body_forbidden_map();
   const std::vector<PlanarRect>& macro_body_obs_list = pr_model.get_macro_body_obs_list();
-  if (!macro_body_obs_list.empty()) {
-    std::vector<PlanarRect> tb_macro_body_obs_list;
-    tb_macro_body_obs_list.reserve(macro_body_obs_list.size());
-    for (const PlanarRect& macro_body_obs : macro_body_obs_list) {
-      tb_macro_body_obs_list.emplace_back(std::max(0, macro_body_obs.get_ll_x() - 1), std::max(0, macro_body_obs.get_ll_y() - 1),
-                                          std::min(macro_body_forbidden_map.get_x_size() - 1, macro_body_obs.get_ur_x() + 1),
-                                          std::min(macro_body_forbidden_map.get_y_size() - 1, macro_body_obs.get_ur_y() + 1));
-    }
-    tb_task.set_planar_obs_list(std::move(tb_macro_body_obs_list));
-    tb_task.set_planar_search_region(
-        PlanarRect(0, 0, macro_body_forbidden_map.get_x_size() - 1, macro_body_forbidden_map.get_y_size() - 1));
+  std::vector<PlanarRect> tb_macro_body_obs_list;
+  tb_macro_body_obs_list.reserve(macro_body_obs_list.size());
+  for (const PlanarRect& macro_body_obs : macro_body_obs_list) {
+    tb_macro_body_obs_list.emplace_back(std::max(0, macro_body_obs.get_ll_x() - 1), std::max(0, macro_body_obs.get_ll_y() - 1),
+                                        std::min(macro_body_forbidden_map.get_x_size() - 1, macro_body_obs.get_ur_x() + 1),
+                                        std::min(macro_body_forbidden_map.get_y_size() - 1, macro_body_obs.get_ur_y() + 1));
   }
+  tb_task.set_planar_obs_list(std::move(tb_macro_body_obs_list));
+  tb_task.set_planar_search_region(
+      PlanarRect(0, 0, macro_body_forbidden_map.get_x_size() - 1, macro_body_forbidden_map.get_y_size() - 1));
 
-  TBSteinerRepairStat tb_stat;
-  std::vector<Segment<PlanarCoord>> planar_topo_list = RTTB.getPlanarTopoList(tb_task, tb_stat);
-  PRMacroRepairStat& pr_stat = pr_model.get_pr_macro_repair_stat();
-  pr_stat.raw_steiner_in_macro += tb_stat.raw_steiner_in_macro;
-  pr_stat.fixed_steiner_in_macro += tb_stat.fixed_steiner_in_macro;
-  pr_stat.failed_steiner_legalize_num += tb_stat.failed_steiner_legalize_num;
-  return planar_topo_list;
+  return RTTB.getPlanarTopoList(tb_task);
 }
 
 std::set<PlanarCoord, CmpPlanarCoordByXASC> PlanarRouter::getCurrTerminalCoordSet(PRModel& pr_model)
@@ -624,7 +507,7 @@ std::set<PlanarCoord, CmpPlanarCoordByXASC> PlanarRouter::getCurrTerminalCoordSe
   return terminal_coord_set;
 }
 
-bool PlanarRouter::isMacroForbiddenCoord(PRModel& pr_model, const PlanarCoord& coord)
+bool PlanarRouter::isBlockedCoord(PRModel& pr_model, const PlanarCoord& coord)
 {
   GridMap<bool>& macro_body_forbidden_map = pr_model.get_macro_body_forbidden_map();
   if (macro_body_forbidden_map.empty() || !macro_body_forbidden_map.isInside(coord.get_x(), coord.get_y())) {
@@ -646,7 +529,7 @@ bool PlanarRouter::isSameMacroBodyCoord(PRModel& pr_model, const PlanarCoord& fi
 
 int32_t PlanarRouter::getPRMacroRegionId(PRModel& pr_model, const PlanarCoord& coord)
 {
-  if (!isMacroForbiddenCoord(pr_model, coord)) {
+  if (!isBlockedCoord(pr_model, coord)) {
     return -1;
   }
   std::vector<PRMacroRegion>& pr_macro_region_list = pr_model.get_pr_macro_region_list();
@@ -658,8 +541,8 @@ int32_t PlanarRouter::getPRMacroRegionId(PRModel& pr_model, const PlanarCoord& c
   return -1;
 }
 
-bool PlanarRouter::isMacroBlockedSegment(PRModel& pr_model, Segment<PlanarCoord>& planar_segment,
-                                              const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set)
+bool PlanarRouter::isBlockedSegment(PRModel& pr_model, Segment<PlanarCoord>& planar_segment,
+                                    const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set)
 {
   if (pr_model.get_pr_macro_region_list().empty()) {
     return false;
@@ -678,7 +561,7 @@ bool PlanarRouter::isMacroBlockedSegment(PRModel& pr_model, Segment<PlanarCoord>
 
   std::set<PlanarCoord, CmpPlanarCoordByXASC> forbidden_coord_set;
   for (PlanarCoord coord = first_coord;; coord.set_coord(coord.get_x() + step_x, coord.get_y() + step_y)) {
-    if (isMacroForbiddenCoord(pr_model, coord)) {
+    if (isBlockedCoord(pr_model, coord)) {
       forbidden_coord_set.insert(coord);
     }
     if (coord == second_coord) {
@@ -691,11 +574,11 @@ bool PlanarRouter::isMacroBlockedSegment(PRModel& pr_model, Segment<PlanarCoord>
 
   std::set<PlanarCoord, CmpPlanarCoordByXASC> terminal_stub_coord_set;
   auto addTerminalStubCoord = [&](const PlanarCoord& terminal_coord, const PlanarCoord& stop_coord, int32_t curr_step_x, int32_t curr_step_y) {
-    if (terminal_coord_set.find(terminal_coord) == terminal_coord_set.end() || !isMacroForbiddenCoord(pr_model, terminal_coord)) {
+    if (terminal_coord_set.find(terminal_coord) == terminal_coord_set.end() || !isBlockedCoord(pr_model, terminal_coord)) {
       return;
     }
     for (PlanarCoord coord = terminal_coord;; coord.set_coord(coord.get_x() + curr_step_x, coord.get_y() + curr_step_y)) {
-      if (!isMacroForbiddenCoord(pr_model, coord) || !isSameMacroBodyCoord(pr_model, terminal_coord, coord)) {
+      if (!isBlockedCoord(pr_model, coord) || !isSameMacroBodyCoord(pr_model, terminal_coord, coord)) {
         break;
       }
       terminal_stub_coord_set.insert(coord);
@@ -715,11 +598,11 @@ bool PlanarRouter::isMacroBlockedSegment(PRModel& pr_model, Segment<PlanarCoord>
   return false;
 }
 
-bool PlanarRouter::isMacroBlockedRoutingSegmentList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
-                                                         const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set)
+bool PlanarRouter::isBlockedRoutingSegmentList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
+                                                const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set)
 {
   for (Segment<PlanarCoord>& routing_segment : routing_segment_list) {
-    if (isMacroBlockedSegment(pr_model, routing_segment, terminal_coord_set)) {
+    if (isBlockedSegment(pr_model, routing_segment, terminal_coord_set)) {
       return true;
     }
   }
@@ -739,7 +622,7 @@ std::vector<PlanarRouter::PRAStarEscapeNode> PlanarRouter::getAStarEscapeNodeLis
   if (!pr_node_map.isInside(terminal_coord.get_x(), terminal_coord.get_y())) {
     return escape_node_list;
   }
-  if (!isMacroForbiddenCoord(pr_model, terminal_coord)) {
+  if (!isBlockedCoord(pr_model, terminal_coord)) {
     PRAStarEscapeNode escape_node;
     escape_node.terminal_coord = terminal_coord;
     escape_node.route_coord = terminal_coord;
@@ -756,7 +639,7 @@ std::vector<PlanarRouter::PRAStarEscapeNode> PlanarRouter::getAStarEscapeNodeLis
 
   auto addEscapeCandidate = [&](const PlanarCoord& route_coord) {
     Segment<PlanarCoord> stub_segment(terminal_coord, route_coord);
-    if (isMacroBlockedSegment(pr_model, stub_segment, terminal_coord_set)) {
+    if (isBlockedSegment(pr_model, stub_segment, terminal_coord_set)) {
       return;
     }
     double cost = getPatternSegmentScore(pr_model, stub_segment, terminal_coord_set, shadow_demand_map);
@@ -774,7 +657,7 @@ std::vector<PlanarRouter::PRAStarEscapeNode> PlanarRouter::getAStarEscapeNodeLis
     for (PlanarCoord coord(terminal_coord.get_x() + step_x, terminal_coord.get_y() + step_y);
          pr_node_map.isInside(coord.get_x(), coord.get_y());
          coord.set_coord(coord.get_x() + step_x, coord.get_y() + step_y)) {
-      if (isMacroForbiddenCoord(pr_model, coord)) {
+      if (isBlockedCoord(pr_model, coord)) {
         if (getPRMacroRegionId(pr_model, coord) == macro_region_id) {
           continue;
         }
@@ -813,7 +696,10 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentListByAStarWith
     const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
     const PRShadowDemandMap* shadow_demand_map)
 {
-  auto prepare_begin_time = std::chrono::steady_clock::now();
+  // Keep the original pattern-only behavior when no macro blockage exists.
+  if (pr_model.get_pr_macro_region_list().empty()) {
+    return {};
+  }
   PlanarCoord start_coord = planar_topo.get_first();
   PlanarCoord end_coord = planar_topo.get_second();
   if (start_coord == end_coord) {
@@ -828,7 +714,6 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentListByAStarWith
     return {};
   }
 
-  PRMacroRepairStat& macro_repair_stat = pr_model.get_pr_macro_repair_stat();
   std::vector<PRAStarPairTask> pair_task_list;
   pair_task_list.reserve(start_escape_node_list.size() * end_escape_node_list.size());
   PlanarRect workspace_rect;
@@ -862,20 +747,15 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentListByAStarWith
       pair_task_list.push_back(pair_task);
     }
   }
-  macro_repair_stat.astar_escape_pair_num += pair_task_list.size();
   if (has_workspace_rect) {
-    prepareAStarWorkspace(pr_model, workspace_rect, _astar_workspace);
+    prepareAStarWorkspace(workspace_rect, _astar_workspace);
   }
-  auto prepare_end_time = std::chrono::steady_clock::now();
-  macro_repair_stat.astar_prepare_time_ms
-      += std::chrono::duration<double, std::milli>(prepare_end_time - prepare_begin_time).count();
 
   double best_score = DBL_MAX;
   std::vector<Segment<PlanarCoord>> best_segment_list;
   for (PRAStarPairTask& pair_task : pair_task_list) {
     if (best_score < DBL_MAX / 2 && pair_task.lower_bound > best_score
         && !RTUTIL.equalDoubleByError(pair_task.lower_bound, best_score, RT_ERROR)) {
-      macro_repair_stat.astar_pruned_pair_num++;
       continue;
     }
     PRAStarEscapeNode& start_escape_node = start_escape_node_list[pair_task.start_idx];
@@ -894,12 +774,8 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentListByAStarWith
     for (auto stub_iter = end_escape_node.stub_segment_list.rbegin(); stub_iter != end_escape_node.stub_segment_list.rend(); stub_iter++) {
       routing_segment_list.emplace_back(stub_iter->get_second(), stub_iter->get_first());
     }
-    auto validate_begin_time = std::chrono::steady_clock::now();
-    bool path_blocked = routing_segment_list.empty() || isMacroBlockedRoutingSegmentList(pr_model, routing_segment_list, terminal_coord_set);
+    bool path_blocked = routing_segment_list.empty() || isBlockedRoutingSegmentList(pr_model, routing_segment_list, terminal_coord_set);
     double score = path_blocked ? DBL_MAX : getLegalRoutingSegmentListScore(pr_model, routing_segment_list, shadow_demand_map);
-    auto validate_end_time = std::chrono::steady_clock::now();
-    macro_repair_stat.astar_validate_time_ms
-        += std::chrono::duration<double, std::milli>(validate_end_time - validate_begin_time).count();
     if (path_blocked) {
       continue;
     }
@@ -928,7 +804,7 @@ double PlanarRouter::getLegalRoutingSegmentListScore(PRModel& pr_model, std::vec
   return score;
 }
 
-void PlanarRouter::prepareAStarWorkspace(PRModel& pr_model, const PlanarRect& workspace_rect, PRAStarWorkspace& workspace)
+void PlanarRouter::prepareAStarWorkspace(const PlanarRect& workspace_rect, PRAStarWorkspace& workspace)
 {
   workspace.workspace_rect = workspace_rect;
   workspace.x_size = workspace_rect.get_ur_x() - workspace_rect.get_ll_x() + 1;
@@ -954,9 +830,6 @@ void PlanarRouter::prepareAStarWorkspace(PRModel& pr_model, const PlanarRect& wo
     }
     workspace.context_stamp = 1;
   }
-  PRMacroRepairStat& macro_repair_stat = pr_model.get_pr_macro_repair_stat();
-  macro_repair_stat.astar_max_workspace_cell_num
-      = std::max(macro_repair_stat.astar_max_workspace_cell_num, static_cast<int64_t>(cell_num));
 }
 
 int32_t PlanarRouter::getAStarNodeIndex(const PRAStarWorkspace& workspace, const PlanarCoord& coord)
@@ -984,23 +857,13 @@ bool PlanarRouter::searchRoutingSegmentByAStar(
     const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set, const PRShadowDemandMap* shadow_demand_map,
     PRAStarWorkspace& workspace, std::vector<Segment<PlanarCoord>>& routing_segment_list)
 {
-  auto search_begin_time = std::chrono::steady_clock::now();
-  PRMacroRepairStat& macro_repair_stat = pr_model.get_pr_macro_repair_stat();
-  macro_repair_stat.astar_search_num++;
-  auto finishSearch = [&](bool success) {
-    auto search_end_time = std::chrono::steady_clock::now();
-    macro_repair_stat.astar_search_time_ms
-        += std::chrono::duration<double, std::milli>(search_end_time - search_begin_time).count();
-    return success;
-  };
-
   GridMap<PRNode>& pr_node_map = pr_model.get_pr_node_map();
   if (start_coord == end_coord || !pr_node_map.isInside(start_coord.get_x(), start_coord.get_y())
       || !pr_node_map.isInside(end_coord.get_x(), end_coord.get_y())) {
-    return finishSearch(false);
+    return false;
   }
   if (!RTUTIL.isInside(search_rect, start_coord) || !RTUTIL.isInside(search_rect, end_coord)) {
-    return finishSearch(false);
+    return false;
   }
   PlanarRect& workspace_rect = workspace.workspace_rect;
   if (search_rect.get_ll_x() < workspace_rect.get_ll_x() || search_rect.get_ll_y() < workspace_rect.get_ll_y()
@@ -1010,7 +873,7 @@ bool PlanarRouter::searchRoutingSegmentByAStar(
   Segment<PlanarCoord> planar_topo(start_coord, end_coord);
   if (!isAStarAccessibleCoord(pr_model, start_coord, planar_topo, terminal_coord_set)
       || !isAStarAccessibleCoord(pr_model, end_coord, planar_topo, terminal_coord_set)) {
-    return finishSearch(false);
+    return false;
   }
 
   workspace.search_stamp++;
@@ -1046,7 +909,6 @@ bool PlanarRouter::searchRoutingSegmentByAStar(
   auto pushToOpenList = [&](int32_t node_idx, double known_cost, double estimated_cost) {
     workspace.open_heap.push_back({node_idx, known_cost, estimated_cost});
     std::push_heap(workspace.open_heap.begin(), workspace.open_heap.end(), cmpQueueNode);
-    macro_repair_stat.astar_push_node_num++;
   };
 
   int32_t start_idx = getAStarNodeIndex(workspace, start_coord);
@@ -1063,11 +925,9 @@ bool PlanarRouter::searchRoutingSegmentByAStar(
     if (curr_node_state.closed
         || (queue_node.known_cost > curr_node_state.known_cost
             && !RTUTIL.equalDoubleByError(queue_node.known_cost, curr_node_state.known_cost, RT_ERROR))) {
-      macro_repair_stat.astar_stale_pop_num++;
       continue;
     }
     curr_node_state.closed = true;
-    macro_repair_stat.astar_expanded_node_num++;
     PlanarCoord curr_coord = getAStarNodeCoord(workspace, queue_node.node_idx);
     if (queue_node.node_idx == end_idx) {
       break;
@@ -1108,7 +968,7 @@ bool PlanarRouter::searchRoutingSegmentByAStar(
 
   PRAStarNodeState& end_state = getNodeState(end_idx);
   if (!end_state.closed) {
-    return finishSearch(false);
+    return false;
   }
 
   std::vector<PlanarCoord> coord_list;
@@ -1120,12 +980,12 @@ bool PlanarRouter::searchRoutingSegmentByAStar(
     }
     curr_idx = getNodeState(curr_idx).parent_idx;
     if (curr_idx == -1) {
-      return finishSearch(false);
+      return false;
     }
   }
   std::reverse(coord_list.begin(), coord_list.end());
   routing_segment_list = getRoutingSegmentListByCoordList(coord_list);
-  return finishSearch(!routing_segment_list.empty());
+  return !routing_segment_list.empty();
 }
 
 PlanarRect PlanarRouter::getAStarSearchRect(PRModel& pr_model, Segment<PlanarCoord>& planar_topo)
@@ -1166,7 +1026,7 @@ bool PlanarRouter::isAStarAccessibleCoord(PRModel& pr_model, const PlanarCoord& 
 {
   (void) planar_topo;
   (void) terminal_coord_set;
-  return !isMacroForbiddenCoord(pr_model, coord);
+  return !isBlockedCoord(pr_model, coord);
 }
 
 double PlanarRouter::getAStarStepCost(PRModel& pr_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord,
@@ -1209,9 +1069,7 @@ double PlanarRouter::getAStarNodeCost(PRModel& pr_model, const PlanarCoord& coor
     node_cost_cache.valid_mask = 0;
   }
   uint8_t direction_bit = static_cast<uint8_t>(1U << direction_idx);
-  PRMacroRepairStat& macro_repair_stat = pr_model.get_pr_macro_repair_stat();
   if (node_cost_cache.valid_mask & direction_bit) {
-    macro_repair_stat.astar_cost_cache_hit_num++;
     return node_cost_cache.cost[direction_idx];
   }
 
@@ -1225,7 +1083,6 @@ double PlanarRouter::getAStarNodeCost(PRModel& pr_model, const PlanarCoord& coor
                          .getTotalCost();
   node_cost_cache.cost[direction_idx] = node_cost;
   node_cost_cache.valid_mask |= direction_bit;
-  macro_repair_stat.astar_cost_cache_miss_num++;
   return node_cost;
 }
 
@@ -1473,147 +1330,12 @@ std::vector<std::vector<Segment<PlanarCoord>>> PlanarRouter::getRoutingSegmentLi
   return routing_segment_list_list;
 }
 
-std::vector<std::vector<Segment<PlanarCoord>>> PlanarRouter::getRoutingSegmentListByLowCostLane3Bends(
-    PRModel& pr_model, Segment<PlanarCoord>& planar_topo,
-    const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
-    const PRShadowDemandMap* shadow_demand_map)
-{
-  constexpr int32_t kLowCostLaneTopK = 4;
-  constexpr int32_t kLowCostLaneMaxLaneNum = 6;
-  constexpr int32_t kLowCostLaneMaxScanNum = 128;
-
-  PlanarCoord& first_coord = planar_topo.get_first();
-  PlanarCoord& second_coord = planar_topo.get_second();
-  if (RTUTIL.isRightAngled(first_coord, second_coord)) {
-    return {};
-  }
-
-  int32_t min_x = std::min(first_coord.get_x(), second_coord.get_x());
-  int32_t max_x = std::max(first_coord.get_x(), second_coord.get_x());
-  int32_t min_y = std::min(first_coord.get_y(), second_coord.get_y());
-  int32_t max_y = std::max(first_coord.get_y(), second_coord.get_y());
-  if (max_x - min_x <= 1 || max_y - min_y <= 1) {
-    return {};
-  }
-
-  auto makeSegmentScore = [&](const PlanarCoord& start_coord, const PlanarCoord& end_coord) {
-    if (start_coord == end_coord) {
-      return 0.0;
-    }
-    Segment<PlanarCoord> segment(start_coord, end_coord);
-    return getPatternSegmentScore(pr_model, segment, terminal_coord_set, shadow_demand_map);
-  };
-
-  auto getSampledLaneList = [kLowCostLaneMaxScanNum](int32_t min_idx, int32_t max_idx) {
-    std::vector<int32_t> lane_list;
-    int32_t lane_num = max_idx - min_idx - 1;
-    if (lane_num <= 0) {
-      return lane_list;
-    }
-    int32_t scan_num = std::min(lane_num, kLowCostLaneMaxScanNum);
-    lane_list.reserve(scan_num);
-    for (int32_t i = 0; i < scan_num; i++) {
-      int32_t lane_idx = min_idx + 1 + static_cast<int32_t>(std::llround((lane_num - 1) * (i / 1.0 / std::max(1, scan_num - 1))));
-      if (lane_list.empty() || lane_list.back() != lane_idx) {
-        lane_list.push_back(lane_idx);
-      }
-    }
-    return lane_list;
-  };
-
-  auto appendQuantileLane = [](std::vector<int32_t>& lane_list, int32_t min_idx, int32_t max_idx, int32_t numerator, int32_t denominator) {
-    int32_t lane_idx = min_idx + static_cast<int32_t>(std::llround((max_idx - min_idx) * (numerator / 1.0 / denominator)));
-    if (min_idx < lane_idx && lane_idx < max_idx && !RTUTIL.exist(lane_list, lane_idx)) {
-      lane_list.push_back(lane_idx);
-    }
-  };
-
-  std::vector<std::pair<int32_t, double>> x_lane_score_list;
-  for (int32_t x : getSampledLaneList(min_x, max_x)) {
-    PlanarCoord vertical_start(x, min_y);
-    PlanarCoord vertical_end(x, max_y);
-    double score = 0;
-    score += makeSegmentScore(first_coord, PlanarCoord(x, first_coord.get_y()));
-    score += makeSegmentScore(vertical_start, vertical_end);
-    score += makeSegmentScore(PlanarCoord(x, second_coord.get_y()), second_coord);
-    x_lane_score_list.emplace_back(x, score);
-  }
-  std::sort(x_lane_score_list.begin(), x_lane_score_list.end(), [](auto& a, auto& b) {
-    if (!RTUTIL.equalDoubleByError(a.second, b.second, RT_ERROR)) {
-      return a.second < b.second;
-    }
-    return a.first < b.first;
-  });
-
-  std::vector<std::pair<int32_t, double>> y_lane_score_list;
-  for (int32_t y : getSampledLaneList(min_y, max_y)) {
-    PlanarCoord horizontal_start(min_x, y);
-    PlanarCoord horizontal_end(max_x, y);
-    double score = 0;
-    score += makeSegmentScore(first_coord, PlanarCoord(first_coord.get_x(), y));
-    score += makeSegmentScore(horizontal_start, horizontal_end);
-    score += makeSegmentScore(PlanarCoord(second_coord.get_x(), y), second_coord);
-    y_lane_score_list.emplace_back(y, score);
-  }
-  std::sort(y_lane_score_list.begin(), y_lane_score_list.end(), [](auto& a, auto& b) {
-    if (!RTUTIL.equalDoubleByError(a.second, b.second, RT_ERROR)) {
-      return a.second < b.second;
-    }
-    return a.first < b.first;
-  });
-
-  std::vector<int32_t> selected_x_lane_list;
-  std::vector<int32_t> selected_y_lane_list;
-  for (int32_t i = 0; i < std::min(kLowCostLaneTopK, static_cast<int32_t>(x_lane_score_list.size())); i++) {
-    selected_x_lane_list.push_back(x_lane_score_list[i].first);
-  }
-  for (int32_t i = 0; i < std::min(kLowCostLaneTopK, static_cast<int32_t>(y_lane_score_list.size())); i++) {
-    selected_y_lane_list.push_back(y_lane_score_list[i].first);
-  }
-  for (auto [numerator, denominator] : {std::pair<int32_t, int32_t>(1, 4), std::pair<int32_t, int32_t>(1, 2),
-                                        std::pair<int32_t, int32_t>(3, 4)}) {
-    if (static_cast<int32_t>(selected_x_lane_list.size()) < kLowCostLaneMaxLaneNum) {
-      appendQuantileLane(selected_x_lane_list, min_x, max_x, numerator, denominator);
-    }
-    if (static_cast<int32_t>(selected_y_lane_list.size()) < kLowCostLaneMaxLaneNum) {
-      appendQuantileLane(selected_y_lane_list, min_y, max_y, numerator, denominator);
-    }
-  }
-
-  std::sort(selected_x_lane_list.begin(), selected_x_lane_list.end());
-  selected_x_lane_list.erase(std::unique(selected_x_lane_list.begin(), selected_x_lane_list.end()), selected_x_lane_list.end());
-  std::sort(selected_y_lane_list.begin(), selected_y_lane_list.end());
-  selected_y_lane_list.erase(std::unique(selected_y_lane_list.begin(), selected_y_lane_list.end()), selected_y_lane_list.end());
-
-  std::vector<std::vector<Segment<PlanarCoord>>> routing_segment_list_list;
-  for (int32_t x : selected_x_lane_list) {
-    for (int32_t y : selected_y_lane_list) {
-      PlanarCoord horizontal_mid1(x, first_coord.get_y());
-      PlanarCoord horizontal_mid2(x, y);
-      PlanarCoord horizontal_mid3(second_coord.get_x(), y);
-      routing_segment_list_list.push_back({Segment<PlanarCoord>(first_coord, horizontal_mid1),
-                                           Segment<PlanarCoord>(horizontal_mid1, horizontal_mid2),
-                                           Segment<PlanarCoord>(horizontal_mid2, horizontal_mid3),
-                                           Segment<PlanarCoord>(horizontal_mid3, second_coord)});
-
-      PlanarCoord vertical_mid1(first_coord.get_x(), y);
-      PlanarCoord vertical_mid2(x, y);
-      PlanarCoord vertical_mid3(x, second_coord.get_y());
-      routing_segment_list_list.push_back({Segment<PlanarCoord>(first_coord, vertical_mid1),
-                                           Segment<PlanarCoord>(vertical_mid1, vertical_mid2),
-                                           Segment<PlanarCoord>(vertical_mid2, vertical_mid3),
-                                           Segment<PlanarCoord>(vertical_mid3, second_coord)});
-    }
-  }
-  return routing_segment_list_list;
-}
-
 double PlanarRouter::getPatternSegmentScore(PRModel& pr_model, Segment<PlanarCoord>& segment,
                                                  const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
                                                  const PRShadowDemandMap* shadow_demand_map)
 {
   constexpr double kBlockedSegmentScore = DBL_MAX / 4;
-  if (isMacroBlockedSegment(pr_model, segment, terminal_coord_set)) {
+  if (isBlockedSegment(pr_model, segment, terminal_coord_set)) {
     return kBlockedSegmentScore;
   }
   return getPatternSegmentCost(pr_model, segment, shadow_demand_map);
@@ -1869,11 +1591,6 @@ void PlanarRouter::uploadNetResult(PRModel& pr_model, MTree<PlanarCoord>& coord_
     Segment<LayerCoord>* segment = new Segment<LayerCoord>({coord_segment.get_first()->value(), 0}, {coord_segment.get_second()->value(), 0});
     RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, pr_model.get_curr_pr_task()->get_net_idx(), segment);
   }
-}
-
-void PlanarRouter::resetSingleTask(PRModel& pr_model)
-{
-  pr_model.set_curr_pr_task(nullptr);
 }
 
 #if 1  // update env

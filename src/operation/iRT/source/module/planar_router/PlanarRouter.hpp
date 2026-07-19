@@ -55,27 +55,25 @@ class PlanarRouter
   void buildPRNodeMap(PRModel& pr_model);
   void buildPRNodeNeighbor(PRModel& pr_model);
   void buildOrientSupply(PRModel& pr_model);
-  void buildPRMacroRegion(PRModel& pr_model);
-  void generatePRModel(PRModel& pr_model);
-  void routePRTask(PRModel& pr_model, PRNet* pr_net);
-  void initSingleTask(PRModel& pr_model, PRNet* pr_net);
-  std::vector<Segment<PlanarCoord>> getRoutingSegmentList(PRModel& pr_model);
+  void buildPRBlockage(PRModel& pr_model);
+  void runRouteFlow(PRModel& pr_model);
+  void routePRNet(PRModel& pr_model, PRNet* pr_net);
+  bool getRoutingSegmentList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list);
   using PRShadowDemandMap = std::map<PlanarCoord, std::set<Orientation>, CmpPlanarCoordByXASC>;
   uint8_t getShadowOrientMask(const PRShadowDemandMap* shadow_demand_map, const PlanarCoord& coord);
   bool isBetterCandidate(PRModel& pr_model, PRCandidate& candidate, PRCandidate& current_best);
   std::vector<PRCandidate> getPRCandidateListByTopo(PRModel& pr_model, int32_t topo_idx, Segment<PlanarCoord>& planar_topo,
                                                     const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
                                                     const PRShadowDemandMap* shadow_demand_map = nullptr);
-  std::vector<PRCandidate> getPRCandidateList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& planar_topo_list);
   std::vector<Segment<PlanarCoord>> getPlanarTopoList(PRModel& pr_model);
   std::set<PlanarCoord, CmpPlanarCoordByXASC> getCurrTerminalCoordSet(PRModel& pr_model);
-  bool isMacroForbiddenCoord(PRModel& pr_model, const PlanarCoord& coord);
+  bool isBlockedCoord(PRModel& pr_model, const PlanarCoord& coord);
   bool isSameMacroBodyCoord(PRModel& pr_model, const PlanarCoord& first_coord, const PlanarCoord& second_coord);
   int32_t getPRMacroRegionId(PRModel& pr_model, const PlanarCoord& coord);
-  bool isMacroBlockedSegment(PRModel& pr_model, Segment<PlanarCoord>& planar_segment,
-                             const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set);
-  bool isMacroBlockedRoutingSegmentList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
-                                        const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set);
+  bool isBlockedSegment(PRModel& pr_model, Segment<PlanarCoord>& planar_segment,
+                        const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set);
+  bool isBlockedRoutingSegmentList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
+                                   const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set);
   struct PRAStarEscapeNode
   {
     PlanarCoord terminal_coord;
@@ -132,7 +130,7 @@ class PlanarRouter
       const PRShadowDemandMap* shadow_demand_map = nullptr);
   double getLegalRoutingSegmentListScore(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
                                          const PRShadowDemandMap* shadow_demand_map = nullptr);
-  void prepareAStarWorkspace(PRModel& pr_model, const PlanarRect& workspace_rect, PRAStarWorkspace& workspace);
+  void prepareAStarWorkspace(const PlanarRect& workspace_rect, PRAStarWorkspace& workspace);
   int32_t getAStarNodeIndex(const PRAStarWorkspace& workspace, const PlanarCoord& coord);
   PlanarCoord getAStarNodeCoord(const PRAStarWorkspace& workspace, int32_t node_idx);
   bool searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord,
@@ -157,10 +155,6 @@ class PlanarRouter
   std::vector<int32_t> getMidIndexList(int32_t first_idx, int32_t second_idx);
   std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByUPattern(PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
   std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByInner3Bends(PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
-  std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByLowCostLane3Bends(
-      PRModel& pr_model, Segment<PlanarCoord>& planar_topo,
-      const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
-      const PRShadowDemandMap* shadow_demand_map = nullptr);
   double getPatternSegmentScore(PRModel& pr_model, Segment<PlanarCoord>& segment,
                                 const std::set<PlanarCoord, CmpPlanarCoordByXASC>& terminal_coord_set,
                                 const PRShadowDemandMap* shadow_demand_map = nullptr);
@@ -171,7 +165,6 @@ class PlanarRouter
                          const PRShadowDemandMap* shadow_demand_map = nullptr);
   MTree<PlanarCoord> getCoordTree(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list);
   void uploadNetResult(PRModel& pr_model, MTree<PlanarCoord>& coord_tree);
-  void resetSingleTask(PRModel& pr_model);
 
 #if 1  // update env
   void updateDemandToGraph(PRModel& pr_model, ChangeType change_type, MTree<PlanarCoord>& coord_tree);

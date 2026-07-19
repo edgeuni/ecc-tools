@@ -81,7 +81,7 @@ class DetailedRouter
   void routeDRBox(DRBox& dr_box);
   std::vector<DRTask*> initTaskSchedule(DRBox& dr_box);
   void updateGraph(DRBox& dr_box, DRTask* dr_task);
-  void routeDRTask(DRBox& dr_box, DRTask* dr_task);
+  bool routeDRTask(DRBox& dr_box, DRTask* dr_task);
   void initSingleRouteTask(DRBox& dr_box, DRTask* dr_task);
   bool isConnectedAllEnd(DRBox& dr_box);
   void routeSinglePath(DRBox& dr_box);
@@ -147,6 +147,7 @@ class DetailedRouter
   void updateRoutedRectToGraph(DRBox& dr_box, ChangeType change_type, int32_t net_idx, LayerRect& real_rect, bool is_routing);
   void updateRoutedRectToGraph(DRBox& dr_box, ChangeType change_type, int32_t net_idx, Segment<LayerCoord>& segment);
   void updateRoutedRectToGraph(DRBox& dr_box, ChangeType change_type, int32_t net_idx, EXTLayerRect& routed_rect, bool is_routing);
+  void updateComponentBlockageToGraph(DRBox& dr_box, ChangeType change_type, const LayerRect& real_rect);
   void addRouteViolationToGraph(DRBox& dr_box, Violation& violation);
   void addRouteViolationToGraph(DRBox& dr_box, LayerRect& searched_rect, std::vector<Segment<LayerCoord>>& overlap_segment_list);
   std::map<DRNode*, std::set<Orientation>> getNodeOrientationMap(DRBox& dr_box, NetShape& net_shape);
