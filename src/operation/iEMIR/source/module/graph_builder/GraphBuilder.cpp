@@ -95,6 +95,7 @@ void GraphBuilder::buildPowerGraph(PowerNet& power_net)
   buildWireIntersectionNodeList(power_graph, power_net, gb_model);
   buildViaNodeList(power_graph, power_net, gb_model);
   buildPinNodeList(power_graph, power_net, gb_model);
+  buildGeneratedSourceNodeList(power_graph);
   buildWireEdgeList(power_graph, power_net, gb_model);
   buildViaEdgeList(power_graph, power_net);
   checkPowerGraphConnectivity(power_graph);
@@ -283,6 +284,30 @@ void GraphBuilder::buildPinNodeList(PowerGraph& power_graph, PowerNet& power_net
         appendWireNodeId(gb_model, segment_idx, node_id);
       }
     }
+  }
+}
+
+void GraphBuilder::buildGeneratedSourceNodeList(PowerGraph& power_graph)
+{
+  if (!power_graph.get_source_node_id_list().empty()) {
+    return;
+  }
+  buildFullSourceNodeList(power_graph);
+}
+
+void GraphBuilder::buildFullSourceNodeList(PowerGraph& power_graph)
+{
+  int32_t top_layer_idx = -1;
+  for (PowerNode& power_node : power_graph.get_node_list()) {
+    top_layer_idx = std::max(top_layer_idx, power_node.get_layer_idx());
+  }
+  for (PowerNode& power_node : power_graph.get_node_list()) {
+    if (power_node.get_layer_idx() != top_layer_idx) {
+      continue;
+    }
+    power_node.set_type(PowerNodeType::kSource);
+    power_node.set_is_source(true);
+    power_graph.get_source_node_id_list().push_back(power_node.get_node_id());
   }
 }
 

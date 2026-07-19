@@ -64,6 +64,8 @@ class GraphBuilder
   void appendWireNodeId(GBModel& gb_model, std::size_t segment_idx, std::size_t node_id);
   void buildViaNodeList(PowerGraph& power_graph, PowerNet& power_net, GBModel& gb_model);
   void buildPinNodeList(PowerGraph& power_graph, PowerNet& power_net, GBModel& gb_model);
+  void buildGeneratedSourceNodeList(PowerGraph& power_graph);
+  void buildFullSourceNodeList(PowerGraph& power_graph);
   bool isOnWireSegment(PowerWireSegment& power_wire_segment, int32_t x, int32_t y);
   bool isOnWireSegment(PowerWireSegment& power_wire_segment, PowerNode& power_node);
   void buildWireEdgeList(PowerGraph& power_graph, PowerNet& power_net, GBModel& gb_model);

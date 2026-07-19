@@ -16,7 +16,10 @@
 // ***************************************************************************************
 #pragma once
 
-#include "EMIRHeader.hpp"
+#include <any>
+#include <cstdint>
+#include <map>
+#include <string>
 
 #if 1  // 前向声明
 
@@ -26,6 +29,7 @@ class IdbPin;
 class IdbSpecialNet;
 class IdbSpecialWireSegment;
 class IdbVia;
+class IdbViaMaster;
 enum class IdbConnectType : uint8_t;
 }  // namespace idb
 
@@ -72,6 +76,7 @@ class EMIRInterface
   void wrapPowerWireSegmentList(PowerNet& power_net, idb::IdbSpecialNet* idb_power_net);
   void wrapPowerWireSegment(PowerNet& power_net, idb::IdbSpecialWireSegment* idb_segment);
   void wrapPowerVia(PowerNet& power_net, idb::IdbVia* idb_via);
+  double getGeneratedViaResistance(idb::IdbViaMaster* idb_via_master, int32_t cut_num);
   void wrapPowerPinList(PowerNet& power_net, idb::IdbSpecialNet* idb_power_net);
   void wrapPowerPin(PowerNet& power_net, idb::IdbPin* idb_pin, bool is_source);
   void wrapPowerPinShape(PowerNet& power_net, idb::IdbPin* idb_pin, idb::IdbLayerShape* idb_layer_shape, bool is_source);

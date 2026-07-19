@@ -60,6 +60,19 @@ void EMIRInterface::destroyInst()
 void EMIRInterface::initEMIR(std::map<std::string, std::any> config_map)
 {
   Logger::initInst();
+  // clang-format off
+  EMIRLOG.info(Loc::current(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+  EMIRLOG.info(Loc::current(), "____________________  _________________     _____________________________________  ");
+  EMIRLOG.info(Loc::current(), "___(_)__  ____/__   |/  /___  _/__  __ \\    __  ___/__  __/__    |__  __ \\__  __/");
+  EMIRLOG.info(Loc::current(), "__  /__  __/  __  /|_/ / __  / __  /_/ /    _____ \\__  /  __  /| |_  /_/ /_  /    ");
+  EMIRLOG.info(Loc::current(), "_  / _  /___  _  /  / / __/ /  _  _, _/     ____/ /_  /   _  ___ |  _, _/_  /      ");
+  EMIRLOG.info(Loc::current(), "/_/  /_____/  /_/  /_/  /___/  /_/ |_|      /____/ /_/    /_/  |_/_/ |_| /_/       ");
+  EMIRLOG.info(Loc::current(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+  // clang-format on
+  EMIRLOG.printLogFilePath();
+  //////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////
   Monitor monitor;
   EMIRLOG.info(Loc::current(), "Starting...");
 
@@ -102,6 +115,17 @@ void EMIRInterface::destroyEMIR()
   DataManager::destroyInst();
 
   EMIRLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+
+  EMIRLOG.printLogFilePath();
+  // clang-format off
+  EMIRLOG.info(Loc::current(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+  EMIRLOG.info(Loc::current(), "____________________  _________________     ______________   _________   ");
+  EMIRLOG.info(Loc::current(), "___(_)__  ____/__   |/  /___  _/__  __ \\    ___  ____/__  | / /__  __ \\");
+  EMIRLOG.info(Loc::current(), "__  /__  __/  __  /|_/ / __  / __  /_/ /    __  __/  __   |/ /__  / / /  ");
+  EMIRLOG.info(Loc::current(), "_  / _  /___  _  /  / / __/ /  _  _, _/     _  /___  _  /|  / _  /_/ /   ");
+  EMIRLOG.info(Loc::current(), "/_/  /_____/  /_/  /_/  /___/  /_/ |_|      /_____/  /_/ |_/  /_____/    ");
+  EMIRLOG.info(Loc::current(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+  // clang-format on
   Logger::destroyInst();
 }
 
@@ -124,8 +148,7 @@ void EMIRInterface::input(std::map<std::string, std::any>& config_map)
 void EMIRInterface::wrapConfig(std::map<std::string, std::any>& config_map)
 {
   /////////////////////////////////////////////
-  EMIRDM.getConfig().temp_directory_path
-      = EMIRUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./emir_temp_directory");
+  EMIRDM.getConfig().temp_directory_path = EMIRUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./emir_temp_directory");
   EMIRDM.getConfig().instance_power_file_path = EMIRUTIL.getConfigValue<std::string>(config_map, "-instance_power_file_path", "");
   EMIRDM.getConfig().thread_number = EMIRUTIL.getConfigValue<int32_t>(config_map, "-thread_number", 128);
   omp_set_num_threads(std::max(EMIRDM.getConfig().thread_number, 1));
@@ -177,6 +200,9 @@ void EMIRInterface::wrapPowerNet(idb::IdbSpecialNet* idb_power_net)
   power_net.set_type(wrapPowerNetType(idb_power_net->get_connect_type()));
   wrapPowerWireSegmentList(power_net, idb_power_net);
   wrapPowerPinList(power_net, idb_power_net);
+  if (power_net.get_wire_segment_list().empty() && power_net.get_via_list().empty() && power_net.get_pin_list().empty()) {
+    return;
+  }
   EMIRDM.getDatabase().get_power_net_map()[power_net.get_net_name()] = power_net;
 }
 
@@ -195,10 +221,11 @@ void EMIRInterface::wrapPowerWireSegmentList(PowerNet& power_net, idb::IdbSpecia
 {
   for (idb::IdbSpecialWire* idb_wire : idb_power_net->get_wire_list()->get_wire_list()) {
     for (idb::IdbSpecialWireSegment* idb_segment : idb_wire->get_segment_list()) {
+      if (idb_segment->get_point_num() >= 2) {
+        wrapPowerWireSegment(power_net, idb_segment);
+      }
       if (idb_segment->is_via()) {
         wrapPowerVia(power_net, idb_segment->get_via());
-      } else {
-        wrapPowerWireSegment(power_net, idb_segment);
       }
     }
   }
@@ -243,12 +270,44 @@ void EMIRInterface::wrapPowerVia(PowerNet& power_net, idb::IdbVia* idb_via)
   if (idb_via_master->get_resistance() > 0.0) {
     power_via.set_resistance(idb_via_master->get_resistance());
   } else if (idb_via_master->get_master_generate()->get_rule_generate() != nullptr
-             && idb_via_master->get_master_generate()->get_rule_generate()->get_resistance_per_cut() > 0.0
-             && power_via.get_cut_num() > 0) {
-    power_via.set_resistance(idb_via_master->get_master_generate()->get_rule_generate()->get_resistance_per_cut()
-                             / power_via.get_cut_num());
+             && idb_via_master->get_master_generate()->get_rule_generate()->get_resistance_per_cut() > 0.0 && power_via.get_cut_num() > 0) {
+    power_via.set_resistance(idb_via_master->get_master_generate()->get_rule_generate()->get_resistance_per_cut() / power_via.get_cut_num());
+  } else {
+    power_via.set_resistance(getGeneratedViaResistance(idb_via_master, power_via.get_cut_num()));
   }
   power_net.get_via_list().push_back(power_via);
+}
+
+double EMIRInterface::getGeneratedViaResistance(idb::IdbViaMaster* idb_via_master, int32_t cut_num)
+{
+  if (idb_via_master->get_master_generate() == nullptr || cut_num <= 0) {
+    return 0.0;
+  }
+  idb::IdbViaMasterGenerate* generated_master = idb_via_master->get_master_generate();
+  idb::IdbLayerRouting* bottom_layer = generated_master->get_layer_bottom();
+  idb::IdbLayerCut* cut_layer = generated_master->get_layer_cut();
+  idb::IdbLayerRouting* top_layer = generated_master->get_layer_top();
+  double resistance_per_cut = 0.0;
+  for (idb::IdbVia* technology_via : dmInst->get_idb_layout()->get_via_list()->get_via_list()) {
+    idb::IdbViaMaster* technology_via_master = technology_via->get_instance();
+    if (!technology_via_master->is_fix() || !technology_via_master->is_default() || !technology_via_master->isOneCut()
+        || technology_via_master->get_resistance() <= 0.0) {
+      continue;
+    }
+    idb::IdbLayerShape* bottom_layer_shape = technology_via_master->get_bottom_layer_shape();
+    idb::IdbLayerShape* cut_layer_shape = technology_via_master->get_cut_layer_shape();
+    idb::IdbLayerShape* top_layer_shape = technology_via_master->get_top_layer_shape();
+    if (bottom_layer_shape->get_layer() != bottom_layer || cut_layer_shape->get_layer() != cut_layer
+        || top_layer_shape->get_layer() != top_layer) {
+      continue;
+    }
+    if (resistance_per_cut == 0.0) {
+      resistance_per_cut = technology_via_master->get_resistance();
+    } else if (std::abs(resistance_per_cut - technology_via_master->get_resistance()) > EMIR_ERROR) {
+      return 0.0;
+    }
+  }
+  return resistance_per_cut / cut_num;
 }
 
 void EMIRInterface::wrapPowerPinList(PowerNet& power_net, idb::IdbSpecialNet* idb_power_net)
@@ -289,7 +348,9 @@ void EMIRInterface::wrapPowerPinShape(PowerNet& power_net, idb::IdbPin* idb_pin,
 
 #if 1  // output
 
-void EMIRInterface::output() {}
+void EMIRInterface::output()
+{
+}
 
 #endif
 
