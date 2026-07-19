@@ -16,6 +16,26 @@
 // ***************************************************************************************
 #pragma once
 
+#include "EMIRHeader.hpp"
+
+#if 1  // 前向声明
+
+namespace idb {
+class IdbLayerShape;
+class IdbPin;
+class IdbSpecialNet;
+class IdbSpecialWireSegment;
+class IdbVia;
+enum class IdbConnectType : uint8_t;
+}  // namespace idb
+
+namespace iemir {
+class PowerNet;
+enum class PowerNetType;
+}  // namespace iemir
+
+#endif
+
 namespace iemir {
 
 #define EMIRI (iemir::EMIRInterface::getInst())
@@ -29,9 +49,38 @@ class EMIRInterface
 #if 1  // 外部调用EMIR的API
 
 #if 1  // iEMIR
-  void initEMIR();
+  void initEMIR(std::map<std::string, std::any> config_map);
   void runEMIR();
   void destroyEMIR();
+#endif
+
+#endif
+
+#if 1  // EMIR调用外部的API
+
+#if 1  // TopData
+
+#if 1  // input
+  void input(std::map<std::string, std::any>& config_map);
+  void wrapConfig(std::map<std::string, std::any>& config_map);
+  void wrapDatabase();
+  void wrapDBInfo();
+  void wrapInstanceIdSet();
+  void wrapPowerNetList();
+  void wrapPowerNet(idb::IdbSpecialNet* idb_power_net);
+  PowerNetType wrapPowerNetType(idb::IdbConnectType connect_type);
+  void wrapPowerWireSegmentList(PowerNet& power_net, idb::IdbSpecialNet* idb_power_net);
+  void wrapPowerWireSegment(PowerNet& power_net, idb::IdbSpecialWireSegment* idb_segment);
+  void wrapPowerVia(PowerNet& power_net, idb::IdbVia* idb_via);
+  void wrapPowerPinList(PowerNet& power_net, idb::IdbSpecialNet* idb_power_net);
+  void wrapPowerPin(PowerNet& power_net, idb::IdbPin* idb_pin, bool is_source);
+  void wrapPowerPinShape(PowerNet& power_net, idb::IdbPin* idb_pin, idb::IdbLayerShape* idb_layer_shape, bool is_source);
+#endif
+
+#if 1  // output
+  void output();
+#endif
+
 #endif
 
 #endif
