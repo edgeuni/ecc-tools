@@ -23,6 +23,7 @@ enum class PowerActivityOrigin
   kNone,
   kInput,
   kClock,
+  kVcd,
   kPropagated,
   kSequential,
   kConstant

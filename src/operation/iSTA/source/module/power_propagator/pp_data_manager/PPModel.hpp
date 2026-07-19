@@ -41,7 +41,7 @@ class PPModel
 
  private:
   double _minimum_clock_period = 1.0;
-  int32_t _max_activity_pass_num = 10;
+  int32_t _max_activity_pass_num = 50;
   std::vector<std::string> _seed_pin_list;
   std::vector<std::string> _sequential_instance_name_list;
 };

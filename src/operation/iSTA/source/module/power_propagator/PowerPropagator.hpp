@@ -48,23 +48,33 @@ class PowerPropagator
   void buildSequentialInstanceNameList(PPModel& pp_model);
   void propagateActivity(PPModel& pp_model);
   void clearPowerActivity();
+  void seedVcdActivity();
+  std::string getVcdPinName(std::string& vcd_signal_name);
+  bool setPinActivity(std::string& pin_name, PowerActivity& activity);
+  void limitTransitionDensity(std::string& pin_name, PowerActivity& activity);
+  double getMinimumSlew(std::string& pin_name);
+  double getMinimumSlew(std::map<AnalysisType, std::map<TransType, double>>& slew_map);
+  int32_t getActivityPriority(PowerActivityOrigin origin);
+  bool isActivityChanged(PowerActivity& left_activity, PowerActivity& right_activity);
+  double getRelativeChange(double value, double previous_value);
+  void seedCaseAnalysisActivity();
   void seedActivity(PPModel& pp_model);
   PowerActivity getSeedActivity(std::string& pin_name, PPModel& pp_model);
   PowerActivity getClockActivity(std::string& pin_name);
   PowerActivity getInputActivity(PPModel& pp_model);
   void propagateCombinationalActivity();
+  PowerActivity getPropagatedActivity(PowerActivity source_activity);
   void propagateOutputActivity(std::string& pin_name);
   PowerActivity getOutputActivity(std::string& pin_name);
+  PowerActivity normalizeConstantActivity(PowerActivity activity);
   std::map<std::string, PowerActivity> getInputActivityMap(Instance& instance);
   PowerActivity getFallbackInputActivity(std::string& pin_name);
   void propagateNetActivity(Arc& arc);
   void propagateSequentialActivity(PPModel& pp_model);
   PowerActivity getSequentialOutputActivity(Instance& instance);
   PowerActivity getPinActivity(std::string& pin_name);
-  bool setPinActivity(std::string& pin_name, PowerActivity& activity);
   bool isOutputPin(std::string& pin_name);
   bool isClockSource(std::string& pin_name);
-  bool isActivityChanged(PowerActivity& left_activity, PowerActivity& right_activity);
 };
 
 }  // namespace ista

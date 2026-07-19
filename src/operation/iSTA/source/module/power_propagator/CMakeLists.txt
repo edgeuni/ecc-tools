@@ -14,10 +14,12 @@ target_link_libraries(ista_power_propagator
     PUBLIC
     ista_data_manager
     ista_toolkit
+    vcd
 )
 
 target_include_directories(ista_power_propagator
     PUBLIC
+    ${HOME_DATABASE}/manager/parser
     ${ISTA_MODULE}/power_propagator/pp_data_manager
     ${ISTA_MODULE}/power_propagator
 )

@@ -18,6 +18,7 @@
 #include "Database.hpp"
 #include "PALeakageSummary.hpp"
 #include "PAModel.hpp"
+#include "TimingArcSense.hpp"
 
 namespace ista {
 
@@ -51,11 +52,14 @@ class PowerAnalyzer
   void analyzeInternalPower(Instance& instance, PowerValue& power_value);
   double getTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc);
   double getInputTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc);
+  double getInputTimingPowerArcConditionProbability(Instance& instance, TimingPowerArc& timing_power_arc);
   double getOutputTimingPowerArcPower(Instance& instance, TimingPowerArc& timing_power_arc);
   double getOutputTimingPowerArcWeight(Instance& instance, TimingPowerArc& timing_power_arc);
+  double getOutputTimingPowerArcConditionProbability(Instance& instance, TimingPowerArc& timing_power_arc);
   double getOutputTimingPowerArcWeightSum(Instance& instance, TimingPowerArc& timing_power_arc);
   double getTimingPowerArcEnergy(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
   double getTimingPowerArcInputSlew(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
+  TimingArcSense getTimingPowerArcSense(Instance& instance, TimingPowerArc& timing_power_arc);
   double getTimingPowerArcOutputLoad(Instance& instance, TimingPowerArc& timing_power_arc, TransType trans_type);
   double getTimingPowerArcConditionProbability(Instance& instance, TimingPowerArc& timing_power_arc);
   void analyzeSwitchingPower(Instance& instance, PowerValue& power_value);

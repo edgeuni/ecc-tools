@@ -295,10 +295,10 @@ impl VCDFile {
         }
     }
 
-    pub fn get_start_time(&mut self) -> i64 {
+    pub fn get_start_time(&self) -> i64 {
         self.start_time
     }
-    pub fn _set_start_time(&mut self, start_time: i64) {
+    pub fn set_start_time(&mut self, start_time: i64) {
         self.start_time = start_time;
     }
 
@@ -402,9 +402,10 @@ impl VCDFile {
 
 /// VCD File parser
 pub struct VCDFileParser {
-    vcd_file: VCDFile,
-    scope_stack: VecDeque<Rc<RefCell<VCDScope>>>,
-    current_time: i64,
+  vcd_file: VCDFile,
+  scope_stack: VecDeque<Rc<RefCell<VCDScope>>>,
+  current_time: i64,
+  has_start_time: bool,
 }
 
 impl VCDFileParser {
@@ -413,6 +414,7 @@ impl VCDFileParser {
             vcd_file: VCDFile::new(),
             scope_stack: VecDeque::new(),
             current_time: 0,
+            has_start_time: false,
         }
     }
 
@@ -432,6 +434,10 @@ impl VCDFileParser {
     }
 
     pub fn set_current_time(&mut self, current_time: i64) {
+        if !self.has_start_time {
+            self.vcd_file.set_start_time(current_time);
+            self.has_start_time = true;
+        }
         self.current_time = current_time;
         self.vcd_file.set_end_time(current_time);
     }

@@ -84,6 +84,7 @@ class DataManager
   std::vector<std::string> tokenizeSdc(std::string& content);
   std::string removeComment(std::string& line);
   void parseCommand(std::vector<std::string>& token_list);
+  void parseSetCaseAnalysis(std::vector<std::string>& token_list);
   void parseCreateClock(std::vector<std::string>& token_list);
   void parseSetInputDelay(std::vector<std::string>& token_list);
   void parseSetOutputDelay(std::vector<std::string>& token_list);

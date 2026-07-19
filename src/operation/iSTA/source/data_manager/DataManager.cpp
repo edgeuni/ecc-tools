@@ -300,6 +300,7 @@ void DataManager::readConstraint()
   std::string sdc_file_path = database.get_timing_constraint().get_sdc_file_path();
   database.get_timing_constraint().get_clock_map().clear();
   database.get_timing_constraint().get_port_constraint_map().clear();
+  database.get_timing_constraint().get_case_analysis_map().clear();
   if (sdc_file_path.empty()) {
     return;
   }
@@ -622,6 +623,8 @@ void DataManager::parseCommand(std::vector<std::string>& token_list)
   }
   if (token_list.front() == "create_clock") {
     parseCreateClock(token_list);
+  } else if (token_list.front() == "set_case_analysis") {
+    parseSetCaseAnalysis(token_list);
   } else if (token_list.front() == "set_input_delay") {
     parseSetInputDelay(token_list);
   } else if (token_list.front() == "set_output_delay") {
@@ -630,6 +633,18 @@ void DataManager::parseCommand(std::vector<std::string>& token_list)
     parseSetInputTransition(token_list);
   } else if (token_list.front() == "set_load") {
     parseSetLoad(token_list);
+  }
+}
+
+void DataManager::parseSetCaseAnalysis(std::vector<std::string>& token_list)
+{
+  if (token_list.size() < 2 || (token_list[1] != "0" && token_list[1] != "1")) {
+    return;
+  }
+  bool case_value = token_list[1] == "1";
+  std::vector<std::string> object_list = getObjectList(token_list);
+  for (std::string& pin_name : resolveObjectList(object_list)) {
+    _database.get_timing_constraint().get_case_analysis_map()[pin_name] = case_value;
   }
 }
 
@@ -933,6 +948,8 @@ void DataManager::printConfig()
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.thread_number);
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "path_report_number");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.path_report_number);
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "vcd_file_path");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.vcd_file_path);
   // **********        STA        ********** //
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(0), "STA_CONFIG_BUILD");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "log_file_path");

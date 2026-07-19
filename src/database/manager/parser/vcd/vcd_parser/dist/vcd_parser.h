@@ -68,7 +68,7 @@ typedef struct RustVec {
 
 typedef struct RustSignalTC {
     char *signal_name;
-    uint64_t signal_tc;
+    double signal_tc;
 } RustSignalTC;
 
 typedef struct RustSignalDuration {
@@ -140,6 +140,9 @@ void *rust_parse_vcd(const char *lib_path);
 
 struct RustTcAndSpResVecs *rust_calc_scope_tc_sp(const char *c_top_vcd_scope_name,
                                                  struct VCDFile *c_vcd_file);
+
+struct RustTcAndSpResVecs *rust_calc_scope_tc_sp_with_scope(const char *c_top_vcd_scope_name,
+                                                            struct VCDFile *c_vcd_file);
 
 struct RustVCDScope *find_scope_by_name(const char *scope_name, struct VCDFile *c_vcd_file);
 

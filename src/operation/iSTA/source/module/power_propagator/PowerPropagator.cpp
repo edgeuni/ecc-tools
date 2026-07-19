@@ -19,6 +19,7 @@
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "Utility.hpp"
+#include "VcdParserRustC.hh"
 
 namespace ista {
 
@@ -130,6 +131,8 @@ void PowerPropagator::buildSequentialInstanceNameList(PPModel& pp_model)
 void PowerPropagator::propagateActivity(PPModel& pp_model)
 {
   clearPowerActivity();
+  seedVcdActivity();
+  seedCaseAnalysisActivity();
   seedActivity(pp_model);
   propagateCombinationalActivity();
   propagateSequentialActivity(pp_model);
@@ -138,6 +141,215 @@ void PowerPropagator::propagateActivity(PPModel& pp_model)
 void PowerPropagator::clearPowerActivity()
 {
   STADM.getDatabase().get_power_activity_map().clear();
+}
+
+void PowerPropagator::seedVcdActivity()
+{
+  Database& database = STADM.getDatabase();
+  Config& config = STADM.getConfig();
+  if (config.vcd_file_path.empty()) {
+    return;
+  }
+
+  ipower::RustVcdReader vcd_reader;
+  void* vcd_file_ptr = vcd_reader.readVcdFile(config.vcd_file_path.c_str());
+  RustVCDFile* vcd_file = rust_convert_vcd_file(vcd_file_ptr);
+  std::string top_instance_name = database.get_design_name();
+  RustTcAndSpResVecs* activity_result = rust_calc_scope_tc_sp_with_scope(top_instance_name.c_str(), vcd_file_ptr);
+  std::map<std::string, double> toggle_map;
+  RustVec toggle_vec = activity_result->signal_tc_vec;
+  void* toggle_ptr = nullptr;
+  FOREACH_VEC_ELEM(&toggle_vec, void, toggle_ptr)
+  {
+    RustSignalTC* toggle = rust_convert_signal_tc(toggle_ptr);
+    toggle_map[toggle->signal_name] = toggle->signal_tc;
+  }
+
+  double time_unit_scale = 1.0;
+  switch (vcd_file->time_unit) {
+    case 0:
+      time_unit_scale = 1E9;
+      break;
+    case 1:
+      time_unit_scale = 1E6;
+      break;
+    case 2:
+      time_unit_scale = 1E3;
+      break;
+    case 3:
+      time_unit_scale = 1.0;
+      break;
+    case 4:
+      time_unit_scale = 1E-3;
+      break;
+    case 5:
+      time_unit_scale = 1E-6;
+      break;
+    default:
+      STALOG.error(Loc::current(), "Unrecognized VCD time unit.");
+      break;
+  }
+
+  std::size_t annotated_pin_num = 0;
+  double simulation_duration = static_cast<double>(vcd_file->end_time - vcd_file->start_time) * static_cast<double>(vcd_file->time_resolution)
+                               * time_unit_scale;
+  if (simulation_duration <= STA_ERROR) {
+    return;
+  }
+  RustVec duration_vec = activity_result->signal_duration_vec;
+  void* duration_ptr = nullptr;
+  FOREACH_VEC_ELEM(&duration_vec, void, duration_ptr)
+  {
+    RustSignalDuration* duration = rust_convert_signal_duration(duration_ptr);
+    std::string vcd_signal_name = duration->signal_name;
+    std::string pin_name = getVcdPinName(vcd_signal_name);
+    if (database.get_pin_map().count(pin_name) == 0 || toggle_map.count(vcd_signal_name) == 0) {
+      continue;
+    }
+    double total_duration = static_cast<double>(duration->bit_0_duration) + static_cast<double>(duration->bit_1_duration)
+                            + static_cast<double>(duration->bit_x_duration) + static_cast<double>(duration->bit_z_duration);
+    if (total_duration <= STA_ERROR) {
+      continue;
+    }
+    PowerActivity activity;
+    activity.set_transition_density(static_cast<double>(toggle_map[vcd_signal_name]) / simulation_duration);
+    activity.set_static_probability(static_cast<double>(duration->bit_1_duration) * static_cast<double>(vcd_file->time_resolution) * time_unit_scale
+                                    / simulation_duration);
+    activity.set_origin(PowerActivityOrigin::kVcd);
+    activity.set_is_valid(true);
+    if (setPinActivity(pin_name, activity)) {
+      annotated_pin_num++;
+    }
+  }
+  STALOG.info(Loc::current(), "Annotated ", annotated_pin_num, " power activities from VCD.");
+}
+
+std::string PowerPropagator::getVcdPinName(std::string& vcd_signal_name)
+{
+  std::string pin_name = vcd_signal_name;
+  std::replace(pin_name.begin(), pin_name.end(), '/', ':');
+  return pin_name;
+}
+
+bool PowerPropagator::setPinActivity(std::string& pin_name, PowerActivity& activity)
+{
+  Database& database = STADM.getDatabase();
+  limitTransitionDensity(pin_name, activity);
+  if (database.get_power_activity_map().count(pin_name) == 0) {
+    database.get_power_activity_map()[pin_name] = activity;
+    return true;
+  }
+  PowerActivity& current_activity = database.get_power_activity_map()[pin_name];
+  if (getActivityPriority(current_activity.get_origin()) > getActivityPriority(activity.get_origin())) {
+    return false;
+  }
+  if (!isActivityChanged(current_activity, activity)) {
+    return false;
+  }
+  current_activity = activity;
+  return true;
+}
+
+void PowerPropagator::limitTransitionDensity(std::string& pin_name, PowerActivity& activity)
+{
+  double minimum_slew = getMinimumSlew(pin_name);
+  if (minimum_slew <= STA_ERROR) {
+    return;
+  }
+  double maximum_transition_density = 1.0 / minimum_slew;
+  double transition_density = activity.get_transition_density();
+  if (transition_density <= maximum_transition_density) {
+    return;
+  }
+  double density_scale = maximum_transition_density / transition_density;
+  activity.set_rise_transition_density(activity.get_rise_transition_density() * density_scale);
+  activity.set_fall_transition_density(activity.get_fall_transition_density() * density_scale);
+}
+
+double PowerPropagator::getMinimumSlew(std::string& pin_name)
+{
+  Database& database = STADM.getDatabase();
+  if (database.get_timing_point_map().count(pin_name) == 0) {
+    return 0.0;
+  }
+  TimingPoint& timing_point = database.get_timing_point_map()[pin_name];
+  double data_minimum_slew = getMinimumSlew(timing_point.get_data_slew_map());
+  double clock_minimum_slew = getMinimumSlew(timing_point.get_clock_slew_map());
+  if (data_minimum_slew <= STA_ERROR) {
+    return clock_minimum_slew;
+  }
+  if (clock_minimum_slew <= STA_ERROR) {
+    return data_minimum_slew;
+  }
+  return std::min(data_minimum_slew, clock_minimum_slew);
+}
+
+double PowerPropagator::getMinimumSlew(std::map<AnalysisType, std::map<TransType, double>>& slew_map)
+{
+  double minimum_slew = std::numeric_limits<double>::infinity();
+  for (AnalysisType analysis_type : {AnalysisType::kMax, AnalysisType::kMin}) {
+    if (slew_map.count(analysis_type) == 0 || slew_map[analysis_type].count(TransType::kRise) == 0
+        || slew_map[analysis_type].count(TransType::kFall) == 0) {
+      continue;
+    }
+    double average_slew = (slew_map[analysis_type][TransType::kRise] + slew_map[analysis_type][TransType::kFall]) / 2.0;
+    if (average_slew > STA_ERROR) {
+      minimum_slew = std::min(minimum_slew, average_slew);
+    }
+  }
+  return std::isfinite(minimum_slew) ? minimum_slew : 0.0;
+}
+
+int32_t PowerPropagator::getActivityPriority(PowerActivityOrigin origin)
+{
+  switch (origin) {
+    case PowerActivityOrigin::kVcd:
+      return 4;
+    case PowerActivityOrigin::kConstant:
+      return 3;
+    case PowerActivityOrigin::kClock:
+      return 2;
+    case PowerActivityOrigin::kInput:
+      return 1;
+    case PowerActivityOrigin::kPropagated:
+    case PowerActivityOrigin::kSequential:
+      return 0;
+    case PowerActivityOrigin::kNone:
+      return -1;
+    default:
+      STALOG.error(Loc::current(), "Unrecognized type!");
+      break;
+  }
+  return -1;
+}
+
+bool PowerPropagator::isActivityChanged(PowerActivity& left_activity, PowerActivity& right_activity)
+{
+  return left_activity.get_is_valid() != right_activity.get_is_valid() || left_activity.get_origin() != right_activity.get_origin()
+         || getRelativeChange(left_activity.get_rise_transition_density(), right_activity.get_rise_transition_density()) > 0.01
+         || getRelativeChange(left_activity.get_fall_transition_density(), right_activity.get_fall_transition_density()) > 0.01
+         || getRelativeChange(left_activity.get_static_probability(), right_activity.get_static_probability()) > 0.01;
+}
+
+double PowerPropagator::getRelativeChange(double value, double previous_value)
+{
+  if (std::fabs(previous_value) <= STA_ERROR) {
+    return std::fabs(value) <= STA_ERROR ? 0.0 : 1.0;
+  }
+  return std::fabs(value - previous_value) / std::fabs(previous_value);
+}
+
+void PowerPropagator::seedCaseAnalysisActivity()
+{
+  Database& database = STADM.getDatabase();
+  for (std::pair<const std::string, bool>& case_pair : database.get_timing_constraint().get_case_analysis_map()) {
+    PowerActivity activity;
+    activity.set_static_probability(case_pair.second ? 1.0 : 0.0);
+    activity.set_origin(PowerActivityOrigin::kConstant);
+    activity.set_is_valid(true);
+    std::string pin_name = case_pair.first;
+    setPinActivity(pin_name, activity);
+  }
 }
 
 void PowerPropagator::seedActivity(PPModel& pp_model)
@@ -210,12 +422,20 @@ void PowerPropagator::propagateCombinationalActivity()
       } else if (arc.get_type() == ArcType::kCell && !isOutputPin(arc.get_sink_pin())) {
         PowerActivity activity = getPinActivity(arc.get_source_pin());
         if (activity.get_is_valid()) {
-          activity.set_origin(PowerActivityOrigin::kPropagated);
+          activity = getPropagatedActivity(activity);
           setPinActivity(arc.get_sink_pin(), activity);
         }
       }
     }
   }
+}
+
+PowerActivity PowerPropagator::getPropagatedActivity(PowerActivity source_activity)
+{
+  if (source_activity.get_origin() != PowerActivityOrigin::kConstant) {
+    source_activity.set_origin(PowerActivityOrigin::kPropagated);
+  }
+  return source_activity;
 }
 
 void PowerPropagator::propagateOutputActivity(std::string& pin_name)
@@ -255,10 +475,19 @@ PowerActivity PowerPropagator::getOutputActivity(std::string& pin_name)
     std::map<std::string, PowerActivity> input_activity_map = getInputActivityMap(instance);
     PowerActivity activity = timing_cell_port.get_function_expression().evaluate_activity(input_activity_map);
     if (activity.get_is_valid()) {
-      return activity;
+      return normalizeConstantActivity(activity);
     }
   }
   return getFallbackInputActivity(pin_name);
+}
+
+PowerActivity PowerPropagator::normalizeConstantActivity(PowerActivity activity)
+{
+  if (activity.get_transition_density() <= STA_ERROR
+      && (activity.get_static_probability() <= STA_ERROR || activity.get_static_probability() >= 1.0 - STA_ERROR)) {
+    activity.set_origin(PowerActivityOrigin::kConstant);
+  }
+  return activity;
 }
 
 std::map<std::string, PowerActivity> PowerPropagator::getInputActivityMap(Instance& instance)
@@ -286,8 +515,7 @@ PowerActivity PowerPropagator::getFallbackInputActivity(std::string& pin_name)
     }
     PowerActivity activity = getPinActivity(arc.get_source_pin());
     if (activity.get_is_valid()) {
-      activity.set_origin(PowerActivityOrigin::kPropagated);
-      return activity;
+      return getPropagatedActivity(activity);
     }
   }
   return PowerActivity();
@@ -299,7 +527,7 @@ void PowerPropagator::propagateNetActivity(Arc& arc)
   if (!activity.get_is_valid()) {
     return;
   }
-  activity.set_origin(PowerActivityOrigin::kPropagated);
+  activity = getPropagatedActivity(activity);
   setPinActivity(arc.get_sink_pin(), activity);
 }
 
@@ -339,7 +567,7 @@ PowerActivity PowerPropagator::getSequentialOutputActivity(Instance& instance)
   }
   output_activity.set_origin(PowerActivityOrigin::kSequential);
   output_activity.set_is_valid(true);
-  return output_activity;
+  return normalizeConstantActivity(output_activity);
 }
 
 PowerActivity PowerPropagator::getPinActivity(std::string& pin_name)
@@ -349,21 +577,6 @@ PowerActivity PowerPropagator::getPinActivity(std::string& pin_name)
     return PowerActivity();
   }
   return database.get_power_activity_map()[pin_name];
-}
-
-bool PowerPropagator::setPinActivity(std::string& pin_name, PowerActivity& activity)
-{
-  Database& database = STADM.getDatabase();
-  if (database.get_power_activity_map().count(pin_name) == 0) {
-    database.get_power_activity_map()[pin_name] = activity;
-    return true;
-  }
-  PowerActivity& current_activity = database.get_power_activity_map()[pin_name];
-  if (!isActivityChanged(current_activity, activity)) {
-    return false;
-  }
-  current_activity = activity;
-  return true;
 }
 
 bool PowerPropagator::isOutputPin(std::string& pin_name)
@@ -393,14 +606,6 @@ bool PowerPropagator::isClockSource(std::string& pin_name)
     }
   }
   return false;
-}
-
-bool PowerPropagator::isActivityChanged(PowerActivity& left_activity, PowerActivity& right_activity)
-{
-  return left_activity.get_is_valid() != right_activity.get_is_valid() || left_activity.get_origin() != right_activity.get_origin()
-         || std::fabs(left_activity.get_rise_transition_density() - right_activity.get_rise_transition_density()) > STA_ERROR
-         || std::fabs(left_activity.get_fall_transition_density() - right_activity.get_fall_transition_density()) > STA_ERROR
-         || std::fabs(left_activity.get_static_probability() - right_activity.get_static_probability()) > STA_ERROR;
 }
 
 }  // namespace ista

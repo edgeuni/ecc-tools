@@ -83,7 +83,7 @@ pub struct RustVCDFile {
 #[repr(C)]
 pub struct RustSignalTC {
     signal_name: *mut c_char,
-    signal_tc: u64,
+    signal_tc: f64,
 }
 
 #[repr(C)]
@@ -313,7 +313,6 @@ pub extern "C" fn rust_convert_vcd_file(c_vcd_file: *mut vcd_data::VCDFile) -> *
 pub extern "C" fn rust_parse_vcd(lib_path: *const c_char) -> *mut c_void {
     let c_str = unsafe { std::ffi::CStr::from_ptr(lib_path) };
     let r_str = c_str.to_string_lossy().into_owned();
-    println!("rust parse vcd {}", r_str);
 
     let vcd_file = parse_vcd_file(&r_str);
 
@@ -334,10 +333,25 @@ pub extern "C" fn rust_calc_scope_tc_sp(
     c_top_vcd_scope_name: *const c_char,
     c_vcd_file: *mut vcd_data::VCDFile,
 ) -> *mut RustTcAndSpResVecs {
+    calc_scope_tc_sp(c_top_vcd_scope_name, c_vcd_file, false)
+}
+
+#[no_mangle]
+pub extern "C" fn rust_calc_scope_tc_sp_with_scope(
+    c_top_vcd_scope_name: *const c_char,
+    c_vcd_file: *mut vcd_data::VCDFile,
+) -> *mut RustTcAndSpResVecs {
+    calc_scope_tc_sp(c_top_vcd_scope_name, c_vcd_file, true)
+}
+
+fn calc_scope_tc_sp(
+    c_top_vcd_scope_name: *const c_char,
+    c_vcd_file: *mut vcd_data::VCDFile,
+    include_scope_path: bool,
+) -> *mut RustTcAndSpResVecs {
     unsafe {
         let c_str = std::ffi::CStr::from_ptr(c_top_vcd_scope_name);
         let r_str = c_str.to_string_lossy().into_owned();
-        println!("calc scope {} toggle sp", r_str);
 
         /*find top scope by top scope name */
         let find_scope_option = match (*c_vcd_file).get_root_scope() {
@@ -362,6 +376,8 @@ pub extern "C" fn rust_calc_scope_tc_sp(
 
         calc_tc_sp.traverse_scope_signal(
             top_scope.deref(),
+            "",
+            include_scope_path,
             &thread_pool,
             &mut signal_tc_vec,
             &mut signal_duration_vec,
@@ -413,7 +429,6 @@ pub extern "C" fn find_signal_by_name(
         let c_str = std::ffi::CStr::from_ptr(scope_name);
         let r_str = c_str.to_string_lossy().into_owned();
         let r_str = r_str.split('[').next().unwrap_or(&r_str);
-        println!("rust find signal {}", r_str);
 
         let find_signal_option = match (*c_vcd_file).get_root_scope() {
             Some(the_signal) => {

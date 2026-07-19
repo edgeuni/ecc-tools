@@ -41,6 +41,10 @@ bool initStaConfigMapByJSON(const std::string& config, std::map<std::string, std
   if (!value.empty()) {
     config_map.insert(std::make_pair("-thread_number", std::stoi(value)));
   }
+  value = ieda::getJsonData(json, {"STA", "-vcd_file_path"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-vcd_file_path", value));
+  }
   return true;
 }
 
@@ -51,6 +55,9 @@ void initStaConfigMapByDict(std::map<std::string, std::string>& config_dict, std
   }
   if (config_dict.count("-thread_number") > 0 && !config_dict["-thread_number"].empty()) {
     config_map["-thread_number"] = std::stoi(config_dict["-thread_number"]);
+  }
+  if (config_dict.count("-vcd_file_path") > 0 && !config_dict["-vcd_file_path"].empty()) {
+    config_map["-vcd_file_path"] = config_dict["-vcd_file_path"];
   }
 }
 
