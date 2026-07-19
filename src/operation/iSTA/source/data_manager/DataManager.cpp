@@ -199,17 +199,23 @@ void DataManager::makeInstanceTimingInfo(Instance& instance)
   } else {
     instance.set_output_pin_name(findOutputPinName(instance, timing_cell));
   }
-  if (timing_cell.get_setup_arc_list().empty()) {
-    return;
-  }
-
-  TimingCheckArc& setup_arc = timing_cell.get_setup_arc_list().front();
-  instance.set_clock_pin_name(getInstancePinName(instance, setup_arc.get_clock_port()));
-  instance.set_data_pin_name(getInstancePinName(instance, setup_arc.get_data_port()));
-  instance.set_setup_time(setup_arc.get_setup_time());
   instance.get_check_arc_list().clear();
   for (TimingCheckArc& timing_check_arc : timing_cell.get_check_arc_list()) {
     instance.get_check_arc_list().push_back(makeInstanceTimingCheckArc(instance, timing_check_arc));
+  }
+
+  TimingCheckArc* representative_check_arc = nullptr;
+  for (TimingCheckArc& timing_check_arc : timing_cell.get_check_arc_list()) {
+    if (representative_check_arc == nullptr || timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
+      representative_check_arc = &timing_check_arc;
+    }
+    if (timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
+      break;
+    }
+  }
+  if (representative_check_arc != nullptr) {
+    instance.set_clock_pin_name(getInstancePinName(instance, representative_check_arc->get_clock_port()));
+    instance.set_data_pin_name(getInstancePinName(instance, representative_check_arc->get_data_port()));
   }
 }
 
@@ -218,7 +224,6 @@ TimingCheckArc DataManager::makeInstanceTimingCheckArc(Instance& instance, Timin
   TimingCheckArc instance_timing_check_arc;
   instance_timing_check_arc.set_clock_port(getInstancePinName(instance, timing_check_arc.get_clock_port()));
   instance_timing_check_arc.set_data_port(getInstancePinName(instance, timing_check_arc.get_data_port()));
-  instance_timing_check_arc.set_setup_time(timing_check_arc.get_setup_time());
   instance_timing_check_arc.set_check_type(timing_check_arc.get_check_type());
   instance_timing_check_arc.set_check_time(timing_check_arc.get_check_time());
   instance_timing_check_arc.set_timing_arc_list(timing_check_arc.get_timing_arc_list());

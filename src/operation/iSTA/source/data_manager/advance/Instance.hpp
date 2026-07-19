@@ -38,7 +38,6 @@ class Instance
   std::string& get_data_pin_name() { return _data_pin_name; }
   double get_clock_to_q_delay() const { return _clock_to_q_delay; }
   TimingCellArc& get_clock_to_q_arc() { return _clock_to_q_arc; }
-  double get_setup_time() const { return _setup_time; }
   bool get_is_sequential() const { return _is_sequential; }
   bool get_has_clear_arc() const { return _has_clear_arc; }
   bool get_has_preset_arc() const { return _has_preset_arc; }
@@ -54,7 +53,6 @@ class Instance
   void set_data_pin_name(const std::string& data_pin_name) { _data_pin_name = data_pin_name; }
   void set_clock_to_q_delay(const double clock_to_q_delay) { _clock_to_q_delay = clock_to_q_delay; }
   void set_clock_to_q_arc(const TimingCellArc& clock_to_q_arc) { _clock_to_q_arc = clock_to_q_arc; }
-  void set_setup_time(const double setup_time) { _setup_time = setup_time; }
   void set_is_sequential(const bool is_sequential) { _is_sequential = is_sequential; }
   void set_has_clear_arc(const bool has_clear_arc) { _has_clear_arc = has_clear_arc; }
   void set_has_preset_arc(const bool has_preset_arc) { _has_preset_arc = has_preset_arc; }
@@ -72,7 +70,6 @@ class Instance
   std::string _data_pin_name;
   double _clock_to_q_delay = 0.0;
   TimingCellArc _clock_to_q_arc;
-  double _setup_time = 0.0;
   bool _is_sequential = false;
   bool _has_clear_arc = false;
   bool _has_preset_arc = false;

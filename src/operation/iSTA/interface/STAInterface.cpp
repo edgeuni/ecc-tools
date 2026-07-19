@@ -820,9 +820,6 @@ void STAInterface::wrapTimingCellArc(TimingCell& timing_cell, idb::LibArcSet* li
       return;
     }
     timing_cell.get_check_arc_list().push_back(timing_check_arc);
-    if (timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
-      timing_cell.get_setup_arc_list().push_back(timing_check_arc);
-    }
   }
 }
 
@@ -879,9 +876,6 @@ TimingCheckArc STAInterface::wrapCheckArc(idb::LibArcSet* lib_arc_set)
   }
   timing_check_arc.set_timing_arc_list(wrapTimingArcList(lib_arc_set));
   timing_check_arc.set_clock_trans_type(wrapCheckTransType(lib_arc));
-  if (timing_check_arc.get_check_type() == TimingCheckType::kSetup) {
-    timing_check_arc.set_setup_time(timing_check_arc.get_check_time());
-  }
   return timing_check_arc;
 }
 

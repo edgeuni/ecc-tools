@@ -40,7 +40,6 @@ class TimingCell
   std::vector<TimingCellArc>& get_cell_arc_list() { return _cell_arc_list; }
   std::vector<TimingPowerArc>& get_power_arc_list() { return _power_arc_list; }
   std::vector<TimingLeakagePower>& get_leakage_power_list() { return _leakage_power_list; }
-  std::vector<TimingCheckArc>& get_setup_arc_list() { return _setup_arc_list; }
   std::vector<TimingCheckArc>& get_check_arc_list() { return _check_arc_list; }
   std::vector<TimingCheckArc>& get_sdf_check_arc_list() { return _sdf_check_arc_list; }
   bool get_is_sequential() const { return _is_sequential; }
@@ -67,7 +66,6 @@ class TimingCell
   void set_cell_arc_list(const std::vector<TimingCellArc>& cell_arc_list) { _cell_arc_list = cell_arc_list; }
   void set_power_arc_list(const std::vector<TimingPowerArc>& power_arc_list) { _power_arc_list = power_arc_list; }
   void set_leakage_power_list(const std::vector<TimingLeakagePower>& leakage_power_list) { _leakage_power_list = leakage_power_list; }
-  void set_setup_arc_list(const std::vector<TimingCheckArc>& setup_arc_list) { _setup_arc_list = setup_arc_list; }
   void set_check_arc_list(const std::vector<TimingCheckArc>& check_arc_list) { _check_arc_list = check_arc_list; }
   void set_sdf_check_arc_list(const std::vector<TimingCheckArc>& sdf_check_arc_list) { _sdf_check_arc_list = sdf_check_arc_list; }
   void set_is_sequential(const bool is_sequential) { _is_sequential = is_sequential; }
@@ -108,7 +106,6 @@ class TimingCell
   std::vector<TimingCellArc> _cell_arc_list;
   std::vector<TimingPowerArc> _power_arc_list;
   std::vector<TimingLeakagePower> _leakage_power_list;
-  std::vector<TimingCheckArc> _setup_arc_list;
   std::vector<TimingCheckArc> _check_arc_list;
   std::vector<TimingCheckArc> _sdf_check_arc_list;
   bool _is_sequential = false;
