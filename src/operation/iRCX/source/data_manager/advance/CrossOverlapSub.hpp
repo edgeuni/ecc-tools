@@ -26,22 +26,22 @@ class CrossOverlapSub
   CrossOverlapSub() = default;
   ~CrossOverlapSub() = default;
   // getter
-  Dbu get_start_coordinate() const { return _start_coordinate; }
-  Dbu get_end_coordinate() const { return _end_coordinate; }
-  Size get_above_layer_id() const { return _above_layer_id; }
-  Size get_below_layer_id() const { return _below_layer_id; }
+  int32_t get_start_coordinate() const { return _start_coordinate; }
+  int32_t get_end_coordinate() const { return _end_coordinate; }
+  size_t get_above_layer_id() const { return _above_layer_id; }
+  size_t get_below_layer_id() const { return _below_layer_id; }
   // setter
-  void set_start_coordinate(Dbu start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(Dbu end_coordinate) { _end_coordinate = end_coordinate; }
-  void set_above_layer_id(Size above_layer_id) { _above_layer_id = above_layer_id; }
-  void set_below_layer_id(Size below_layer_id) { _below_layer_id = below_layer_id; }
+  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
+  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
+  void set_above_layer_id(size_t above_layer_id) { _above_layer_id = above_layer_id; }
+  void set_below_layer_id(size_t below_layer_id) { _below_layer_id = below_layer_id; }
   // function
 
  private:
-  Dbu _start_coordinate = 0;
-  Dbu _end_coordinate = 0;
-  Size _above_layer_id = 0;
-  Size _below_layer_id = 0;
+  int32_t _start_coordinate = 0;
+  int32_t _end_coordinate = 0;
+  size_t _above_layer_id = 0;
+  size_t _below_layer_id = 0;
 };
 
 }  // namespace ircx

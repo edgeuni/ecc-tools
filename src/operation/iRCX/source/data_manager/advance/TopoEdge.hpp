@@ -24,26 +24,26 @@ class TopoEdge
 {
  public:
   TopoEdge() = default;
-  explicit TopoEdge(Size net_id) : _net_id(net_id) {}
+  explicit TopoEdge(size_t net_id) : _net_id(net_id) {}
   ~TopoEdge() = default;
   // getter
-  Size get_edge_id() const { return _edge_id; }
-  Size get_net_id() const { return _net_id; }
+  size_t get_edge_id() const { return _edge_id; }
+  size_t get_net_id() const { return _net_id; }
   std::string& get_via_name() { return _via_name; }
-  Size get_start_node_idx() const { return _start_node_idx; }
-  Size get_end_node_idx() const { return _end_node_idx; }
-  Size get_layer_id() const { return _layer_id; }
+  size_t get_start_node_idx() const { return _start_node_idx; }
+  size_t get_end_node_idx() const { return _end_node_idx; }
+  size_t get_layer_id() const { return _layer_id; }
   GtlRectI& get_shape() { return _shape; }
-  Dbu get_width() const { return _width; }
-  Dbu get_half_width() const { return _half_width; }
-  Dbu get_length() const { return _length; }
+  int32_t get_width() const { return _width; }
+  int32_t get_half_width() const { return _half_width; }
+  int32_t get_length() const { return _length; }
   GtlPointI& get_center() { return _center; }
   LineSegment& get_line_segment() { return _line_segment; }
   // setter
   void set_via_name(const std::string& via_name) { _via_name = via_name; }
-  void set_start_node_idx(Size start_node_idx) { _start_node_idx = start_node_idx; }
-  void set_end_node_idx(Size end_node_idx) { _end_node_idx = end_node_idx; }
-  void set_layer_id(Size layer_id) { _layer_id = layer_id; }
+  void set_start_node_idx(size_t start_node_idx) { _start_node_idx = start_node_idx; }
+  void set_end_node_idx(size_t end_node_idx) { _end_node_idx = end_node_idx; }
+  void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
   void set_shape(const GtlRectI& shape);
   // function
   bool get_is_via() const { return !_via_name.empty(); }
@@ -51,18 +51,18 @@ class TopoEdge
  private:
   friend class TopoPool;
 
-  void set_edge_id(Size edge_id) { _edge_id = edge_id; }
+  void set_edge_id(size_t edge_id) { _edge_id = edge_id; }
 
-  Size _edge_id = kMaxSize;
-  Size _net_id = kMaxSize;
+  size_t _edge_id = kMaxSize;
+  size_t _net_id = kMaxSize;
   std::string _via_name;
-  Size _start_node_idx = kMaxSize;
-  Size _end_node_idx = kMaxSize;
-  Size _layer_id = kMaxSize;
+  size_t _start_node_idx = kMaxSize;
+  size_t _end_node_idx = kMaxSize;
+  size_t _layer_id = kMaxSize;
   GtlRectI _shape;
-  Dbu _width = 0;
-  Dbu _half_width = 0;
-  Dbu _length = 0;
+  int32_t _width = 0;
+  int32_t _half_width = 0;
+  int32_t _length = 0;
   GtlPointI _center;
   LineSegment _line_segment;
 };
@@ -71,12 +71,12 @@ inline void TopoEdge::set_shape(const GtlRectI& shape)
 {
   _shape = shape;
 
-  Dbu lower_x = boost::polygon::xl(_shape);
-  Dbu lower_y = boost::polygon::yl(_shape);
-  Dbu upper_x = boost::polygon::xh(_shape);
-  Dbu upper_y = boost::polygon::yh(_shape);
-  Dbu x_span = upper_x - lower_x;
-  Dbu y_span = upper_y - lower_y;
+  int32_t lower_x = boost::polygon::xl(_shape);
+  int32_t lower_y = boost::polygon::yl(_shape);
+  int32_t upper_x = boost::polygon::xh(_shape);
+  int32_t upper_y = boost::polygon::yh(_shape);
+  int32_t x_span = upper_x - lower_x;
+  int32_t y_span = upper_y - lower_y;
   bool is_horizontal = x_span >= y_span;
 
   _width = is_horizontal ? y_span : x_span;

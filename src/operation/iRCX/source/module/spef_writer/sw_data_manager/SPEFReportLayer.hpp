@@ -27,20 +27,20 @@ class SPEFReportLayer
   SPEFReportLayer() = default;
   ~SPEFReportLayer() = default;
   // getter
-  Size get_report_layer_id() const { return _report_layer_id; }
-  Size get_design_layer_id() const { return _design_layer_id; }
+  size_t get_report_layer_id() const { return _report_layer_id; }
+  size_t get_design_layer_id() const { return _design_layer_id; }
   std::string& get_design_layer_name() { return _design_layer_name; }
   std::string& get_process_layer_name() { return _process_layer_name; }
   // setter
-  void set_report_layer_id(Size report_layer_id) { _report_layer_id = report_layer_id; }
-  void set_design_layer_id(Size design_layer_id) { _design_layer_id = design_layer_id; }
+  void set_report_layer_id(size_t report_layer_id) { _report_layer_id = report_layer_id; }
+  void set_design_layer_id(size_t design_layer_id) { _design_layer_id = design_layer_id; }
   void set_design_layer_name(const std::string& design_layer_name) { _design_layer_name = design_layer_name; }
   void set_process_layer_name(const std::string& process_layer_name) { _process_layer_name = process_layer_name; }
   // function
 
  private:
-  Size _report_layer_id = kMaxSize;
-  Size _design_layer_id = kMaxSize;
+  size_t _report_layer_id = kMaxSize;
+  size_t _design_layer_id = kMaxSize;
   std::string _design_layer_name;
   std::string _process_layer_name;
 };

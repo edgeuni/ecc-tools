@@ -29,38 +29,38 @@ namespace ircx {
 
 // Parallel Overlap
 struct TrackOverlap {
-  Dbu a0{0};
-  Dbu a1{0};
+  int32_t a0 = 0;
+  int32_t a1 = 0;
 
-  Dbu sp{kMaxDbu}; // unsigned spacing = |current_fixed - coord|
+  int32_t sp = kMaxDbu; // unsigned spacing = |current_fixed - coord|
   // edge == nullptr means this interval is not covered by any matched edge.
-  TopoEdge* edge{nullptr};
+  TopoEdge* edge = nullptr;
 };
 
 struct OverlapWidenContext {
-  Dbu track_distance;  // |current_track_idx - base_track_idx|
-  Dbu overlap_len;     // current raw overlap length before widening
+  int32_t track_distance;  // |current_track_idx - base_track_idx|
+  int32_t overlap_len;     // current raw overlap length before widening
   TopoEdge* edge;  // matched edge
 };
 
 class EnvironmentTrack
 {
  public:
-  using OverlapWidenFunc = std::function<Dbu(const OverlapWidenContext&)>;
+  using OverlapWidenFunc = std::function<int32_t(const OverlapWidenContext&)>;
 
  private:
   struct RemainingInterval {
-    Dbu a0{0};
-    Dbu a1{0};
+    int32_t a0 = 0;
+    int32_t a1 = 0;
   };
 
   struct SearchContext {
-    Dbu coord{0};
-    Dbu base_track_idx{0};
-    Dbu query_a0{0};
-    Dbu query_a1{0};
-    int step{0};
-    const OverlapWidenFunc* widen_func{nullptr};
+    int32_t coord = 0;
+    int32_t base_track_idx = 0;
+    int32_t query_a0 = 0;
+    int32_t query_a1 = 0;
+    int step = 0;
+    const OverlapWidenFunc* widen_func = nullptr;
   };
 
   struct TopoEdgeFixedLess
@@ -83,12 +83,12 @@ class EnvironmentTrack
     }
 
     bool operator()(TopoEdge* lhs,
-                    Dbu rhs_coord) const
+                    int32_t rhs_coord) const
     {
       return lhs->get_line_segment().get_coordinate() < rhs_coord;
     }
 
-    bool operator()(Dbu lhs_coord,
+    bool operator()(int32_t lhs_coord,
                     TopoEdge* rhs) const
     {
       return lhs_coord < rhs->get_line_segment().get_coordinate();
@@ -102,24 +102,24 @@ class EnvironmentTrack
   ~EnvironmentTrack() = default;
 
   // getter
-  Dbu get_track_origin() const { return track_ori_; }
-  Dbu get_track_count() const { return track_num_; }
-  Dbu get_track_step() const { return track_dlt_; }
-  Dbu get_bucket_origin() const { return bucket_ori_; }
-  Dbu get_bucket_count() const { return bucket_num_; }
-  Dbu get_bucket_step() const { return bucket_dlt_; }
+  int32_t get_track_origin() const { return track_ori_; }
+  int32_t get_track_count() const { return track_num_; }
+  int32_t get_track_step() const { return track_dlt_; }
+  int32_t get_bucket_origin() const { return bucket_ori_; }
+  int32_t get_bucket_count() const { return bucket_num_; }
+  int32_t get_bucket_step() const { return bucket_dlt_; }
 
   // setter
-  void set_track_origin(Dbu v) { track_ori_ = v; }
-  void set_track_count(Dbu v) { track_num_ = v; }
-  void set_track_step(Dbu v) { track_dlt_ = v; }
-  void set_bucket_origin(Dbu v) { bucket_ori_ = v; }
-  void set_bucket_count(Dbu v) { bucket_num_ = v; }
-  void set_bucket_step(Dbu v) { bucket_dlt_ = v; }
+  void set_track_origin(int32_t v) { track_ori_ = v; }
+  void set_track_count(int32_t v) { track_num_ = v; }
+  void set_track_step(int32_t v) { track_dlt_ = v; }
+  void set_bucket_origin(int32_t v) { bucket_ori_ = v; }
+  void set_bucket_count(int32_t v) { bucket_num_ = v; }
+  void set_bucket_step(int32_t v) { bucket_dlt_ = v; }
 
   // coordinate mapping
-  Dbu coordToTrack(Dbu coord) const { return (coord - track_ori_) / track_dlt_; }
-  Dbu coordToBucket(Dbu coord) const { return (coord - bucket_ori_) / bucket_dlt_; }
+  int32_t coordToTrack(int32_t coord) const { return (coord - track_ori_) / track_dlt_; }
+  int32_t coordToBucket(int32_t coord) const { return (coord - bucket_ori_) / bucket_dlt_; }
 
   bool initTrack()
   {
@@ -136,19 +136,19 @@ class EnvironmentTrack
 
   void addEdge(TopoEdge& edge)
   {
-    Dbu a0 = edge.get_line_segment().get_lower();
-    Dbu a1 = edge.get_line_segment().get_upper();
+    int32_t a0 = edge.get_line_segment().get_lower();
+    int32_t a1 = edge.get_line_segment().get_upper();
     ircx::interval::normalize(a0, a1);
 
-    const Dbu track_idx = coordToTrack(edge.get_line_segment().get_coordinate());
-    const Dbu bucket_idx0 = coordToBucket(a0);
-    const Dbu bucket_idx1 = coordToBucket(a1 - 1);
+    const int32_t track_idx = coordToTrack(edge.get_line_segment().get_coordinate());
+    const int32_t bucket_idx0 = coordToBucket(a0);
+    const int32_t bucket_idx1 = coordToBucket(a1 - 1);
 
     if (!trackValid(track_idx) || !bucketValid(bucket_idx0) || !bucketValid(bucket_idx1)) {
       return;
     }
 
-    for (Dbu b = bucket_idx0; b <= bucket_idx1; ++b) {
+    for (int32_t b = bucket_idx0; b <= bucket_idx1; ++b) {
       track_buckets_[track_idx][b].insert(&edge);
     }
   }
@@ -190,7 +190,7 @@ class EnvironmentTrack
   //      interval is left;
   //   7) any remaining uncovered intervals are returned with edge == nullptr.
   std::vector<TrackOverlap> overlap(const LineSegment& line_seg,
-                                        Dbu search_track_num,
+                                        int32_t search_track_num,
                                         const OverlapWidenFunc& widen_func = {}) const
   {
     std::vector<TrackOverlap> result;
@@ -198,18 +198,18 @@ class EnvironmentTrack
       return result;
     }
 
-    Dbu a0 = line_seg.get_lower();
-    Dbu a1 = line_seg.get_upper();
+    int32_t a0 = line_seg.get_lower();
+    int32_t a1 = line_seg.get_upper();
     ircx::interval::normalize(a0, a1);
     if (!intervalValid({a0, a1})) {
       return result;
     }
 
-    const Dbu coord = line_seg.get_coordinate();
-    const Dbu query_a0 = a0;
-    const Dbu query_a1 = a1;
+    const int32_t coord = line_seg.get_coordinate();
+    const int32_t query_a0 = a0;
+    const int32_t query_a1 = a1;
 
-    const Dbu base_track_idx = coordToTrack(coord);
+    const int32_t base_track_idx = coordToTrack(coord);
     if (!trackValid(base_track_idx)) {
       return result;
     }
@@ -218,7 +218,7 @@ class EnvironmentTrack
     remaining.push_back({query_a0, query_a1});
 
     const int step = (search_track_num > 0) ? 1 : -1;
-    const Dbu tracks_to_search = (search_track_num > 0) ? search_track_num : -search_track_num;
+    const int32_t tracks_to_search = (search_track_num > 0) ? search_track_num : -search_track_num;
 
     SearchContext ctx;
     ctx.coord = coord;
@@ -251,25 +251,26 @@ class EnvironmentTrack
     if (edge == nullptr) {
       return false;
     }
-    return (ctx.step > 0) ? (edge->get_line_segment().get_coordinate() > ctx.coord) : (edge->get_line_segment().get_coordinate() < ctx.coord);
+    return (ctx.step > 0) ? (edge->get_line_segment().get_coordinate() > ctx.coord)
+                          : (edge->get_line_segment().get_coordinate() < ctx.coord);
   }
 
   static TrackOverlap applyWidenAndClip(const TrackOverlap& ov,
-                                        Dbu track_idx,
+                                        int32_t track_idx,
                                         const SearchContext& ctx)
   {
     TrackOverlap widened = ov;
 
     if (ctx.widen_func != nullptr && *ctx.widen_func && ov.edge != nullptr) {
-      const OverlapWidenContext widen_ctx{
+      const OverlapWidenContext widen_ctx = {
           .track_distance = std::abs(track_idx - ctx.base_track_idx),
           .overlap_len = ov.a1 - ov.a0,
           .edge = ov.edge,
       };
 
-      Dbu ext = (*ctx.widen_func)(widen_ctx);
-      if (ext < Dbu{0}) {
-        ext = Dbu{0};
+      int32_t ext = (*ctx.widen_func)(widen_ctx);
+      if (ext < 0) {
+        ext = 0;
       }
 
       widened.a0 -= ext;
@@ -283,7 +284,7 @@ class EnvironmentTrack
     return widened;
   }
 
-  EdgeSet collectCandidateEdgesOnTrack(Dbu track_idx,
+  EdgeSet collectCandidateEdgesOnTrack(int32_t track_idx,
                                        const std::vector<RemainingInterval>& remaining) const
   {
     EdgeSet ordered;
@@ -292,8 +293,8 @@ class EnvironmentTrack
     }
 
     for (const auto& iv : remaining) {
-      Dbu bucket_idx0 = coordToBucket(iv.a0);
-      Dbu bucket_idx1 = coordToBucket(iv.a1 - 1);
+      int32_t bucket_idx0 = coordToBucket(iv.a0);
+      int32_t bucket_idx1 = coordToBucket(iv.a1 - 1);
       if (bucket_idx0 > bucket_idx1) {
         std::swap(bucket_idx0, bucket_idx1);
       }
@@ -302,7 +303,7 @@ class EnvironmentTrack
         continue;
       }
 
-      for (Dbu b = bucket_idx0; b <= bucket_idx1; ++b) {
+      for (int32_t b = bucket_idx0; b <= bucket_idx1; ++b) {
         const auto& edge_set = track_buckets_[track_idx][b];
         ordered.insert(edge_set.begin(), edge_set.end());
       }
@@ -318,8 +319,8 @@ class EnvironmentTrack
       return false;
     }
 
-    Dbu edge_a0 = edge->get_line_segment().get_lower();
-    Dbu edge_a1 = edge->get_line_segment().get_upper();
+    int32_t edge_a0 = edge->get_line_segment().get_lower();
+    int32_t edge_a1 = edge->get_line_segment().get_upper();
     ircx::interval::normalize(edge_a0, edge_a1);
 
     for (const auto& iv : remaining) {
@@ -330,7 +331,7 @@ class EnvironmentTrack
     return false;
   }
 
-  std::vector<TrackOverlap> computeEdgeOverlaps(Dbu track_idx,
+  std::vector<TrackOverlap> computeEdgeOverlaps(int32_t track_idx,
                                                 TopoEdge* edge,
                                                 const std::vector<RemainingInterval>& remaining,
                                                 const SearchContext& ctx) const
@@ -340,8 +341,8 @@ class EnvironmentTrack
       return overlaps;
     }
 
-    Dbu edge_a0 = edge->get_line_segment().get_lower();
-    Dbu edge_a1 = edge->get_line_segment().get_upper();
+    int32_t edge_a0 = edge->get_line_segment().get_lower();
+    int32_t edge_a1 = edge->get_line_segment().get_upper();
     ircx::interval::normalize(edge_a0, edge_a1);
 
     for (const auto& iv : remaining) {
@@ -375,7 +376,7 @@ class EnvironmentTrack
   // Iteratively consume one track using a single ordered candidate set.
   // The key invariant is that `remaining` only shrinks, so an edge that does not
   // belong to the initial candidate set can never become relevant later.
-  void searchWithinTrack(Dbu track_idx,
+  void searchWithinTrack(int32_t track_idx,
                          std::vector<RemainingInterval> remaining,
                          std::vector<TrackOverlap>& result,
                          const SearchContext& ctx) const
@@ -389,43 +390,47 @@ class EnvironmentTrack
       return;
     }
 
-    auto consume_edge = [&](TopoEdge* edge) {
-      if (!edgeHitsRemaining(edge, remaining)) {
-        return;
-      }
-
-      const auto overlaps = computeEdgeOverlaps(track_idx, edge, remaining, ctx);
-      if (overlaps.empty()) {
-        return;
-      }
-
-      result.insert(result.end(), overlaps.begin(), overlaps.end());
-
-      auto next_remaining = remaining;
-      for (const auto& ov : overlaps) {
-        next_remaining = ircx::interval::subtract(next_remaining, ov.a0, ov.a1);
-        if (next_remaining.empty()) {
-          break;
-        }
-      }
-
-      remaining = std::move(next_remaining);
-    };
-
     if (ctx.step > 0) {
       for (auto it = ordered.upper_bound(ctx.coord);
            it != ordered.end() && !remaining.empty();
            ++it) {
-        consume_edge(*it);
+        consumeEdge(track_idx, *it, remaining, result, ctx);
       }
     } else {
       auto it = ordered.lower_bound(ctx.coord);
       for (auto rit = std::make_reverse_iterator(it);
            rit != ordered.rend() && !remaining.empty();
            ++rit) {
-        consume_edge(*rit);
+        consumeEdge(track_idx, *rit, remaining, result, ctx);
       }
     }
+  }
+
+  void consumeEdge(int32_t track_idx,
+                   TopoEdge* edge,
+                   std::vector<RemainingInterval>& remaining,
+                   std::vector<TrackOverlap>& result,
+                   const SearchContext& ctx) const
+  {
+    if (!edgeHitsRemaining(edge, remaining)) {
+      return;
+    }
+
+    std::vector<TrackOverlap> overlap_list = computeEdgeOverlaps(track_idx, edge, remaining, ctx);
+    if (overlap_list.empty()) {
+      return;
+    }
+
+    result.insert(result.end(), overlap_list.begin(), overlap_list.end());
+
+    std::vector<RemainingInterval> next_remaining = remaining;
+    for (const TrackOverlap& overlap : overlap_list) {
+      next_remaining = ircx::interval::subtract(next_remaining, overlap.a0, overlap.a1);
+      if (next_remaining.empty()) {
+        break;
+      }
+    }
+    remaining = std::move(next_remaining);
   }
 
   // Recursively process tracks in the requested direction.
@@ -435,8 +440,8 @@ class EnvironmentTrack
   //   3) subtract those committed overlap pieces from remaining;
   //   4) recurse to the next track;
   //   5) return whatever interval is still uncovered after all requested tracks are processed.
-  std::vector<RemainingInterval> searchAcrossTracks(Dbu track_idx,
-                                              Dbu tracks_left,
+  std::vector<RemainingInterval> searchAcrossTracks(int32_t track_idx,
+                                              int32_t tracks_left,
                                               std::vector<RemainingInterval> remaining,
                                               std::vector<TrackOverlap>& result,
                                               const SearchContext& ctx) const
@@ -472,16 +477,16 @@ class EnvironmentTrack
   // each track -> multiple buckets
   std::vector<std::vector<EdgeSet>> track_buckets_;
 
-  Dbu track_ori_{0};
-  Dbu track_num_{0};
-  Dbu track_dlt_{0};
+  int32_t track_ori_ = 0;
+  int32_t track_num_ = 0;
+  int32_t track_dlt_ = 0;
 
-  Dbu bucket_ori_{0};
-  Dbu bucket_num_{0};
-  Dbu bucket_dlt_{10000};
+  int32_t bucket_ori_ = 0;
+  int32_t bucket_num_ = 0;
+  int32_t bucket_dlt_ = 10000;
 
-  bool trackValid(Dbu t) const { return 0 <= t && t < track_num_; }
-  bool bucketValid(Dbu b) const { return 0 <= b && b < bucket_num_; }
+  bool trackValid(int32_t t) const { return 0 <= t && t < track_num_; }
+  bool bucketValid(int32_t b) const { return 0 <= b && b < bucket_num_; }
 };
 
 }  // namespace ircx

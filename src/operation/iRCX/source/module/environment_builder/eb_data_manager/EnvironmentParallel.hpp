@@ -28,13 +28,13 @@
 namespace ircx {
 namespace parallel {
 
-inline auto cappedWorkItems(Size work_items) -> int
+inline auto cappedWorkItems(size_t work_items) -> int
 {
-  constexpr auto max_int = static_cast<Size>(std::numeric_limits<int>::max());
+  constexpr auto max_int = static_cast<size_t>(std::numeric_limits<int>::max());
   return work_items > max_int ? std::numeric_limits<int>::max() : static_cast<int>(work_items);
 }
 
-inline auto threadCount(Size work_items,
+inline auto threadCount(size_t work_items,
                         int requested_threads) -> int
 {
   if (work_items == 0) {
@@ -46,12 +46,12 @@ inline auto threadCount(Size work_items,
   return std::min(threads, cappedWorkItems(work_items));
 }
 
-inline auto threadCount(Size work_items) -> int
+inline auto threadCount(size_t work_items) -> int
 {
   return threadCount(work_items, omp_get_max_threads());
 }
 
-inline auto requestedThreadCount(Size work_items,
+inline auto requestedThreadCount(size_t work_items,
                                  int requested_threads) -> int
 {
   if (work_items == 0) {

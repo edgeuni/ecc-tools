@@ -52,7 +52,7 @@ struct is_gtl_point<gtl::point_data<C>> : std::true_type {};
 
 template <class T>
 struct is_bg_point : std::false_type {};
-template <class C, Size Dim, class Cs>
+template <class C, size_t Dim, class Cs>
 struct is_bg_point<bg::model::point<C, Dim, Cs>> : std::true_type {};
 
 template <class T>
@@ -89,7 +89,7 @@ struct point_traits<gtl::point_data<T>> {
 };
 
 // bg::model::point<T, Dim, Cs>
-template <class T, Size Dim, class Cs>
+template <class T, size_t Dim, class Cs>
 struct point_traits<bg::model::point<T, Dim, Cs>> {
   static_assert(Dim >= 2, "Boost.Geometry point dimension must be >= 2");
   using coord_t = T;
@@ -140,7 +140,7 @@ struct point_make_traits<gtl::point_data<T>> {
 };
 
 // bg::model::point<T, Dim, Cs>
-template <class T, Size Dim, class Cs>
+template <class T, size_t Dim, class Cs>
 struct point_make_traits<bg::model::point<T, Dim, Cs>> {
   static_assert(Dim >= 2, "Boost.Geometry point dimension must be >= 2");
   using coord_t = T;
@@ -148,7 +148,7 @@ struct point_make_traits<bg::model::point<T, Dim, Cs>> {
   static auto make(coord_t x,
                    coord_t y) -> bg::model::point<T, Dim, Cs>
   {
-    bg::model::point<T, Dim, Cs> p{};
+    bg::model::point<T, Dim, Cs> p = {};
     bg::set<0>(p, x);
     bg::set<1>(p, y);
     return p;
@@ -657,7 +657,7 @@ inline auto rectsToBbox(const std::vector<Rect>& rects) -> std::optional<Rect> {
   T miny = minY(rects[0]);
   T maxy = maxY(rects[0]);
 
-  for (Size i = 1; i < rects.size(); ++i) {
+  for (size_t i = 1; i < rects.size(); ++i) {
     minx = std::min(minx, minX(rects[i]));
     maxx = std::max(maxx, maxX(rects[i]));
     miny = std::min(miny, minY(rects[i]));

@@ -56,19 +56,24 @@ class CapacitanceCalculator
   CCModel initCCModel();
   void calculateCCModel(CCModel& cc_model);
   void calculateCapacitance();
-  void calculateCornerCapacitance(Size corner_idx);
-  void calculateNetCapacitance(Size corner_idx, Size net_idx);
-  void calculateEdgeCapacitance(Size corner_idx, Size net_idx, Size edge_idx);
-  void calculateEdgeIntervalCapacitance(Size corner_idx, Size net_idx, Size edge_idx, Size interval_idx);
-  void calculateCapacitanceSpan(Size corner_idx, Size net_idx, Size edge_idx, Size interval_idx, Dbu start_coordinate, Dbu end_coordinate);
-  void getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, Dbu start_coordinate, Dbu end_coordinate,
+  void calculateCornerCapacitance(size_t corner_idx);
+  void calculateNetCapacitance(size_t corner_idx, size_t net_idx);
+  void calculateEdgeCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx);
+  void calculateEdgeIntervalCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx);
+  void calculateCapacitanceSpan(size_t corner_idx,
+                                size_t net_idx,
+                                size_t edge_idx,
+                                size_t interval_idx,
+                                int32_t start_coordinate,
+                                int32_t end_coordinate);
+  void getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t start_coordinate, int32_t end_coordinate,
                          std::string& below_layer_name, std::string& above_layer_name);
-  void addGroundCapacitance(Size corner_idx, Size net_idx, Size edge_idx, TopoEdge* adjacent_edge, F64 ground_capacitance);
-  void addCouplingCapacitance(Size corner_idx, Size net_idx, Size edge_idx, TopoEdge* adjacent_edge, F64 coupling_capacitance);
-  ProcessConductor* getProcessConductor(CornerData& corner_data, Size design_layer_id);
+  void addGroundCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, F64 ground_capacitance);
+  void addCouplingCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, F64 coupling_capacitance);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
   CapTableConfig* getCapTableConfig(CornerData& corner_data, std::string& process_layer_name, std::string& below_layer_name,
                                     std::string& above_layer_name);
-  void getCapacitance(CapTableConfig& cap_table_config, Micron spacing, F64& coupling_capacitance, F64& ground_capacitance);
+  void getCapacitance(CapTableConfig& cap_table_config, double spacing, F64& coupling_capacitance, F64& ground_capacitance);
   void getFarthestCapacitance(CapTableConfig& cap_table_config, F64& coupling_capacitance, F64& ground_capacitance);
 };
 

@@ -25,17 +25,17 @@ class CapTableEntry
   CapTableEntry() = default;
   ~CapTableEntry() = default;
   // getter
-  Micron get_distance() const { return _distance; }
+  double get_distance() const { return _distance; }
   F64 get_coupling_capacitance() const { return _coupling_capacitance; }
   F64 get_ground_capacitance() const { return _ground_capacitance; }
   // setter
-  void set_distance(Micron distance) { _distance = distance; }
+  void set_distance(double distance) { _distance = distance; }
   void set_coupling_capacitance(F64 coupling_capacitance) { _coupling_capacitance = coupling_capacitance; }
   void set_ground_capacitance(F64 ground_capacitance) { _ground_capacitance = ground_capacitance; }
   // function
 
  private:
-  Micron _distance = 0.0;
+  double _distance = 0.0;
   F64 _coupling_capacitance = 0.0;
   F64 _ground_capacitance = 0.0;
 };

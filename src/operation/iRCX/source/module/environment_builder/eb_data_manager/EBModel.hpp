@@ -40,12 +40,12 @@ class EBModel final
   LayoutData* get_layout_data() { return layout_data_; }
   TopoPool* get_topo_pool() { return topo_pool_; }
   F32 get_bucket_size_um() const { return bucket_size_um_; }
-  Size get_cross_layer() const { return cross_layer_; }
-  std::map<Size, EnvironmentPixel>& get_layer_to_pixel_prefer_dir() { return layer_to_pixel_prefer_dir_; }
-  std::map<Size, EnvironmentPixel>& get_layer_to_pixel_nonprefer_dir() { return layer_to_pixel_nonprefer_dir_; }
-  std::map<Size, EnvironmentTrack>& get_layer_to_track_prefer_dir() { return layer_to_track_prefer_dir_; }
-  std::map<Size, EnvironmentTrack>& get_layer_to_track_nonprefer_dir() { return layer_to_track_nonprefer_dir_; }
-  std::map<Size, Dbu>& get_layer_to_search_track_num() { return layer_to_search_track_num_; }
+  size_t get_cross_layer() const { return cross_layer_; }
+  std::map<size_t, EnvironmentPixel>& get_layer_to_pixel_prefer_dir() { return layer_to_pixel_prefer_dir_; }
+  std::map<size_t, EnvironmentPixel>& get_layer_to_pixel_nonprefer_dir() { return layer_to_pixel_nonprefer_dir_; }
+  std::map<size_t, EnvironmentTrack>& get_layer_to_track_prefer_dir() { return layer_to_track_prefer_dir_; }
+  std::map<size_t, EnvironmentTrack>& get_layer_to_track_nonprefer_dir() { return layer_to_track_nonprefer_dir_; }
+  std::map<size_t, int32_t>& get_layer_to_search_track_num() { return layer_to_search_track_num_; }
   // setter
   void set_temp_directory_path(const std::string& temp_directory_path) { _temp_directory_path = temp_directory_path; }
   void set_layout_data(LayoutData* v) { layout_data_ = v; }
@@ -59,19 +59,19 @@ class EBModel final
 
  private:
   std::string _temp_directory_path;
-  LayoutData* layout_data_{nullptr};
-  TopoPool* topo_pool_{nullptr};
+  LayoutData* layout_data_ = nullptr;
+  TopoPool* topo_pool_ = nullptr;
 
-  F32 bucket_size_um_{5.0F};
-  F32 window_size_um_{5.0F};
+  F32 bucket_size_um_ = 5.0F;
+  F32 window_size_um_ = 5.0F;
 
-  Size cross_layer_{3};
+  size_t cross_layer_ = 3;
 
-  std::map<Size, EnvironmentPixel> layer_to_pixel_prefer_dir_;
-  std::map<Size, EnvironmentPixel> layer_to_pixel_nonprefer_dir_;
-  std::map<Size, EnvironmentTrack> layer_to_track_prefer_dir_;
-  std::map<Size, EnvironmentTrack> layer_to_track_nonprefer_dir_;
-  std::map<Size, Dbu> layer_to_search_track_num_;
+  std::map<size_t, EnvironmentPixel> layer_to_pixel_prefer_dir_;
+  std::map<size_t, EnvironmentPixel> layer_to_pixel_nonprefer_dir_;
+  std::map<size_t, EnvironmentTrack> layer_to_track_prefer_dir_;
+  std::map<size_t, EnvironmentTrack> layer_to_track_nonprefer_dir_;
+  std::map<size_t, int32_t> layer_to_search_track_num_;
 
 };
 

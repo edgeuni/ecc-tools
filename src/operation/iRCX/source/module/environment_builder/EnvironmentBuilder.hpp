@@ -19,11 +19,14 @@
 #include "DataManager.hpp"
 #include "EBModel.hpp"
 #include "EnvironmentAxis.hpp"
+#include "EnvironmentIntervalEngine.hpp"
 #include "EnvironmentTrack.hpp"
+#include "LineSegment.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "RCXHeader.hpp"
 #include "TrackInfo.hpp"
+#include "TopoEdge.hpp"
 
 namespace ircx {
 
@@ -52,11 +55,16 @@ class EnvironmentBuilder
   EBModel initEBModel();
   void buildEBModel(EBModel& eb_model);
   bool buildNetEnvironments(EBModel& eb_model);
+  std::vector<CrossOverlapSub> clipCrossSegments(const std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t a0, int32_t a1);
+  std::vector<PixelOverlapMerge::LayerPixelOverlaps> collectCrossSide(EBModel& eb_model, const LineSegment& line_segment, size_t base_lid,
+                                                                       bool search_up);
   bool buildTracks(EBModel& eb_model);
-  bool initTrackForDirection(EnvironmentTrack& track, TrackInfo& track_info, GtlRectI& rect, Dbu bucket_dlt, bool is_horz);
-  EnvironmentAxis coverAxis(Dbu origin, Dbu count, Dbu step, Dbu lo, Dbu hi);
-  Dbu ceilDivPositive(Dbu value, Dbu divisor);
+  void addTrackEdge(EBModel& eb_model, TopoEdge& edge);
+  bool initTrackForDirection(EnvironmentTrack& track, TrackInfo& track_info, GtlRectI& rect, int32_t bucket_dlt, bool is_horz);
+  EnvironmentAxis coverAxis(int32_t origin, int32_t count, int32_t step, int32_t lo, int32_t hi);
+  int32_t ceilDivPositive(int32_t value, int32_t divisor);
   bool buildPixels(EBModel& eb_model);
+  void addPixelEdge(EBModel& eb_model, TopoEdge& edge);
   void buildSearchTrackNumMap(EBModel& eb_model);
 };
 

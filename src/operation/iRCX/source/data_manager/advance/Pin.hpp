@@ -53,13 +53,13 @@ class Pin
 
 inline std::string Pin::get_instance_name() const
 {
-  Size delimiter_pos = _pin_name.find(':');
+  size_t delimiter_pos = _pin_name.find(':');
   return _pin_name.substr(0, delimiter_pos);
 }
 
 inline std::string Pin::get_instance_pin_name() const
 {
-  Size delimiter_pos = _pin_name.find(':');
+  size_t delimiter_pos = _pin_name.find(':');
   return _pin_name.substr(delimiter_pos + 1);
 }
 

@@ -24,7 +24,7 @@ class CcapEntry
 {
  public:
   CcapEntry() = default;
-  CcapEntry(Size first_edge_idx, Size second_edge_idx, Size corner_idx, F32 capacitance)
+  CcapEntry(size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, F32 capacitance)
   {
     _first_edge_idx = first_edge_idx;
     _second_edge_idx = second_edge_idx;
@@ -33,21 +33,21 @@ class CcapEntry
   }
   ~CcapEntry() = default;
   // getter
-  Size get_first_edge_idx() const { return _first_edge_idx; }
-  Size get_second_edge_idx() const { return _second_edge_idx; }
-  Size get_corner_idx() const { return _corner_idx; }
+  size_t get_first_edge_idx() const { return _first_edge_idx; }
+  size_t get_second_edge_idx() const { return _second_edge_idx; }
+  size_t get_corner_idx() const { return _corner_idx; }
   F32 get_capacitance() const { return _capacitance; }
   // setter
-  void set_first_edge_idx(Size first_edge_idx) { _first_edge_idx = first_edge_idx; }
-  void set_second_edge_idx(Size second_edge_idx) { _second_edge_idx = second_edge_idx; }
-  void set_corner_idx(Size corner_idx) { _corner_idx = corner_idx; }
+  void set_first_edge_idx(size_t first_edge_idx) { _first_edge_idx = first_edge_idx; }
+  void set_second_edge_idx(size_t second_edge_idx) { _second_edge_idx = second_edge_idx; }
+  void set_corner_idx(size_t corner_idx) { _corner_idx = corner_idx; }
   void set_capacitance(F32 capacitance) { _capacitance = capacitance; }
   // function
 
  private:
-  Size _first_edge_idx = kMaxSize;
-  Size _second_edge_idx = kMaxSize;
-  Size _corner_idx = kMaxSize;
+  size_t _first_edge_idx = kMaxSize;
+  size_t _second_edge_idx = kMaxSize;
+  size_t _corner_idx = kMaxSize;
   F32 _capacitance = 0.0F;
 };
 

@@ -24,22 +24,22 @@ class EnvironmentAxis
 {
  public:
   EnvironmentAxis() = default;
-  EnvironmentAxis(Dbu origin, Dbu count, Dbu step) : _origin(origin), _count(count), _step(step) {}
+  EnvironmentAxis(int32_t origin, int32_t count, int32_t step) : _origin(origin), _count(count), _step(step) {}
   ~EnvironmentAxis() = default;
   // getter
-  Dbu get_origin() const { return _origin; }
-  Dbu get_count() const { return _count; }
-  Dbu get_step() const { return _step; }
+  int32_t get_origin() const { return _origin; }
+  int32_t get_count() const { return _count; }
+  int32_t get_step() const { return _step; }
   // setter
-  void set_origin(Dbu origin) { _origin = origin; }
-  void set_count(Dbu count) { _count = count; }
-  void set_step(Dbu step) { _step = step; }
+  void set_origin(int32_t origin) { _origin = origin; }
+  void set_count(int32_t count) { _count = count; }
+  void set_step(int32_t step) { _step = step; }
   // function
 
  private:
-  Dbu _origin = 0;
-  Dbu _count = 0;
-  Dbu _step = 0;
+  int32_t _origin = 0;
+  int32_t _count = 0;
+  int32_t _step = 0;
 };
 
 }  // namespace ircx

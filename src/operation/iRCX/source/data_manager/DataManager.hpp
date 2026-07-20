@@ -56,21 +56,22 @@ class DataManager
   void buildCornerData(Corner& corner, F64 temperature);
   std::string getTemperatureCornerName(std::string corner_name, F64 temperature);
   void buildProcessCorner(CornerData& corner_data, std::string itf_file_path);
-  void buildProcessConductor(CornerData& corner_data, std::vector<std::string>& itf_token_list, Size start_idx, Size end_idx,
+  void buildProcessConductor(CornerData& corner_data, std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx,
                              std::string conductor_name);
-  void buildProcessVia(CornerData& corner_data, std::vector<std::string>& itf_token_list, Size start_idx, Size end_idx,
+  void buildProcessVia(CornerData& corner_data, std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx,
                        std::string via_name);
   void registerProcessLayer(std::string& process_layer_name);
   void getItfTokenList(std::string& itf_text, std::vector<std::string>& itf_token_list);
-  Size getItfBlockStart(std::vector<std::string>& itf_token_list, Size start_idx);
-  Size getItfBlockEnd(std::vector<std::string>& itf_token_list, Size block_start_idx);
-  bool getItfAssignmentNumber(std::vector<std::string>& itf_token_list, Size property_idx, F64& property_value);
-  bool getItfAssignmentString(std::vector<std::string>& itf_token_list, Size property_idx, std::string& property_value);
+  void appendItfToken(std::string& token, std::vector<std::string>& itf_token_list);
+  size_t getItfBlockStart(std::vector<std::string>& itf_token_list, size_t start_idx);
+  size_t getItfBlockEnd(std::vector<std::string>& itf_token_list, size_t block_start_idx);
+  bool getItfAssignmentNumber(std::vector<std::string>& itf_token_list, size_t property_idx, F64& property_value);
+  bool getItfAssignmentString(std::vector<std::string>& itf_token_list, size_t property_idx, std::string& property_value);
   bool getItfNumber(std::string& token, F64& number);
-  void getItfNumberList(std::vector<std::string>& itf_token_list, Size start_idx, Size end_idx, std::vector<F64>& number_list);
+  void getItfNumberList(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx, std::vector<F64>& number_list);
   std::string getItfUpperString(std::string text);
-  ProcessEffectType getItfEffectType(std::vector<std::string>& itf_token_list, Size start_idx, Size end_idx);
-  void getItfTableValueList(std::vector<std::string>& itf_token_list, Size start_idx, Size end_idx, std::string row_name,
+  ProcessEffectType getItfEffectType(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx);
+  void getItfTableValueList(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx, std::string row_name,
                             std::string column_name, std::string value_name, std::vector<F64>& row_list,
                             std::vector<F64>& column_list, std::vector<F64>& value_list);
   void buildCapTable(CornerData& corner_data, std::string captab_file_path);

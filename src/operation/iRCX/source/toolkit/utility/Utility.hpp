@@ -33,6 +33,15 @@ class Utility
 
 #if 1  // std数据结构工具函数
 
+  static std::string getAbsolutePath(const std::filesystem::path& directory_path, const std::string& file_path)
+  {
+    std::filesystem::path path(file_path);
+    if (path.is_absolute()) {
+      return path.string();
+    }
+    return std::filesystem::absolute(directory_path / path).string();
+  }
+
   template <typename T, typename... Args>
   static std::string getString(T value, Args... args)
   {

@@ -75,32 +75,32 @@ void CapacitanceCalculator::calculateCCModel(CCModel&)
 
 void CapacitanceCalculator::calculateCapacitance()
 {
-  Size corner_num = RCXDM.getDatabase().get_corner_data_list().size();
-  for (Size corner_idx = 0; corner_idx < corner_num; corner_idx++) {
+  size_t corner_num = RCXDM.getDatabase().get_corner_data_list().size();
+  for (size_t corner_idx = 0; corner_idx < corner_num; corner_idx++) {
     calculateCornerCapacitance(corner_idx);
   }
   RCXDM.getDatabase().get_rc_table().merge_net_ccap_entry_list();
 }
 
-void CapacitanceCalculator::calculateCornerCapacitance(Size corner_idx)
+void CapacitanceCalculator::calculateCornerCapacitance(size_t corner_idx)
 {
-  Size net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
+  size_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
   int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
-  for (Size net_idx = 0; net_idx < net_num; net_idx++) {
+  for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
     calculateNetCapacitance(corner_idx, net_idx);
   }
 }
 
-void CapacitanceCalculator::calculateNetCapacitance(Size corner_idx, Size net_idx)
+void CapacitanceCalculator::calculateNetCapacitance(size_t corner_idx, size_t net_idx)
 {
   std::span<TopoEdge> edge_list = RCXDM.getDatabase().get_topo_pool().get_net_edge_list(net_idx);
-  for (Size edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
+  for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
     calculateEdgeCapacitance(corner_idx, net_idx, edge_idx);
   }
 }
 
-void CapacitanceCalculator::calculateEdgeCapacitance(Size corner_idx, Size net_idx, Size edge_idx)
+void CapacitanceCalculator::calculateEdgeCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx)
 {
   Database& database = RCXDM.getDatabase();
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
@@ -113,18 +113,18 @@ void CapacitanceCalculator::calculateEdgeCapacitance(Size corner_idx, Size net_i
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
   std::span<EdgeEnvironmentInterval> environment_interval_list = net_environment.get_edge_interval_list(edge_idx);
   std::span<EdgeEtchInterval> etch_interval_list = net_etch_profile.get_edge_interval_list(edge_idx);
-  Size interval_num = std::min(environment_interval_list.size(), etch_interval_list.size());
-  for (Size interval_idx = 0; interval_idx < interval_num; interval_idx++) {
+  size_t interval_num = std::min(environment_interval_list.size(), etch_interval_list.size());
+  for (size_t interval_idx = 0; interval_idx < interval_num; interval_idx++) {
     calculateEdgeIntervalCapacitance(corner_idx, net_idx, edge_idx, interval_idx);
   }
 }
 
-void CapacitanceCalculator::calculateEdgeIntervalCapacitance(Size corner_idx, Size net_idx, Size edge_idx, Size interval_idx)
+void CapacitanceCalculator::calculateEdgeIntervalCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx)
 {
   Database& database = RCXDM.getDatabase();
   NetEnvironment& net_environment = database.get_net_environment_list().at(net_idx);
   EdgeEnvironmentInterval& environment_interval = net_environment.get_edge_interval_list(edge_idx)[interval_idx];
-  std::vector<Dbu> coordinate_list;
+  std::vector<int32_t> coordinate_list;
   coordinate_list.push_back(environment_interval.get_start_coordinate());
   coordinate_list.push_back(environment_interval.get_end_coordinate());
   for (CrossOverlapSub& cross_overlap_sub : environment_interval.get_cross_overlap_sub_list()) {
@@ -134,13 +134,18 @@ void CapacitanceCalculator::calculateEdgeIntervalCapacitance(Size corner_idx, Si
   std::sort(coordinate_list.begin(), coordinate_list.end());
   coordinate_list.erase(std::unique(coordinate_list.begin(), coordinate_list.end()), coordinate_list.end());
 
-  for (Size coordinate_idx = 0; coordinate_idx + 1 < coordinate_list.size(); coordinate_idx++) {
-    calculateCapacitanceSpan(corner_idx, net_idx, edge_idx, interval_idx, coordinate_list[coordinate_idx], coordinate_list[coordinate_idx + 1]);
+  for (size_t coordinate_idx = 0; coordinate_idx + 1 < coordinate_list.size(); coordinate_idx++) {
+    calculateCapacitanceSpan(
+        corner_idx, net_idx, edge_idx, interval_idx, coordinate_list[coordinate_idx], coordinate_list[coordinate_idx + 1]);
   }
 }
 
-void CapacitanceCalculator::calculateCapacitanceSpan(Size corner_idx, Size net_idx, Size edge_idx, Size interval_idx, Dbu start_coordinate,
-                                                      Dbu end_coordinate)
+void CapacitanceCalculator::calculateCapacitanceSpan(size_t corner_idx,
+                                                      size_t net_idx,
+                                                      size_t edge_idx,
+                                                      size_t interval_idx,
+                                                      int32_t start_coordinate,
+                                                      int32_t end_coordinate)
 {
   if (end_coordinate <= start_coordinate) {
     return;
@@ -161,15 +166,16 @@ void CapacitanceCalculator::calculateCapacitanceSpan(Size corner_idx, Size net_i
   EdgeEtchInterval& etch_interval = net_etch_profile.get_edge_interval_list(edge_idx)[interval_idx];
   std::string below_layer_name;
   std::string above_layer_name;
-  getCrossLayerName(environment_interval.get_cross_overlap_sub_list(), start_coordinate, end_coordinate, below_layer_name, above_layer_name);
+  getCrossLayerName(
+      environment_interval.get_cross_overlap_sub_list(), start_coordinate, end_coordinate, below_layer_name, above_layer_name);
 
   CapTableConfig* cap_table_config = getCapTableConfig(corner_data, conductor->get_layer_name(), below_layer_name, above_layer_name);
   if (cap_table_config == nullptr) {
     return;
   }
 
-  Micron micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
-  Micron span_length = (end_coordinate - start_coordinate) * micron_per_dbu;
+  double micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
+  double span_length = (end_coordinate - start_coordinate) * micron_per_dbu;
   TopoEdge* lower_adjacent_edge = environment_interval.get_lower_adjacent_edge();
   TopoEdge* upper_adjacent_edge = environment_interval.get_upper_adjacent_edge();
   if (lower_adjacent_edge != nullptr && upper_adjacent_edge != nullptr) {
@@ -190,7 +196,7 @@ void CapacitanceCalculator::calculateCapacitanceSpan(Size corner_idx, Size net_i
 
   if (lower_adjacent_edge != nullptr || upper_adjacent_edge != nullptr) {
     TopoEdge* adjacent_edge = lower_adjacent_edge != nullptr ? lower_adjacent_edge : upper_adjacent_edge;
-    Micron spacing = lower_adjacent_edge != nullptr ? etch_interval.get_capacitance_lower_spacing()
+    double spacing = lower_adjacent_edge != nullptr ? etch_interval.get_capacitance_lower_spacing()
                                                      : etch_interval.get_capacitance_upper_spacing();
     F64 coupling_capacitance = 0.0;
     F64 ground_capacitance = 0.0;
@@ -207,13 +213,13 @@ void CapacitanceCalculator::calculateCapacitanceSpan(Size corner_idx, Size net_i
   ground_capacitance_list[edge_idx] += 2.0 * span_length * (coupling_capacitance + ground_capacitance);
 }
 
-void CapacitanceCalculator::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, Dbu start_coordinate,
-                                               Dbu end_coordinate, std::string& below_layer_name, std::string& above_layer_name)
+void CapacitanceCalculator::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t start_coordinate,
+                                               int32_t end_coordinate, std::string& below_layer_name, std::string& above_layer_name)
 {
   below_layer_name = "SUBSTRATE";
   above_layer_name.clear();
-  Size below_layer_id = 0;
-  Size above_layer_id = kMaxSize;
+  size_t below_layer_id = 0;
+  size_t above_layer_id = kMaxSize;
   for (CrossOverlapSub& cross_overlap_sub : cross_overlap_sub_list) {
     if (cross_overlap_sub.get_start_coordinate() > start_coordinate || end_coordinate > cross_overlap_sub.get_end_coordinate()) {
       continue;
@@ -238,7 +244,7 @@ void CapacitanceCalculator::getCrossLayerName(std::vector<CrossOverlapSub>& cros
   }
 }
 
-void CapacitanceCalculator::addGroundCapacitance(Size corner_idx, Size net_idx, Size edge_idx, TopoEdge* adjacent_edge,
+void CapacitanceCalculator::addGroundCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge,
                                                   F64 ground_capacitance)
 {
   if (ground_capacitance <= 0.0) {
@@ -253,7 +259,7 @@ void CapacitanceCalculator::addGroundCapacitance(Size corner_idx, Size net_idx, 
   }
 }
 
-void CapacitanceCalculator::addCouplingCapacitance(Size corner_idx, Size net_idx, Size edge_idx, TopoEdge* adjacent_edge,
+void CapacitanceCalculator::addCouplingCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge,
                                                     F64 coupling_capacitance)
 {
   if (coupling_capacitance <= 0.0) {
@@ -265,17 +271,17 @@ void CapacitanceCalculator::addCouplingCapacitance(Size corner_idx, Size net_idx
     std::span<F64> ground_capacitance_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
     ground_capacitance_list[edge_idx] += coupling_capacitance;
   } else if (adjacent_edge->get_net_id() != net_idx) {
-    Size edge_global_idx = database.get_topo_pool().get_edge_idx(net_idx, edge_idx);
-    Size adjacent_edge_global_idx = database.get_topo_pool().get_edge_idx(*adjacent_edge);
+    size_t edge_global_idx = database.get_topo_pool().get_edge_idx(net_idx, edge_idx);
+    size_t adjacent_edge_global_idx = database.get_topo_pool().get_edge_idx(*adjacent_edge);
     database.get_rc_table().append_net_ccap_entry(net_idx, edge_global_idx, adjacent_edge_global_idx, corner_idx,
                                                    static_cast<F32>(coupling_capacitance));
   }
 }
 
-ProcessConductor* CapacitanceCalculator::getProcessConductor(CornerData& corner_data, Size design_layer_id)
+ProcessConductor* CapacitanceCalculator::getProcessConductor(CornerData& corner_data, size_t design_layer_id)
 {
   LayerTable& layer_table = RCXDM.getDatabase().get_layer_table();
-  std::unordered_map<Size, std::string>& design_id_to_name_map = layer_table.get_design_id_to_name_map();
+  std::unordered_map<size_t, std::string>& design_id_to_name_map = layer_table.get_design_id_to_name_map();
   if (design_id_to_name_map.count(design_layer_id) == 0) {
     return nullptr;
   }
@@ -308,7 +314,7 @@ CapTableConfig* CapacitanceCalculator::getCapTableConfig(CornerData& corner_data
   return nullptr;
 }
 
-void CapacitanceCalculator::getCapacitance(CapTableConfig& cap_table_config, Micron spacing, F64& coupling_capacitance,
+void CapacitanceCalculator::getCapacitance(CapTableConfig& cap_table_config, double spacing, F64& coupling_capacitance,
                                             F64& ground_capacitance)
 {
   std::vector<CapTableEntry>& entry_list = cap_table_config.get_entry_list();
@@ -326,7 +332,7 @@ void CapacitanceCalculator::getCapacitance(CapTableConfig& cap_table_config, Mic
     return;
   }
 
-  for (Size entry_idx = 0; entry_idx + 1 < entry_list.size(); entry_idx++) {
+  for (size_t entry_idx = 0; entry_idx + 1 < entry_list.size(); entry_idx++) {
     CapTableEntry& first_entry = entry_list[entry_idx];
     CapTableEntry& second_entry = entry_list[entry_idx + 1];
     if (first_entry.get_distance() <= spacing && spacing <= second_entry.get_distance()) {

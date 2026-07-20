@@ -29,7 +29,7 @@ class Net
   Net() = default;
   ~Net() = default;
   // getter
-  Size get_net_id() const { return _net_id; }
+  size_t get_net_id() const { return _net_id; }
   std::string& get_net_name() { return _net_name; }
   std::vector<Segment>& get_segment_list() { return _segment_list; }
   std::vector<Patch>& get_patch_list() { return _patch_list; }
@@ -41,7 +41,7 @@ class Net
   const std::vector<Via>& get_via_list() const { return _via_list; }
   const std::vector<Pin>& get_pin_list() const { return _pin_list; }
   // setter
-  void set_net_id(Size net_id) { _net_id = net_id; }
+  void set_net_id(size_t net_id) { _net_id = net_id; }
   void set_net_name(const std::string& net_name) { _net_name = net_name; }
   void set_segment_list(const std::vector<Segment>& segment_list) { _segment_list = segment_list; }
   void set_patch_list(const std::vector<Patch>& patch_list) { _patch_list = patch_list; }
@@ -50,7 +50,7 @@ class Net
   // function
 
  private:
-  Size _net_id = kMaxSize;
+  size_t _net_id = kMaxSize;
   std::string _net_name;
   std::vector<Segment> _segment_list;
   std::vector<Patch> _patch_list;

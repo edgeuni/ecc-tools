@@ -27,27 +27,27 @@ class CornerNetPool
   CornerNetPool() = default;
   ~CornerNetPool() = default;
   // getter
-  Size get_corner_num() const { return _corner_num; }
-  Size get_net_num() const { return _net_num; }
+  size_t get_corner_num() const { return _corner_num; }
+  size_t get_net_num() const { return _net_num; }
   std::vector<T>& get_item_list() { return _item_list; }
   // setter
-  void set_corner_num(Size corner_num) { _corner_num = corner_num; }
-  void set_net_num(Size net_num) { _net_num = net_num; }
+  void set_corner_num(size_t corner_num) { _corner_num = corner_num; }
+  void set_net_num(size_t net_num) { _net_num = net_num; }
   void set_item_list(const std::vector<T>& item_list) { _item_list = item_list; }
   // function
-  void init(Size corner_num, Size net_num);
+  void init(size_t corner_num, size_t net_num);
   T& get_item(CornerNetId corner_net_id);
 
  private:
-  Size get_item_idx(CornerNetId corner_net_id) const;
+  size_t get_item_idx(CornerNetId corner_net_id) const;
 
-  Size _corner_num = 0;
-  Size _net_num = 0;
+  size_t _corner_num = 0;
+  size_t _net_num = 0;
   std::vector<T> _item_list;
 };
 
 template <typename T>
-inline void CornerNetPool<T>::init(Size corner_num, Size net_num)
+inline void CornerNetPool<T>::init(size_t corner_num, size_t net_num)
 {
   _corner_num = corner_num;
   _net_num = net_num;
@@ -62,7 +62,7 @@ inline T& CornerNetPool<T>::get_item(CornerNetId corner_net_id)
 }
 
 template <typename T>
-inline Size CornerNetPool<T>::get_item_idx(CornerNetId corner_net_id) const
+inline size_t CornerNetPool<T>::get_item_idx(CornerNetId corner_net_id) const
 {
   return corner_net_id.get_corner_idx() * _net_num + corner_net_id.get_net_idx();
 }

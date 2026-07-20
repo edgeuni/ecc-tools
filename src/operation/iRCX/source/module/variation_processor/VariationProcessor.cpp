@@ -77,30 +77,30 @@ void VariationProcessor::processVPModel(VPModel&)
 void VariationProcessor::buildCornerNetEtchProfilePool()
 {
   Database& database = RCXDM.getDatabase();
-  Size corner_num = database.get_corner_data_list().size();
-  Size net_num = database.get_layout_data().get_regular_net_count();
+  size_t corner_num = database.get_corner_data_list().size();
+  size_t net_num = database.get_layout_data().get_regular_net_count();
   CornerNetPool<NetEtchProfile>& corner_net_etch_profile_pool = database.get_corner_net_etch_profile_pool();
   corner_net_etch_profile_pool.init(corner_num, net_num);
 
-  for (Size corner_idx = 0; corner_idx < corner_num; corner_idx++) {
+  for (size_t corner_idx = 0; corner_idx < corner_num; corner_idx++) {
     int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
-    for (Size net_idx = 0; net_idx < net_num; net_idx++) {
+    for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
       buildNetEtchProfile(corner_idx, net_idx);
     }
   }
 }
 
-void VariationProcessor::buildNetEtchProfile(Size corner_idx, Size net_idx)
+void VariationProcessor::buildNetEtchProfile(size_t corner_idx, size_t net_idx)
 {
   Database& database = RCXDM.getDatabase();
   CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
   NetEnvironment& net_environment = database.get_net_environment_list().at(net_idx);
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
-  Micron micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
+  double micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
 
-  for (Size edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
+  for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
     TopoEdge& edge = edge_list[edge_idx];
     std::vector<EdgeEtchInterval> edge_interval_list;
     if (!edge.get_is_via()) {
@@ -135,26 +135,26 @@ void VariationProcessor::buildNetEtchProfile(Size corner_idx, Size net_idx)
 void VariationProcessor::applyCornerNetEffectiveGeometryList()
 {
   Database& database = RCXDM.getDatabase();
-  Size corner_num = database.get_corner_data_list().size();
-  Size net_num = database.get_layout_data().get_regular_net_count();
+  size_t corner_num = database.get_corner_data_list().size();
+  size_t net_num = database.get_layout_data().get_regular_net_count();
   int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
 
-  for (Size corner_idx = 0; corner_idx < corner_num; corner_idx++) {
+  for (size_t corner_idx = 0; corner_idx < corner_num; corner_idx++) {
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
-    for (Size net_idx = 0; net_idx < net_num; net_idx++) {
+    for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
       applyNetEffectiveGeometry(corner_idx, net_idx);
     }
   }
 }
 
-void VariationProcessor::applyNetEffectiveGeometry(Size corner_idx, Size net_idx)
+void VariationProcessor::applyNetEffectiveGeometry(size_t corner_idx, size_t net_idx)
 {
   Database& database = RCXDM.getDatabase();
   CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
 
-  for (Size edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
+  for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
     TopoEdge& edge = edge_list[edge_idx];
     if (edge.get_is_via()) {
       continue;
@@ -173,13 +173,13 @@ void VariationProcessor::applyNetEffectiveGeometry(Size corner_idx, Size net_idx
 void VariationProcessor::applyEdgeEffectiveGeometry(ProcessConductor& conductor, EdgeEtchInterval& edge_interval)
 {
   for (ProcessEtchTable& etch_table : conductor.get_etch_table_list()) {
-    Micron lower_etch = 0.0;
+    double lower_etch = 0.0;
     std::optional<F64> lower_etch_value = etch_table.get_table().query(edge_interval.get_width(), edge_interval.get_lower_spacing());
     if (lower_etch_value.has_value()) {
       lower_etch = lower_etch_value.value();
     }
 
-    Micron upper_etch = 0.0;
+    double upper_etch = 0.0;
     std::optional<F64> upper_etch_value = etch_table.get_table().query(edge_interval.get_width(), edge_interval.get_upper_spacing());
     if (upper_etch_value.has_value()) {
       upper_etch = upper_etch_value.value();
@@ -192,10 +192,10 @@ void VariationProcessor::applyEdgeEffectiveGeometry(ProcessConductor& conductor,
   edge_interval.set_thickness(conductor.get_thickness());
 }
 
-ProcessConductor* VariationProcessor::getProcessConductor(CornerData& corner_data, Size design_layer_id)
+ProcessConductor* VariationProcessor::getProcessConductor(CornerData& corner_data, size_t design_layer_id)
 {
   LayerTable& layer_table = RCXDM.getDatabase().get_layer_table();
-  std::unordered_map<Size, std::string>& design_id_to_name_map = layer_table.get_design_id_to_name_map();
+  std::unordered_map<size_t, std::string>& design_id_to_name_map = layer_table.get_design_id_to_name_map();
   if (design_id_to_name_map.count(design_layer_id) == 0) {
     return nullptr;
   }

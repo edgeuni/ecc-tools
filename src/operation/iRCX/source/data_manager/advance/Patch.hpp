@@ -26,15 +26,15 @@ class Patch
   Patch() = default;
   ~Patch() = default;
   // getter
-  Size get_layer_id() const { return _layer_id; }
+  size_t get_layer_id() const { return _layer_id; }
   GtlRectI& get_shape() { return _shape; }
   // setter
-  void set_layer_id(Size layer_id) { _layer_id = layer_id; }
+  void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
   void set_shape(const GtlRectI& shape) { _shape = shape; }
   // function
 
  private:
-  Size _layer_id = kMaxSize;
+  size_t _layer_id = kMaxSize;
   GtlRectI _shape;
 };
 

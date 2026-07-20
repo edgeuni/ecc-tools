@@ -30,16 +30,16 @@ class ProcessConductor
   // getter
   std::string& get_layer_name() { return _layer_name; }
   const std::string& get_layer_name() const { return _layer_name; }
-  Micron get_thickness() const { return _thickness; }
+  double get_thickness() const { return _thickness; }
   F64 get_sheet_resistance() const { return _sheet_resistance; }
   F64 get_resistivity() const { return _resistivity; }
   bool get_has_nominal_temperature() const { return _has_nominal_temperature; }
   F64 get_nominal_temperature() const { return _nominal_temperature; }
   F64 get_temperature_coefficient1() const { return _temperature_coefficient1; }
   F64 get_temperature_coefficient2() const { return _temperature_coefficient2; }
-  Micron get_etch() const { return _etch; }
-  Micron get_resistive_only_etch() const { return _resistive_only_etch; }
-  Micron get_capacitive_only_etch() const { return _capacitive_only_etch; }
+  double get_etch() const { return _etch; }
+  double get_resistive_only_etch() const { return _resistive_only_etch; }
+  double get_capacitive_only_etch() const { return _capacitive_only_etch; }
   ProcessTable1D& get_sheet_resistance_by_width_table() { return _sheet_resistance_by_width_table; }
   ProcessTable1D& get_temperature_coefficient1_by_width_table() { return _temperature_coefficient1_by_width_table; }
   ProcessTable1D& get_temperature_coefficient2_by_width_table() { return _temperature_coefficient2_by_width_table; }
@@ -52,7 +52,7 @@ class ProcessConductor
   const std::vector<ProcessEtchTable>& get_thickness_change_table_list() const { return _thickness_change_table_list; }
   // setter
   void set_layer_name(const std::string& layer_name) { _layer_name = layer_name; }
-  void set_thickness(Micron thickness) { _thickness = thickness; }
+  void set_thickness(double thickness) { _thickness = thickness; }
   void set_sheet_resistance(F64 sheet_resistance) { _sheet_resistance = sheet_resistance; }
   void set_resistivity(F64 resistivity) { _resistivity = resistivity; }
   void set_nominal_temperature(F64 nominal_temperature)
@@ -62,30 +62,30 @@ class ProcessConductor
   }
   void set_temperature_coefficient1(F64 temperature_coefficient1) { _temperature_coefficient1 = temperature_coefficient1; }
   void set_temperature_coefficient2(F64 temperature_coefficient2) { _temperature_coefficient2 = temperature_coefficient2; }
-  void set_etch(Micron etch) { _etch = etch; }
-  void set_resistive_only_etch(Micron resistive_only_etch) { _resistive_only_etch = resistive_only_etch; }
-  void set_capacitive_only_etch(Micron capacitive_only_etch) { _capacitive_only_etch = capacitive_only_etch; }
+  void set_etch(double etch) { _etch = etch; }
+  void set_resistive_only_etch(double resistive_only_etch) { _resistive_only_etch = resistive_only_etch; }
+  void set_capacitive_only_etch(double capacitive_only_etch) { _capacitive_only_etch = capacitive_only_etch; }
   // function
-  std::optional<F64> query_sheet_resistance(Micron width, Micron lower_spacing, Micron upper_spacing) const;
-  std::optional<F64> query_resistivity(Micron width, Micron thickness, Micron lower_spacing, Micron upper_spacing) const;
-  void query_temperature_coefficient(Micron width, F64& temperature_coefficient1, F64& temperature_coefficient2) const;
-  Micron query_etch(ProcessEffectType effect_type, Micron width, Micron spacing) const;
-  Micron query_thickness_change(ProcessEffectType effect_type, Micron width, Micron spacing) const;
+  std::optional<F64> query_sheet_resistance(double width, double lower_spacing, double upper_spacing) const;
+  std::optional<F64> query_resistivity(double width, double thickness, double lower_spacing, double upper_spacing) const;
+  void query_temperature_coefficient(double width, F64& temperature_coefficient1, F64& temperature_coefficient2) const;
+  double query_etch(ProcessEffectType effect_type, double width, double spacing) const;
+  double query_thickness_change(ProcessEffectType effect_type, double width, double spacing) const;
 
  private:
   bool get_effect_is_applied(ProcessEffectType table_effect_type, ProcessEffectType query_effect_type) const;
 
   std::string _layer_name;
-  Micron _thickness = 0.0;
+  double _thickness = 0.0;
   F64 _sheet_resistance = 0.0;
   F64 _resistivity = 0.0;
   bool _has_nominal_temperature = false;
   F64 _nominal_temperature = 25.0;
   F64 _temperature_coefficient1 = 0.0;
   F64 _temperature_coefficient2 = 0.0;
-  Micron _etch = 0.0;
-  Micron _resistive_only_etch = 0.0;
-  Micron _capacitive_only_etch = 0.0;
+  double _etch = 0.0;
+  double _resistive_only_etch = 0.0;
+  double _capacitive_only_etch = 0.0;
   ProcessTable1D _sheet_resistance_by_width_table;
   ProcessTable1D _temperature_coefficient1_by_width_table;
   ProcessTable1D _temperature_coefficient2_by_width_table;
@@ -96,9 +96,9 @@ class ProcessConductor
   std::vector<ProcessEtchTable> _thickness_change_table_list;
 };
 
-inline std::optional<F64> ProcessConductor::query_sheet_resistance(Micron width, Micron lower_spacing, Micron upper_spacing) const
+inline std::optional<F64> ProcessConductor::query_sheet_resistance(double width, double lower_spacing, double upper_spacing) const
 {
-  Micron spacing = std::min(lower_spacing, upper_spacing);
+  double spacing = std::min(lower_spacing, upper_spacing);
   std::optional<F64> sheet_resistance = _sheet_resistance_by_width_spacing_table.query(width, spacing);
   if (sheet_resistance.has_value()) {
     return sheet_resistance;
@@ -113,13 +113,16 @@ inline std::optional<F64> ProcessConductor::query_sheet_resistance(Micron width,
   return std::nullopt;
 }
 
-inline std::optional<F64> ProcessConductor::query_resistivity(Micron width, Micron thickness, Micron lower_spacing, Micron upper_spacing) const
+inline std::optional<F64> ProcessConductor::query_resistivity(double width,
+                                                              double thickness,
+                                                              double lower_spacing,
+                                                              double upper_spacing) const
 {
   std::optional<F64> resistivity = _resistivity_by_width_thickness_table.query(thickness, width);
   if (resistivity.has_value()) {
     return resistivity;
   }
-  Micron spacing = std::min(lower_spacing, upper_spacing);
+  double spacing = std::min(lower_spacing, upper_spacing);
   resistivity = _resistivity_by_width_spacing_table.query(width, spacing);
   if (resistivity.has_value()) {
     return resistivity;
@@ -130,7 +133,7 @@ inline std::optional<F64> ProcessConductor::query_resistivity(Micron width, Micr
   return std::nullopt;
 }
 
-inline void ProcessConductor::query_temperature_coefficient(Micron width,
+inline void ProcessConductor::query_temperature_coefficient(double width,
                                                              F64& temperature_coefficient1,
                                                              F64& temperature_coefficient2) const
 {
@@ -146,9 +149,9 @@ inline void ProcessConductor::query_temperature_coefficient(Micron width,
   }
 }
 
-inline Micron ProcessConductor::query_etch(ProcessEffectType effect_type, Micron width, Micron spacing) const
+inline double ProcessConductor::query_etch(ProcessEffectType effect_type, double width, double spacing) const
 {
-  Micron etch = _etch;
+  double etch = _etch;
   if (effect_type == ProcessEffectType::kResistance) {
     etch += _resistive_only_etch;
   } else if (effect_type == ProcessEffectType::kCapacitance) {
@@ -166,9 +169,9 @@ inline Micron ProcessConductor::query_etch(ProcessEffectType effect_type, Micron
   return etch;
 }
 
-inline Micron ProcessConductor::query_thickness_change(ProcessEffectType effect_type, Micron width, Micron spacing) const
+inline double ProcessConductor::query_thickness_change(ProcessEffectType effect_type, double width, double spacing) const
 {
-  Micron thickness_change = 0.0;
+  double thickness_change = 0.0;
   for (const ProcessEtchTable& thickness_change_table : _thickness_change_table_list) {
     if (!get_effect_is_applied(thickness_change_table.get_effect_type(), effect_type)) {
       continue;

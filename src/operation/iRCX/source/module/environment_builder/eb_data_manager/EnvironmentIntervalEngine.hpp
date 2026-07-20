@@ -30,8 +30,8 @@ namespace ircx {
 class TrackOverlapMerge
 {
  public:
-  void compute(Dbu query_a0,
-               Dbu query_a1,
+  void compute(int32_t query_a0,
+               int32_t query_a1,
                const std::vector<TrackOverlap>& dn_in,
                const std::vector<TrackOverlap>& up_in,
                std::vector<EdgeEnvironmentInterval>& out) const
@@ -55,8 +55,8 @@ class TrackOverlapMerge
   }
 
  private:
-  static TrackOverlap makeNullOverlap(Dbu a0,
-                                      Dbu a1)
+  static TrackOverlap makeNullOverlap(int32_t a0,
+                                      int32_t a1)
   {
     TrackOverlap ov;
     ov.a0 = a0;
@@ -84,8 +84,8 @@ class TrackOverlapMerge
     out.push_back(ov);
   }
 
-  void normalizeSide(Dbu query_a0,
-                     Dbu query_a1,
+  void normalizeSide(int32_t query_a0,
+                     int32_t query_a1,
                      const std::vector<TrackOverlap>& in,
                      std::vector<TrackOverlap>& out) const
   {
@@ -95,8 +95,8 @@ class TrackOverlapMerge
     tmp.reserve(in.size());
 
     for (const auto& ov : in) {
-      const Dbu a0 = std::max(query_a0, ov.a0);
-      const Dbu a1 = std::min(query_a1, ov.a1);
+      const int32_t a0 = std::max(query_a0, ov.a0);
+      const int32_t a1 = std::min(query_a1, ov.a1);
       if (!(a0 < a1)) {
         continue;
       }
@@ -107,20 +107,9 @@ class TrackOverlapMerge
       tmp.push_back(clipped);
     }
 
-    std::sort(tmp.begin(), tmp.end(), [](const TrackOverlap& lhs, const TrackOverlap& rhs) {
-      if (lhs.a0 != rhs.a0) {
-        return lhs.a0 < rhs.a0;
-      }
-      if (lhs.a1 != rhs.a1) {
-        return lhs.a1 < rhs.a1;
-      }
-      if (lhs.edge != rhs.edge) {
-        return lhs.edge < rhs.edge;
-      }
-      return lhs.sp < rhs.sp;
-    });
+    std::sort(tmp.begin(), tmp.end(), isTrackOverlapLess);
 
-    Dbu cursor = query_a0;
+    int32_t cursor = query_a0;
     for (const auto& ov : tmp) {
 
       if (cursor < ov.a0) {
@@ -140,9 +129,23 @@ class TrackOverlapMerge
     }
   }
 
+  static bool isTrackOverlapLess(const TrackOverlap& lhs, const TrackOverlap& rhs)
+  {
+    if (lhs.a0 != rhs.a0) {
+      return lhs.a0 < rhs.a0;
+    }
+    if (lhs.a1 != rhs.a1) {
+      return lhs.a1 < rhs.a1;
+    }
+    if (lhs.edge != rhs.edge) {
+      return lhs.edge < rhs.edge;
+    }
+    return lhs.sp < rhs.sp;
+  }
+
   static void emitOutput(std::vector<EdgeEnvironmentInterval>& out,
-                         Dbu a0,
-                         Dbu a1,
+                         int32_t a0,
+                         int32_t a1,
                          const TrackOverlap& dn,
                          const TrackOverlap& up)
   {
@@ -150,8 +153,8 @@ class TrackOverlapMerge
       return;
     }
 
-    const Dbu l_sp = dn.sp;
-    const Dbu h_sp = up.sp;
+    const int32_t l_sp = dn.sp;
+    const int32_t h_sp = up.sp;
     TopoEdge* l_edge = dn.edge;
     TopoEdge* h_edge = up.edge;
 
@@ -184,12 +187,12 @@ class TrackOverlapMerge
       return;
     }
 
-    Size i = 0;
-    Size j = 0;
+    size_t i = 0;
+    size_t j = 0;
 
     while (i < dn.size() && j < up.size()) {
-      const Dbu s = std::max(dn[i].a0, up[j].a0);
-      const Dbu t = std::min(dn[i].a1, up[j].a1);
+      const int32_t s = std::max(dn[i].a0, up[j].a0);
+      const int32_t t = std::min(dn[i].a1, up[j].a1);
 
       if (s < t) {
         emitOutput(out, s, t, dn[i], up[j]);
@@ -209,12 +212,12 @@ class PixelOverlapMerge
 {
  public:
   struct LayerPixelOverlaps {
-    Size layer{0};                  // 0 means invalid / absent
+    size_t layer = 0;                 // 0 means invalid / absent
     std::vector<PixelOverlap> segs; // higher priority comes first in input order
   };
 
-  void compute(Dbu query_a0,
-               Dbu query_a1,
+  void compute(int32_t query_a0,
+               int32_t query_a1,
                const std::vector<LayerPixelOverlaps>& dn_inputs,
                const std::vector<LayerPixelOverlaps>& up_inputs,
                std::vector<CrossOverlapSub>& out) const
@@ -257,7 +260,7 @@ class PixelOverlapMerge
       }
     }
 
-    std::vector<Dbu> bp;
+    std::vector<int32_t> bp;
     bp.reserve(2 + countBreakpoints(dn_norm) + countBreakpoints(up_norm));
     bp.push_back(query_a0);
     bp.push_back(query_a1);
@@ -272,18 +275,18 @@ class PixelOverlapMerge
       return;
     }
 
-    std::vector<Size> dn_cursor(dn_norm.size(), 0);
-    std::vector<Size> up_cursor(up_norm.size(), 0);
+    std::vector<size_t> dn_cursor(dn_norm.size(), 0);
+    std::vector<size_t> up_cursor(up_norm.size(), 0);
 
-    for (Size k = 0; k + 1 < bp.size(); ++k) {
-      const Dbu a0 = bp[k];
-      const Dbu a1 = bp[k + 1];
+    for (size_t k = 0; k + 1 < bp.size(); ++k) {
+      const int32_t a0 = bp[k];
+      const int32_t a1 = bp[k + 1];
       if (!(a0 < a1)) {
         continue;
       }
 
-      const Size blw_layer = firstCoveringLayer(dn_norm, dn_cursor, a0, a1);
-      const Size abv_layer = firstCoveringLayer(up_norm, up_cursor, a0, a1);
+      const size_t blw_layer = firstCoveringLayer(dn_norm, dn_cursor, a0, a1);
+      const size_t abv_layer = firstCoveringLayer(up_norm, up_cursor, a0, a1);
 
       emit(a0, a1, blw_layer, abv_layer, out);
     }
@@ -291,21 +294,21 @@ class PixelOverlapMerge
 
  private:
   struct NormalizedLayerPixelOverlaps {
-    Size layer{0};
+    size_t layer = 0;
     std::vector<PixelOverlap> segs;
   };
 
-  static Size countBreakpoints(const std::vector<NormalizedLayerPixelOverlaps>& inputs)
+  static size_t countBreakpoints(const std::vector<NormalizedLayerPixelOverlaps>& inputs)
   {
-    Size n = 0;
+    size_t n = 0;
     for (const auto& in : inputs) {
-      n += static_cast<Size>(in.segs.size() * 2);
+      n += static_cast<size_t>(in.segs.size() * 2);
     }
     return n;
   }
 
   static void addBreakpoints(const std::vector<NormalizedLayerPixelOverlaps>& inputs,
-                             std::vector<Dbu>& bp)
+                             std::vector<int32_t>& bp)
   {
     for (const auto& in : inputs) {
       for (const auto& seg : in.segs) {
@@ -315,8 +318,8 @@ class PixelOverlapMerge
     }
   }
 
-  static void normalizeOne(Dbu query_a0,
-                           Dbu query_a1,
+  static void normalizeOne(int32_t query_a0,
+                           int32_t query_a1,
                            const std::vector<PixelOverlap>& in,
                            std::vector<PixelOverlap>& out)
   {
@@ -324,19 +327,14 @@ class PixelOverlapMerge
     out.reserve(in.size());
 
     for (const auto& ov : in) {
-      const Dbu a0 = std::max(query_a0, ov.a0);
-      const Dbu a1 = std::min(query_a1, ov.a1);
+      const int32_t a0 = std::max(query_a0, ov.a0);
+      const int32_t a1 = std::min(query_a1, ov.a1);
       if (a0 < a1) {
         out.push_back(PixelOverlap{a0, a1});
       }
     }
 
-    std::sort(out.begin(), out.end(), [](const PixelOverlap& lhs, const PixelOverlap& rhs) {
-      if (lhs.a0 != rhs.a0) {
-        return lhs.a0 < rhs.a0;
-      }
-      return lhs.a1 < rhs.a1;
-    });
+    std::sort(out.begin(), out.end(), isPixelOverlapLess);
 
     std::vector<PixelOverlap> merged;
     merged.reserve(out.size());
@@ -352,9 +350,17 @@ class PixelOverlapMerge
     out.swap(merged);
   }
 
+  static bool isPixelOverlapLess(const PixelOverlap& lhs, const PixelOverlap& rhs)
+  {
+    if (lhs.a0 != rhs.a0) {
+      return lhs.a0 < rhs.a0;
+    }
+    return lhs.a1 < rhs.a1;
+  }
+
   static void advanceCursor(const std::vector<PixelOverlap>& segs,
-                            Size& idx,
-                            Dbu x)
+                            size_t& idx,
+                            int32_t x)
   {
     while (idx < segs.size() && segs[idx].a1 <= x) {
       ++idx;
@@ -362,31 +368,31 @@ class PixelOverlapMerge
   }
 
   static bool covers(const std::vector<PixelOverlap>& segs,
-                     Size idx,
-                     Dbu a0,
-                     Dbu a1)
+                     size_t idx,
+                     int32_t a0,
+                     int32_t a1)
   {
     return idx < segs.size() && segs[idx].a0 < a1 && segs[idx].a1 > a0;
   }
 
-  static Size firstCoveringLayer(const std::vector<NormalizedLayerPixelOverlaps>& inputs,
-                                 std::vector<Size>& cursors,
-                                 Dbu a0,
-                                 Dbu a1)
+  static size_t firstCoveringLayer(const std::vector<NormalizedLayerPixelOverlaps>& inputs,
+                                 std::vector<size_t>& cursors,
+                                 int32_t a0,
+                                 int32_t a1)
   {
-    for (Size i = 0; i < inputs.size(); ++i) {
+    for (size_t i = 0; i < inputs.size(); ++i) {
       advanceCursor(inputs[i].segs, cursors[i], a0);
       if (covers(inputs[i].segs, cursors[i], a0, a1)) {
         return inputs[i].layer;
       }
     }
-    return Size{0};
+    return 0;
   }
 
-  static void emit(Dbu a0,
-                   Dbu a1,
-                   Size blw_layer,
-                   Size abv_layer,
+  static void emit(int32_t a0,
+                   int32_t a1,
+                   size_t blw_layer,
+                   size_t abv_layer,
                    std::vector<CrossOverlapSub>& out)
   {
     if (!(a0 < a1)) {

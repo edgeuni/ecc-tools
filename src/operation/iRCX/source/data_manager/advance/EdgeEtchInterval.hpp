@@ -26,89 +26,89 @@ class EdgeEtchInterval
   EdgeEtchInterval() = default;
   ~EdgeEtchInterval() = default;
   // getter
-  Micron get_start_coordinate() const { return _start_coordinate; }
-  Micron get_end_coordinate() const { return _end_coordinate; }
-  Micron get_center() const { return _center; }
-  Micron get_width() const { return _width; }
-  Micron get_lower_spacing() const { return _lower_spacing; }
-  Micron get_upper_spacing() const { return _upper_spacing; }
-  Micron get_thickness() const { return _thickness; }
-  Micron get_height() const { return _height; }
-  Micron get_resistance_center() const { return _resistance_center; }
-  Micron get_resistance_width() const { return _resistance_width; }
-  Micron get_resistance_lower_spacing() const { return _resistance_lower_spacing; }
-  Micron get_resistance_upper_spacing() const { return _resistance_upper_spacing; }
-  Micron get_resistance_thickness() const { return _resistance_thickness; }
-  Micron get_capacitance_center() const { return _capacitance_center; }
-  Micron get_capacitance_width() const { return _capacitance_width; }
-  Micron get_capacitance_lower_spacing() const { return _capacitance_lower_spacing; }
-  Micron get_capacitance_upper_spacing() const { return _capacitance_upper_spacing; }
-  Micron get_capacitance_thickness() const { return _capacitance_thickness; }
+  double get_start_coordinate() const { return _start_coordinate; }
+  double get_end_coordinate() const { return _end_coordinate; }
+  double get_center() const { return _center; }
+  double get_width() const { return _width; }
+  double get_lower_spacing() const { return _lower_spacing; }
+  double get_upper_spacing() const { return _upper_spacing; }
+  double get_thickness() const { return _thickness; }
+  double get_height() const { return _height; }
+  double get_resistance_center() const { return _resistance_center; }
+  double get_resistance_width() const { return _resistance_width; }
+  double get_resistance_lower_spacing() const { return _resistance_lower_spacing; }
+  double get_resistance_upper_spacing() const { return _resistance_upper_spacing; }
+  double get_resistance_thickness() const { return _resistance_thickness; }
+  double get_capacitance_center() const { return _capacitance_center; }
+  double get_capacitance_width() const { return _capacitance_width; }
+  double get_capacitance_lower_spacing() const { return _capacitance_lower_spacing; }
+  double get_capacitance_upper_spacing() const { return _capacitance_upper_spacing; }
+  double get_capacitance_thickness() const { return _capacitance_thickness; }
   // setter
-  void set_start_coordinate(Micron start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(Micron end_coordinate) { _end_coordinate = end_coordinate; }
-  void set_center(Micron center)
+  void set_start_coordinate(double start_coordinate) { _start_coordinate = start_coordinate; }
+  void set_end_coordinate(double end_coordinate) { _end_coordinate = end_coordinate; }
+  void set_center(double center)
   {
     _center = center;
     _resistance_center = center;
     _capacitance_center = center;
   }
-  void set_width(Micron width)
+  void set_width(double width)
   {
     _width = width;
     _resistance_width = width;
     _capacitance_width = width;
   }
-  void set_lower_spacing(Micron lower_spacing)
+  void set_lower_spacing(double lower_spacing)
   {
     _lower_spacing = lower_spacing;
     _resistance_lower_spacing = lower_spacing;
     _capacitance_lower_spacing = lower_spacing;
   }
-  void set_upper_spacing(Micron upper_spacing)
+  void set_upper_spacing(double upper_spacing)
   {
     _upper_spacing = upper_spacing;
     _resistance_upper_spacing = upper_spacing;
     _capacitance_upper_spacing = upper_spacing;
   }
-  void set_thickness(Micron thickness)
+  void set_thickness(double thickness)
   {
     _thickness = thickness;
     _resistance_thickness = thickness;
     _capacitance_thickness = thickness;
   }
-  void set_height(Micron height) { _height = height; }
-  void set_resistance_center(Micron resistance_center) { _resistance_center = resistance_center; }
-  void set_resistance_width(Micron resistance_width) { _resistance_width = resistance_width; }
-  void set_resistance_lower_spacing(Micron resistance_lower_spacing) { _resistance_lower_spacing = resistance_lower_spacing; }
-  void set_resistance_upper_spacing(Micron resistance_upper_spacing) { _resistance_upper_spacing = resistance_upper_spacing; }
-  void set_resistance_thickness(Micron resistance_thickness) { _resistance_thickness = resistance_thickness; }
-  void set_capacitance_center(Micron capacitance_center) { _capacitance_center = capacitance_center; }
-  void set_capacitance_width(Micron capacitance_width) { _capacitance_width = capacitance_width; }
-  void set_capacitance_lower_spacing(Micron capacitance_lower_spacing) { _capacitance_lower_spacing = capacitance_lower_spacing; }
-  void set_capacitance_upper_spacing(Micron capacitance_upper_spacing) { _capacitance_upper_spacing = capacitance_upper_spacing; }
-  void set_capacitance_thickness(Micron capacitance_thickness) { _capacitance_thickness = capacitance_thickness; }
+  void set_height(double height) { _height = height; }
+  void set_resistance_center(double resistance_center) { _resistance_center = resistance_center; }
+  void set_resistance_width(double resistance_width) { _resistance_width = resistance_width; }
+  void set_resistance_lower_spacing(double resistance_lower_spacing) { _resistance_lower_spacing = resistance_lower_spacing; }
+  void set_resistance_upper_spacing(double resistance_upper_spacing) { _resistance_upper_spacing = resistance_upper_spacing; }
+  void set_resistance_thickness(double resistance_thickness) { _resistance_thickness = resistance_thickness; }
+  void set_capacitance_center(double capacitance_center) { _capacitance_center = capacitance_center; }
+  void set_capacitance_width(double capacitance_width) { _capacitance_width = capacitance_width; }
+  void set_capacitance_lower_spacing(double capacitance_lower_spacing) { _capacitance_lower_spacing = capacitance_lower_spacing; }
+  void set_capacitance_upper_spacing(double capacitance_upper_spacing) { _capacitance_upper_spacing = capacitance_upper_spacing; }
+  void set_capacitance_thickness(double capacitance_thickness) { _capacitance_thickness = capacitance_thickness; }
   // function
 
  private:
-  Micron _start_coordinate = 0.0;
-  Micron _end_coordinate = 0.0;
-  Micron _center = 0.0;
-  Micron _width = 0.0;
-  Micron _lower_spacing = kMaxMicron;
-  Micron _upper_spacing = kMaxMicron;
-  Micron _thickness = 0.0;
-  Micron _height = 0.0;
-  Micron _resistance_center = 0.0;
-  Micron _resistance_width = 0.0;
-  Micron _resistance_lower_spacing = kMaxMicron;
-  Micron _resistance_upper_spacing = kMaxMicron;
-  Micron _resistance_thickness = 0.0;
-  Micron _capacitance_center = 0.0;
-  Micron _capacitance_width = 0.0;
-  Micron _capacitance_lower_spacing = kMaxMicron;
-  Micron _capacitance_upper_spacing = kMaxMicron;
-  Micron _capacitance_thickness = 0.0;
+  double _start_coordinate = 0.0;
+  double _end_coordinate = 0.0;
+  double _center = 0.0;
+  double _width = 0.0;
+  double _lower_spacing = kMaxMicron;
+  double _upper_spacing = kMaxMicron;
+  double _thickness = 0.0;
+  double _height = 0.0;
+  double _resistance_center = 0.0;
+  double _resistance_width = 0.0;
+  double _resistance_lower_spacing = kMaxMicron;
+  double _resistance_upper_spacing = kMaxMicron;
+  double _resistance_thickness = 0.0;
+  double _capacitance_center = 0.0;
+  double _capacitance_width = 0.0;
+  double _capacitance_lower_spacing = kMaxMicron;
+  double _capacitance_upper_spacing = kMaxMicron;
+  double _capacitance_thickness = 0.0;
 };
 
 }  // namespace ircx

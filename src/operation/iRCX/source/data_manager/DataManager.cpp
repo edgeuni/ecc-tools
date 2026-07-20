@@ -189,7 +189,7 @@ void DataManager::buildProcessCorner(CornerData& corner_data, std::string itf_fi
   std::vector<std::string> itf_token_list;
   getItfTokenList(itf_text, itf_token_list);
 
-  for (Size token_idx = 0; token_idx < itf_token_list.size();) {
+  for (size_t token_idx = 0; token_idx < itf_token_list.size();) {
     std::string token_name = getItfUpperString(itf_token_list[token_idx]);
     F64 property_value = 0.0;
     if (token_name == "GLOBAL_TEMPERATURE" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
@@ -203,12 +203,12 @@ void DataManager::buildProcessCorner(CornerData& corner_data, std::string itf_fi
       continue;
     }
     if ((token_name == "CONDUCTOR" || token_name == "VIA") && token_idx + 2 < itf_token_list.size()) {
-      Size block_start_idx = getItfBlockStart(itf_token_list, token_idx + 2);
+      size_t block_start_idx = getItfBlockStart(itf_token_list, token_idx + 2);
       if (block_start_idx == kMaxSize) {
         token_idx++;
         continue;
       }
-      Size block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
+      size_t block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
       if (block_end_idx == kMaxSize) {
         token_idx++;
         continue;
@@ -227,14 +227,14 @@ void DataManager::buildProcessCorner(CornerData& corner_data, std::string itf_fi
 
 void DataManager::buildProcessConductor(CornerData& corner_data,
                                         std::vector<std::string>& itf_token_list,
-                                        Size start_idx,
-                                        Size end_idx,
+                                        size_t start_idx,
+                                        size_t end_idx,
                                         std::string conductor_name)
 {
   ProcessConductor conductor;
   conductor.set_layer_name(conductor_name);
 
-  for (Size token_idx = start_idx; token_idx < end_idx;) {
+  for (size_t token_idx = start_idx; token_idx < end_idx;) {
     std::string property_name = getItfUpperString(itf_token_list[token_idx]);
     F64 property_value = 0.0;
     if (property_name == "THICKNESS" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
@@ -283,12 +283,12 @@ void DataManager::buildProcessConductor(CornerData& corner_data,
       continue;
     }
 
-    Size block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
+    size_t block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
     if (block_start_idx == kMaxSize) {
       token_idx++;
       continue;
     }
-    Size block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
+    size_t block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
     if (block_end_idx == kMaxSize || block_end_idx > end_idx) {
       token_idx++;
       continue;
@@ -299,12 +299,12 @@ void DataManager::buildProcessConductor(CornerData& corner_data,
     std::vector<F64> value_list;
     if (property_name == "RPSQ_VS_SI_WIDTH") {
       getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
-      for (Size value_idx = 0; value_idx + 1 < value_list.size(); value_idx += 2) {
+      for (size_t value_idx = 0; value_idx + 1 < value_list.size(); value_idx += 2) {
         conductor.get_sheet_resistance_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
       }
     } else if (property_name == "CRT_VS_SI_WIDTH") {
       getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
-      for (Size value_idx = 0; value_idx + 2 < value_list.size(); value_idx += 3) {
+      for (size_t value_idx = 0; value_idx + 2 < value_list.size(); value_idx += 3) {
         conductor.get_temperature_coefficient1_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
         conductor.get_temperature_coefficient2_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 2]);
       }
@@ -346,14 +346,14 @@ void DataManager::buildProcessConductor(CornerData& corner_data,
 
 void DataManager::buildProcessVia(CornerData& corner_data,
                                  std::vector<std::string>& itf_token_list,
-                                 Size start_idx,
-                                 Size end_idx,
+                                 size_t start_idx,
+                                 size_t end_idx,
                                  std::string via_name)
 {
   ProcessVia via;
   via.set_layer_name(via_name);
 
-  for (Size token_idx = start_idx; token_idx < end_idx;) {
+  for (size_t token_idx = start_idx; token_idx < end_idx;) {
     std::string property_name = getItfUpperString(itf_token_list[token_idx]);
     F64 property_value = 0.0;
     std::string property_string;
@@ -398,12 +398,12 @@ void DataManager::buildProcessVia(CornerData& corner_data,
       continue;
     }
 
-    Size block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
+    size_t block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
     if (block_start_idx == kMaxSize) {
       token_idx++;
       continue;
     }
-    Size block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
+    size_t block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
     if (block_end_idx == kMaxSize || block_end_idx > end_idx) {
       token_idx++;
       continue;
@@ -414,25 +414,25 @@ void DataManager::buildProcessVia(CornerData& corner_data,
     std::vector<F64> value_list;
     if (property_name == "RPV_VS_AREA") {
       getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
-      for (Size value_idx = 0; value_idx + 1 < value_list.size(); value_idx += 2) {
+      for (size_t value_idx = 0; value_idx + 1 < value_list.size(); value_idx += 2) {
         via.get_resistance_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
       }
     } else if (property_name == "CRT_VS_AREA") {
       getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
-      for (Size value_idx = 0; value_idx + 2 < value_list.size(); value_idx += 3) {
+      for (size_t value_idx = 0; value_idx + 2 < value_list.size(); value_idx += 3) {
         via.get_temperature_coefficient1_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
         via.get_temperature_coefficient2_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 2]);
       }
     } else if (property_name == "ETCH_VS_WIDTH_AND_LENGTH") {
       getItfTableValueList(itf_token_list, block_start_idx + 1, block_end_idx, "WIDTHS", "LENGTHS", "VALUES", row_list, column_list,
                            value_list);
-      Size table_value_num = row_list.size() * column_list.size();
+      size_t table_value_num = row_list.size() * column_list.size();
       if (table_value_num > 0 && value_list.size() >= 2 * table_value_num) {
         std::vector<F64> length_etch_list;
         std::vector<F64> width_etch_list;
         length_etch_list.reserve(table_value_num);
         width_etch_list.reserve(table_value_num);
-        for (Size value_idx = 0; value_idx < table_value_num; value_idx++) {
+        for (size_t value_idx = 0; value_idx < table_value_num; value_idx++) {
           length_etch_list.push_back(value_list[2 * value_idx]);
           width_etch_list.push_back(value_list[2 * value_idx + 1]);
         }
@@ -464,7 +464,7 @@ void DataManager::registerProcessLayer(std::string& process_layer_name)
   if (layer_table.get_process_name_to_id_map().count(process_layer_name) != 0) {
     return;
   }
-  Size process_layer_id = layer_table.get_process_name_to_id_map().size();
+  size_t process_layer_id = layer_table.get_process_name_to_id_map().size();
   layer_table.register_process_layer(process_layer_id, process_layer_name);
 }
 
@@ -472,24 +472,18 @@ void DataManager::getItfTokenList(std::string& itf_text, std::vector<std::string
 {
   itf_token_list.clear();
   std::string token;
-  auto append_token = [&token, &itf_token_list]() {
-    if (!token.empty()) {
-      itf_token_list.push_back(token);
-      token.clear();
-    }
-  };
 
-  for (Size char_idx = 0; char_idx < itf_text.size();) {
+  for (size_t char_idx = 0; char_idx < itf_text.size();) {
     char current_char = itf_text[char_idx];
     if (current_char == '#') {
-      append_token();
+      appendItfToken(token, itf_token_list);
       while (char_idx < itf_text.size() && itf_text[char_idx] != '\n') {
         char_idx++;
       }
       continue;
     }
     if (current_char == '/' && char_idx + 1 < itf_text.size() && itf_text[char_idx + 1] == '/') {
-      append_token();
+      appendItfToken(token, itf_token_list);
       char_idx += 2;
       while (char_idx < itf_text.size() && itf_text[char_idx] != '\n') {
         char_idx++;
@@ -497,24 +491,25 @@ void DataManager::getItfTokenList(std::string& itf_text, std::vector<std::string
       continue;
     }
     if (std::isspace(static_cast<unsigned char>(current_char))) {
-      append_token();
+      appendItfToken(token, itf_token_list);
       char_idx++;
       continue;
     }
-    if (current_char == '{' || current_char == '}' || current_char == '=' || current_char == '(' || current_char == ')' || current_char == ',') {
-      append_token();
+    if (current_char == '{' || current_char == '}' || current_char == '=' || current_char == '('
+        || current_char == ')' || current_char == ',') {
+      appendItfToken(token, itf_token_list);
       itf_token_list.emplace_back(1, current_char);
       char_idx++;
       continue;
     }
     if (current_char == '\"') {
-      append_token();
+      appendItfToken(token, itf_token_list);
       char_idx++;
       while (char_idx < itf_text.size() && itf_text[char_idx] != '\"') {
         token.push_back(itf_text[char_idx]);
         char_idx++;
       }
-      append_token();
+      appendItfToken(token, itf_token_list);
       if (char_idx < itf_text.size()) {
         char_idx++;
       }
@@ -523,12 +518,20 @@ void DataManager::getItfTokenList(std::string& itf_text, std::vector<std::string
     token.push_back(current_char);
     char_idx++;
   }
-  append_token();
+  appendItfToken(token, itf_token_list);
 }
 
-Size DataManager::getItfBlockStart(std::vector<std::string>& itf_token_list, Size start_idx)
+void DataManager::appendItfToken(std::string& token, std::vector<std::string>& itf_token_list)
 {
-  for (Size token_idx = start_idx; token_idx < itf_token_list.size(); token_idx++) {
+  if (!token.empty()) {
+    itf_token_list.push_back(token);
+    token.clear();
+  }
+}
+
+size_t DataManager::getItfBlockStart(std::vector<std::string>& itf_token_list, size_t start_idx)
+{
+  for (size_t token_idx = start_idx; token_idx < itf_token_list.size(); token_idx++) {
     if (itf_token_list[token_idx] == "{") {
       return token_idx;
     }
@@ -539,13 +542,13 @@ Size DataManager::getItfBlockStart(std::vector<std::string>& itf_token_list, Siz
   return kMaxSize;
 }
 
-Size DataManager::getItfBlockEnd(std::vector<std::string>& itf_token_list, Size block_start_idx)
+size_t DataManager::getItfBlockEnd(std::vector<std::string>& itf_token_list, size_t block_start_idx)
 {
   if (block_start_idx >= itf_token_list.size() || itf_token_list[block_start_idx] != "{") {
     return kMaxSize;
   }
-  Size depth = 0;
-  for (Size token_idx = block_start_idx; token_idx < itf_token_list.size(); token_idx++) {
+  size_t depth = 0;
+  for (size_t token_idx = block_start_idx; token_idx < itf_token_list.size(); token_idx++) {
     if (itf_token_list[token_idx] == "{") {
       depth++;
     } else if (itf_token_list[token_idx] == "}") {
@@ -558,7 +561,7 @@ Size DataManager::getItfBlockEnd(std::vector<std::string>& itf_token_list, Size 
   return kMaxSize;
 }
 
-bool DataManager::getItfAssignmentNumber(std::vector<std::string>& itf_token_list, Size property_idx, F64& property_value)
+bool DataManager::getItfAssignmentNumber(std::vector<std::string>& itf_token_list, size_t property_idx, F64& property_value)
 {
   if (property_idx + 2 >= itf_token_list.size() || itf_token_list[property_idx + 1] != "=") {
     return false;
@@ -566,7 +569,7 @@ bool DataManager::getItfAssignmentNumber(std::vector<std::string>& itf_token_lis
   return getItfNumber(itf_token_list[property_idx + 2], property_value);
 }
 
-bool DataManager::getItfAssignmentString(std::vector<std::string>& itf_token_list, Size property_idx, std::string& property_value)
+bool DataManager::getItfAssignmentString(std::vector<std::string>& itf_token_list, size_t property_idx, std::string& property_value)
 {
   if (property_idx + 2 >= itf_token_list.size() || itf_token_list[property_idx + 1] != "=") {
     return false;
@@ -584,12 +587,12 @@ bool DataManager::getItfNumber(std::string& token, F64& number)
 }
 
 void DataManager::getItfNumberList(std::vector<std::string>& itf_token_list,
-                                   Size start_idx,
-                                   Size end_idx,
+                                   size_t start_idx,
+                                   size_t end_idx,
                                    std::vector<F64>& number_list)
 {
   number_list.clear();
-  for (Size token_idx = start_idx; token_idx < end_idx; token_idx++) {
+  for (size_t token_idx = start_idx; token_idx < end_idx; token_idx++) {
     F64 number = 0.0;
     if (getItfNumber(itf_token_list[token_idx], number)) {
       number_list.push_back(number);
@@ -605,9 +608,9 @@ std::string DataManager::getItfUpperString(std::string text)
   return text;
 }
 
-ProcessEffectType DataManager::getItfEffectType(std::vector<std::string>& itf_token_list, Size start_idx, Size end_idx)
+ProcessEffectType DataManager::getItfEffectType(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx)
 {
-  for (Size token_idx = start_idx; token_idx < end_idx; token_idx++) {
+  for (size_t token_idx = start_idx; token_idx < end_idx; token_idx++) {
     std::string effect_name = getItfUpperString(itf_token_list[token_idx]);
     if (effect_name == "RESISTIVE_ONLY") {
       return ProcessEffectType::kResistance;
@@ -620,8 +623,8 @@ ProcessEffectType DataManager::getItfEffectType(std::vector<std::string>& itf_to
 }
 
 void DataManager::getItfTableValueList(std::vector<std::string>& itf_token_list,
-                                       Size start_idx,
-                                       Size end_idx,
+                                       size_t start_idx,
+                                       size_t end_idx,
                                        std::string row_name,
                                        std::string column_name,
                                        std::string value_name,
@@ -636,14 +639,14 @@ void DataManager::getItfTableValueList(std::vector<std::string>& itf_token_list,
   column_name = getItfUpperString(column_name);
   value_name = getItfUpperString(value_name);
 
-  for (Size token_idx = start_idx; token_idx < end_idx;) {
+  for (size_t token_idx = start_idx; token_idx < end_idx;) {
     std::string property_name = getItfUpperString(itf_token_list[token_idx]);
-    Size block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
+    size_t block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
     if (block_start_idx == kMaxSize || block_start_idx >= end_idx) {
       token_idx++;
       continue;
     }
-    Size block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
+    size_t block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
     if (block_end_idx == kMaxSize || block_end_idx > end_idx) {
       token_idx++;
       continue;
@@ -695,11 +698,11 @@ void DataManager::buildCapTable(CornerData& corner_data, std::string captab_file
 
 std::string DataManager::getTrimmedString(std::string text)
 {
-  Size first_pos = text.find_first_not_of(" \t\r\n");
+  size_t first_pos = text.find_first_not_of(" \t\r\n");
   if (first_pos == std::string::npos) {
     return "";
   }
-  Size last_pos = text.find_last_not_of(" \t\r\n");
+  size_t last_pos = text.find_last_not_of(" \t\r\n");
   return text.substr(first_pos, last_pos - first_pos + 1);
 }
 

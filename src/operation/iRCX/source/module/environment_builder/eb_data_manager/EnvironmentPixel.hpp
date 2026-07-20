@@ -31,8 +31,8 @@ namespace ircx {
 // Perpendicular Overlap
 struct PixelOverlap
 {
-  Dbu a0{0};
-  Dbu a1{0};
+  int32_t a0 = 0;
+  int32_t a1 = 0;
   bool empty() const { return a1 <= a0; }
 };
 
@@ -43,27 +43,27 @@ class EnvironmentPixel
   ~EnvironmentPixel() = default;
 
   // getter
-  Dbu get_x0() const { return x0_; }
-  Dbu get_y0() const { return y0_; }
-  Dbu get_nx() const { return nx_; }
-  Dbu get_ny() const { return ny_; }
-  Dbu get_dx() const { return dx_; }
-  Dbu get_dy() const { return dy_; }
+  int32_t get_x0() const { return x0_; }
+  int32_t get_y0() const { return y0_; }
+  int32_t get_nx() const { return nx_; }
+  int32_t get_ny() const { return ny_; }
+  int32_t get_dx() const { return dx_; }
+  int32_t get_dy() const { return dy_; }
 
   // setter
-  void set_x0(Dbu x0) { x0_ = x0; }
-  void set_y0(Dbu y0) { y0_ = y0; }
-  void set_nx(Dbu nx) { nx_ = nx; }
-  void set_ny(Dbu ny) { ny_ = ny; }
-  void set_dx(Dbu dx) { dx_ = dx; }
-  void set_dy(Dbu dy) { dy_ = dy; }
+  void set_x0(int32_t x0) { x0_ = x0; }
+  void set_y0(int32_t y0) { y0_ = y0; }
+  void set_nx(int32_t nx) { nx_ = nx; }
+  void set_ny(int32_t ny) { ny_ = ny; }
+  void set_dx(int32_t dx) { dx_ = dx; }
+  void set_dy(int32_t dy) { dy_ = dy; }
 
   // coordinate mapping
-  Dbu coordToXIdx(Dbu coord) const { return (coord - x0_) / dx_; }
-  Dbu coordToYIdx(Dbu coord) const { return (coord - y0_) / dy_; }
+  int32_t coordToXIdx(int32_t coord) const { return (coord - x0_) / dx_; }
+  int32_t coordToYIdx(int32_t coord) const { return (coord - y0_) / dy_; }
 
-  Dbu idxToXCoord(Dbu idx) const { return x0_ + idx * dx_; }
-  Dbu idxToYCoord(Dbu idx) const { return y0_ + idx * dy_; }
+  int32_t idxToXCoord(int32_t idx) const { return x0_ + idx * dx_; }
+  int32_t idxToYCoord(int32_t idx) const { return y0_ + idx * dy_; }
 
   bool initPixel()
   {
@@ -85,26 +85,26 @@ class EnvironmentPixel
 
     const GtlRectI& rect = edge.get_shape();
 
-    Dbu x0 = geom::minX(rect);
-    Dbu y0 = geom::minY(rect);
-    Dbu x1 = geom::maxX(rect);
-    Dbu y1 = geom::maxY(rect);
+    int32_t x0 = geom::minX(rect);
+    int32_t y0 = geom::minY(rect);
+    int32_t x1 = geom::maxX(rect);
+    int32_t y1 = geom::maxY(rect);
 
     if (x0 >= x1 || y0 >= y1) {
       return;
     }
 
-    Dbu x_idx0 = coordToXIdx(x0);
-    Dbu y_idx0 = coordToYIdx(y0);
-    Dbu x_idx1 = coordToXIdx(x1);
-    Dbu y_idx1 = coordToYIdx(y1);
+    int32_t x_idx0 = coordToXIdx(x0);
+    int32_t y_idx0 = coordToYIdx(y0);
+    int32_t x_idx1 = coordToXIdx(x1);
+    int32_t y_idx1 = coordToYIdx(y1);
 
     if (!xValid(x_idx0) || !yValid(y_idx0) || !xValid(x_idx1) || !yValid(y_idx1)) {
       return;
     }
 
-    for (Dbu i = x_idx0; i <= x_idx1; ++i) {
-      for (Dbu j = y_idx0; j <= y_idx1; ++j) {
+    for (int32_t i = x_idx0; i <= x_idx1; ++i) {
+      for (int32_t j = y_idx0; j <= y_idx1; ++j) {
         pixel_[i][j] = true;
       }
     }
@@ -118,101 +118,55 @@ class EnvironmentPixel
     }
 
     bool is_horz = line_seg.get_is_horizontal();
-    Dbu fixed = line_seg.get_coordinate();
-    Dbu a0 = line_seg.get_lower();
-    Dbu a1 = line_seg.get_upper();
+    int32_t fixed = line_seg.get_coordinate();
+    int32_t a0 = line_seg.get_lower();
+    int32_t a1 = line_seg.get_upper();
 
     ircx::interval::normalize(a0, a1);
 
     if (is_horz) {
-      const Dbu fixed_y_idx = coordToYIdx(fixed);
+      const int32_t fixed_y_idx = coordToYIdx(fixed);
       if (!yValid(fixed_y_idx)) {
         return ret;
       }
+    }
 
-      return collectConductorRuns(
-        a0,
-        a1,
-        [&](Dbu coord) { return coordToXIdx(coord); },
-        [&](Dbu idx) { return xValid(idx); },
-        [&](Dbu idx) { return pixel_[idx][fixed_y_idx]; },
-        [&](Dbu idx) { return idxToXCoord(idx); });
-    } else {
-      const Dbu fixed_x_idx = coordToXIdx(fixed);
+    if (!is_horz) {
+      const int32_t fixed_x_idx = coordToXIdx(fixed);
       if (!xValid(fixed_x_idx)) {
         return ret;
       }
-
-      return collectConductorRuns(
-        a0,
-        a1,
-        [&](Dbu coord) { return coordToYIdx(coord); },
-        [&](Dbu idx) { return yValid(idx); },
-        [&](Dbu idx) { return pixel_[fixed_x_idx][idx]; },
-        [&](Dbu idx) { return idxToYCoord(idx); });
+      return collectConductorRuns(a0, a1, fixed_x_idx, false);
     }
+
+    return collectConductorRuns(a0, a1, coordToYIdx(fixed), true);
   }
 
  private:
-  template <typename CoordToIdx,
-            typename IdxValid,
-            typename CellGetter,
-            typename IdxToCoord>
-  std::vector<PixelOverlap> collectConductorRuns(Dbu a0,
-                                                 Dbu a1,
-                                                 CoordToIdx coord_to_idx,
-                                                 IdxValid idx_valid,
-                                                 CellGetter cell_getter,
-                                                 IdxToCoord idx_to_coord) const
+  std::vector<PixelOverlap> collectConductorRuns(int32_t a0,
+                                                 int32_t a1,
+                                                 int32_t fixed_idx,
+                                                 bool is_horz) const
   {
     std::vector<PixelOverlap> ret;
-    if (a0 >= a1) return ret;
+    if (a0 >= a1) {
+      return ret;
+    }
 
-    const Dbu a0_idx = coord_to_idx(a0);
-    const Dbu a1_idx = coord_to_idx(a1) + 1;
-    if (a0_idx > a1_idx) return ret;
+    const int32_t a0_idx = getAxisIndex(a0, is_horz);
+    const int32_t a1_idx = getAxisIndex(a1, is_horz) + 1;
+    if (a0_idx > a1_idx) {
+      return ret;
+    }
 
-    auto clamp_sequence_bounds = [&](Dbu coord_lo, Dbu coord_hi) {
-      PixelOverlap seq;
-      coord_lo = std::max(coord_lo, a0);
-      coord_hi = std::min(coord_hi, a1);
-      seq.a0 = coord_lo;
-      seq.a1 = coord_hi;
-      return seq;
-    };
+    bool current_type = getPixelOrEmpty(a0_idx, fixed_idx, is_horz);
+    int32_t run_start = a0_idx;
 
-    auto cell_or_empty = [&](Dbu idx) -> bool {
-      return idx_valid(idx) ? cell_getter(idx) : false;
-    };
-
-    bool current_type = cell_or_empty(a0_idx);
-    Dbu run_start = a0_idx;
-
-    auto push_sequence = [&](Dbu start_idx, Dbu end_idx_exclusive) {
-      if (end_idx_exclusive <= start_idx) {
-        return;
-      }
-
-      // Each occupied idx is a sample on the pixel lattice. The effective
-      // overlap span is bounded by the midpoints of neighboring samples.
-      const Dbu lo = ircx::interval::midpoint(
-          idx_to_coord(start_idx),
-          idx_to_coord(start_idx + 1));
-      const Dbu hi = ircx::interval::midpoint(
-          idx_to_coord(end_idx_exclusive - 1),
-          idx_to_coord(end_idx_exclusive));
-
-      PixelOverlap seq = clamp_sequence_bounds(lo, hi);
-      if (!seq.empty()) {
-        ret.push_back(seq);
-      }
-    };
-
-    for (Dbu idx = a0_idx + 1; idx <= a1_idx; ++idx) {
-      const bool cell = cell_or_empty(idx);
+    for (int32_t idx = a0_idx + 1; idx <= a1_idx; ++idx) {
+      const bool cell = getPixelOrEmpty(idx, fixed_idx, is_horz);
       if (cell != current_type) {
         if (current_type) {
-          push_sequence(run_start, idx);
+          appendConductorRun(ret, a0, a1, is_horz, run_start, idx);
         }
 
         run_start = idx;
@@ -221,21 +175,64 @@ class EnvironmentPixel
     }
 
     if (current_type) {
-      push_sequence(run_start, a1_idx + 1);
+      appendConductorRun(ret, a0, a1, is_horz, run_start, a1_idx + 1);
     }
 
     return ret;
   }
 
+  void appendConductorRun(std::vector<PixelOverlap>& pixel_overlap_list,
+                          int32_t a0,
+                          int32_t a1,
+                          bool is_horz,
+                          int32_t start_idx,
+                          int32_t end_idx_exclusive) const
+  {
+    if (end_idx_exclusive <= start_idx) {
+      return;
+    }
+
+    const int32_t lo = ircx::interval::midpoint(getAxisCoordinate(start_idx, is_horz), getAxisCoordinate(start_idx + 1, is_horz));
+    const int32_t hi =
+        ircx::interval::midpoint(getAxisCoordinate(end_idx_exclusive - 1, is_horz), getAxisCoordinate(end_idx_exclusive, is_horz));
+    PixelOverlap pixel_overlap = clipPixelOverlap(lo, hi, a0, a1);
+    if (!pixel_overlap.empty()) {
+      pixel_overlap_list.push_back(pixel_overlap);
+    }
+  }
+
+  PixelOverlap clipPixelOverlap(int32_t coordinate_lo, int32_t coordinate_hi, int32_t a0, int32_t a1) const
+  {
+    PixelOverlap pixel_overlap;
+    pixel_overlap.a0 = std::max(coordinate_lo, a0);
+    pixel_overlap.a1 = std::min(coordinate_hi, a1);
+    return pixel_overlap;
+  }
+
+  bool getPixelOrEmpty(int32_t idx, int32_t fixed_idx, bool is_horz) const
+  {
+    if (!isAxisValid(idx, is_horz)) {
+      return false;
+    }
+    return is_horz ? pixel_[idx][fixed_idx] : pixel_[fixed_idx][idx];
+  }
+
+  int32_t getAxisIndex(int32_t coordinate, bool is_horz) const { return is_horz ? coordToXIdx(coordinate) : coordToYIdx(coordinate); }
+  int32_t getAxisCoordinate(int32_t idx, bool is_horz) const { return is_horz ? idxToXCoord(idx) : idxToYCoord(idx); }
+  bool isAxisValid(int32_t idx, bool is_horz) const { return is_horz ? xValid(idx) : yValid(idx); }
+
  private:
   std::vector<std::vector<bool>> pixel_;  // true: conductor, false: empty
 
-  Dbu x0_{0}, y0_{0};
-  Dbu nx_{0}, ny_{0};
-  Dbu dx_{0}, dy_{0};
+  int32_t x0_ = 0;
+  int32_t y0_ = 0;
+  int32_t nx_ = 0;
+  int32_t ny_ = 0;
+  int32_t dx_ = 0;
+  int32_t dy_ = 0;
 
-  bool xValid(Dbu x) const { return 0 <= x && x < nx_; }
-  bool yValid(Dbu y) const { return 0 <= y && y < ny_; }
+  bool xValid(int32_t x) const { return 0 <= x && x < nx_; }
+  bool yValid(int32_t y) const { return 0 <= y && y < ny_; }
 };
 
 }  // namespace ircx

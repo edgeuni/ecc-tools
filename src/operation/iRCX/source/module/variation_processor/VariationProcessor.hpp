@@ -52,11 +52,11 @@ class VariationProcessor
   VPModel initVPModel();
   void processVPModel(VPModel& vp_model);
   void buildCornerNetEtchProfilePool();
-  void buildNetEtchProfile(Size corner_idx, Size net_idx);
+  void buildNetEtchProfile(size_t corner_idx, size_t net_idx);
   void applyCornerNetEffectiveGeometryList();
-  void applyNetEffectiveGeometry(Size corner_idx, Size net_idx);
+  void applyNetEffectiveGeometry(size_t corner_idx, size_t net_idx);
   void applyEdgeEffectiveGeometry(ProcessConductor& conductor, EdgeEtchInterval& edge_interval);
-  ProcessConductor* getProcessConductor(CornerData& corner_data, Size design_layer_id);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
 };
 
 }  // namespace ircx

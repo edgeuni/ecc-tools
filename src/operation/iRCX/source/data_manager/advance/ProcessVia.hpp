@@ -31,7 +31,7 @@ class ProcessVia
   std::string& get_from_layer_name() { return _from_layer_name; }
   std::string& get_to_layer_name() { return _to_layer_name; }
   const std::string& get_layer_name() const { return _layer_name; }
-  Micron get_area() const { return _area; }
+  double get_area() const { return _area; }
   F64 get_resistance() const { return _resistance; }
   F64 get_resistivity() const { return _resistivity; }
   bool get_has_nominal_temperature() const { return _has_nominal_temperature; }
@@ -47,7 +47,7 @@ class ProcessVia
   void set_layer_name(const std::string& layer_name) { _layer_name = layer_name; }
   void set_from_layer_name(const std::string& from_layer_name) { _from_layer_name = from_layer_name; }
   void set_to_layer_name(const std::string& to_layer_name) { _to_layer_name = to_layer_name; }
-  void set_area(Micron area) { _area = area; }
+  void set_area(double area) { _area = area; }
   void set_resistance(F64 resistance) { _resistance = resistance; }
   void set_resistivity(F64 resistivity) { _resistivity = resistivity; }
   void set_nominal_temperature(F64 nominal_temperature)
@@ -60,7 +60,7 @@ class ProcessVia
   // function
   std::optional<F64> query_resistance(F64 area) const;
   void query_temperature_coefficient(F64 area, F64& temperature_coefficient1, F64& temperature_coefficient2) const;
-  std::pair<Micron, Micron> query_etch(ProcessEffectType effect_type, Micron width, Micron length) const;
+  std::pair<double, double> query_etch(ProcessEffectType effect_type, double width, double length) const;
 
  private:
   bool get_effect_is_applied(ProcessEffectType table_effect_type, ProcessEffectType query_effect_type) const;
@@ -68,7 +68,7 @@ class ProcessVia
   std::string _layer_name;
   std::string _from_layer_name;
   std::string _to_layer_name;
-  Micron _area = 0.0;
+  double _area = 0.0;
   F64 _resistance = 0.0;
   F64 _resistivity = 0.0;
   bool _has_nominal_temperature = false;
@@ -105,10 +105,10 @@ inline void ProcessVia::query_temperature_coefficient(F64 area,
   }
 }
 
-inline std::pair<Micron, Micron> ProcessVia::query_etch(ProcessEffectType effect_type, Micron width, Micron length) const
+inline std::pair<double, double> ProcessVia::query_etch(ProcessEffectType effect_type, double width, double length) const
 {
-  Micron length_etch = 0.0;
-  Micron width_etch = 0.0;
+  double length_etch = 0.0;
+  double width_etch = 0.0;
   for (const ProcessViaEtchTable& etch_table : _etch_table_list) {
     if (!get_effect_is_applied(etch_table.get_effect_type(), effect_type)) {
       continue;

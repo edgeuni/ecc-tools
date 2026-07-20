@@ -28,22 +28,22 @@ class GroupPool
   ~GroupPool() = default;
   // getter
   std::vector<Item>& get_item_list() { return _item_list; }
-  std::vector<std::pair<Size, Size>>& get_item_range_list() { return _item_range_list; }
+  std::vector<std::pair<size_t, size_t>>& get_item_range_list() { return _item_range_list; }
   // setter
   void set_item_list(const std::vector<Item>& item_list) { _item_list = item_list; }
-  void set_item_range_list(const std::vector<std::pair<Size, Size>>& item_range_list) { _item_range_list = item_range_list; }
+  void set_item_range_list(const std::vector<std::pair<size_t, size_t>>& item_range_list) { _item_range_list = item_range_list; }
   // function
   void append(std::vector<Item> item_list);
-  std::span<Item> get_group_item_list(Size group_idx);
-  std::span<const Item> get_group_item_list(Size group_idx) const;
-  Size get_group_num() const { return _item_range_list.size(); }
-  Size get_item_num() const { return _item_list.size(); }
-  void reserve_group(Size group_num) { _item_range_list.reserve(group_num); }
-  void reserve_item(Size item_num) { _item_list.reserve(item_num); }
+  std::span<Item> get_group_item_list(size_t group_idx);
+  std::span<const Item> get_group_item_list(size_t group_idx) const;
+  size_t get_group_num() const { return _item_range_list.size(); }
+  size_t get_item_num() const { return _item_list.size(); }
+  void reserve_group(size_t group_num) { _item_range_list.reserve(group_num); }
+  void reserve_item(size_t item_num) { _item_list.reserve(item_num); }
 
  private:
   std::vector<Item> _item_list;
-  std::vector<std::pair<Size, Size>> _item_range_list;
+  std::vector<std::pair<size_t, size_t>> _item_range_list;
 };
 
 template <typename Item>
@@ -54,16 +54,16 @@ inline void GroupPool<Item>::append(std::vector<Item> item_list)
 }
 
 template <typename Item>
-inline std::span<Item> GroupPool<Item>::get_group_item_list(Size group_idx)
+inline std::span<Item> GroupPool<Item>::get_group_item_list(size_t group_idx)
 {
-  std::pair<Size, Size> item_range = _item_range_list.at(group_idx);
+  std::pair<size_t, size_t> item_range = _item_range_list.at(group_idx);
   return std::span<Item>(_item_list.data() + item_range.first, item_range.second);
 }
 
 template <typename Item>
-inline std::span<const Item> GroupPool<Item>::get_group_item_list(Size group_idx) const
+inline std::span<const Item> GroupPool<Item>::get_group_item_list(size_t group_idx) const
 {
-  std::pair<Size, Size> item_range = _item_range_list.at(group_idx);
+  std::pair<size_t, size_t> item_range = _item_range_list.at(group_idx);
   return std::span<const Item>(_item_list.data() + item_range.first, item_range.second);
 }
 

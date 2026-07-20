@@ -81,19 +81,19 @@ void SPEFWriter::buildNameMap(SPEFNameMap& spef_name_map)
 {
   SpefContext& spef_context = RCXDM.getDatabase().get_spef_context();
   for (std::string& net_name : spef_context.get_net_name_list()) {
-    Size spef_id = spef_name_map.get_next_id();
+    size_t spef_id = spef_name_map.get_next_id();
     spef_name_map.get_net_name_to_id_map()[net_name] = spef_id;
     spef_name_map.get_id_to_net_name_map()[spef_id] = net_name;
     spef_name_map.set_next_id(spef_id + 1);
   }
   for (std::string& port_name : spef_context.get_port_name_list()) {
-    Size spef_id = spef_name_map.get_next_id();
+    size_t spef_id = spef_name_map.get_next_id();
     spef_name_map.get_port_name_to_id_map()[port_name] = spef_id;
     spef_name_map.get_id_to_port_name_map()[spef_id] = port_name;
     spef_name_map.set_next_id(spef_id + 1);
   }
   for (std::string& instance_name : spef_context.get_instance_name_list()) {
-    Size spef_id = spef_name_map.get_next_id();
+    size_t spef_id = spef_name_map.get_next_id();
     spef_name_map.get_instance_name_to_id_map()[instance_name] = spef_id;
     spef_name_map.get_id_to_instance_name_map()[spef_id] = instance_name;
     spef_name_map.set_next_id(spef_id + 1);
@@ -102,12 +102,12 @@ void SPEFWriter::buildNameMap(SPEFNameMap& spef_name_map)
 
 void SPEFWriter::writeCornerSPEFList(SWModel& sw_model, SPEFNameMap& spef_name_map)
 {
-  for (Size corner_idx = 0; corner_idx < RCXDM.getDatabase().get_corner_data_list().size(); corner_idx++) {
+  for (size_t corner_idx = 0; corner_idx < RCXDM.getDatabase().get_corner_data_list().size(); corner_idx++) {
     writeCornerSPEF(sw_model, spef_name_map, corner_idx);
   }
 }
 
-void SPEFWriter::writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, Size corner_idx)
+void SPEFWriter::writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, size_t corner_idx)
 {
   Database& database = RCXDM.getDatabase();
   CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
@@ -130,11 +130,11 @@ void SPEFWriter::writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, 
   RCXLOG.info(Loc::current(), "Wrote SPEF: ", spef_file_path.string());
 }
 
-void SPEFWriter::buildNetCouplingRefList(SWModel& sw_model, Size corner_idx)
+void SPEFWriter::buildNetCouplingRefList(SWModel& sw_model, size_t corner_idx)
 {
   Database& database = RCXDM.getDatabase();
   TopoPool& topo_pool = database.get_topo_pool();
-  Size net_num = database.get_layout_data().get_regular_net_count();
+  size_t net_num = database.get_layout_data().get_regular_net_count();
   std::vector<std::vector<SPEFCouplingRef>>& net_coupling_ref_list = sw_model.get_net_coupling_ref_list();
   net_coupling_ref_list.assign(net_num, std::vector<SPEFCouplingRef>());
 
@@ -147,8 +147,8 @@ void SPEFWriter::buildNetCouplingRefList(SWModel& sw_model, Size corner_idx)
       continue;
     }
 
-    Size first_edge_idx = coupling_key.get_first_edge_idx();
-    Size second_edge_idx = coupling_key.get_second_edge_idx();
+    size_t first_edge_idx = coupling_key.get_first_edge_idx();
+    size_t second_edge_idx = coupling_key.get_second_edge_idx();
     if (first_edge_idx >= topo_pool.get_edge_pool().size() || second_edge_idx >= topo_pool.get_edge_pool().size()) {
       continue;
     }
@@ -169,7 +169,7 @@ void SPEFWriter::buildNetCouplingRefList(SWModel& sw_model, Size corner_idx)
 void SPEFWriter::buildReportLayerList(SWModel& sw_model)
 {
   std::vector<SPEFReportLayer>& report_layer_list = sw_model.get_report_layer_list();
-  std::unordered_map<Size, Size>& design_layer_id_to_report_layer_id_map = sw_model.get_design_layer_id_to_report_layer_id_map();
+  std::unordered_map<size_t, size_t>& design_layer_id_to_report_layer_id_map = sw_model.get_design_layer_id_to_report_layer_id_map();
   report_layer_list.clear();
   design_layer_id_to_report_layer_id_map.clear();
   if (!RCXDM.getConfig().report_geometry) {
@@ -177,12 +177,12 @@ void SPEFWriter::buildReportLayerList(SWModel& sw_model)
   }
 
   LayerTable& layer_table = RCXDM.getDatabase().get_layer_table();
-  std::map<Size, std::string> design_layer_id_to_name_map;
-  for (std::pair<const Size, std::string>& design_layer : layer_table.get_design_id_to_name_map()) {
+  std::map<size_t, std::string> design_layer_id_to_name_map;
+  for (std::pair<const size_t, std::string>& design_layer : layer_table.get_design_id_to_name_map()) {
     design_layer_id_to_name_map[design_layer.first] = design_layer.second;
   }
-  for (std::pair<const Size, std::string>& design_layer : design_layer_id_to_name_map) {
-    Size design_layer_id = design_layer.first;
+  for (std::pair<const size_t, std::string>& design_layer : design_layer_id_to_name_map) {
+    size_t design_layer_id = design_layer.first;
     std::string& design_layer_name = design_layer.second;
     if (design_layer_id != 0 && layer_table.get_design_name_to_process_name_map().count(design_layer_name) == 0) {
       continue;
@@ -200,7 +200,7 @@ void SPEFWriter::buildReportLayerList(SWModel& sw_model)
   }
 }
 
-void SPEFWriter::writeHeader(std::ofstream& spef_file_stream, Size corner_idx)
+void SPEFWriter::writeHeader(std::ofstream& spef_file_stream, size_t corner_idx)
 {
   CornerData& corner_data = RCXDM.getDatabase().get_corner_data_list().at(corner_idx);
   std::time_t current_time = std::time(nullptr);
@@ -233,13 +233,13 @@ void SPEFWriter::writeHeader(std::ofstream& spef_file_stream, Size corner_idx)
 void SPEFWriter::writeNameMap(std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map)
 {
   spef_file_stream << "\n*NAME_MAP\n";
-  for (std::pair<const Size, std::string>& id_to_port_name : spef_name_map.get_id_to_port_name_map()) {
+  for (std::pair<const size_t, std::string>& id_to_port_name : spef_name_map.get_id_to_port_name_map()) {
     spef_file_stream << "*" << id_to_port_name.first << " " << id_to_port_name.second << "\n";
   }
-  for (std::pair<const Size, std::string>& id_to_instance_name : spef_name_map.get_id_to_instance_name_map()) {
+  for (std::pair<const size_t, std::string>& id_to_instance_name : spef_name_map.get_id_to_instance_name_map()) {
     spef_file_stream << "*" << id_to_instance_name.first << " " << id_to_instance_name.second << "\n";
   }
-  for (std::pair<const Size, std::string>& id_to_net_name : spef_name_map.get_id_to_net_name_map()) {
+  for (std::pair<const size_t, std::string>& id_to_net_name : spef_name_map.get_id_to_net_name_map()) {
     spef_file_stream << "*" << id_to_net_name.first << " " << id_to_net_name.second << "\n";
   }
 }
@@ -248,7 +248,7 @@ void SPEFWriter::writePortList(std::ofstream& spef_file_stream, SPEFNameMap& spe
 {
   SpefContext& spef_context = RCXDM.getDatabase().get_spef_context();
   spef_file_stream << "\n*PORTS\n\n";
-  for (Size port_idx = 0; port_idx < spef_context.get_port_name_list().size(); port_idx++) {
+  for (size_t port_idx = 0; port_idx < spef_context.get_port_name_list().size(); port_idx++) {
     std::string& port_name = spef_context.get_port_name_list().at(port_idx);
     char port_io = spef_context.get_port_io_list().at(port_idx);
     spef_file_stream << "*" << spef_name_map.get_port_name_to_id_map().at(port_name) << " " << port_io << "\n";
@@ -271,15 +271,22 @@ void SPEFWriter::writeLayerMap(SWModel& sw_model, std::ofstream& spef_file_strea
   }
 }
 
-void SPEFWriter::writeDNetList(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, Size corner_idx)
+void SPEFWriter::writeDNetList(SWModel& sw_model,
+                               std::ofstream& spef_file_stream,
+                               SPEFNameMap& spef_name_map,
+                               size_t corner_idx)
 {
-  Size net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
-  for (Size net_idx = 0; net_idx < net_num; net_idx++) {
+  size_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
+  for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
     writeDNet(sw_model, spef_file_stream, spef_name_map, corner_idx, net_idx);
   }
 }
 
-void SPEFWriter::writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, Size corner_idx, Size net_idx)
+void SPEFWriter::writeDNet(SWModel& sw_model,
+                           std::ofstream& spef_file_stream,
+                           SPEFNameMap& spef_name_map,
+                           size_t corner_idx,
+                           size_t net_idx)
 {
   Database& database = RCXDM.getDatabase();
   Net& net = database.get_layout_data().get_net_list().at(net_idx);
@@ -295,10 +302,10 @@ void SPEFWriter::writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, S
     net_spef_name = RCXUTIL.getString("*", spef_name_map.get_net_name_to_id_map().at(net_spef_name));
   }
 
-  Size node_offset = topo_pool.get_net_node_range(net_idx).first;
+  size_t node_offset = topo_pool.get_net_node_range(net_idx).first;
   std::vector<F64> node_ground_capacitance_list(node_list.size(), 0.0);
   std::span<F64> ground_capacitance_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
-  for (Size edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
+  for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
     TopoEdge& edge = edge_list[edge_idx];
     if (edge.get_is_via() || ground_capacitance_list[edge_idx] <= 0.0) {
       continue;
@@ -307,47 +314,51 @@ void SPEFWriter::writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, S
     node_ground_capacitance_list[edge.get_end_node_idx() - node_offset] += ground_capacitance_list[edge_idx] / 2.0;
   }
 
-  std::map<std::pair<Size, std::string>, F64> node_coupling_capacitance_map;
+  std::map<std::pair<size_t, std::string>, F64> node_coupling_capacitance_map;
   for (SPEFCouplingRef& coupling_ref : sw_model.get_net_coupling_ref_list().at(net_idx)) {
     TopoEdge& self_edge = topo_pool.get_edge(coupling_ref.get_self_edge_idx());
     TopoEdge& other_edge = topo_pool.get_edge(coupling_ref.get_other_edge_idx());
-    if (self_edge.get_start_node_idx() == kMaxSize || self_edge.get_end_node_idx() == kMaxSize || other_edge.get_start_node_idx() == kMaxSize
+    if (self_edge.get_start_node_idx() == kMaxSize || self_edge.get_end_node_idx() == kMaxSize
+        || other_edge.get_start_node_idx() == kMaxSize
         || other_edge.get_end_node_idx() == kMaxSize) {
       continue;
     }
 
-    Size self_node_idx = kMaxSize;
-    Size other_node_idx = kMaxSize;
+    size_t self_node_idx = kMaxSize;
+    size_t other_node_idx = kMaxSize;
     getNearestNodePair(self_edge, other_edge, self_node_idx, other_node_idx);
     TopoNode& other_node = topo_pool.get_node(other_node_idx);
-    node_coupling_capacitance_map[std::make_pair(self_node_idx - node_offset, getNodeSPEFName(spef_name_map, other_node))] += coupling_ref.get_capacitance();
+    node_coupling_capacitance_map[
+        std::make_pair(self_node_idx - node_offset, getNodeSPEFName(spef_name_map, other_node))]
+        += coupling_ref.get_capacitance();
   }
 
   F64 total_capacitance = 0.0;
   for (F64 ground_capacitance : node_ground_capacitance_list) {
     total_capacitance += ground_capacitance;
   }
-  for (std::pair<const std::pair<Size, std::string>, F64>& node_coupling_capacitance : node_coupling_capacitance_map) {
+  for (std::pair<const std::pair<size_t, std::string>, F64>& node_coupling_capacitance : node_coupling_capacitance_map) {
     total_capacitance += node_coupling_capacitance.second;
   }
 
-  Micron micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
+  double micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
   spef_file_stream << "\n*D_NET " << net_spef_name << " " << std::fixed << std::setprecision(6) << total_capacitance << "\n\n";
   spef_file_stream << "*CONN\n";
   for (TopoNode& node : node_list) {
     if (!node.get_is_pin_node() || node.get_pin_name().find(':') != std::string::npos) {
       continue;
     }
-    Micron x = boost::polygon::x(node.get_point()) * micron_per_dbu;
-    Micron y = boost::polygon::y(node.get_point()) * micron_per_dbu;
+    double x = boost::polygon::x(node.get_point()) * micron_per_dbu;
+    double y = boost::polygon::y(node.get_point()) * micron_per_dbu;
     char port_io = 'B';
-    for (Size port_idx = 0; port_idx < database.get_spef_context().get_port_name_list().size(); port_idx++) {
+    for (size_t port_idx = 0; port_idx < database.get_spef_context().get_port_name_list().size(); port_idx++) {
       if (database.get_spef_context().get_port_name_list().at(port_idx) == node.get_pin_name()) {
         port_io = database.get_spef_context().get_port_io_list().at(port_idx);
         break;
       }
     }
-    spef_file_stream << "*P " << getNodeSPEFName(spef_name_map, node) << " " << port_io << " *C " << std::fixed << std::setprecision(3) << x << " " << y;
+    spef_file_stream << "*P " << getNodeSPEFName(spef_name_map, node) << " " << port_io << " *C " << std::fixed
+                     << std::setprecision(3) << x << " " << y;
     writeNodeGeometry(sw_model, spef_file_stream, node, micron_per_dbu);
     spef_file_stream << "\n";
   }
@@ -356,8 +367,8 @@ void SPEFWriter::writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, S
     if (!node.get_is_pin_node() || node.get_pin_name().find(':') == std::string::npos) {
       continue;
     }
-    Micron x = boost::polygon::x(node.get_point()) * micron_per_dbu;
-    Micron y = boost::polygon::y(node.get_point()) * micron_per_dbu;
+    double x = boost::polygon::x(node.get_point()) * micron_per_dbu;
+    double y = boost::polygon::y(node.get_point()) * micron_per_dbu;
     spef_file_stream << "*I " << getNodeSPEFName(spef_name_map, node) << " " << getPinIO(net, node.get_pin_name()) << " *C " << std::fixed
                      << std::setprecision(3) << x << " " << y;
     writeNodeGeometry(sw_model, spef_file_stream, node, micron_per_dbu);
@@ -368,23 +379,23 @@ void SPEFWriter::writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, S
     if (node.get_is_pin_node()) {
       continue;
     }
-    Micron x = boost::polygon::x(node.get_point()) * micron_per_dbu;
-    Micron y = boost::polygon::y(node.get_point()) * micron_per_dbu;
+    double x = boost::polygon::x(node.get_point()) * micron_per_dbu;
+    double y = boost::polygon::y(node.get_point()) * micron_per_dbu;
     spef_file_stream << "*N " << getNodeSPEFName(spef_name_map, node) << " *C " << std::fixed << std::setprecision(3) << x << " " << y;
     writeNodeGeometry(sw_model, spef_file_stream, node, micron_per_dbu);
     spef_file_stream << "\n";
   }
 
   spef_file_stream << "\n*CAP\n";
-  Size cap_id = 1;
-  for (std::pair<const std::pair<Size, std::string>, F64>& node_coupling_capacitance : node_coupling_capacitance_map) {
+  size_t cap_id = 1;
+  for (std::pair<const std::pair<size_t, std::string>, F64>& node_coupling_capacitance : node_coupling_capacitance_map) {
     if (node_coupling_capacitance.second <= 0.0) {
       continue;
     }
     spef_file_stream << cap_id++ << " " << getNodeSPEFName(spef_name_map, node_list[node_coupling_capacitance.first.first]) << " "
                      << node_coupling_capacitance.first.second << " " << std::setprecision(6) << node_coupling_capacitance.second << "\n";
   }
-  for (Size node_idx = 0; node_idx < node_list.size(); node_idx++) {
+  for (size_t node_idx = 0; node_idx < node_list.size(); node_idx++) {
     if (node_ground_capacitance_list[node_idx] <= 0.0) {
       continue;
     }
@@ -394,15 +405,16 @@ void SPEFWriter::writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, S
 
   spef_file_stream << "\n*RES\n";
   std::span<F64> resistance_list = database.get_rc_table().get_corner_net_res_list(CornerNetId(corner_idx, net_idx));
-  Size resistance_id = 1;
-  for (Size edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
+  size_t resistance_id = 1;
+  for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
     TopoEdge& edge = edge_list[edge_idx];
     if (edge.get_start_node_idx() == kMaxSize || edge.get_end_node_idx() == kMaxSize) {
       continue;
     }
     TopoNode& start_node = topo_pool.get_node(edge.get_start_node_idx());
     TopoNode& end_node = topo_pool.get_node(edge.get_end_node_idx());
-    spef_file_stream << resistance_id++ << " " << getNodeSPEFName(spef_name_map, start_node) << " " << getNodeSPEFName(spef_name_map, end_node)
+    spef_file_stream << resistance_id++ << " " << getNodeSPEFName(spef_name_map, start_node) << " "
+                     << getNodeSPEFName(spef_name_map, end_node)
                      << " " << std::setprecision(6) << resistance_list[edge_idx];
     writeResistanceGeometry(sw_model, spef_file_stream, corner_idx, edge, micron_per_dbu);
     spef_file_stream << "\n";
@@ -410,17 +422,17 @@ void SPEFWriter::writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, S
   spef_file_stream << "*END\n";
 }
 
-void SPEFWriter::getNearestNodePair(TopoEdge& self_edge, TopoEdge& other_edge, Size& self_node_idx, Size& other_node_idx)
+void SPEFWriter::getNearestNodePair(TopoEdge& self_edge, TopoEdge& other_edge, size_t& self_node_idx, size_t& other_node_idx)
 {
   TopoPool& topo_pool = RCXDM.getDatabase().get_topo_pool();
-  Size self_node_idx_list[2] = {self_edge.get_start_node_idx(), self_edge.get_end_node_idx()};
-  Size other_node_idx_list[2] = {other_edge.get_start_node_idx(), other_edge.get_end_node_idx()};
-  Dbu min_distance = kMaxDbu;
-  for (Size self_idx = 0; self_idx < 2; self_idx++) {
-    for (Size other_idx = 0; other_idx < 2; other_idx++) {
+  size_t self_node_idx_list[2] = {self_edge.get_start_node_idx(), self_edge.get_end_node_idx()};
+  size_t other_node_idx_list[2] = {other_edge.get_start_node_idx(), other_edge.get_end_node_idx()};
+  int32_t min_distance = kMaxDbu;
+  for (size_t self_idx = 0; self_idx < 2; self_idx++) {
+    for (size_t other_idx = 0; other_idx < 2; other_idx++) {
       TopoNode& self_node = topo_pool.get_node(self_node_idx_list[self_idx]);
       TopoNode& other_node = topo_pool.get_node(other_node_idx_list[other_idx]);
-      Dbu distance = std::abs(boost::polygon::x(self_node.get_point()) - boost::polygon::x(other_node.get_point()))
+      int32_t distance = std::abs(boost::polygon::x(self_node.get_point()) - boost::polygon::x(other_node.get_point()))
                      + std::abs(boost::polygon::y(self_node.get_point()) - boost::polygon::y(other_node.get_point()));
       if (distance < min_distance) {
         min_distance = distance;
@@ -435,7 +447,7 @@ std::string SPEFWriter::getNodeSPEFName(SPEFNameMap& spef_name_map, TopoNode& no
 {
   if (node.get_is_pin_node()) {
     std::string& pin_name = node.get_pin_name();
-    Size delimiter_pos = pin_name.find(':');
+    size_t delimiter_pos = pin_name.find(':');
     if (delimiter_pos == std::string::npos) {
       if (spef_name_map.get_port_name_to_id_map().count(pin_name) != 0) {
         return RCXUTIL.getString("*", spef_name_map.get_port_name_to_id_map().at(pin_name));
@@ -477,7 +489,7 @@ char SPEFWriter::getPinIO(Net& net, const std::string& pin_name)
   return 'B';
 }
 
-void SPEFWriter::writeNodeGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, TopoNode& node, Micron micron_per_dbu)
+void SPEFWriter::writeNodeGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, TopoNode& node, double micron_per_dbu)
 {
   if (!RCXDM.getConfig().report_geometry) {
     return;
@@ -489,20 +501,21 @@ void SPEFWriter::writeNodeGeometry(SWModel& sw_model, std::ofstream& spef_file_s
                    << boost::polygon::yh(shape) * micron_per_dbu << " $lvl=" << getReportLayerLevel(sw_model, node.get_layer_id());
 }
 
-void SPEFWriter::writeResistanceGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, Size corner_idx, TopoEdge& edge,
-                                         Micron micron_per_dbu)
+void SPEFWriter::writeResistanceGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, size_t corner_idx, TopoEdge& edge,
+                                         double micron_per_dbu)
 {
   if (!RCXDM.getConfig().report_geometry) {
     return;
   }
 
   GtlRectI& shape = edge.get_shape();
-  Dbu delta_x = boost::polygon::xh(shape) - boost::polygon::xl(shape);
-  Dbu delta_y = boost::polygon::yh(shape) - boost::polygon::yl(shape);
+  int32_t delta_x = boost::polygon::xh(shape) - boost::polygon::xl(shape);
+  int32_t delta_y = boost::polygon::yh(shape) - boost::polygon::yl(shape);
   spef_file_stream << " // ";
   if (edge.get_is_via()) {
-    Micron area = delta_x * delta_y * micron_per_dbu * micron_per_dbu;
-    spef_file_stream << " $a=" << std::fixed << std::setprecision(6) << area << " $lvl=" << getReportLayerLevel(sw_model, edge.get_layer_id())
+    double area = delta_x * delta_y * micron_per_dbu * micron_per_dbu;
+    spef_file_stream << " $a=" << std::fixed << std::setprecision(6) << area << " $lvl="
+                     << getReportLayerLevel(sw_model, edge.get_layer_id())
                      << " $llx=" << std::setprecision(3) << boost::polygon::xl(shape) * micron_per_dbu << " $lly="
                      << boost::polygon::yl(shape) * micron_per_dbu << " $urx=" << boost::polygon::xh(shape) * micron_per_dbu << " $ury="
                      << boost::polygon::yh(shape) * micron_per_dbu;
@@ -512,15 +525,15 @@ void SPEFWriter::writeResistanceGeometry(SWModel& sw_model, std::ofstream& spef_
   TopoPool& topo_pool = RCXDM.getDatabase().get_topo_pool();
   TopoNode& start_node = topo_pool.get_node(edge.get_start_node_idx());
   TopoNode& end_node = topo_pool.get_node(edge.get_end_node_idx());
-  Dbu node_delta_x = std::abs(boost::polygon::x(start_node.get_point()) - boost::polygon::x(end_node.get_point()));
-  Dbu node_delta_y = std::abs(boost::polygon::y(start_node.get_point()) - boost::polygon::y(end_node.get_point()));
+  int32_t node_delta_x = std::abs(boost::polygon::x(start_node.get_point()) - boost::polygon::x(end_node.get_point()));
+  int32_t node_delta_y = std::abs(boost::polygon::y(start_node.get_point()) - boost::polygon::y(end_node.get_point()));
   bool is_horizontal = node_delta_x == 0 && node_delta_y == 0 ? edge.get_line_segment().get_is_horizontal() : node_delta_x >= node_delta_y;
-  Dbu axis_distance = is_horizontal ? node_delta_x : node_delta_y;
-  Dbu shape_axis_distance = is_horizontal ? delta_x : delta_y;
-  Dbu shape_width = is_horizontal ? delta_y : delta_x;
+  int32_t axis_distance = is_horizontal ? node_delta_x : node_delta_y;
+  int32_t shape_axis_distance = is_horizontal ? delta_x : delta_y;
+  int32_t shape_width = is_horizontal ? delta_y : delta_x;
   CornerData& corner_data = RCXDM.getDatabase().get_corner_data_list().at(corner_idx);
-  Micron length = (axis_distance > 0 ? axis_distance : shape_axis_distance) * micron_per_dbu * corner_data.get_half_node_scale_factor();
-  Micron width = shape_width * micron_per_dbu;
+  double length = (axis_distance > 0 ? axis_distance : shape_axis_distance) * micron_per_dbu * corner_data.get_half_node_scale_factor();
+  double width = shape_width * micron_per_dbu;
   bool is_virtual_overlap = (node_delta_x == 0 && node_delta_y == 0) || delta_x == 0 || delta_y == 0;
   spef_file_stream << " $l=" << std::fixed << std::setprecision(3) << length << " $w=" << width << " $lvl="
                    << getReportLayerLevel(sw_model, edge.get_layer_id());
@@ -533,9 +546,9 @@ void SPEFWriter::writeResistanceGeometry(SWModel& sw_model, std::ofstream& spef_
                    << " $dir=" << (is_horizontal ? 0 : 1);
 }
 
-Size SPEFWriter::getReportLayerLevel(SWModel& sw_model, Size design_layer_id)
+size_t SPEFWriter::getReportLayerLevel(SWModel& sw_model, size_t design_layer_id)
 {
-  std::unordered_map<Size, Size>& design_layer_id_to_report_layer_id_map = sw_model.get_design_layer_id_to_report_layer_id_map();
+  std::unordered_map<size_t, size_t>& design_layer_id_to_report_layer_id_map = sw_model.get_design_layer_id_to_report_layer_id_map();
   if (design_layer_id_to_report_layer_id_map.count(design_layer_id) != 0) {
     return design_layer_id_to_report_layer_id_map.at(design_layer_id);
   }

@@ -25,7 +25,7 @@ class SPEFCouplingRef
 {
  public:
   SPEFCouplingRef() = default;
-  SPEFCouplingRef(Size self_edge_idx, Size other_edge_idx, F64 capacitance)
+  SPEFCouplingRef(size_t self_edge_idx, size_t other_edge_idx, F64 capacitance)
   {
     _self_edge_idx = self_edge_idx;
     _other_edge_idx = other_edge_idx;
@@ -33,18 +33,18 @@ class SPEFCouplingRef
   }
   ~SPEFCouplingRef() = default;
   // getter
-  Size get_self_edge_idx() const { return _self_edge_idx; }
-  Size get_other_edge_idx() const { return _other_edge_idx; }
+  size_t get_self_edge_idx() const { return _self_edge_idx; }
+  size_t get_other_edge_idx() const { return _other_edge_idx; }
   F64 get_capacitance() const { return _capacitance; }
   // setter
-  void set_self_edge_idx(Size self_edge_idx) { _self_edge_idx = self_edge_idx; }
-  void set_other_edge_idx(Size other_edge_idx) { _other_edge_idx = other_edge_idx; }
+  void set_self_edge_idx(size_t self_edge_idx) { _self_edge_idx = self_edge_idx; }
+  void set_other_edge_idx(size_t other_edge_idx) { _other_edge_idx = other_edge_idx; }
   void set_capacitance(F64 capacitance) { _capacitance = capacitance; }
   // function
 
  private:
-  Size _self_edge_idx = kMaxSize;
-  Size _other_edge_idx = kMaxSize;
+  size_t _self_edge_idx = kMaxSize;
+  size_t _other_edge_idx = kMaxSize;
   F64 _capacitance = 0.0;
 };
 

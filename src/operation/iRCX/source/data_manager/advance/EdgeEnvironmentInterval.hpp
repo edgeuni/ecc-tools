@@ -28,19 +28,19 @@ class EdgeEnvironmentInterval
   EdgeEnvironmentInterval() = default;
   ~EdgeEnvironmentInterval() = default;
   // getter
-  Dbu get_start_coordinate() const { return _start_coordinate; }
-  Dbu get_end_coordinate() const { return _end_coordinate; }
-  Dbu get_lower_spacing() const { return _lower_spacing; }
-  Dbu get_upper_spacing() const { return _upper_spacing; }
+  int32_t get_start_coordinate() const { return _start_coordinate; }
+  int32_t get_end_coordinate() const { return _end_coordinate; }
+  int32_t get_lower_spacing() const { return _lower_spacing; }
+  int32_t get_upper_spacing() const { return _upper_spacing; }
   TopoEdge* get_lower_adjacent_edge() const { return _lower_adjacent_edge; }
   TopoEdge* get_upper_adjacent_edge() const { return _upper_adjacent_edge; }
   std::vector<CrossOverlapSub>& get_cross_overlap_sub_list() { return _cross_overlap_sub_list; }
   std::vector<DiagCoupSub>& get_diag_coup_sub_list() { return _diag_coup_sub_list; }
   // setter
-  void set_start_coordinate(Dbu start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(Dbu end_coordinate) { _end_coordinate = end_coordinate; }
-  void set_lower_spacing(Dbu lower_spacing) { _lower_spacing = lower_spacing; }
-  void set_upper_spacing(Dbu upper_spacing) { _upper_spacing = upper_spacing; }
+  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
+  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
+  void set_lower_spacing(int32_t lower_spacing) { _lower_spacing = lower_spacing; }
+  void set_upper_spacing(int32_t upper_spacing) { _upper_spacing = upper_spacing; }
   void set_lower_adjacent_edge(TopoEdge* lower_adjacent_edge) { _lower_adjacent_edge = lower_adjacent_edge; }
   void set_upper_adjacent_edge(TopoEdge* upper_adjacent_edge) { _upper_adjacent_edge = upper_adjacent_edge; }
   void set_cross_overlap_sub_list(const std::vector<CrossOverlapSub>& cross_overlap_sub_list)
@@ -51,10 +51,10 @@ class EdgeEnvironmentInterval
   // function
 
  private:
-  Dbu _start_coordinate = 0;
-  Dbu _end_coordinate = 0;
-  Dbu _lower_spacing = kMaxDbu;
-  Dbu _upper_spacing = kMaxDbu;
+  int32_t _start_coordinate = 0;
+  int32_t _end_coordinate = 0;
+  int32_t _lower_spacing = kMaxDbu;
+  int32_t _upper_spacing = kMaxDbu;
   TopoEdge* _lower_adjacent_edge = nullptr;
   TopoEdge* _upper_adjacent_edge = nullptr;
   std::vector<CrossOverlapSub> _cross_overlap_sub_list;

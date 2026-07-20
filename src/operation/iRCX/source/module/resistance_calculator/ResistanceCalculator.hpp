@@ -54,15 +54,15 @@ class ResistanceCalculator
   RCModel initRCModel();
   void calculateRCModel(RCModel& rc_model);
   void calculateResistance();
-  void calculateCornerResistance(Size corner_idx);
-  void calculateNetResistance(Size corner_idx, Size net_idx);
+  void calculateCornerResistance(size_t corner_idx);
+  void calculateNetResistance(size_t corner_idx, size_t net_idx);
   F64 calculateWireResistance(CornerData& corner_data, ProcessConductor& conductor, TopoEdge& edge,
                               std::span<EdgeEtchInterval> edge_interval_list);
   F64 calculateViaResistance(CornerData& corner_data, ProcessVia& via, TopoEdge& edge);
   F64 getTemperatureFactor(F64 temperature, F64 nominal_temperature, F64 temperature_coefficient1,
                            F64 temperature_coefficient2);
-  ProcessVia* getProcessVia(CornerData& corner_data, Size design_layer_id);
-  ProcessConductor* getProcessConductor(CornerData& corner_data, Size design_layer_id);
+  ProcessVia* getProcessVia(CornerData& corner_data, size_t design_layer_id);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
 };
 
 }  // namespace ircx

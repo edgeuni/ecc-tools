@@ -40,8 +40,8 @@ class ProcessTable2D
   std::optional<F64> query(F64 row, F64 column) const;
 
  private:
-  std::pair<Size, Size> get_bounding_index_pair(const std::vector<F64>& axis, F64 value) const;
-  std::optional<F64> get_value(Size row_idx, Size column_idx) const;
+  std::pair<size_t, size_t> get_bounding_index_pair(const std::vector<F64>& axis, F64 value) const;
+  std::optional<F64> get_value(size_t row_idx, size_t column_idx) const;
 
   std::vector<F64> _row_list;
   std::vector<F64> _column_list;
@@ -54,8 +54,8 @@ inline std::optional<F64> ProcessTable2D::query(F64 row, F64 column) const
     return std::nullopt;
   }
 
-  std::pair<Size, Size> row_index_pair = get_bounding_index_pair(_row_list, row);
-  std::pair<Size, Size> column_index_pair = get_bounding_index_pair(_column_list, column);
+  std::pair<size_t, size_t> row_index_pair = get_bounding_index_pair(_row_list, row);
+  std::pair<size_t, size_t> column_index_pair = get_bounding_index_pair(_column_list, column);
   std::optional<F64> low_low_value = get_value(row_index_pair.first, column_index_pair.first);
   if (!low_low_value.has_value()) {
     return std::nullopt;
@@ -105,30 +105,30 @@ inline std::optional<F64> ProcessTable2D::query(F64 row, F64 column) const
   return std::lerp(low_value, high_value, row_ratio);
 }
 
-inline std::pair<Size, Size> ProcessTable2D::get_bounding_index_pair(const std::vector<F64>& axis, F64 value) const
+inline std::pair<size_t, size_t> ProcessTable2D::get_bounding_index_pair(const std::vector<F64>& axis, F64 value) const
 {
   if (value <= axis.front()) {
     return std::make_pair(0, 0);
   }
   if (value >= axis.back()) {
-    Size last_idx = axis.size() - 1;
+    size_t last_idx = axis.size() - 1;
     return std::make_pair(last_idx, last_idx);
   }
 
   std::vector<F64>::const_iterator high_iter = std::lower_bound(axis.begin(), axis.end(), value);
-  Size high_idx = static_cast<Size>(std::distance(axis.begin(), high_iter));
+  size_t high_idx = static_cast<size_t>(std::distance(axis.begin(), high_iter));
   if (*high_iter == value) {
     return std::make_pair(high_idx, high_idx);
   }
   return std::make_pair(high_idx - 1, high_idx);
 }
 
-inline std::optional<F64> ProcessTable2D::get_value(Size row_idx, Size column_idx) const
+inline std::optional<F64> ProcessTable2D::get_value(size_t row_idx, size_t column_idx) const
 {
   if (row_idx >= _row_list.size() || column_idx >= _column_list.size()) {
     return std::nullopt;
   }
-  Size value_idx = row_idx * _column_list.size() + column_idx;
+  size_t value_idx = row_idx * _column_list.size() + column_idx;
   if (value_idx >= _value_list.size()) {
     return std::nullopt;
   }

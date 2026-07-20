@@ -27,24 +27,24 @@ class DiagCoupSub
   DiagCoupSub() = default;
   ~DiagCoupSub() = default;
   // getter
-  Dbu get_start_coordinate() const { return _start_coordinate; }
-  Dbu get_end_coordinate() const { return _end_coordinate; }
+  int32_t get_start_coordinate() const { return _start_coordinate; }
+  int32_t get_end_coordinate() const { return _end_coordinate; }
   TopoEdge* get_neighbor_edge() const { return _neighbor_edge; }
-  Dbu get_distance() const { return _distance; }
+  int32_t get_distance() const { return _distance; }
   I16 get_layer_delta() const { return _layer_delta; }
   // setter
-  void set_start_coordinate(Dbu start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(Dbu end_coordinate) { _end_coordinate = end_coordinate; }
+  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
+  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
   void set_neighbor_edge(TopoEdge* neighbor_edge) { _neighbor_edge = neighbor_edge; }
-  void set_distance(Dbu distance) { _distance = distance; }
+  void set_distance(int32_t distance) { _distance = distance; }
   void set_layer_delta(I16 layer_delta) { _layer_delta = layer_delta; }
   // function
 
  private:
-  Dbu _start_coordinate = 0;
-  Dbu _end_coordinate = 0;
+  int32_t _start_coordinate = 0;
+  int32_t _end_coordinate = 0;
   TopoEdge* _neighbor_edge = nullptr;
-  Dbu _distance = 0;
+  int32_t _distance = 0;
   I16 _layer_delta = 0;
 };
 

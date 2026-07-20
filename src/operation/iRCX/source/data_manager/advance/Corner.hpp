@@ -38,7 +38,7 @@ class Corner
 
  private:
   std::string _corner_name;
-  std::vector<double> _temperature_list{25.0};
+  std::vector<double> _temperature_list = {25.0};
   std::string _itf_file_path;
   std::string _captab_file_path;
 };

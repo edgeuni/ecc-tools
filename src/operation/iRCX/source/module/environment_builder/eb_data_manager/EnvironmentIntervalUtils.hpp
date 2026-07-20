@@ -29,8 +29,8 @@ namespace interval {
 // a0 < a1, and two ranges that only touch at an endpoint do not overlap.
 template <typename T>
 struct Range {
-  T a0{};
-  T a1{};
+  T a0 = {};
+  T a1 = {};
 };
 
 template <typename T>
@@ -99,12 +99,12 @@ inline auto subtract(const std::vector<IntervalT>& intervals,
       continue;
     }
 
-    const IntervalT left{interval.a0, static_cast<Coord>(std::min(interval.a1, cut_a0))};
+    const IntervalT left = {interval.a0, static_cast<Coord>(std::min(interval.a1, cut_a0))};
     if (isValid(left.a0, left.a1)) {
       next.push_back(left);
     }
 
-    const IntervalT right{static_cast<Coord>(std::max(interval.a0, cut_a1)), interval.a1};
+    const IntervalT right = {static_cast<Coord>(std::max(interval.a0, cut_a1)), interval.a1};
     if (isValid(right.a0, right.a1)) {
       next.push_back(right);
     }
