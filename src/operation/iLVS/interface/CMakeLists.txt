@@ -1,3 +1,11 @@
+if(DEBUG_ILVS_INTERFACE)
+    message(STATUS "LVS: DEBUG_ILVS_INTERFACE")
+    set(CMAKE_BUILD_TYPE "Debug")
+else()
+    message(STATUS "LVS: RELEASE_ILVS_INTERFACE")
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 add_library(ilvs_interface
     ${ILVS_INTERFACE}/LVSInterface.cpp
 )

@@ -4,6 +4,8 @@
 
 namespace tcl {
 
+#if 1  // lvs
+
 class TclInitLVS : public TclCmd
 {
  public:
@@ -12,6 +14,9 @@ class TclInitLVS : public TclCmd
 
   unsigned check() override { return 1; };
   unsigned exec() override;
+
+ private:
+  std::vector<std::pair<std::string, ValueType>> _config_list;
 };
 
 class TclRunLVS : public TclCmd
@@ -22,6 +27,9 @@ class TclRunLVS : public TclCmd
 
   unsigned check() override { return 1; };
   unsigned exec() override;
+
+ private:
+  std::vector<std::pair<std::string, ValueType>> _config_list;
 };
 
 class TclDestroyLVS : public TclCmd
@@ -32,6 +40,11 @@ class TclDestroyLVS : public TclCmd
 
   unsigned check() override { return 1; };
   unsigned exec() override;
+
+ private:
+  std::vector<std::pair<std::string, ValueType>> _config_list;
 };
+
+#endif
 
 }  // namespace tcl

@@ -11,16 +11,28 @@ namespace ilvs {
 class DataManager
 {
  public:
+  static void initInst();
   static DataManager& getInst();
+  static void destroyInst();
 
-  void init(const std::map<std::string, std::any>& config_map);
-  bool isInitialized() const;
-  void destroy();
+  // getter
+
+  // setter
+
+  // function
+  void input(std::map<std::string, std::any>& config_map);
+  void output();
 
  private:
-  DataManager() = default;
+  static DataManager* _dm_instance;
 
-  bool _is_initialized = false;
+  DataManager() = default;
+  DataManager(const DataManager& other) = delete;
+  DataManager(DataManager&& other) = delete;
+  ~DataManager() = default;
+  DataManager& operator=(const DataManager& other) = delete;
+  DataManager& operator=(DataManager&& other) = delete;
+  // function
 };
 
 }  // namespace ilvs
