@@ -38,6 +38,7 @@
 #include "tcl_register_idrc.h"
 #include "tcl_register_inst.h"
 #include "tcl_register_irt.h"
+#include "tcl_register_ilvs.h"
 #include "tcl_register_ista.h"
 #include "tcl_register_izh.h"
 #include "tcl_register_ircx.h"
@@ -81,6 +82,9 @@ int registerCommands()
 
   /// Router
   registerCmdRT();
+
+  /// LVS
+  registerCmdLVS();
 
   /// STA
   registerCmdSTA();
