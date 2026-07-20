@@ -88,17 +88,4 @@ bool run_rcx()
   return RCX_API_INST.run();
 }
 
-bool report_rcx()
-{
-  if (active_backend == RcxBackend::kIcs55) {
-    return ircx_ics55_report() != 0;
-  }
-
-  if (active_backend != RcxBackend::kNative) {
-    return false;
-  }
-
-  return RCX_API_INST.report();
-}
-
 }  // namespace python_interface

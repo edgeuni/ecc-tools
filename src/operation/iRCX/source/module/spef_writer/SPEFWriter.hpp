@@ -1,0 +1,75 @@
+// ***************************************************************************************
+// Copyright (c) 2023-2025 Peng Cheng Laboratory
+// Copyright (c) 2023-2025 Institute of Computing Technology, Chinese Academy of Sciences
+// Copyright (c) 2023-2025 Beijing Institute of Open Source Chip
+//
+// iEDA is licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+// http://license.coscl.org.cn/MulanPSL2
+//
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
+// See the Mulan PSL v2 for more details.
+// ***************************************************************************************
+#pragma once
+
+#include "DataManager.hpp"
+#include "Logger.hpp"
+#include "Monitor.hpp"
+#include "RCXHeader.hpp"
+#include "SPEFNameMap.hpp"
+#include "SWModel.hpp"
+#include "Net.hpp"
+#include "TopoEdge.hpp"
+#include "TopoNode.hpp"
+
+namespace ircx {
+
+#define RCXSW (ircx::SPEFWriter::getInst())
+
+class SPEFWriter
+{
+ public:
+  static void initInst();
+  static SPEFWriter& getInst();
+  static void destroyInst();
+  // function
+  void write();
+
+ private:
+  // self
+  static SPEFWriter* _sw_instance;
+
+  SPEFWriter() = default;
+  SPEFWriter(const SPEFWriter& other) = delete;
+  SPEFWriter(SPEFWriter&& other) = delete;
+  ~SPEFWriter() = default;
+  SPEFWriter& operator=(const SPEFWriter& other) = delete;
+  SPEFWriter& operator=(SPEFWriter&& other) = delete;
+  // function
+  SWModel initSWModel();
+  void writeSWModel(SWModel& sw_model);
+  void buildNameMap(SPEFNameMap& spef_name_map);
+  void writeCornerSPEFList(SWModel& sw_model, SPEFNameMap& spef_name_map);
+  void writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, Size corner_idx);
+  void buildNetCouplingRefList(SWModel& sw_model, Size corner_idx);
+  void buildReportLayerList(SWModel& sw_model);
+  void writeHeader(std::ofstream& spef_file_stream, Size corner_idx);
+  void writeNameMap(std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map);
+  void writePortList(std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map);
+  void writeLayerMap(SWModel& sw_model, std::ofstream& spef_file_stream);
+  void writeDNetList(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, Size corner_idx);
+  void writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, Size corner_idx, Size net_idx);
+  void getNearestNodePair(TopoEdge& self_edge, TopoEdge& other_edge, Size& self_node_idx, Size& other_node_idx);
+  std::string getNodeSPEFName(SPEFNameMap& spef_name_map, TopoNode& node);
+  char getPinIO(Net& net, const std::string& pin_name);
+  void writeNodeGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, TopoNode& node, Micron micron_per_dbu);
+  void writeResistanceGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, Size corner_idx, TopoEdge& edge,
+                               Micron micron_per_dbu);
+  Size getReportLayerLevel(SWModel& sw_model, Size design_layer_id);
+};
+
+}  // namespace ircx
