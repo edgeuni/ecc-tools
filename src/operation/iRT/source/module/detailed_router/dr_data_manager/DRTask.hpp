@@ -18,10 +18,8 @@
 
 #include "ConnectType.hpp"
 #include "DRGroup.hpp"
-#include "EXTLayerRect.hpp"
 #include "LayerCoord.hpp"
 #include "LayerRect.hpp"
-#include "Segment.hpp"
 #include "SortStatus.hpp"
 
 namespace irt {
@@ -35,32 +33,17 @@ class DRTask
   int32_t get_net_idx() { return _net_idx; }
   ConnectType& get_connect_type() { return _connect_type; }
   std::vector<DRGroup>& get_dr_group_list() { return _dr_group_list; }
-  std::vector<Segment<LayerCoord>>& get_current_detailed_segment_list() { return _current_detailed_segment_list; }
-  std::vector<EXTLayerRect>& get_current_detailed_patch_list() { return _current_detailed_patch_list; }
-  std::vector<Segment<LayerCoord>>& get_best_detailed_segment_list() { return _best_detailed_segment_list; }
-  std::vector<EXTLayerRect>& get_best_detailed_patch_list() { return _best_detailed_patch_list; }
   PlanarRect& get_bounding_box() { return _bounding_box; }
   int32_t get_routed_times() { return _routed_times; }
   // const getter
   const int32_t get_net_idx() const { return _net_idx; }
   const ConnectType& get_connect_type() const { return _connect_type; }
   const std::vector<DRGroup>& get_dr_group_list() const { return _dr_group_list; }
-  const std::vector<Segment<LayerCoord>>& get_current_detailed_segment_list() const { return _current_detailed_segment_list; }
-  const std::vector<EXTLayerRect>& get_current_detailed_patch_list() const { return _current_detailed_patch_list; }
-  const std::vector<Segment<LayerCoord>>& get_best_detailed_segment_list() const { return _best_detailed_segment_list; }
-  const std::vector<EXTLayerRect>& get_best_detailed_patch_list() const { return _best_detailed_patch_list; }
   const PlanarRect& get_bounding_box() const { return _bounding_box; }
   // setter
   void set_net_idx(const int32_t net_idx) { _net_idx = net_idx; }
   void set_connect_type(const ConnectType& connect_type) { _connect_type = connect_type; }
   void set_dr_group_list(const std::vector<DRGroup>& dr_group_list) { _dr_group_list = dr_group_list; }
-  void set_current_detailed_segment_list(const std::vector<Segment<LayerCoord>>& detailed_segment_list)
-  {
-    _current_detailed_segment_list = detailed_segment_list;
-  }
-  void set_current_detailed_patch_list(const std::vector<EXTLayerRect>& detailed_patch_list) { _current_detailed_patch_list = detailed_patch_list; }
-  void set_best_detailed_segment_list(const std::vector<Segment<LayerCoord>>& detailed_segment_list) { _best_detailed_segment_list = detailed_segment_list; }
-  void set_best_detailed_patch_list(const std::vector<EXTLayerRect>& detailed_patch_list) { _best_detailed_patch_list = detailed_patch_list; }
   void set_bounding_box(const PlanarRect& bounding_box) { _bounding_box = bounding_box; }
   void set_routed_times(const int32_t routed_times) { _routed_times = routed_times; }
   // function
@@ -70,10 +53,6 @@ class DRTask
   int32_t _net_idx = -1;
   ConnectType _connect_type = ConnectType::kNone;
   std::vector<DRGroup> _dr_group_list;
-  std::vector<Segment<LayerCoord>> _current_detailed_segment_list;
-  std::vector<EXTLayerRect> _current_detailed_patch_list;
-  std::vector<Segment<LayerCoord>> _best_detailed_segment_list;
-  std::vector<EXTLayerRect> _best_detailed_patch_list;
   PlanarRect _bounding_box;
   int32_t _routed_times = 0;
 };

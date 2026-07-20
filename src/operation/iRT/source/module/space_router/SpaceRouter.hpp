@@ -60,6 +60,7 @@ class SpaceRouter
   void buildBoxSchedule(SRModel& sr_model);
   void splitNetResult(SRModel& sr_model);
   void routeSRBoxMap(SRModel& sr_model);
+  void buildNetResult(SRBox& sr_box);
   void initSRTaskList(SRModel& sr_model, SRBox& sr_box);
   void buildOverflow(SRModel& sr_model, SRBox& sr_box);
   bool needRouting(SRModel& sr_model, SRBox& sr_box);

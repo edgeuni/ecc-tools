@@ -29,14 +29,9 @@ routeDRModel:迭代DRModel
     updateBestResult:更新DRModel中的最优结果
 
 
-按全局拓扑分量保护DRTask:
-    initDRTaskList:将global result裁剪到当前Box,按GCell拓扑把pin/boundary terminal分组,不使用尚未连通的TA物理线段判断分量
-    多拓扑分量:每个分量独立创建task并接管归属的TA segment/patch,U型开口两侧不会进入同一task
-    单端或无法唯一归属的几何:不参与A*并保留在local staging map,最终原样上传
-    分量隔离:路由时将同net其他task设为不可穿越区域,新增patch也禁止接触其他分量
-    Graph/Shadow/DRC/Best/Upload:同时处理staging geometry和各task独占的current/best geometry
-    Violation:按违例与task几何的实际重叠调度,不再只调度同net的第一个task
-    FullFlow:仅做最终树化和连通性校验,不负责补连;terminal优先精确映射,唯一最近分量补映射,已有物理连通几何只做分量合并
+
+
+
 
 
 
