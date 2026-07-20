@@ -59,12 +59,55 @@ void LVSInterface::runLVS()
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
 
-  LVSCheckResult& check_result = LVSDM.getDatabase().getCheckResult();
-  check_result = LVSChecker::check(LVSDM.getDatabase().getExpectedNetlist(), LVSDM.getDatabase().getPhysicalNetlist());
-  LVSLOG.info(Loc::current(), "LVS summary: expected nets = ", check_result.expected_net_num, ", physical nets = ", check_result.physical_net_num,
-              ", missing nets = ", check_result.missing_net_num, ", unexpected nets = ", check_result.unexpected_net_num, ", open nets = ",
-              check_result.open_net_num, ", missing terminals = ", check_result.missing_terminal_num, ", unrouted nets = ",
-              check_result.unrouted_net_num, ".");
+  LVSDatabase& database = LVSDM.getDatabase();
+  LVSCheckResult& check_result = database.getCheckResult();
+  const LVSNetlist& expected_netlist = database.getExpectedNetlist();
+  const LVSNetlist& physical_netlist = database.getPhysicalNetlist();
+  check_result = LVSChecker::check(expected_netlist, physical_netlist);
+
+  uint64_t expected_terminal_num = 0;
+  for (const auto& [net_name, net] : expected_netlist.net_map) {
+    (void) net_name;
+    expected_terminal_num += net.terminal_list.size();
+  }
+  uint64_t physical_terminal_num = 0;
+  uint64_t physical_wire_segment_num = 0;
+  uint64_t physical_via_num = 0;
+  for (const auto& [net_name, net] : physical_netlist.net_map) {
+    (void) net_name;
+    physical_terminal_num += net.terminal_list.size();
+    physical_wire_segment_num += net.wire_segment_num;
+    physical_via_num += net.via_num;
+  }
+
+  fort::char_table netlist_summary_table;
+  {
+    netlist_summary_table.set_cell_text_align(fort::text_align::right);
+    netlist_summary_table << fort::header << "Netlist Summary"
+                          << "Expected"
+                          << "Physical" << fort::endr;
+    netlist_summary_table << "Net" << check_result.expected_net_num << check_result.physical_net_num << fort::endr;
+    netlist_summary_table << "Terminal" << expected_terminal_num << physical_terminal_num << fort::endr;
+    netlist_summary_table << "Wire Segment" << "-" << physical_wire_segment_num << fort::endr;
+    netlist_summary_table << "Via" << "-" << physical_via_num << fort::endr;
+  }
+
+  uint64_t total_mismatch_num = 0;
+  fort::char_table check_summary_table;
+  {
+    check_summary_table.set_cell_text_align(fort::text_align::right);
+    check_summary_table << fort::header << "Check Summary"
+                        << "Count" << fort::endr;
+    check_summary_table << "Missing Net" << check_result.missing_net_num << fort::endr;
+    check_summary_table << "Unexpected Net" << check_result.unexpected_net_num << fort::endr;
+    check_summary_table << "Open Net" << check_result.open_net_num << fort::endr;
+    check_summary_table << "Missing Terminal" << check_result.missing_terminal_num << fort::endr;
+    check_summary_table << "Unrouted Net" << check_result.unrouted_net_num << fort::endr;
+    total_mismatch_num = check_result.missing_net_num + check_result.unexpected_net_num + check_result.open_net_num
+                         + check_result.missing_terminal_num + check_result.unrouted_net_num;
+    check_summary_table << fort::header << "Total" << total_mismatch_num << fort::endr;
+  }
+  LVSUTIL.printTableList({netlist_summary_table, check_summary_table});
 
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
