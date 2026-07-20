@@ -6,6 +6,13 @@ namespace tcl {
 
 TclInitLVS::TclInitLVS(const char* cmd_name) : TclCmd(cmd_name)
 {
+  // std::string netlist_path;  // required
+  _config_list.push_back(std::make_pair("-netlist", ValueType::kString));
+  // std::string def_path;      // required
+  _config_list.push_back(std::make_pair("-def", ValueType::kString));
+  // std::string top_module;    // optional
+  _config_list.push_back(std::make_pair("-top_module", ValueType::kString));
+
   TclUtil::addOption(this, _config_list);
 }
 

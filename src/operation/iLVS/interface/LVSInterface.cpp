@@ -1,6 +1,7 @@
 #include "LVSInterface.hpp"
 
 #include "DataManager.hpp"
+#include "LVSChecker.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "Utility.hpp"
@@ -57,6 +58,13 @@ void LVSInterface::runLVS()
 {
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
+
+  LVSCheckResult& check_result = LVSDM.getDatabase().getCheckResult();
+  check_result = LVSChecker::check(LVSDM.getDatabase().getExpectedNetlist(), LVSDM.getDatabase().getPhysicalNetlist());
+  LVSLOG.info(Loc::current(), "LVS summary: expected nets = ", check_result.expected_net_num, ", physical nets = ", check_result.physical_net_num,
+              ", missing nets = ", check_result.missing_net_num, ", unexpected nets = ", check_result.unexpected_net_num, ", open nets = ",
+              check_result.open_net_num, ", missing terminals = ", check_result.missing_terminal_num, ", unrouted nets = ",
+              check_result.unrouted_net_num, ".");
 
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }

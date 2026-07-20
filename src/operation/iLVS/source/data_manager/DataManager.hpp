@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 
+#include "LVSDatabase.hpp"
+
 namespace ilvs {
 
 #define LVSDM (ilvs::DataManager::getInst())
@@ -16,6 +18,8 @@ class DataManager
   static void destroyInst();
 
   // getter
+  LVSDatabase& getDatabase() { return _database; }
+  const LVSDatabase& getDatabase() const { return _database; }
 
   // setter
 
@@ -25,6 +29,7 @@ class DataManager
 
  private:
   static DataManager* _dm_instance;
+  LVSDatabase _database;
 
   DataManager() = default;
   DataManager(const DataManager& other) = delete;

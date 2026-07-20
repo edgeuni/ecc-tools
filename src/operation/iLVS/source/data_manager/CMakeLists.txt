@@ -13,6 +13,9 @@ add_library(ilvs_data_manager
 target_link_libraries(ilvs_data_manager
     PUBLIC
     ilvs_toolkit
+    PRIVATE
+    ilvs_netlist_extractor
+    idm
 )
 
 target_include_directories(ilvs_data_manager
