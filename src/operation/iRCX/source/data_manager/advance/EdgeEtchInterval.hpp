@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -95,19 +95,19 @@ class EdgeEtchInterval
   double _end_coordinate = 0.0;
   double _center = 0.0;
   double _width = 0.0;
-  double _lower_spacing = kMaxMicron;
-  double _upper_spacing = kMaxMicron;
+  double _lower_spacing = DBL_MAX;
+  double _upper_spacing = DBL_MAX;
   double _thickness = 0.0;
   double _height = 0.0;
   double _res_center = 0.0;
   double _res_width = 0.0;
-  double _res_lower_spacing = kMaxMicron;
-  double _res_upper_spacing = kMaxMicron;
+  double _res_lower_spacing = DBL_MAX;
+  double _res_upper_spacing = DBL_MAX;
   double _res_thickness = 0.0;
   double _cap_center = 0.0;
   double _cap_width = 0.0;
-  double _cap_lower_spacing = kMaxMicron;
-  double _cap_upper_spacing = kMaxMicron;
+  double _cap_lower_spacing = DBL_MAX;
+  double _cap_upper_spacing = DBL_MAX;
   double _cap_thickness = 0.0;
 };
 

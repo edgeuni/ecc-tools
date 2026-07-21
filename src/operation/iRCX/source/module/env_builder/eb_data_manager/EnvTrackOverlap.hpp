@@ -17,31 +17,36 @@
 #pragma once
 
 #include "RCXHeader.hpp"
+#include "TopoEdge.hpp"
 
 namespace ircx {
 
-class CrossOverlapSub
+class EnvTrackOverlap
 {
  public:
-  CrossOverlapSub() = default;
-  ~CrossOverlapSub() = default;
+  EnvTrackOverlap() = default;
+  EnvTrackOverlap(int32_t start_coordinate, int32_t end_coordinate, int32_t spacing, TopoEdge* edge)
+      : _start_coordinate(start_coordinate), _end_coordinate(end_coordinate), _spacing(spacing), _edge(edge)
+  {
+  }
+  ~EnvTrackOverlap() = default;
   // getter
   int32_t get_start_coordinate() const { return _start_coordinate; }
   int32_t get_end_coordinate() const { return _end_coordinate; }
-  size_t get_above_layer_id() const { return _above_layer_id; }
-  size_t get_below_layer_id() const { return _below_layer_id; }
+  int32_t get_spacing() const { return _spacing; }
+  TopoEdge* get_edge() const { return _edge; }
   // setter
   void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
   void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
-  void set_above_layer_id(size_t above_layer_id) { _above_layer_id = above_layer_id; }
-  void set_below_layer_id(size_t below_layer_id) { _below_layer_id = below_layer_id; }
+  void set_spacing(int32_t spacing) { _spacing = spacing; }
+  void set_edge(TopoEdge* edge) { _edge = edge; }
   // function
 
  private:
   int32_t _start_coordinate = 0;
   int32_t _end_coordinate = 0;
-  size_t _above_layer_id = 0;
-  size_t _below_layer_id = 0;
+  int32_t _spacing = INT32_MAX;
+  TopoEdge* _edge = nullptr;
 };
 
 }  // namespace ircx

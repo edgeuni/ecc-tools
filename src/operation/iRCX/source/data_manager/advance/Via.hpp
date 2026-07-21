@@ -16,7 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "LayerShape.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -27,13 +28,13 @@ class Via
   ~Via() = default;
   // getter
   std::string& get_via_name() { return _via_name; }
-  GtlPointI& get_point() { return _point; }
+  GTLPointInt& get_point() { return _point; }
   LayerShape& get_top_layer_shape() { return _top_layer_shape; }
   LayerShape& get_cut_layer_shape() { return _cut_layer_shape; }
   LayerShape& get_bottom_layer_shape() { return _bottom_layer_shape; }
   // setter
   void set_via_name(const std::string& via_name) { _via_name = via_name; }
-  void set_point(const GtlPointI& point) { _point = point; }
+  void set_point(const GTLPointInt& point) { _point = point; }
   void set_top_layer_shape(const LayerShape& top_layer_shape) { _top_layer_shape = top_layer_shape; }
   void set_cut_layer_shape(const LayerShape& cut_layer_shape) { _cut_layer_shape = cut_layer_shape; }
   void set_bottom_layer_shape(const LayerShape& bottom_layer_shape) { _bottom_layer_shape = bottom_layer_shape; }
@@ -41,10 +42,10 @@ class Via
 
  private:
   std::string _via_name;
-  GtlPointI _point;
-  LayerShape _top_layer_shape = {kMaxSize, GtlRectI()};
-  LayerShape _cut_layer_shape = {kMaxSize, GtlRectI()};
-  LayerShape _bottom_layer_shape = {kMaxSize, GtlRectI()};
+  GTLPointInt _point;
+  LayerShape _top_layer_shape = LayerShape();
+  LayerShape _cut_layer_shape = LayerShape();
+  LayerShape _bottom_layer_shape = LayerShape();
 };
 
 }  // namespace ircx

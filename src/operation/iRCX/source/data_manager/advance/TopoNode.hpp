@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -30,13 +30,13 @@ class TopoNode
   size_t get_node_id() const { return _node_id; }
   size_t get_net_id() const { return _net_id; }
   size_t get_layer_id() const { return _layer_id; }
-  GtlPointI& get_point() { return _point; }
-  GtlRectI& get_shape() { return _shape; }
+  GTLPointInt& get_point() { return _point; }
+  GTLRectInt& get_shape() { return _shape; }
   std::string& get_pin_name() { return _pin_name; }
   // setter
   void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
-  void set_point(const GtlPointI& point) { _point = point; }
-  void set_shape(const GtlRectI& shape) { _shape = shape; }
+  void set_point(const GTLPointInt& point) { _point = point; }
+  void set_shape(const GTLRectInt& shape) { _shape = shape; }
   void set_pin_name(const std::string& pin_name) { _pin_name = pin_name; }
   // function
   bool get_is_pin_node() const { return !_pin_name.empty(); }
@@ -46,11 +46,11 @@ class TopoNode
 
   void set_node_id(size_t node_id) { _node_id = node_id; }
 
-  size_t _node_id = kMaxSize;
-  size_t _net_id = kMaxSize;
-  size_t _layer_id = kMaxSize;
-  GtlPointI _point;
-  GtlRectI _shape;
+  size_t _node_id = SIZE_MAX;
+  size_t _net_id = SIZE_MAX;
+  size_t _layer_id = SIZE_MAX;
+  GTLPointInt _point;
+  GTLRectInt _shape;
   std::string _pin_name;
 };
 

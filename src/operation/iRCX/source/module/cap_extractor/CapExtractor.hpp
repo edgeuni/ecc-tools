@@ -65,13 +65,13 @@ class CapExtractor
                                 int32_t end_coordinate);
   void getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t start_coordinate, int32_t end_coordinate,
                          std::string& below_layer_name, std::string& above_layer_name);
-  void addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, F64 ground_cap);
-  void addCouplingCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, F64 coupling_cap);
+  void addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, double ground_cap);
+  void addCouplingCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, double coupling_cap);
   ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
   CapTableConfig* getCapTableConfig(CornerData& corner_data, std::string& process_layer_name, std::string& below_layer_name,
                                     std::string& above_layer_name);
-  void getCap(CapTableConfig& cap_table_config, double spacing, F64& coupling_cap, F64& ground_cap);
-  void getFarthestCap(CapTableConfig& cap_table_config, F64& coupling_cap, F64& ground_cap);
+  void getCap(CapTableConfig& cap_table_config, double spacing, double& coupling_cap, double& ground_cap);
+  void getFarthestCap(CapTableConfig& cap_table_config, double& coupling_cap, double& ground_cap);
 };
 
 }  // namespace ircx

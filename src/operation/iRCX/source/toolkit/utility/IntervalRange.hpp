@@ -5,12 +5,13 @@
 //
 // iEDA is licensed under Mulan PSL v2.
 // You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of the License at:
+// You may obtain a copy of Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
@@ -19,25 +20,24 @@
 
 namespace ircx {
 
-class CapTableEntry
+template <typename T>
+class IntervalRange
 {
  public:
-  CapTableEntry() = default;
-  ~CapTableEntry() = default;
+  IntervalRange() = default;
+  IntervalRange(T start, T end) : _start(start), _end(end) {}
+  ~IntervalRange() = default;
   // getter
-  double get_distance() const { return _distance; }
-  double get_coupling_cap() const { return _coupling_cap; }
-  double get_ground_cap() const { return _ground_cap; }
+  T get_start() const { return _start; }
+  T get_end() const { return _end; }
   // setter
-  void set_distance(double distance) { _distance = distance; }
-  void set_coupling_cap(double coupling_cap) { _coupling_cap = coupling_cap; }
-  void set_ground_cap(double ground_cap) { _ground_cap = ground_cap; }
+  void set_start(T start) { _start = start; }
+  void set_end(T end) { _end = end; }
   // function
 
  private:
-  double _distance = 0.0;
-  double _coupling_cap = 0.0;
-  double _ground_cap = 0.0;
+  T _start = {};
+  T _end = {};
 };
 
 }  // namespace ircx

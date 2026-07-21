@@ -20,84 +20,23 @@
  */
 #pragma once
 
-#include "EnvIntervalUtils.hpp"
+#include "EnvOverlapWidenContext.hpp"
+#include "EnvSearchContext.hpp"
+#include "EnvTopoEdgeFixedLess.hpp"
+#include "EnvTrackOverlap.hpp"
 #include "LineSegment.hpp"
 #include "RCXHeader.hpp"
 #include "TopoEdge.hpp"
+#include "Utility.hpp"
 
 namespace ircx {
-
-// Parallel Overlap
-struct EnvTrackOverlap {
-  int32_t a0 = 0;
-  int32_t a1 = 0;
-
-  int32_t sp = kMaxDbu; // unsigned spacing = |current_fixed - coord|
-  // edge == nullptr means this interval is not covered by any matched edge.
-  TopoEdge* edge = nullptr;
-};
-
-struct EnvOverlapWidenContext {
-  int32_t track_distance;  // |current_track_idx - base_track_idx|
-  int32_t overlap_len;     // current raw overlap length before widening
-  TopoEdge* edge;  // matched edge
-};
 
 class EnvTrack
 {
  public:
-  using EnvOverlapWidenFunc = std::function<int32_t(const EnvOverlapWidenContext&)>;
-
- private:
-  struct EnvRemainingInterval {
-    int32_t a0 = 0;
-    int32_t a1 = 0;
-  };
-
-  struct EnvSearchContext {
-    int32_t coord = 0;
-    int32_t base_track_idx = 0;
-    int32_t query_a0 = 0;
-    int32_t query_a1 = 0;
-    int step = 0;
-    const EnvOverlapWidenFunc* widen_func = nullptr;
-  };
-
-  struct EnvTopoEdgeFixedLess
-  {
-    using is_transparent = void;
-
-    bool operator()(TopoEdge* lhs,
-                    TopoEdge* rhs) const
-    {
-      if (lhs == rhs) {
-        return false;
-      }
-      if (lhs == nullptr || rhs == nullptr) {
-        return lhs < rhs;
-      }
-      if (lhs->get_line_segment().get_coordinate() != rhs->get_line_segment().get_coordinate()) {
-        return lhs->get_line_segment().get_coordinate() < rhs->get_line_segment().get_coordinate();
-      }
-      return lhs < rhs;
-    }
-
-    bool operator()(TopoEdge* lhs,
-                    int32_t rhs_coord) const
-    {
-      return lhs->get_line_segment().get_coordinate() < rhs_coord;
-    }
-
-    bool operator()(int32_t lhs_coord,
-                    TopoEdge* rhs) const
-    {
-      return lhs_coord < rhs->get_line_segment().get_coordinate();
-    }
-  };
-
+  using EnvOverlapWidenFunc = ircx::EnvOverlapWidenFunc;
   using EnvEdgeSet = std::set<TopoEdge*, EnvTopoEdgeFixedLess>;
-
- public:
+  using EnvRemainingInterval = IntervalRange<int32_t>;
   EnvTrack() = default;
   ~EnvTrack() = default;
 
@@ -138,7 +77,7 @@ class EnvTrack
   {
     int32_t a0 = edge.get_line_segment().get_lower();
     int32_t a1 = edge.get_line_segment().get_upper();
-    ircx::env_interval::normalize(a0, a1);
+    RCXUTIL.normalizeInterval(a0, a1);
 
     const int32_t track_idx = coordToTrack(edge.get_line_segment().get_coordinate());
     const int32_t bucket_idx0 = coordToBucket(a0);
@@ -177,7 +116,7 @@ class EnvTrack
   //   - output:
   //       single-side widening length
   //   - widening is symmetric:
-  //       widened interval = (ov.a0 - ext, ov.a1 + ext)
+  //       widened interval = (overlap_start - ext, overlap_end + ext)
   //   - widened interval is clipped into the original query interval [a0, a1]
   //
   // search strategy:
@@ -200,8 +139,8 @@ class EnvTrack
 
     int32_t a0 = line_seg.get_lower();
     int32_t a1 = line_seg.get_upper();
-    ircx::env_interval::normalize(a0, a1);
-    if (!intervalValid({a0, a1})) {
+    RCXUTIL.normalizeInterval(a0, a1);
+    if (!RCXUTIL.isIntervalValid(a0, a1)) {
       return result;
     }
 
@@ -215,27 +154,21 @@ class EnvTrack
     }
 
     std::vector<EnvRemainingInterval> remaining;
-    remaining.push_back({query_a0, query_a1});
+    remaining.emplace_back(query_a0, query_a1);
 
-    const int step = (search_track_num > 0) ? 1 : -1;
+    const int32_t step = (search_track_num > 0) ? 1 : -1;
     const int32_t tracks_to_search = (search_track_num > 0) ? search_track_num : -search_track_num;
 
-    EnvSearchContext ctx;
-    ctx.coord = coord;
-    ctx.base_track_idx = base_track_idx;
-    ctx.query_a0 = query_a0;
-    ctx.query_a1 = query_a1;
-    ctx.step = step;
-    ctx.widen_func = &widen_func;
+    EnvSearchContext ctx(coord, base_track_idx, query_a0, query_a1, step, widen_func);
 
     remaining = searchAcrossTracks(base_track_idx, tracks_to_search, remaining, result, ctx);
 
-    for (const auto& iv : remaining) {
+    for (const EnvRemainingInterval& interval : remaining) {
       EnvTrackOverlap ov;
-      ov.a0 = iv.a0;
-      ov.a1 = iv.a1;
-      ov.sp = kMaxDbu;
-      ov.edge = nullptr;
+      ov.set_start_coordinate(interval.get_start());
+      ov.set_end_coordinate(interval.get_end());
+      ov.set_spacing(INT32_MAX);
+      ov.set_edge(nullptr);
       result.push_back(ov);
     }
 
@@ -243,16 +176,14 @@ class EnvTrack
   }
 
  private:
-  static bool intervalValid(const EnvRemainingInterval& iv) { return iv.a0 < iv.a1; }
-
   static bool edgeIsInSearchDirection(TopoEdge* edge,
                                       const EnvSearchContext& ctx)
   {
     if (edge == nullptr) {
       return false;
     }
-    return (ctx.step > 0) ? (edge->get_line_segment().get_coordinate() > ctx.coord)
-                          : (edge->get_line_segment().get_coordinate() < ctx.coord);
+    return (ctx.get_step() > 0) ? (edge->get_line_segment().get_coordinate() > ctx.get_coordinate())
+                                : (edge->get_line_segment().get_coordinate() < ctx.get_coordinate());
   }
 
   static EnvTrackOverlap applyWidenAndClip(const EnvTrackOverlap& ov,
@@ -261,25 +192,27 @@ class EnvTrack
   {
     EnvTrackOverlap widened = ov;
 
-    if (ctx.widen_func != nullptr && *ctx.widen_func && ov.edge != nullptr) {
-      const EnvOverlapWidenContext widen_ctx = {
-          .track_distance = std::abs(track_idx - ctx.base_track_idx),
-          .overlap_len = ov.a1 - ov.a0,
-          .edge = ov.edge,
-      };
+    if (ctx.get_widen_func() && ov.get_edge() != nullptr) {
+      const EnvOverlapWidenContext widen_context(std::abs(track_idx - ctx.get_base_track_index()),
+                                                  ov.get_end_coordinate() - ov.get_start_coordinate(),
+                                                  *ov.get_edge());
 
-      int32_t ext = (*ctx.widen_func)(widen_ctx);
+      int32_t ext = ctx.get_widen_func()(widen_context);
       if (ext < 0) {
         ext = 0;
       }
 
-      widened.a0 -= ext;
-      widened.a1 += ext;
+      widened.set_start_coordinate(widened.get_start_coordinate() - ext);
+      widened.set_end_coordinate(widened.get_end_coordinate() + ext);
     }
 
     // clip into original query interval [query_a0, query_a1]
-    widened.a0 = std::clamp(widened.a0, ctx.query_a0, ctx.query_a1);
-    widened.a1 = std::clamp(widened.a1, ctx.query_a0, ctx.query_a1);
+    widened.set_start_coordinate(std::clamp(widened.get_start_coordinate(),
+                                            ctx.get_query_start_coordinate(),
+                                            ctx.get_query_end_coordinate()));
+    widened.set_end_coordinate(std::clamp(widened.get_end_coordinate(),
+                                          ctx.get_query_start_coordinate(),
+                                          ctx.get_query_end_coordinate()));
 
     return widened;
   }
@@ -292,9 +225,9 @@ class EnvTrack
       return ordered;
     }
 
-    for (const auto& iv : remaining) {
-      int32_t bucket_idx0 = coordToBucket(iv.a0);
-      int32_t bucket_idx1 = coordToBucket(iv.a1 - 1);
+    for (const EnvRemainingInterval& interval : remaining) {
+      int32_t bucket_idx0 = coordToBucket(interval.get_start());
+      int32_t bucket_idx1 = coordToBucket(interval.get_end() - 1);
       if (bucket_idx0 > bucket_idx1) {
         std::swap(bucket_idx0, bucket_idx1);
       }
@@ -304,7 +237,7 @@ class EnvTrack
       }
 
       for (int32_t b = bucket_idx0; b <= bucket_idx1; ++b) {
-        const auto& edge_set = track_buckets_[track_idx][b];
+        const EnvEdgeSet& edge_set = track_buckets_[track_idx][b];
         ordered.insert(edge_set.begin(), edge_set.end());
       }
     }
@@ -321,10 +254,10 @@ class EnvTrack
 
     int32_t edge_a0 = edge->get_line_segment().get_lower();
     int32_t edge_a1 = edge->get_line_segment().get_upper();
-    ircx::env_interval::normalize(edge_a0, edge_a1);
+    RCXUTIL.normalizeInterval(edge_a0, edge_a1);
 
-    for (const auto& iv : remaining) {
-      if (ircx::env_interval::overlaps(edge_a0, edge_a1, iv.a0, iv.a1)) {
+    for (const EnvRemainingInterval& interval : remaining) {
+      if (RCXUTIL.isIntervalOverlap(edge_a0, edge_a1, interval.get_start(), interval.get_end())) {
         return true;
       }
     }
@@ -343,28 +276,29 @@ class EnvTrack
 
     int32_t edge_a0 = edge->get_line_segment().get_lower();
     int32_t edge_a1 = edge->get_line_segment().get_upper();
-    ircx::env_interval::normalize(edge_a0, edge_a1);
+    RCXUTIL.normalizeInterval(edge_a0, edge_a1);
 
-    for (const auto& iv : remaining) {
-      if (!ircx::env_interval::overlaps(edge_a0, edge_a1, iv.a0, iv.a1)) {
+    for (const EnvRemainingInterval& interval : remaining) {
+      if (!RCXUTIL.isIntervalOverlap(edge_a0, edge_a1, interval.get_start(), interval.get_end())) {
         continue;
       }
 
-      const auto overlap = ircx::env_interval::intersection(edge_a0, edge_a1, iv.a0, iv.a1);
+      const IntervalRange<int32_t> overlap =
+          RCXUTIL.getIntervalIntersection(edge_a0, edge_a1, interval.get_start(), interval.get_end());
       EnvTrackOverlap ov;
-      ov.a0 = overlap.a0;
-      ov.a1 = overlap.a1;
-      ov.sp = std::abs(edge->get_line_segment().get_coordinate() - ctx.coord);
-      ov.edge = edge;
+      ov.set_start_coordinate(overlap.get_start());
+      ov.set_end_coordinate(overlap.get_end());
+      ov.set_spacing(std::abs(edge->get_line_segment().get_coordinate() - ctx.get_coordinate()));
+      ov.set_edge(edge);
 
-      if (ov.a0 < ov.a1) {
+      if (ov.get_start_coordinate() < ov.get_end_coordinate()) {
         EnvTrackOverlap widened = applyWidenAndClip(ov, track_idx, ctx);
 
         // widened interval should not cross the current remaining fragment
-        widened.a0 = std::max(widened.a0, iv.a0);
-        widened.a1 = std::min(widened.a1, iv.a1);
+        widened.set_start_coordinate(std::max(widened.get_start_coordinate(), interval.get_start()));
+        widened.set_end_coordinate(std::min(widened.get_end_coordinate(), interval.get_end()));
 
-        if (widened.a0 < widened.a1) {
+        if (widened.get_start_coordinate() < widened.get_end_coordinate()) {
           overlaps.push_back(widened);
         }
       }
@@ -390,18 +324,18 @@ class EnvTrack
       return;
     }
 
-    if (ctx.step > 0) {
-      for (auto it = ordered.upper_bound(ctx.coord);
-           it != ordered.end() && !remaining.empty();
-           ++it) {
-        consumeEdge(track_idx, *it, remaining, result, ctx);
+    if (ctx.get_step() > 0) {
+      for (EnvEdgeSet::const_iterator iter = ordered.upper_bound(ctx.get_coordinate());
+           iter != ordered.end() && !remaining.empty();
+           ++iter) {
+        consumeEdge(track_idx, *iter, remaining, result, ctx);
       }
     } else {
-      auto it = ordered.lower_bound(ctx.coord);
-      for (auto rit = std::make_reverse_iterator(it);
-           rit != ordered.rend() && !remaining.empty();
-           ++rit) {
-        consumeEdge(track_idx, *rit, remaining, result, ctx);
+      EnvEdgeSet::const_iterator iter = ordered.lower_bound(ctx.get_coordinate());
+      for (EnvEdgeSet::const_reverse_iterator reverse_iter = std::make_reverse_iterator(iter);
+           reverse_iter != ordered.rend() && !remaining.empty();
+           ++reverse_iter) {
+        consumeEdge(track_idx, *reverse_iter, remaining, result, ctx);
       }
     }
   }
@@ -425,7 +359,7 @@ class EnvTrack
 
     std::vector<EnvRemainingInterval> next_remaining = remaining;
     for (const EnvTrackOverlap& overlap : overlap_list) {
-      next_remaining = ircx::env_interval::subtract(next_remaining, overlap.a0, overlap.a1);
+      next_remaining = RCXUTIL.subtractInterval(next_remaining, overlap.get_start_coordinate(), overlap.get_end_coordinate());
       if (next_remaining.empty()) {
         break;
       }
@@ -457,20 +391,20 @@ class EnvTrack
     std::vector<EnvTrackOverlap> local_overlaps;
     searchWithinTrack(track_idx, remaining, local_overlaps, ctx);
 
-    for (const auto& ov : local_overlaps) {
+    for (const EnvTrackOverlap& overlap : local_overlaps) {
       // Defensive check: the directional constraint should already be guaranteed by
-      if (!edgeIsInSearchDirection(ov.edge, ctx)) {
+      if (!edgeIsInSearchDirection(overlap.get_edge(), ctx)) {
         continue;
       }
 
-      result.push_back(ov);
-      remaining = ircx::env_interval::subtract(remaining, ov.a0, ov.a1);
+      result.push_back(overlap);
+      remaining = RCXUTIL.subtractInterval(remaining, overlap.get_start_coordinate(), overlap.get_end_coordinate());
       if (remaining.empty()) {
         return remaining;
       }
     }
 
-    return searchAcrossTracks(track_idx + ctx.step, tracks_left - 1, remaining, result, ctx);
+    return searchAcrossTracks(track_idx + ctx.get_step(), tracks_left - 1, remaining, result, ctx);
   }
 
  private:

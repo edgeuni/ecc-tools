@@ -50,7 +50,7 @@ class Net
   // function
 
  private:
-  size_t _net_id = kMaxSize;
+  size_t _net_id = SIZE_MAX;
   std::string _net_name;
   std::vector<Segment> _segment_list;
   std::vector<Patch> _patch_list;

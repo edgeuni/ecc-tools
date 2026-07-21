@@ -23,42 +23,41 @@
 #include <omp.h>
 
 #include "RCXHeader.hpp"
-#include "RCXType.hpp"
 
 namespace ircx {
 namespace env_parallel {
 
-inline auto cappedWorkItems(size_t work_items) -> int
+inline int32_t cappedWorkItems(size_t work_items)
 {
-  constexpr auto max_int = static_cast<size_t>(std::numeric_limits<int>::max());
-  return work_items > max_int ? std::numeric_limits<int>::max() : static_cast<int>(work_items);
+  constexpr size_t max_thread_count = static_cast<size_t>(INT32_MAX);
+  return work_items > max_thread_count ? INT32_MAX : static_cast<int32_t>(work_items);
 }
 
-inline auto threadCount(size_t work_items,
-                        int requested_threads) -> int
+inline int32_t threadCount(size_t work_items,
+                           int32_t requested_threads)
 {
   if (work_items == 0) {
     return 1;
   }
 
-  int threads = requested_threads > 0 ? requested_threads : 1;
-  threads = std::min(threads, omp_get_max_threads());
+  int32_t threads = requested_threads > 0 ? requested_threads : 1;
+  threads = std::min(threads, static_cast<int32_t>(omp_get_max_threads()));
   return std::min(threads, cappedWorkItems(work_items));
 }
 
-inline auto threadCount(size_t work_items) -> int
+inline int32_t threadCount(size_t work_items)
 {
-  return threadCount(work_items, omp_get_max_threads());
+  return threadCount(work_items, static_cast<int32_t>(omp_get_max_threads()));
 }
 
-inline auto requestedThreadCount(size_t work_items,
-                                 int requested_threads) -> int
+inline int32_t requestedThreadCount(size_t work_items,
+                                    int32_t requested_threads)
 {
   if (work_items == 0) {
     return 1;
   }
 
-  const int threads = requested_threads > 0 ? requested_threads : 1;
+  const int32_t threads = requested_threads > 0 ? requested_threads : 1;
   return std::min(threads, cappedWorkItems(work_items));
 }
 

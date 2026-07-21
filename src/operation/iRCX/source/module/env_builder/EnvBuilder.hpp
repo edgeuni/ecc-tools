@@ -19,7 +19,8 @@
 #include "DataManager.hpp"
 #include "EBModel.hpp"
 #include "EnvAxis.hpp"
-#include "EnvIntervalEngine.hpp"
+#include "EnvLayerPixelOverlaps.hpp"
+#include "EnvPixelOverlapMerge.hpp"
 #include "EnvTrack.hpp"
 #include "LineSegment.hpp"
 #include "Logger.hpp"
@@ -55,13 +56,13 @@ class EnvBuilder
   void buildEBModel(EBModel& eb_model);
   bool buildNetEnvs(EBModel& eb_model);
   std::vector<CrossOverlapSub> clipCrossSegments(const std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t a0, int32_t a1);
-  std::vector<EnvPixelOverlapMerge::EnvLayerPixelOverlaps> collectCrossSide(EBModel& eb_model,
-                                                                              const LineSegment& line_segment,
-                                                                              size_t base_lid,
-                                                                              bool search_up);
+  std::vector<EnvLayerPixelOverlaps> collectCrossSide(EBModel& eb_model,
+                                                       const LineSegment& line_segment,
+                                                       size_t base_lid,
+                                                       bool search_up);
   bool buildTracks(EBModel& eb_model);
   void addTrackEdge(EBModel& eb_model, TopoEdge& edge);
-  bool initTrackForDirection(EnvTrack& track, TrackInfo& track_info, GtlRectI& rect, int32_t bucket_dlt, bool is_horz);
+  bool initTrackForDirection(EnvTrack& track, TrackInfo& track_info, GTLRectInt& rect, int32_t bucket_dlt, bool is_horz);
   EnvAxis coverAxis(int32_t origin, int32_t count, int32_t step, int32_t lo, int32_t hi);
   int32_t ceilDivPositive(int32_t value, int32_t divisor);
   bool buildPixels(EBModel& eb_model);

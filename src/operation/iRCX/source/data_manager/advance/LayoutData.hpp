@@ -17,6 +17,7 @@
 #pragma once
 
 #include "Net.hpp"
+#include "RCXHeader.hpp"
 #include "RoutingLayer.hpp"
 
 namespace ircx {
@@ -28,14 +29,14 @@ class LayoutData
   ~LayoutData() = default;
   // getter
   std::string& get_design_name() { return _design_name; }
-  GtlRectI& get_die_shape() { return _die_shape; }
+  GTLRectInt& get_die_shape() { return _die_shape; }
   int32_t get_dbu_per_micron() const { return _dbu_per_micron; }
   std::map<size_t, RoutingLayer>& get_routing_layer_map() { return _routing_layer_map; }
   std::vector<Net>& get_net_list() { return _net_list; }
   Net& get_special_net() { return _special_net; }
   // setter
   void set_design_name(const std::string& design_name) { _design_name = design_name; }
-  void set_die_shape(const GtlRectI& die_shape) { _die_shape = die_shape; }
+  void set_die_shape(const GTLRectInt& die_shape) { _die_shape = die_shape; }
   void set_dbu_per_micron(int32_t dbu_per_micron) { _dbu_per_micron = dbu_per_micron; }
   void set_routing_layer_map(const std::map<size_t, RoutingLayer>& routing_layer_map) { _routing_layer_map = routing_layer_map; }
   void set_net_list(const std::vector<Net>& net_list) { _net_list = net_list; }
@@ -46,7 +47,7 @@ class LayoutData
 
  private:
   std::string _design_name;
-  GtlRectI _die_shape;
+  GTLRectInt _die_shape;
   int32_t _dbu_per_micron = 1;
   std::map<size_t, RoutingLayer> _routing_layer_map;
   std::vector<Net> _net_list;

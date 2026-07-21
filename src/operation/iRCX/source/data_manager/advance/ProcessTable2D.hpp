@@ -15,7 +15,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -25,30 +25,30 @@ class ProcessTable2D
   ProcessTable2D() = default;
   ~ProcessTable2D() = default;
   // getter
-  std::vector<F64>& get_row_list() { return _row_list; }
-  std::vector<F64>& get_column_list() { return _column_list; }
-  std::vector<F64>& get_value_list() { return _value_list; }
-  const std::vector<F64>& get_row_list() const { return _row_list; }
-  const std::vector<F64>& get_column_list() const { return _column_list; }
-  const std::vector<F64>& get_value_list() const { return _value_list; }
+  std::vector<double>& get_row_list() { return _row_list; }
+  std::vector<double>& get_column_list() { return _column_list; }
+  std::vector<double>& get_value_list() { return _value_list; }
+  const std::vector<double>& get_row_list() const { return _row_list; }
+  const std::vector<double>& get_column_list() const { return _column_list; }
+  const std::vector<double>& get_value_list() const { return _value_list; }
   // setter
-  void set_row_list(const std::vector<F64>& row_list) { _row_list = row_list; }
-  void set_column_list(const std::vector<F64>& column_list) { _column_list = column_list; }
-  void set_value_list(const std::vector<F64>& value_list) { _value_list = value_list; }
+  void set_row_list(const std::vector<double>& row_list) { _row_list = row_list; }
+  void set_column_list(const std::vector<double>& column_list) { _column_list = column_list; }
+  void set_value_list(const std::vector<double>& value_list) { _value_list = value_list; }
   // function
   bool get_is_empty() const { return _row_list.empty() || _column_list.empty() || _value_list.empty(); }
-  std::optional<F64> query(F64 row, F64 column) const;
+  std::optional<double> query(double row, double column) const;
 
  private:
-  std::pair<size_t, size_t> get_bounding_index_pair(const std::vector<F64>& axis, F64 value) const;
-  std::optional<F64> get_value(size_t row_idx, size_t column_idx) const;
+  std::pair<size_t, size_t> get_bounding_index_pair(const std::vector<double>& axis, double value) const;
+  std::optional<double> get_value(size_t row_idx, size_t column_idx) const;
 
-  std::vector<F64> _row_list;
-  std::vector<F64> _column_list;
-  std::vector<F64> _value_list;
+  std::vector<double> _row_list;
+  std::vector<double> _column_list;
+  std::vector<double> _value_list;
 };
 
-inline std::optional<F64> ProcessTable2D::query(F64 row, F64 column) const
+inline std::optional<double> ProcessTable2D::query(double row, double column) const
 {
   if (get_is_empty()) {
     return std::nullopt;
@@ -56,7 +56,7 @@ inline std::optional<F64> ProcessTable2D::query(F64 row, F64 column) const
 
   std::pair<size_t, size_t> row_index_pair = get_bounding_index_pair(_row_list, row);
   std::pair<size_t, size_t> column_index_pair = get_bounding_index_pair(_column_list, column);
-  std::optional<F64> low_low_value = get_value(row_index_pair.first, column_index_pair.first);
+  std::optional<double> low_low_value = get_value(row_index_pair.first, column_index_pair.first);
   if (!low_low_value.has_value()) {
     return std::nullopt;
   }
@@ -64,48 +64,48 @@ inline std::optional<F64> ProcessTable2D::query(F64 row, F64 column) const
     return low_low_value;
   }
 
-  F64 row_ratio = 0.0;
+  double row_ratio = 0.0;
   if (row_index_pair.first != row_index_pair.second) {
-    F64 row_delta = _row_list[row_index_pair.second] - _row_list[row_index_pair.first];
+    double row_delta = _row_list[row_index_pair.second] - _row_list[row_index_pair.first];
     if (row_delta != 0.0) {
       row_ratio = (row - _row_list[row_index_pair.first]) / row_delta;
     }
   }
-  F64 column_ratio = 0.0;
+  double column_ratio = 0.0;
   if (column_index_pair.first != column_index_pair.second) {
-    F64 column_delta = _column_list[column_index_pair.second] - _column_list[column_index_pair.first];
+    double column_delta = _column_list[column_index_pair.second] - _column_list[column_index_pair.first];
     if (column_delta != 0.0) {
       column_ratio = (column - _column_list[column_index_pair.first]) / column_delta;
     }
   }
 
   if (row_index_pair.first == row_index_pair.second) {
-    std::optional<F64> low_high_value = get_value(row_index_pair.first, column_index_pair.second);
+    std::optional<double> low_high_value = get_value(row_index_pair.first, column_index_pair.second);
     if (!low_high_value.has_value()) {
       return std::nullopt;
     }
     return std::lerp(low_low_value.value(), low_high_value.value(), column_ratio);
   }
   if (column_index_pair.first == column_index_pair.second) {
-    std::optional<F64> high_low_value = get_value(row_index_pair.second, column_index_pair.first);
+    std::optional<double> high_low_value = get_value(row_index_pair.second, column_index_pair.first);
     if (!high_low_value.has_value()) {
       return std::nullopt;
     }
     return std::lerp(low_low_value.value(), high_low_value.value(), row_ratio);
   }
 
-  std::optional<F64> low_high_value = get_value(row_index_pair.first, column_index_pair.second);
-  std::optional<F64> high_low_value = get_value(row_index_pair.second, column_index_pair.first);
-  std::optional<F64> high_high_value = get_value(row_index_pair.second, column_index_pair.second);
+  std::optional<double> low_high_value = get_value(row_index_pair.first, column_index_pair.second);
+  std::optional<double> high_low_value = get_value(row_index_pair.second, column_index_pair.first);
+  std::optional<double> high_high_value = get_value(row_index_pair.second, column_index_pair.second);
   if (!low_high_value.has_value() || !high_low_value.has_value() || !high_high_value.has_value()) {
     return std::nullopt;
   }
-  F64 low_value = std::lerp(low_low_value.value(), low_high_value.value(), column_ratio);
-  F64 high_value = std::lerp(high_low_value.value(), high_high_value.value(), column_ratio);
+  double low_value = std::lerp(low_low_value.value(), low_high_value.value(), column_ratio);
+  double high_value = std::lerp(high_low_value.value(), high_high_value.value(), column_ratio);
   return std::lerp(low_value, high_value, row_ratio);
 }
 
-inline std::pair<size_t, size_t> ProcessTable2D::get_bounding_index_pair(const std::vector<F64>& axis, F64 value) const
+inline std::pair<size_t, size_t> ProcessTable2D::get_bounding_index_pair(const std::vector<double>& axis, double value) const
 {
   if (value <= axis.front()) {
     return std::make_pair(0, 0);
@@ -115,7 +115,7 @@ inline std::pair<size_t, size_t> ProcessTable2D::get_bounding_index_pair(const s
     return std::make_pair(last_idx, last_idx);
   }
 
-  std::vector<F64>::const_iterator high_iter = std::lower_bound(axis.begin(), axis.end(), value);
+  std::vector<double>::const_iterator high_iter = std::lower_bound(axis.begin(), axis.end(), value);
   size_t high_idx = static_cast<size_t>(std::distance(axis.begin(), high_iter));
   if (*high_iter == value) {
     return std::make_pair(high_idx, high_idx);
@@ -123,7 +123,7 @@ inline std::pair<size_t, size_t> ProcessTable2D::get_bounding_index_pair(const s
   return std::make_pair(high_idx - 1, high_idx);
 }
 
-inline std::optional<F64> ProcessTable2D::get_value(size_t row_idx, size_t column_idx) const
+inline std::optional<double> ProcessTable2D::get_value(size_t row_idx, size_t column_idx) const
 {
   if (row_idx >= _row_list.size() || column_idx >= _column_list.size()) {
     return std::nullopt;

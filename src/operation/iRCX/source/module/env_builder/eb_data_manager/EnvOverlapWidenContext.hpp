@@ -5,39 +5,43 @@
 //
 // iEDA is licensed under Mulan PSL v2.
 // You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of the License at:
+// You may obtain a copy of Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
 #include "RCXHeader.hpp"
+#include "TopoEdge.hpp"
 
 namespace ircx {
 
-class CapTableEntry
+class EnvOverlapWidenContext
 {
  public:
-  CapTableEntry() = default;
-  ~CapTableEntry() = default;
+  EnvOverlapWidenContext(int32_t track_distance, int32_t overlap_length, TopoEdge& edge)
+      : _track_distance(track_distance), _overlap_length(overlap_length), _edge(edge)
+  {
+  }
+  ~EnvOverlapWidenContext() = default;
   // getter
-  double get_distance() const { return _distance; }
-  double get_coupling_cap() const { return _coupling_cap; }
-  double get_ground_cap() const { return _ground_cap; }
+  int32_t get_track_distance() const { return _track_distance; }
+  int32_t get_overlap_length() const { return _overlap_length; }
+  TopoEdge& get_edge() const { return _edge; }
   // setter
-  void set_distance(double distance) { _distance = distance; }
-  void set_coupling_cap(double coupling_cap) { _coupling_cap = coupling_cap; }
-  void set_ground_cap(double ground_cap) { _ground_cap = ground_cap; }
   // function
 
  private:
-  double _distance = 0.0;
-  double _coupling_cap = 0.0;
-  double _ground_cap = 0.0;
+  int32_t _track_distance = 0;
+  int32_t _overlap_length = 0;
+  TopoEdge& _edge;
 };
+
+using EnvOverlapWidenFunc = std::function<int32_t(const EnvOverlapWidenContext&)>;
 
 }  // namespace ircx

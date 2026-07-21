@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -39,8 +39,8 @@ class CornerNetId
   // function
 
  private:
-  size_t _corner_idx = kMaxSize;
-  size_t _net_idx = kMaxSize;
+  size_t _corner_idx = SIZE_MAX;
+  size_t _net_idx = SIZE_MAX;
 };
 
 }  // namespace ircx

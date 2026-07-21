@@ -39,15 +39,15 @@ int main()
   node_list.emplace_back(0);
   node_list[0].set_layer_id(1);
   node_list[1].set_layer_id(1);
-  node_list[0].set_point(ircx::GtlPointI(0, 5));
-  node_list[1].set_point(ircx::GtlPointI(100, 5));
+  node_list[0].set_point(GTLPointInt(0, 5));
+  node_list[1].set_point(GTLPointInt(100, 5));
 
   std::vector<ircx::TopoEdge> edge_list;
   edge_list.emplace_back(0);
   edge_list[0].set_start_node_idx(0);
   edge_list[0].set_end_node_idx(1);
   edge_list[0].set_layer_id(1);
-  edge_list[0].set_shape(ircx::GtlRectI(0, 0, 100, 10));
+  edge_list[0].set_shape(GTLRectInt(0, 0, 100, 10));
 
   ircx::TopoPool topo_pool;
   topo_pool.reserve(1, node_list.size(), edge_list.size());
@@ -55,20 +55,25 @@ int main()
   assert(topo_pool.get_net_node_list(0).size() == 2);
   assert(topo_pool.get_net_edge_list(0).size() == 1);
   assert(topo_pool.get_net_edge_list(0)[0].get_line_segment().get_is_horizontal());
+  assert(!topo_pool.get_net_edge_list(0)[0].get_is_special_net());
+
+  std::vector<ircx::TopoEdge> special_edge_list(1);
+  topo_pool.add_special_edge_list(std::move(special_edge_list));
+  assert(topo_pool.get_special_edge_pool().at(0).get_is_special_net());
 
   ircx::RCTable rc_table;
   rc_table.init(2, 1, topo_pool);
   ircx::CornerNetId corner_net_id(1, 0);
-  std::span<ircx::F64> res_list = rc_table.get_corner_net_res_list(corner_net_id);
-  std::span<ircx::F64> ground_cap_list = rc_table.get_corner_net_gcap_list(corner_net_id);
+  std::span<double> res_list = rc_table.get_corner_net_res_list(corner_net_id);
+  std::span<double> ground_cap_list = rc_table.get_corner_net_gcap_list(corner_net_id);
   assert(res_list.size() == 1);
   assert(ground_cap_list.size() == 1);
   res_list[0] = 1.25;
   ground_cap_list[0] = 0.75;
-  rc_table.append_net_ccap_entry(0, 0, 0, 1, 0.5F);
+  rc_table.append_net_ccap_entry(0, 0, 0, 1, 0.5);
   rc_table.merge_net_ccap_entry_list();
   ircx::CouplingKey coupling_key(0, 0);
-  assert(rc_table.get_merged_ccap_map().at(coupling_key).at(1) == 0.5F);
+  assert(rc_table.get_merged_ccap_map().at(coupling_key).at(1) == 0.5);
 
   ircx::NetEnv net_env;
   std::vector<ircx::EdgeEnvInterval> env_interval_list(1);

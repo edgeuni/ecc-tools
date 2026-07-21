@@ -20,21 +20,13 @@
  */
 #pragma once
 
-#include "EnvIntervalUtils.hpp"
-#include "EnvGeometry.hpp"
+#include "EnvPixelOverlap.hpp"
 #include "LineSegment.hpp"
 #include "RCXHeader.hpp"
+#include "Utility.hpp"
 #include "TopoEdge.hpp"
 
 namespace ircx {
-
-// Perpendicular Overlap
-struct EnvPixelOverlap
-{
-  int32_t a0 = 0;
-  int32_t a1 = 0;
-  bool empty() const { return a1 <= a0; }
-};
 
 class EnvPixel
 {
@@ -83,12 +75,12 @@ class EnvPixel
       }
     }
 
-    const GtlRectI& rect = edge.get_shape();
+    const GTLRectInt& rect = edge.get_shape();
 
-    int32_t x0 = env_geom::minX(rect);
-    int32_t y0 = env_geom::minY(rect);
-    int32_t x1 = env_geom::maxX(rect);
-    int32_t y1 = env_geom::maxY(rect);
+    int32_t x0 = RCXUTIL.minX(rect);
+    int32_t y0 = RCXUTIL.minY(rect);
+    int32_t x1 = RCXUTIL.maxX(rect);
+    int32_t y1 = RCXUTIL.maxY(rect);
 
     if (x0 >= x1 || y0 >= y1) {
       return;
@@ -122,7 +114,7 @@ class EnvPixel
     int32_t a0 = line_seg.get_lower();
     int32_t a1 = line_seg.get_upper();
 
-    ircx::env_interval::normalize(a0, a1);
+    RCXUTIL.normalizeInterval(a0, a1);
 
     if (is_horz) {
       const int32_t fixed_y_idx = coordToYIdx(fixed);
@@ -192,9 +184,9 @@ class EnvPixel
       return;
     }
 
-    const int32_t lo = ircx::env_interval::midpoint(getAxisCoordinate(start_idx, is_horz), getAxisCoordinate(start_idx + 1, is_horz));
+    const int32_t lo = RCXUTIL.getIntervalMidpoint(getAxisCoordinate(start_idx, is_horz), getAxisCoordinate(start_idx + 1, is_horz));
     const int32_t hi =
-        ircx::env_interval::midpoint(getAxisCoordinate(end_idx_exclusive - 1, is_horz), getAxisCoordinate(end_idx_exclusive, is_horz));
+        RCXUTIL.getIntervalMidpoint(getAxisCoordinate(end_idx_exclusive - 1, is_horz), getAxisCoordinate(end_idx_exclusive, is_horz));
     EnvPixelOverlap pixel_overlap = clipPixelOverlap(lo, hi, a0, a1);
     if (!pixel_overlap.empty()) {
       pixel_overlap_list.push_back(pixel_overlap);
@@ -204,8 +196,8 @@ class EnvPixel
   EnvPixelOverlap clipPixelOverlap(int32_t coordinate_lo, int32_t coordinate_hi, int32_t a0, int32_t a1) const
   {
     EnvPixelOverlap pixel_overlap;
-    pixel_overlap.a0 = std::max(coordinate_lo, a0);
-    pixel_overlap.a1 = std::min(coordinate_hi, a1);
+    pixel_overlap.set_start_coordinate(std::max(coordinate_lo, a0));
+    pixel_overlap.set_end_coordinate(std::min(coordinate_hi, a1));
     return pixel_overlap;
   }
 

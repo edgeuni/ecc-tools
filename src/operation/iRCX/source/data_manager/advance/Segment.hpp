@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -27,21 +27,21 @@ class Segment
   ~Segment() = default;
   // getter
   size_t get_layer_id() const { return _layer_id; }
-  GtlRectI& get_shape() { return _shape; }
-  GtlPointI& get_start_point() { return _start_point; }
-  GtlPointI& get_end_point() { return _end_point; }
+  GTLRectInt& get_shape() { return _shape; }
+  GTLPointInt& get_start_point() { return _start_point; }
+  GTLPointInt& get_end_point() { return _end_point; }
   // setter
   void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
-  void set_shape(const GtlRectI& shape) { _shape = shape; }
-  void set_start_point(const GtlPointI& start_point) { _start_point = start_point; }
-  void set_end_point(const GtlPointI& end_point) { _end_point = end_point; }
+  void set_shape(const GTLRectInt& shape) { _shape = shape; }
+  void set_start_point(const GTLPointInt& start_point) { _start_point = start_point; }
+  void set_end_point(const GTLPointInt& end_point) { _end_point = end_point; }
   // function
 
  private:
-  size_t _layer_id = kMaxSize;
-  GtlRectI _shape;
-  GtlPointI _start_point;
-  GtlPointI _end_point;
+  size_t _layer_id = SIZE_MAX;
+  GTLRectInt _shape;
+  GTLPointInt _start_point;
+  GTLPointInt _end_point;
 };
 
 }  // namespace ircx

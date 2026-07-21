@@ -20,6 +20,7 @@
 #include "Corner.hpp"
 #include "DataManager.hpp"
 #include "EnvBuilder.hpp"
+#include "LayerShape.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "RCXHeader.hpp"
@@ -264,7 +265,7 @@ void RCXInterface::wrapDBInfo()
   if (idb_die != nullptr) {
     idb::IdbRect* idb_die_shape = idb_die->get_bounding_box();
     layout_data.set_die_shape(
-        GtlRectI(idb_die_shape->get_low_x(), idb_die_shape->get_low_y(), idb_die_shape->get_high_x(), idb_die_shape->get_high_y()));
+        GTLRectInt(idb_die_shape->get_low_x(), idb_die_shape->get_low_y(), idb_die_shape->get_high_x(), idb_die_shape->get_high_y()));
   }
 
   idb::IdbUnits* idb_units = idb_design->get_units();
@@ -439,7 +440,7 @@ void RCXInterface::wrapPin(Net& net, idb::IdbPin* idb_pin, bool is_driver)
         continue;
       }
       pin.get_layer_shape_list().emplace_back(
-          layer_id, GtlRectI(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y()));
+          layer_id, GTLRectInt(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y()));
     }
   }
   net.get_pin_list().push_back(std::move(pin));
@@ -496,9 +497,9 @@ void RCXInterface::wrapSegment(Net& net, idb::IdbRegularWireSegment* idb_segment
   idb::IdbRect idb_shape = idb_segment->get_segment_rect();
   Segment segment;
   segment.set_layer_id(RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer->get_name()));
-  segment.set_start_point(GtlPointI(idb_start_point->get_x(), idb_start_point->get_y()));
-  segment.set_end_point(GtlPointI(idb_end_point->get_x(), idb_end_point->get_y()));
-  segment.set_shape(GtlRectI(idb_shape.get_low_x(), idb_shape.get_low_y(), idb_shape.get_high_x(), idb_shape.get_high_y()));
+  segment.set_start_point(GTLPointInt(idb_start_point->get_x(), idb_start_point->get_y()));
+  segment.set_end_point(GTLPointInt(idb_end_point->get_x(), idb_end_point->get_y()));
+  segment.set_shape(GTLRectInt(idb_shape.get_low_x(), idb_shape.get_low_y(), idb_shape.get_high_x(), idb_shape.get_high_y()));
   net.get_segment_list().push_back(std::move(segment));
 }
 
@@ -513,7 +514,7 @@ void RCXInterface::wrapPatch(Net& net, idb::IdbRegularWireSegment* idb_segment)
 
   Patch patch;
   patch.set_layer_id(RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer->get_name()));
-  patch.set_shape(GtlRectI(idb_anchor_point->get_x() + idb_delta_shape->get_low_x(),
+  patch.set_shape(GTLRectInt(idb_anchor_point->get_x() + idb_delta_shape->get_low_x(),
                            idb_anchor_point->get_y() + idb_delta_shape->get_low_y(),
                            idb_anchor_point->get_x() + idb_delta_shape->get_high_x(),
                            idb_anchor_point->get_y() + idb_delta_shape->get_high_y()));
@@ -545,23 +546,29 @@ void RCXInterface::wrapVia(Net& net, idb::IdbVia* idb_via)
 
   Via via;
   via.set_via_name(getSpefName(idb_via->get_name()));
-  via.set_point(GtlPointI(idb_via->get_coordinate()->get_x(), idb_via->get_coordinate()->get_y()));
+  via.set_point(GTLPointInt(idb_via->get_coordinate()->get_x(), idb_via->get_coordinate()->get_y()));
 
   idb::IdbRect* idb_top_shape = idb_top_layer_shape.get_rect_list().front();
   idb::IdbRect* idb_cut_shape = idb_cut_layer_shape.get_rect_list().front();
   idb::IdbRect* idb_bottom_shape = idb_bottom_layer_shape.get_rect_list().front();
   via.set_top_layer_shape(
-      {RCXDM.getDatabase().get_layer_table().get_design_id(idb_top_layer_shape.get_layer()->get_name()),
-       GtlRectI(idb_top_shape->get_low_x(), idb_top_shape->get_low_y(), idb_top_shape->get_high_x(), idb_top_shape->get_high_y())});
+      LayerShape(RCXDM.getDatabase().get_layer_table().get_design_id(idb_top_layer_shape.get_layer()->get_name()),
+                 GTLRectInt(idb_top_shape->get_low_x(),
+                          idb_top_shape->get_low_y(),
+                          idb_top_shape->get_high_x(),
+                          idb_top_shape->get_high_y())));
   via.set_cut_layer_shape(
-      {RCXDM.getDatabase().get_layer_table().get_design_id(idb_cut_layer_shape.get_layer()->get_name()),
-       GtlRectI(idb_cut_shape->get_low_x(), idb_cut_shape->get_low_y(), idb_cut_shape->get_high_x(), idb_cut_shape->get_high_y())});
+      LayerShape(RCXDM.getDatabase().get_layer_table().get_design_id(idb_cut_layer_shape.get_layer()->get_name()),
+                 GTLRectInt(idb_cut_shape->get_low_x(),
+                          idb_cut_shape->get_low_y(),
+                          idb_cut_shape->get_high_x(),
+                          idb_cut_shape->get_high_y())));
   via.set_bottom_layer_shape(
-      {RCXDM.getDatabase().get_layer_table().get_design_id(idb_bottom_layer_shape.get_layer()->get_name()),
-       GtlRectI(idb_bottom_shape->get_low_x(),
-                idb_bottom_shape->get_low_y(),
-                idb_bottom_shape->get_high_x(),
-                idb_bottom_shape->get_high_y())});
+      LayerShape(RCXDM.getDatabase().get_layer_table().get_design_id(idb_bottom_layer_shape.get_layer()->get_name()),
+                 GTLRectInt(idb_bottom_shape->get_low_x(),
+                          idb_bottom_shape->get_low_y(),
+                          idb_bottom_shape->get_high_x(),
+                          idb_bottom_shape->get_high_y())));
   net.get_via_list().push_back(std::move(via));
 }
 
@@ -590,9 +597,9 @@ void RCXInterface::wrapSpecialNet()
 
         Segment segment;
         segment.set_layer_id(RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer->get_name()));
-        segment.set_start_point(GtlPointI(idb_start_point->get_x(), idb_start_point->get_y()));
-        segment.set_end_point(GtlPointI(idb_end_point->get_x(), idb_end_point->get_y()));
-        segment.set_shape(GtlRectI(idb_shape->get_low_x(), idb_shape->get_low_y(), idb_shape->get_high_x(), idb_shape->get_high_y()));
+        segment.set_start_point(GTLPointInt(idb_start_point->get_x(), idb_start_point->get_y()));
+        segment.set_end_point(GTLPointInt(idb_end_point->get_x(), idb_end_point->get_y()));
+        segment.set_shape(GTLRectInt(idb_shape->get_low_x(), idb_shape->get_low_y(), idb_shape->get_high_x(), idb_shape->get_high_y()));
         special_net.get_segment_list().push_back(std::move(segment));
       }
     }

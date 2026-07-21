@@ -34,7 +34,7 @@ class EBModel final
   ~EBModel() = default;
 
   // getter
-  F32 get_bucket_size_um() const { return bucket_size_um_; }
+  double get_bucket_size_um() const { return bucket_size_um_; }
   size_t get_cross_layer() const { return cross_layer_; }
   std::map<size_t, EnvPixel>& get_layer_to_pixel_prefer_dir() { return layer_to_pixel_prefer_dir_; }
   std::map<size_t, EnvPixel>& get_layer_to_pixel_nonprefer_dir() { return layer_to_pixel_nonprefer_dir_; }
@@ -46,12 +46,12 @@ class EBModel final
 
   EBModel(const EBModel&) = delete;
   EBModel(EBModel&&) = default;
-  auto operator=(const EBModel&) -> EBModel& = delete;
-  auto operator=(EBModel&&) -> EBModel& = default;
+  EBModel& operator=(const EBModel&) = delete;
+  EBModel& operator=(EBModel&&) = default;
 
  private:
-  F32 bucket_size_um_ = 5.0F;
-  F32 window_size_um_ = 5.0F;
+  double bucket_size_um_ = 5.0;
+  double window_size_um_ = 5.0;
 
   size_t cross_layer_ = 3;
 

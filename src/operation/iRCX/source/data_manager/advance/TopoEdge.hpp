@@ -17,6 +17,7 @@
 #pragma once
 
 #include "LineSegment.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -33,41 +34,44 @@ class TopoEdge
   size_t get_start_node_idx() const { return _start_node_idx; }
   size_t get_end_node_idx() const { return _end_node_idx; }
   size_t get_layer_id() const { return _layer_id; }
-  GtlRectI& get_shape() { return _shape; }
+  GTLRectInt& get_shape() { return _shape; }
   int32_t get_width() const { return _width; }
   int32_t get_half_width() const { return _half_width; }
   int32_t get_length() const { return _length; }
-  GtlPointI& get_center() { return _center; }
+  GTLPointInt& get_center() { return _center; }
   LineSegment& get_line_segment() { return _line_segment; }
   // setter
   void set_via_name(const std::string& via_name) { _via_name = via_name; }
   void set_start_node_idx(size_t start_node_idx) { _start_node_idx = start_node_idx; }
   void set_end_node_idx(size_t end_node_idx) { _end_node_idx = end_node_idx; }
   void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
-  void set_shape(const GtlRectI& shape);
+  void set_shape(const GTLRectInt& shape);
   // function
   bool get_is_via() const { return !_via_name.empty(); }
+  bool get_is_special_net() const { return _is_special_net; }
 
  private:
   friend class TopoPool;
 
   void set_edge_id(size_t edge_id) { _edge_id = edge_id; }
+  void set_is_special_net(bool is_special_net) { _is_special_net = is_special_net; }
 
-  size_t _edge_id = kMaxSize;
-  size_t _net_id = kMaxSize;
+  size_t _edge_id = SIZE_MAX;
+  size_t _net_id = SIZE_MAX;
+  bool _is_special_net = false;
   std::string _via_name;
-  size_t _start_node_idx = kMaxSize;
-  size_t _end_node_idx = kMaxSize;
-  size_t _layer_id = kMaxSize;
-  GtlRectI _shape;
+  size_t _start_node_idx = SIZE_MAX;
+  size_t _end_node_idx = SIZE_MAX;
+  size_t _layer_id = SIZE_MAX;
+  GTLRectInt _shape;
   int32_t _width = 0;
   int32_t _half_width = 0;
   int32_t _length = 0;
-  GtlPointI _center;
+  GTLPointInt _center;
   LineSegment _line_segment;
 };
 
-inline void TopoEdge::set_shape(const GtlRectI& shape)
+inline void TopoEdge::set_shape(const GTLRectInt& shape)
 {
   _shape = shape;
 
@@ -82,7 +86,7 @@ inline void TopoEdge::set_shape(const GtlRectI& shape)
   _width = is_horizontal ? y_span : x_span;
   _half_width = _width / 2;
   _length = is_horizontal ? x_span : y_span;
-  _center = GtlPointI(lower_x + x_span / 2, lower_y + y_span / 2);
+  _center = GTLPointInt(lower_x + x_span / 2, lower_y + y_span / 2);
 
   _line_segment.set_is_horizontal(is_horizontal);
   _line_segment.set_coordinate(is_horizontal ? lower_y + y_span / 2 : lower_x + x_span / 2);

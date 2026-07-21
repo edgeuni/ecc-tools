@@ -53,8 +53,8 @@ class EdgeEnvInterval
  private:
   int32_t _start_coordinate = 0;
   int32_t _end_coordinate = 0;
-  int32_t _lower_spacing = kMaxDbu;
-  int32_t _upper_spacing = kMaxDbu;
+  int32_t _lower_spacing = INT32_MAX;
+  int32_t _upper_spacing = INT32_MAX;
   TopoEdge* _lower_adjacent_edge = nullptr;
   TopoEdge* _upper_adjacent_edge = nullptr;
   std::vector<CrossOverlapSub> _cross_overlap_sub_list;

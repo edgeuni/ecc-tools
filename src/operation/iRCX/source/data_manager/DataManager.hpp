@@ -53,8 +53,8 @@ class DataManager
   void buildConfig();
   void buildDatabase();
   void buildCornerDataList();
-  void buildCornerData(Corner& corner, F64 temperature);
-  std::string getTemperatureCornerName(std::string corner_name, F64 temperature);
+  void buildCornerData(Corner& corner, double temperature);
+  std::string getTemperatureCornerName(std::string corner_name, double temperature);
   void buildProcessCorner(CornerData& corner_data, std::string itf_file_path);
   void buildProcessConductor(CornerData& corner_data, std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx,
                              std::string conductor_name);
@@ -65,15 +65,15 @@ class DataManager
   void appendItfToken(std::string& token, std::vector<std::string>& itf_token_list);
   size_t getItfBlockStart(std::vector<std::string>& itf_token_list, size_t start_idx);
   size_t getItfBlockEnd(std::vector<std::string>& itf_token_list, size_t block_start_idx);
-  bool getItfAssignmentNumber(std::vector<std::string>& itf_token_list, size_t property_idx, F64& property_value);
+  bool getItfAssignmentNumber(std::vector<std::string>& itf_token_list, size_t property_idx, double& property_value);
   bool getItfAssignmentString(std::vector<std::string>& itf_token_list, size_t property_idx, std::string& property_value);
-  bool getItfNumber(std::string& token, F64& number);
-  void getItfNumberList(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx, std::vector<F64>& number_list);
+  bool getItfNumber(std::string& token, double& number);
+  void getItfNumberList(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx, std::vector<double>& number_list);
   std::string getItfUpperString(std::string text);
   ProcessEffectType getItfEffectType(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx);
   void getItfTableValueList(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx, std::string row_name,
-                            std::string column_name, std::string value_name, std::vector<F64>& row_list,
-                            std::vector<F64>& column_list, std::vector<F64>& value_list);
+                            std::string column_name, std::string value_name, std::vector<double>& row_list,
+                            std::vector<double>& column_list, std::vector<double>& value_list);
   void buildCapTable(CornerData& corner_data, std::string captab_file_path);
   std::string getTrimmedString(std::string text);
   void buildCapTableConfig(CornerData& corner_data, const std::string& header, const std::vector<std::string>& data_line_list);

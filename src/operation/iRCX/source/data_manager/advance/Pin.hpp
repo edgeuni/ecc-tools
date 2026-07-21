@@ -16,7 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "LayerShape.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 

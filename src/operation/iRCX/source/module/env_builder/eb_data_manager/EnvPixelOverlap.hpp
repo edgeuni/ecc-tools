@@ -5,12 +5,13 @@
 //
 // iEDA is licensed under Mulan PSL v2.
 // You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of the License at:
+// You may obtain a copy of Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
@@ -19,25 +20,27 @@
 
 namespace ircx {
 
-class CapTableEntry
+class EnvPixelOverlap
 {
  public:
-  CapTableEntry() = default;
-  ~CapTableEntry() = default;
+  EnvPixelOverlap() = default;
+  EnvPixelOverlap(int32_t start_coordinate, int32_t end_coordinate)
+      : _start_coordinate(start_coordinate), _end_coordinate(end_coordinate)
+  {
+  }
+  ~EnvPixelOverlap() = default;
   // getter
-  double get_distance() const { return _distance; }
-  double get_coupling_cap() const { return _coupling_cap; }
-  double get_ground_cap() const { return _ground_cap; }
+  int32_t get_start_coordinate() const { return _start_coordinate; }
+  int32_t get_end_coordinate() const { return _end_coordinate; }
   // setter
-  void set_distance(double distance) { _distance = distance; }
-  void set_coupling_cap(double coupling_cap) { _coupling_cap = coupling_cap; }
-  void set_ground_cap(double ground_cap) { _ground_cap = ground_cap; }
+  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
+  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
   // function
+  bool empty() const { return _end_coordinate <= _start_coordinate; }
 
  private:
-  double _distance = 0.0;
-  double _coupling_cap = 0.0;
-  double _ground_cap = 0.0;
+  int32_t _start_coordinate = 0;
+  int32_t _end_coordinate = 0;
 };
 
 }  // namespace ircx

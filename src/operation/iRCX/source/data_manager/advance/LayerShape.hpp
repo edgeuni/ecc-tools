@@ -5,12 +5,13 @@
 //
 // iEDA is licensed under Mulan PSL v2.
 // You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of the License at:
+// You may obtain a copy of Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
@@ -19,25 +20,24 @@
 
 namespace ircx {
 
-class CapTableEntry
+class LayerShape
 {
  public:
-  CapTableEntry() = default;
-  ~CapTableEntry() = default;
+  LayerShape() = default;
+  LayerShape(size_t layer_id, const GTLRectInt& shape) : _layer_id(layer_id), _shape(shape) {}
+  ~LayerShape() = default;
   // getter
-  double get_distance() const { return _distance; }
-  double get_coupling_cap() const { return _coupling_cap; }
-  double get_ground_cap() const { return _ground_cap; }
+  size_t get_layer_id() const { return _layer_id; }
+  GTLRectInt& get_shape() { return _shape; }
+  const GTLRectInt& get_shape() const { return _shape; }
   // setter
-  void set_distance(double distance) { _distance = distance; }
-  void set_coupling_cap(double coupling_cap) { _coupling_cap = coupling_cap; }
-  void set_ground_cap(double ground_cap) { _ground_cap = ground_cap; }
+  void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
+  void set_shape(const GTLRectInt& shape) { _shape = shape; }
   // function
 
  private:
-  double _distance = 0.0;
-  double _coupling_cap = 0.0;
-  double _ground_cap = 0.0;
+  size_t _layer_id = SIZE_MAX;
+  GTLRectInt _shape = GTLRectInt();
 };
 
 }  // namespace ircx

@@ -84,7 +84,7 @@ void VarProcessor::buildNetEtchProfile(size_t corner_idx, size_t net_idx)
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
   NetEnv& net_env = database.get_net_env_list().at(net_idx);
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
-  double micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
+  double micron_per_dbu = 1 / 1.0 / database.get_layout_data().get_dbu_per_micron();
 
   for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
     TopoEdge& edge = edge_list[edge_idx];
@@ -160,13 +160,13 @@ void VarProcessor::applyEdgeEffectiveGeometry(ProcessConductor& conductor, EdgeE
 {
   for (ProcessEtchTable& etch_table : conductor.get_etch_table_list()) {
     double lower_etch = 0.0;
-    std::optional<F64> lower_etch_value = etch_table.get_table().query(edge_interval.get_width(), edge_interval.get_lower_spacing());
+    std::optional<double> lower_etch_value = etch_table.get_table().query(edge_interval.get_width(), edge_interval.get_lower_spacing());
     if (lower_etch_value.has_value()) {
       lower_etch = lower_etch_value.value();
     }
 
     double upper_etch = 0.0;
-    std::optional<F64> upper_etch_value = etch_table.get_table().query(edge_interval.get_width(), edge_interval.get_upper_spacing());
+    std::optional<double> upper_etch_value = etch_table.get_table().query(edge_interval.get_width(), edge_interval.get_upper_spacing());
     if (upper_etch_value.has_value()) {
       upper_etch = upper_etch_value.value();
     }

@@ -16,6 +16,9 @@
 // ***************************************************************************************
 #include "TopoBuilder.hpp"
 
+#include "LayerShape.hpp"
+#include "Utility.hpp"
+
 namespace ircx {
 
 // public
@@ -119,26 +122,26 @@ TBNetTopo TopoBuilder::buildNet(Net& net)
                        segment.get_end_point());
   }
   for (Via& via : net.get_via_list()) {
-    appendNodeIfAbsent(net, node_list, node_shape_valid_list, node_key_to_idx_map, pin_consumed_map, via.get_top_layer_shape().first,
-                       via.get_point());
-    appendNodeIfAbsent(net, node_list, node_shape_valid_list, node_key_to_idx_map, pin_consumed_map, via.get_bottom_layer_shape().first,
-                       via.get_point());
+    appendNodeIfAbsent(net, node_list, node_shape_valid_list, node_key_to_idx_map, pin_consumed_map,
+                       via.get_top_layer_shape().get_layer_id(), via.get_point());
+    appendNodeIfAbsent(net, node_list, node_shape_valid_list, node_key_to_idx_map, pin_consumed_map,
+                       via.get_bottom_layer_shape().get_layer_id(), via.get_point());
   }
 
   for (Segment& segment : net.get_segment_list()) {
     size_t layer_id = segment.get_layer_id();
     size_t start_node_idx = node_key_to_idx_map.at(
-        std::make_tuple(layer_id, boost::polygon::x(segment.get_start_point()), boost::polygon::y(segment.get_start_point())));
+        std::make_tuple(layer_id, RCXUTIL.x(segment.get_start_point()), RCXUTIL.y(segment.get_start_point())));
     size_t end_node_idx = node_key_to_idx_map.at(
-        std::make_tuple(layer_id, boost::polygon::x(segment.get_end_point()), boost::polygon::y(segment.get_end_point())));
+        std::make_tuple(layer_id, RCXUTIL.x(segment.get_end_point()), RCXUTIL.y(segment.get_end_point())));
     mergeNodeShape(node_list, node_shape_valid_list, start_node_idx, getEndpointShape(segment, segment.get_start_point()));
     mergeNodeShape(node_list, node_shape_valid_list, end_node_idx, getEndpointShape(segment, segment.get_end_point()));
 
     TopoEdge edge(net.get_net_id());
     edge.set_layer_id(layer_id);
-    if (boost::polygon::x(segment.get_start_point()) < boost::polygon::x(segment.get_end_point())
-        || (boost::polygon::x(segment.get_start_point()) == boost::polygon::x(segment.get_end_point())
-            && boost::polygon::y(segment.get_start_point()) <= boost::polygon::y(segment.get_end_point()))) {
+    if (RCXUTIL.x(segment.get_start_point()) < RCXUTIL.x(segment.get_end_point())
+        || (RCXUTIL.x(segment.get_start_point()) == RCXUTIL.x(segment.get_end_point())
+            && RCXUTIL.y(segment.get_start_point()) <= RCXUTIL.y(segment.get_end_point()))) {
       edge.set_start_node_idx(start_node_idx);
       edge.set_end_node_idx(end_node_idx);
     } else {
@@ -150,20 +153,20 @@ TBNetTopo TopoBuilder::buildNet(Net& net)
   }
 
   for (Via& via : net.get_via_list()) {
-    size_t top_layer_id = via.get_top_layer_shape().first;
-    size_t bottom_layer_id = via.get_bottom_layer_shape().first;
+    size_t top_layer_id = via.get_top_layer_shape().get_layer_id();
+    size_t bottom_layer_id = via.get_bottom_layer_shape().get_layer_id();
     size_t top_node_idx = node_key_to_idx_map.at(
-        std::make_tuple(top_layer_id, boost::polygon::x(via.get_point()), boost::polygon::y(via.get_point())));
+        std::make_tuple(top_layer_id, RCXUTIL.x(via.get_point()), RCXUTIL.y(via.get_point())));
     size_t bottom_node_idx = node_key_to_idx_map.at(
-        std::make_tuple(bottom_layer_id, boost::polygon::x(via.get_point()), boost::polygon::y(via.get_point())));
-    mergeNodeShape(node_list, node_shape_valid_list, top_node_idx, via.get_top_layer_shape().second);
-    mergeNodeShape(node_list, node_shape_valid_list, bottom_node_idx, via.get_bottom_layer_shape().second);
+        std::make_tuple(bottom_layer_id, RCXUTIL.x(via.get_point()), RCXUTIL.y(via.get_point())));
+    mergeNodeShape(node_list, node_shape_valid_list, top_node_idx, via.get_top_layer_shape().get_shape());
+    mergeNodeShape(node_list, node_shape_valid_list, bottom_node_idx, via.get_bottom_layer_shape().get_shape());
 
     TopoEdge edge(net.get_net_id());
-    edge.set_layer_id(via.get_cut_layer_shape().first);
+    edge.set_layer_id(via.get_cut_layer_shape().get_layer_id());
     edge.set_start_node_idx(top_node_idx);
     edge.set_end_node_idx(bottom_node_idx);
-    edge.set_shape(via.get_cut_layer_shape().second);
+    edge.set_shape(via.get_cut_layer_shape().get_shape());
     edge.set_via_name(via.get_via_name());
     edge_list.push_back(std::move(edge));
   }
@@ -176,9 +179,9 @@ void TopoBuilder::appendNodeIfAbsent(Net& net,
                                          std::map<std::tuple<size_t, int32_t, int32_t>, size_t>& node_key_to_idx_map,
                                          std::map<std::string, bool>& pin_consumed_map,
                                          size_t layer_id,
-                                         const GtlPointI& point)
+                                         const GTLPointInt& point)
 {
-  std::tuple<size_t, int32_t, int32_t> node_key = std::make_tuple(layer_id, boost::polygon::x(point), boost::polygon::y(point));
+  std::tuple<size_t, int32_t, int32_t> node_key = std::make_tuple(layer_id, RCXUTIL.x(point), RCXUTIL.y(point));
   if (node_key_to_idx_map.count(node_key) != 0) {
     return;
   }
@@ -193,13 +196,13 @@ void TopoBuilder::appendNodeIfAbsent(Net& net,
       continue;
     }
     for (LayerShape& layer_shape : pin.get_layer_shape_list()) {
-      if (layer_shape.first != layer_id) {
+      if (layer_shape.get_layer_id() != layer_id) {
         continue;
       }
 
-      GtlRectI& pin_shape = layer_shape.second;
-      if (boost::polygon::xl(pin_shape) <= boost::polygon::x(point) && boost::polygon::x(point) <= boost::polygon::xh(pin_shape)
-          && boost::polygon::yl(pin_shape) <= boost::polygon::y(point) && boost::polygon::y(point) <= boost::polygon::yh(pin_shape)) {
+      GTLRectInt& pin_shape = layer_shape.get_shape();
+      if (RCXUTIL.minX(pin_shape) <= RCXUTIL.x(point) && RCXUTIL.x(point) <= RCXUTIL.maxX(pin_shape)
+          && RCXUTIL.minY(pin_shape) <= RCXUTIL.y(point) && RCXUTIL.y(point) <= RCXUTIL.maxY(pin_shape)) {
         pin_consumed_map[pin.get_pin_name()] = true;
         node.set_pin_name(pin.get_pin_name());
         node.set_shape(pin_shape);
@@ -212,8 +215,8 @@ void TopoBuilder::appendNodeIfAbsent(Net& net,
     }
   }
   if (!is_shape_valid) {
-    node.set_shape(GtlRectI(boost::polygon::x(point) - 1, boost::polygon::y(point) - 1, boost::polygon::x(point) + 1,
-                            boost::polygon::y(point) + 1));
+    node.set_shape(GTLRectInt(RCXUTIL.x(point) - 1, RCXUTIL.y(point) - 1, RCXUTIL.x(point) + 1,
+                            RCXUTIL.y(point) + 1));
   }
 
   node_key_to_idx_map[node_key] = appendNode(node_list, node_shape_valid_list, std::move(node), is_shape_valid);
@@ -232,7 +235,7 @@ size_t TopoBuilder::appendNode(std::vector<TopoNode>& node_list,
 void TopoBuilder::mergeNodeShape(std::vector<TopoNode>& node_list,
                                      std::vector<bool>& node_shape_valid_list,
                                      size_t node_idx,
-                                     const GtlRectI& shape)
+                                     const GTLRectInt& shape)
 {
   TopoNode& node = node_list[node_idx];
   if (!node_shape_valid_list[node_idx]) {
@@ -241,22 +244,22 @@ void TopoBuilder::mergeNodeShape(std::vector<TopoNode>& node_list,
     return;
   }
 
-  GtlRectI& old_shape = node.get_shape();
-  node.set_shape(GtlRectI(std::min(boost::polygon::xl(old_shape), boost::polygon::xl(shape)),
-                          std::min(boost::polygon::yl(old_shape), boost::polygon::yl(shape)),
-                          std::max(boost::polygon::xh(old_shape), boost::polygon::xh(shape)),
-                          std::max(boost::polygon::yh(old_shape), boost::polygon::yh(shape))));
+  GTLRectInt& old_shape = node.get_shape();
+  node.set_shape(GTLRectInt(std::min(RCXUTIL.minX(old_shape), RCXUTIL.minX(shape)),
+                          std::min(RCXUTIL.minY(old_shape), RCXUTIL.minY(shape)),
+                          std::max(RCXUTIL.maxX(old_shape), RCXUTIL.maxX(shape)),
+                          std::max(RCXUTIL.maxY(old_shape), RCXUTIL.maxY(shape))));
 }
 
-GtlRectI TopoBuilder::getEndpointShape(Segment& segment, const GtlPointI& point)
+GTLRectInt TopoBuilder::getEndpointShape(Segment& segment, const GTLPointInt& point)
 {
-  bool is_horizontal = std::abs(boost::polygon::x(segment.get_start_point()) - boost::polygon::x(segment.get_end_point()))
-                       >= std::abs(boost::polygon::y(segment.get_start_point()) - boost::polygon::y(segment.get_end_point()));
-  GtlRectI& shape = segment.get_shape();
+  bool is_horizontal = std::abs(RCXUTIL.x(segment.get_start_point()) - RCXUTIL.x(segment.get_end_point()))
+                       >= std::abs(RCXUTIL.y(segment.get_start_point()) - RCXUTIL.y(segment.get_end_point()));
+  GTLRectInt& shape = segment.get_shape();
   if (is_horizontal) {
-    return GtlRectI(boost::polygon::x(point), boost::polygon::yl(shape), boost::polygon::x(point), boost::polygon::yh(shape));
+    return GTLRectInt(RCXUTIL.x(point), RCXUTIL.minY(shape), RCXUTIL.x(point), RCXUTIL.maxY(shape));
   }
-  return GtlRectI(boost::polygon::xl(shape), boost::polygon::y(point), boost::polygon::xh(shape), boost::polygon::y(point));
+  return GTLRectInt(RCXUTIL.minX(shape), RCXUTIL.y(point), RCXUTIL.maxX(shape), RCXUTIL.y(point));
 }
 
 void TopoBuilder::buildSpecial()
@@ -266,13 +269,13 @@ void TopoBuilder::buildSpecial()
   special_edge_list.reserve(special_net.get_segment_list().size() + special_net.get_patch_list().size());
 
   for (Segment& segment : special_net.get_segment_list()) {
-    TopoEdge edge(kSpecialNetId);
+    TopoEdge edge;
     edge.set_layer_id(segment.get_layer_id());
     edge.set_shape(segment.get_shape());
     special_edge_list.push_back(std::move(edge));
   }
   for (Patch& patch : special_net.get_patch_list()) {
-    TopoEdge edge(kSpecialNetId);
+    TopoEdge edge;
     edge.set_layer_id(patch.get_layer_id());
     edge.set_shape(patch.get_shape());
     special_edge_list.push_back(std::move(edge));

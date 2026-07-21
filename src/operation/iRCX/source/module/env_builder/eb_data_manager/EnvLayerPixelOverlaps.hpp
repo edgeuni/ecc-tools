@@ -16,32 +16,39 @@
 // ***************************************************************************************
 #pragma once
 
+#include "EnvPixelOverlap.hpp"
 #include "RCXHeader.hpp"
 
 namespace ircx {
 
-class CrossOverlapSub
+class EnvLayerPixelOverlaps
 {
  public:
-  CrossOverlapSub() = default;
-  ~CrossOverlapSub() = default;
+  EnvLayerPixelOverlaps() = default;
+  EnvLayerPixelOverlaps(size_t layer_id, const std::vector<EnvPixelOverlap>& pixel_overlap_list)
+      : _layer_id(layer_id), _pixel_overlap_list(pixel_overlap_list)
+  {
+  }
+  ~EnvLayerPixelOverlaps() = default;
   // getter
-  int32_t get_start_coordinate() const { return _start_coordinate; }
-  int32_t get_end_coordinate() const { return _end_coordinate; }
-  size_t get_above_layer_id() const { return _above_layer_id; }
-  size_t get_below_layer_id() const { return _below_layer_id; }
+  size_t get_layer_id() const { return _layer_id; }
+  std::vector<EnvPixelOverlap>& get_pixel_overlap_list() { return _pixel_overlap_list; }
+  const std::vector<EnvPixelOverlap>& get_pixel_overlap_list() const { return _pixel_overlap_list; }
   // setter
-  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
-  void set_above_layer_id(size_t above_layer_id) { _above_layer_id = above_layer_id; }
-  void set_below_layer_id(size_t below_layer_id) { _below_layer_id = below_layer_id; }
+  void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
+  void set_pixel_overlap_list(const std::vector<EnvPixelOverlap>& pixel_overlap_list)
+  {
+    _pixel_overlap_list = pixel_overlap_list;
+  }
+  void set_pixel_overlap_list(std::vector<EnvPixelOverlap>&& pixel_overlap_list)
+  {
+    _pixel_overlap_list = std::move(pixel_overlap_list);
+  }
   // function
 
  private:
-  int32_t _start_coordinate = 0;
-  int32_t _end_coordinate = 0;
-  size_t _above_layer_id = 0;
-  size_t _below_layer_id = 0;
+  size_t _layer_id = 0;
+  std::vector<EnvPixelOverlap> _pixel_overlap_list;
 };
 
 }  // namespace ircx

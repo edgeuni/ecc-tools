@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 #include "TrackInfo.hpp"
 
 namespace ircx {
@@ -41,7 +41,7 @@ class RoutingLayer
   // function
 
  private:
-  size_t _layer_id = kMaxSize;
+  size_t _layer_id = SIZE_MAX;
   std::string _layer_name;
   int32_t _layer_width = 0;
   bool _is_prefer_horizontal = false;

@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -27,15 +27,15 @@ class Patch
   ~Patch() = default;
   // getter
   size_t get_layer_id() const { return _layer_id; }
-  GtlRectI& get_shape() { return _shape; }
+  GTLRectInt& get_shape() { return _shape; }
   // setter
   void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
-  void set_shape(const GtlRectI& shape) { _shape = shape; }
+  void set_shape(const GTLRectInt& shape) { _shape = shape; }
   // function
 
  private:
-  size_t _layer_id = kMaxSize;
-  GtlRectI _shape;
+  size_t _layer_id = SIZE_MAX;
+  GTLRectInt _shape;
 };
 
 }  // namespace ircx

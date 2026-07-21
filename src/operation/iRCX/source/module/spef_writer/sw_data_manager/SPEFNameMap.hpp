@@ -16,7 +16,7 @@
 #pragma once
 
 #include "RCXHeader.hpp"
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 

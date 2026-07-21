@@ -19,6 +19,7 @@
 #include "CcapEntry.hpp"
 #include "CornerNetPool.hpp"
 #include "CouplingKey.hpp"
+#include "CouplingKeyHash.hpp"
 #include "TopoPool.hpp"
 
 namespace ircx {
@@ -31,15 +32,18 @@ class RCTable
   // getter
   size_t get_corner_num() const { return _corner_num; }
   size_t get_net_num() const { return _net_num; }
-  CornerNetPool<std::vector<F64>>& get_corner_net_res_pool() { return _corner_net_res_pool; }
-  CornerNetPool<std::vector<F64>>& get_corner_net_gcap_pool() { return _corner_net_gcap_pool; }
+  CornerNetPool<std::vector<double>>& get_corner_net_res_pool() { return _corner_net_res_pool; }
+  CornerNetPool<std::vector<double>>& get_corner_net_gcap_pool() { return _corner_net_gcap_pool; }
   std::vector<std::vector<CcapEntry>>& get_net_ccap_entry_list() { return _net_ccap_entry_list; }
-  std::unordered_map<CouplingKey, std::vector<F32>, CouplingKeyHash>& get_merged_ccap_map() { return _merged_ccap_map; }
+  std::unordered_map<CouplingKey, std::vector<double>, CouplingKeyHash>& get_merged_ccap_map() { return _merged_ccap_map; }
   // setter
   void set_corner_num(size_t corner_num) { _corner_num = corner_num; }
   void set_net_num(size_t net_num) { _net_num = net_num; }
-  void set_corner_net_res_pool(const CornerNetPool<std::vector<F64>>& corner_net_res_pool) { _corner_net_res_pool = corner_net_res_pool; }
-  void set_corner_net_gcap_pool(const CornerNetPool<std::vector<F64>>& corner_net_gcap_pool)
+  void set_corner_net_res_pool(const CornerNetPool<std::vector<double>>& corner_net_res_pool)
+  {
+    _corner_net_res_pool = corner_net_res_pool;
+  }
+  void set_corner_net_gcap_pool(const CornerNetPool<std::vector<double>>& corner_net_gcap_pool)
   {
     _corner_net_gcap_pool = corner_net_gcap_pool;
   }
@@ -47,24 +51,24 @@ class RCTable
   {
     _net_ccap_entry_list = net_ccap_entry_list;
   }
-  void set_merged_ccap_map(const std::unordered_map<CouplingKey, std::vector<F32>, CouplingKeyHash>& merged_ccap_map)
+  void set_merged_ccap_map(const std::unordered_map<CouplingKey, std::vector<double>, CouplingKeyHash>& merged_ccap_map)
   {
     _merged_ccap_map = merged_ccap_map;
   }
   // function
   void init(size_t corner_num, size_t net_num, TopoPool& topo_pool);
-  std::span<F64> get_corner_net_res_list(CornerNetId corner_net_id);
-  std::span<F64> get_corner_net_gcap_list(CornerNetId corner_net_id);
-  void append_net_ccap_entry(size_t net_idx, size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, F32 cap);
+  std::span<double> get_corner_net_res_list(CornerNetId corner_net_id);
+  std::span<double> get_corner_net_gcap_list(CornerNetId corner_net_id);
+  void append_net_ccap_entry(size_t net_idx, size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, double cap);
   void merge_net_ccap_entry_list();
 
  private:
   size_t _corner_num = 0;
   size_t _net_num = 0;
-  CornerNetPool<std::vector<F64>> _corner_net_res_pool;
-  CornerNetPool<std::vector<F64>> _corner_net_gcap_pool;
+  CornerNetPool<std::vector<double>> _corner_net_res_pool;
+  CornerNetPool<std::vector<double>> _corner_net_gcap_pool;
   std::vector<std::vector<CcapEntry>> _net_ccap_entry_list;
-  std::unordered_map<CouplingKey, std::vector<F32>, CouplingKeyHash> _merged_ccap_map;
+  std::unordered_map<CouplingKey, std::vector<double>, CouplingKeyHash> _merged_ccap_map;
 };
 
 inline void RCTable::init(size_t corner_num, size_t net_num, TopoPool& topo_pool)
@@ -86,23 +90,23 @@ inline void RCTable::init(size_t corner_num, size_t net_num, TopoPool& topo_pool
   }
 }
 
-inline std::span<F64> RCTable::get_corner_net_res_list(CornerNetId corner_net_id)
+inline std::span<double> RCTable::get_corner_net_res_list(CornerNetId corner_net_id)
 {
-  std::vector<F64>& res_list = _corner_net_res_pool.get_item(corner_net_id);
-  return std::span<F64>(res_list);
+  std::vector<double>& res_list = _corner_net_res_pool.get_item(corner_net_id);
+  return std::span<double>(res_list);
 }
 
-inline std::span<F64> RCTable::get_corner_net_gcap_list(CornerNetId corner_net_id)
+inline std::span<double> RCTable::get_corner_net_gcap_list(CornerNetId corner_net_id)
 {
-  std::vector<F64>& gcap_list = _corner_net_gcap_pool.get_item(corner_net_id);
-  return std::span<F64>(gcap_list);
+  std::vector<double>& gcap_list = _corner_net_gcap_pool.get_item(corner_net_id);
+  return std::span<double>(gcap_list);
 }
 
 inline void RCTable::append_net_ccap_entry(size_t net_idx,
                                            size_t first_edge_idx,
                                            size_t second_edge_idx,
                                            size_t corner_idx,
-                                           F32 cap)
+                                           double cap)
 {
   _net_ccap_entry_list.at(net_idx).emplace_back(first_edge_idx, second_edge_idx, corner_idx, cap);
 }
@@ -113,7 +117,7 @@ inline void RCTable::merge_net_ccap_entry_list()
     for (CcapEntry& ccap_entry : ccap_entry_list) {
       CouplingKey coupling_key(ccap_entry.get_first_edge_idx(), ccap_entry.get_second_edge_idx());
       if (_merged_ccap_map.count(coupling_key) == 0) {
-        _merged_ccap_map[coupling_key].resize(_corner_num, 0.0F);
+        _merged_ccap_map[coupling_key].resize(_corner_num, 0.0);
       }
       _merged_ccap_map[coupling_key].at(ccap_entry.get_corner_idx()) += ccap_entry.get_cap();
     }

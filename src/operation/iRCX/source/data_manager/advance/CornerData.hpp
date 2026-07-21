@@ -28,9 +28,9 @@ class CornerData
   ~CornerData() = default;
   // getter
   std::string& get_corner_name() { return _corner_name; }
-  F64 get_temperature() const { return _temperature; }
-  F64 get_global_temperature() const { return _global_temperature; }
-  F64 get_half_node_scale_factor() const { return _half_node_scale_factor; }
+  double get_temperature() const { return _temperature; }
+  double get_global_temperature() const { return _global_temperature; }
+  double get_half_node_scale_factor() const { return _half_node_scale_factor; }
   std::vector<ProcessConductor>& get_process_conductor_list() { return _process_conductor_list; }
   std::vector<ProcessVia>& get_process_via_list() { return _process_via_list; }
   std::vector<CapTableConfig>& get_cap_table_config_list() { return _cap_table_config_list; }
@@ -40,22 +40,25 @@ class CornerData
   const std::vector<CapTableConfig>& get_cap_table_config_list() const { return _cap_table_config_list; }
   // setter
   void set_corner_name(const std::string& corner_name) { _corner_name = corner_name; }
-  void set_temperature(F64 temperature) { _temperature = temperature; }
-  void set_global_temperature(F64 global_temperature) { _global_temperature = global_temperature; }
-  void set_half_node_scale_factor(F64 half_node_scale_factor) { _half_node_scale_factor = half_node_scale_factor; }
+  void set_temperature(double temperature) { _temperature = temperature; }
+  void set_global_temperature(double global_temperature) { _global_temperature = global_temperature; }
+  void set_half_node_scale_factor(double half_node_scale_factor) { _half_node_scale_factor = half_node_scale_factor; }
   void set_process_conductor_list(const std::vector<ProcessConductor>& process_conductor_list)
   {
     _process_conductor_list = process_conductor_list;
   }
   void set_process_via_list(const std::vector<ProcessVia>& process_via_list) { _process_via_list = process_via_list; }
-  void set_cap_table_config_list(const std::vector<CapTableConfig>& cap_table_config_list) { _cap_table_config_list = cap_table_config_list; }
+  void set_cap_table_config_list(const std::vector<CapTableConfig>& cap_table_config_list)
+  {
+    _cap_table_config_list = cap_table_config_list;
+  }
   // function
 
  private:
   std::string _corner_name;
-  F64 _temperature = 25.0;
-  F64 _global_temperature = 25.0;
-  F64 _half_node_scale_factor = 1.0;
+  double _temperature = 25.0;
+  double _global_temperature = 25.0;
+  double _half_node_scale_factor = 1.0;
   std::vector<ProcessConductor> _process_conductor_list;
   std::vector<ProcessVia> _process_via_list;
   std::vector<CapTableConfig> _cap_table_config_list;

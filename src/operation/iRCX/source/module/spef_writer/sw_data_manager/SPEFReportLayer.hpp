@@ -17,7 +17,7 @@
 #pragma once
 
 #include "RCXHeader.hpp"
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -39,8 +39,8 @@ class SPEFReportLayer
   // function
 
  private:
-  size_t _report_layer_id = kMaxSize;
-  size_t _design_layer_id = kMaxSize;
+  size_t _report_layer_id = SIZE_MAX;
+  size_t _design_layer_id = SIZE_MAX;
   std::string _design_layer_name;
   std::string _process_layer_name;
 };

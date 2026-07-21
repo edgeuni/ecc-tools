@@ -15,7 +15,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXType.hpp"
+#include "RCXHeader.hpp"
 
 namespace ircx {
 
@@ -25,32 +25,32 @@ class ProcessTable1D
   ProcessTable1D() = default;
   ~ProcessTable1D() = default;
   // getter
-  std::vector<std::pair<F64, F64>>& get_entry_list() { return _entry_list; }
-  const std::vector<std::pair<F64, F64>>& get_entry_list() const { return _entry_list; }
+  std::vector<std::pair<double, double>>& get_entry_list() { return _entry_list; }
+  const std::vector<std::pair<double, double>>& get_entry_list() const { return _entry_list; }
   // setter
-  void set_entry_list(const std::vector<std::pair<F64, F64>>& entry_list)
+  void set_entry_list(const std::vector<std::pair<double, double>>& entry_list)
   {
     _entry_list = entry_list;
     sort_entry_list();
   }
   // function
-  void add_entry(F64 key, F64 value)
+  void add_entry(double key, double value)
   {
     _entry_list.emplace_back(key, value);
     sort_entry_list();
   }
   bool get_is_empty() const { return _entry_list.empty(); }
-  std::optional<F64> query(F64 key) const;
+  std::optional<double> query(double key) const;
 
  private:
-  static bool isEntryLessThanKey(const std::pair<F64, F64>& entry, F64 key);
-  static bool isEntryLess(const std::pair<F64, F64>& first_entry, const std::pair<F64, F64>& second_entry);
+  static bool isEntryLessThanKey(const std::pair<double, double>& entry, double key);
+  static bool isEntryLess(const std::pair<double, double>& first_entry, const std::pair<double, double>& second_entry);
   void sort_entry_list();
 
-  std::vector<std::pair<F64, F64>> _entry_list;
+  std::vector<std::pair<double, double>> _entry_list;
 };
 
-inline std::optional<F64> ProcessTable1D::query(F64 key) const
+inline std::optional<double> ProcessTable1D::query(double key) const
 {
   if (_entry_list.empty()) {
     return std::nullopt;
@@ -62,7 +62,7 @@ inline std::optional<F64> ProcessTable1D::query(F64 key) const
     return _entry_list.back().second;
   }
 
-  std::vector<std::pair<F64, F64>>::const_iterator high_iter = std::lower_bound(
+  std::vector<std::pair<double, double>>::const_iterator high_iter = std::lower_bound(
       _entry_list.begin(), _entry_list.end(), key, isEntryLessThanKey);
   if (high_iter == _entry_list.end()) {
     return _entry_list.back().second;
@@ -71,21 +71,21 @@ inline std::optional<F64> ProcessTable1D::query(F64 key) const
     return high_iter->second;
   }
 
-  std::vector<std::pair<F64, F64>>::const_iterator low_iter = std::prev(high_iter);
-  F64 key_delta = high_iter->first - low_iter->first;
+  std::vector<std::pair<double, double>>::const_iterator low_iter = std::prev(high_iter);
+  double key_delta = high_iter->first - low_iter->first;
   if (key_delta == 0.0) {
     return high_iter->second;
   }
-  F64 ratio = (key - low_iter->first) / key_delta;
+  double ratio = (key - low_iter->first) / key_delta;
   return std::lerp(low_iter->second, high_iter->second, ratio);
 }
 
-inline bool ProcessTable1D::isEntryLessThanKey(const std::pair<F64, F64>& entry, F64 key)
+inline bool ProcessTable1D::isEntryLessThanKey(const std::pair<double, double>& entry, double key)
 {
   return entry.first < key;
 }
 
-inline bool ProcessTable1D::isEntryLess(const std::pair<F64, F64>& first_entry, const std::pair<F64, F64>& second_entry)
+inline bool ProcessTable1D::isEntryLess(const std::pair<double, double>& first_entry, const std::pair<double, double>& second_entry)
 {
   return first_entry.first < second_entry.first;
 }

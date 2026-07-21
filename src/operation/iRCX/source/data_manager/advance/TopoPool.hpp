@@ -38,8 +38,6 @@ class TopoPool
   std::pair<size_t, size_t> get_net_edge_range(size_t net_id) { return _net_edge_range_list.at(net_id); }
   // setter
   // function
-  size_t get_node_idx(TopoNode& topo_node) { return static_cast<size_t>(&topo_node - _node_pool.data()); }
-  size_t get_edge_idx(TopoEdge& topo_edge) { return static_cast<size_t>(&topo_edge - _edge_pool.data()); }
   size_t get_node_idx(size_t net_id, size_t local_node_idx) { return _net_node_range_list.at(net_id).first + local_node_idx; }
   size_t get_edge_idx(size_t net_id, size_t local_edge_idx) { return _net_edge_range_list.at(net_id).first + local_edge_idx; }
   void reserve(size_t net_count, size_t node_count, size_t edge_count);
@@ -48,7 +46,7 @@ class TopoPool
 
  private:
   void assign_node_id(std::vector<TopoNode>& node_list);
-  void assign_edge_id(std::vector<TopoEdge>& edge_list);
+  void assign_edge_id(std::vector<TopoEdge>& edge_list, bool is_special_net);
 
   std::vector<TopoNode> _node_pool;
   std::vector<std::pair<size_t, size_t>> _net_node_range_list;
@@ -85,7 +83,7 @@ inline void TopoPool::add_net(std::vector<TopoNode> node_list, std::vector<TopoE
   size_t edge_count = edge_list.size();
 
   assign_node_id(node_list);
-  assign_edge_id(edge_list);
+  assign_edge_id(edge_list, false);
   _net_node_range_list.emplace_back(node_offset, node_count);
   _net_edge_range_list.emplace_back(edge_offset, edge_count);
   _node_pool.insert(_node_pool.end(), std::make_move_iterator(node_list.begin()), std::make_move_iterator(node_list.end()));
@@ -94,7 +92,7 @@ inline void TopoPool::add_net(std::vector<TopoNode> node_list, std::vector<TopoE
 
 inline void TopoPool::add_special_edge_list(std::vector<TopoEdge> edge_list)
 {
-  assign_edge_id(edge_list);
+  assign_edge_id(edge_list, true);
   _special_edge_pool.insert(_special_edge_pool.end(), std::make_move_iterator(edge_list.begin()), std::make_move_iterator(edge_list.end()));
 }
 
@@ -105,10 +103,11 @@ inline void TopoPool::assign_node_id(std::vector<TopoNode>& node_list)
   }
 }
 
-inline void TopoPool::assign_edge_id(std::vector<TopoEdge>& edge_list)
+inline void TopoPool::assign_edge_id(std::vector<TopoEdge>& edge_list, bool is_special_net)
 {
   for (size_t edge_idx = 0; edge_idx < edge_list.size(); ++edge_idx) {
     edge_list[edge_idx].set_edge_id(edge_idx);
+    edge_list[edge_idx].set_is_special_net(is_special_net);
   }
 }
 
