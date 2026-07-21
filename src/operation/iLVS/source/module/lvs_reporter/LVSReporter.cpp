@@ -29,6 +29,13 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
     rpt_file << " terminals=";
     for (const std::string& terminal : violation.terminal_list) rpt_file << terminal << " ";
     rpt_file << "\n";
+    for (uint64_t component_id : violation.component_id_list) {
+      auto shape_iter = physical_netlist.physical_graph.component_shape_map.find(component_id);
+      if (shape_iter == physical_netlist.physical_graph.component_shape_map.end()) continue;
+      for (const LVSPhysicalGraph::ShapeLocation& shape : shape_iter->second) {
+        rpt_file << "  shape layer=" << shape.layer_id << " rect=(" << shape.ll_x << "," << shape.ll_y << "," << shape.ur_x << "," << shape.ur_y << ")\n";
+      }
+    }
   }
 
   nlohmann::json json;
@@ -40,8 +47,17 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
   json["physical_graph"] = {{"nodes", physical_netlist.physical_graph.node_num}, {"edges", physical_netlist.physical_graph.edge_num},
                             {"components", physical_netlist.physical_graph.component_num}};
   for (const LVSViolation& violation : check_result.violation_list) {
-    json["violations"].push_back({{"type", violation.type}, {"net", violation.net_name}, {"terminals", violation.terminal_list},
-                                  {"components", violation.component_id_list}});
+    nlohmann::json violation_json = {{"type", violation.type}, {"net", violation.net_name}, {"terminals", violation.terminal_list},
+                                     {"components", violation.component_id_list}};
+    for (uint64_t component_id : violation.component_id_list) {
+      auto shape_iter = physical_netlist.physical_graph.component_shape_map.find(component_id);
+      if (shape_iter == physical_netlist.physical_graph.component_shape_map.end()) continue;
+      for (const LVSPhysicalGraph::ShapeLocation& shape : shape_iter->second) {
+        violation_json["shapes"].push_back({{"component", component_id}, {"layer", shape.layer_id},
+                                             {"rect", {shape.ll_x, shape.ll_y, shape.ur_x, shape.ur_y}}});
+      }
+    }
+    json["violations"].push_back(std::move(violation_json));
   }
   std::ofstream json_file(std::filesystem::path(report_directory_path) / "ilvs.json");
   json_file << json.dump(2) << "\n";

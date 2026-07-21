@@ -45,6 +45,15 @@ struct LVSPhysicalGraph
   std::vector<std::string> floating_ground_pin_list;
   std::unordered_map<uint64_t, std::vector<std::string>> component_terminal_map;
   std::unordered_map<uint64_t, std::vector<std::string>> component_net_map;
+  struct ShapeLocation
+  {
+    int32_t layer_id = -1;
+    int32_t ll_x = 0;
+    int32_t ll_y = 0;
+    int32_t ur_x = 0;
+    int32_t ur_y = 0;
+  };
+  std::unordered_map<uint64_t, std::vector<ShapeLocation>> component_shape_map;
   std::unordered_map<std::string, uint64_t> terminal_component_map;
   std::unordered_set<std::string> power_net_set;
   std::unordered_set<std::string> ground_net_set;

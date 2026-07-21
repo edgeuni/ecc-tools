@@ -295,6 +295,11 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
     }
     component_id++;
   }
+  for (size_t node_idx = 0; node_idx < graph_node_list.size(); node_idx++) {
+    GraphNode& node = graph_node_list[node_idx];
+    netlist.physical_graph.component_shape_map[component_id_map[graph.find(node_idx)]].push_back(
+        {node.layer_id, node.rect.get_low_x(), node.rect.get_low_y(), node.rect.get_high_x(), node.rect.get_high_y()});
+  }
   for (const auto& [net_name, pin_node_list] : terminal_node_map) {
     std::unordered_set<size_t> terminal_component_set;
     uint64_t floating_terminal_num = 0;
