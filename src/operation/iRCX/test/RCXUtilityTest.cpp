@@ -26,6 +26,7 @@ int main()
   assert(ircx::Utility::ceilDivPositive(5, 0) == 0);
 
   assert(ircx::Utility::getThreadNum(0, 64) == 1);
+  assert(ircx::Utility::getThreadNum(-1, 64) == 1);
   assert(ircx::Utility::getThreadNum(4, 64) == 4);
   assert(ircx::Utility::getThreadNum(4, 0) == 1);
 

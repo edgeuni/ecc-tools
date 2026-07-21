@@ -29,14 +29,14 @@ class SWModel
   // getter
   std::vector<std::vector<SPEFCouplingRef>>& get_net_coupling_ref_list() { return _net_coupling_ref_list; }
   std::vector<SPEFReportLayer>& get_report_layer_list() { return _report_layer_list; }
-  std::unordered_map<size_t, size_t>& get_design_layer_id_to_report_layer_id_map() { return _design_layer_id_to_report_layer_id_map; }
+  std::unordered_map<int32_t, int32_t>& get_design_layer_id_to_report_layer_id_map() { return _design_layer_id_to_report_layer_id_map; }
   // setter
   void set_net_coupling_ref_list(const std::vector<std::vector<SPEFCouplingRef>>& net_coupling_ref_list)
   {
     _net_coupling_ref_list = net_coupling_ref_list;
   }
   void set_report_layer_list(const std::vector<SPEFReportLayer>& report_layer_list) { _report_layer_list = report_layer_list; }
-  void set_design_layer_id_to_report_layer_id_map(const std::unordered_map<size_t, size_t>& design_layer_id_to_report_layer_id_map)
+  void set_design_layer_id_to_report_layer_id_map(const std::unordered_map<int32_t, int32_t>& design_layer_id_to_report_layer_id_map)
   {
     _design_layer_id_to_report_layer_id_map = design_layer_id_to_report_layer_id_map;
   }
@@ -45,7 +45,7 @@ class SWModel
  private:
   std::vector<std::vector<SPEFCouplingRef>> _net_coupling_ref_list;
   std::vector<SPEFReportLayer> _report_layer_list;
-  std::unordered_map<size_t, size_t> _design_layer_id_to_report_layer_id_map;
+  std::unordered_map<int32_t, int32_t> _design_layer_id_to_report_layer_id_map;
 };
 
 }  // namespace ircx

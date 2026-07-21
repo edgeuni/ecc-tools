@@ -35,12 +35,12 @@ class EBModel final
 
   // getter
   double get_bucket_size_um() const { return bucket_size_um_; }
-  size_t get_cross_layer() const { return cross_layer_; }
-  std::map<size_t, EnvPixel>& get_layer_to_pixel_prefer_dir() { return layer_to_pixel_prefer_dir_; }
-  std::map<size_t, EnvPixel>& get_layer_to_pixel_nonprefer_dir() { return layer_to_pixel_nonprefer_dir_; }
-  std::map<size_t, EnvTrack>& get_layer_to_track_prefer_dir() { return layer_to_track_prefer_dir_; }
-  std::map<size_t, EnvTrack>& get_layer_to_track_nonprefer_dir() { return layer_to_track_nonprefer_dir_; }
-  std::map<size_t, int32_t>& get_layer_to_search_track_num() { return layer_to_search_track_num_; }
+  int32_t get_cross_layer() const { return cross_layer_; }
+  std::map<int32_t, EnvPixel>& get_layer_to_pixel_prefer_dir() { return layer_to_pixel_prefer_dir_; }
+  std::map<int32_t, EnvPixel>& get_layer_to_pixel_nonprefer_dir() { return layer_to_pixel_nonprefer_dir_; }
+  std::map<int32_t, EnvTrack>& get_layer_to_track_prefer_dir() { return layer_to_track_prefer_dir_; }
+  std::map<int32_t, EnvTrack>& get_layer_to_track_nonprefer_dir() { return layer_to_track_nonprefer_dir_; }
+  std::map<int32_t, int32_t>& get_layer_to_search_track_num() { return layer_to_search_track_num_; }
   // setter
   // function
 
@@ -53,13 +53,13 @@ class EBModel final
   double bucket_size_um_ = 5.0;
   double window_size_um_ = 5.0;
 
-  size_t cross_layer_ = 3;
+  int32_t cross_layer_ = 3;
 
-  std::map<size_t, EnvPixel> layer_to_pixel_prefer_dir_;
-  std::map<size_t, EnvPixel> layer_to_pixel_nonprefer_dir_;
-  std::map<size_t, EnvTrack> layer_to_track_prefer_dir_;
-  std::map<size_t, EnvTrack> layer_to_track_nonprefer_dir_;
-  std::map<size_t, int32_t> layer_to_search_track_num_;
+  std::map<int32_t, EnvPixel> layer_to_pixel_prefer_dir_;
+  std::map<int32_t, EnvPixel> layer_to_pixel_nonprefer_dir_;
+  std::map<int32_t, EnvTrack> layer_to_track_prefer_dir_;
+  std::map<int32_t, EnvTrack> layer_to_track_nonprefer_dir_;
+  std::map<int32_t, int32_t> layer_to_search_track_num_;
 };
 
 }  // namespace ircx

@@ -35,10 +35,13 @@ class NetEnv
   {
     _edge_interval_pool.append(std::move(edge_interval_list));
   }
-  std::span<EdgeEnvInterval> get_edge_interval_list(size_t edge_idx) { return _edge_interval_pool.get_group_item_list(edge_idx); }
-  std::span<const EdgeEnvInterval> get_edge_interval_list(size_t edge_idx) const
+  std::span<EdgeEnvInterval> get_edge_interval_list(int32_t edge_idx)
   {
-    return _edge_interval_pool.get_group_item_list(edge_idx);
+    return _edge_interval_pool.get_group_item_list(static_cast<size_t>(edge_idx));
+  }
+  std::span<const EdgeEnvInterval> get_edge_interval_list(int32_t edge_idx) const
+  {
+    return _edge_interval_pool.get_group_item_list(static_cast<size_t>(edge_idx));
   }
 
  private:

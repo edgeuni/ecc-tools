@@ -43,8 +43,8 @@ class EnvTrackOverlap
   // function
 
  private:
-  int32_t _start_coordinate = 0;
-  int32_t _end_coordinate = 0;
+  int32_t _start_coordinate = INT32_MAX;
+  int32_t _end_coordinate = INT32_MAX;
   int32_t _spacing = INT32_MAX;
   TopoEdge* _edge = nullptr;
 };

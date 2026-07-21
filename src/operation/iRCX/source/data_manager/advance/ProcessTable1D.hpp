@@ -40,59 +40,45 @@ class ProcessTable1D
     sort_entry_list();
   }
   bool get_is_empty() const { return _entry_list.empty(); }
-  std::optional<double> query(double key) const;
+  std::optional<double> query(double key) const
+  {
+    if (_entry_list.empty()) {
+      return std::nullopt;
+    }
+    if (_entry_list.size() == 1 || key <= _entry_list.front().first) {
+      return _entry_list.front().second;
+    }
+    if (key >= _entry_list.back().first) {
+      return _entry_list.back().second;
+    }
+
+    std::vector<std::pair<double, double>>::const_iterator high_iter
+        = std::lower_bound(_entry_list.begin(), _entry_list.end(), key, isEntryLessThanKey);
+    if (high_iter == _entry_list.end()) {
+      return _entry_list.back().second;
+    }
+    if (high_iter->first == key) {
+      return high_iter->second;
+    }
+
+    std::vector<std::pair<double, double>>::const_iterator low_iter = std::prev(high_iter);
+    double key_delta = high_iter->first - low_iter->first;
+    if (key_delta == 0.0) {
+      return high_iter->second;
+    }
+    double ratio = (key - low_iter->first) / key_delta;
+    return std::lerp(low_iter->second, high_iter->second, ratio);
+  }
 
  private:
-  static bool isEntryLessThanKey(const std::pair<double, double>& entry, double key);
-  static bool isEntryLess(const std::pair<double, double>& first_entry, const std::pair<double, double>& second_entry);
-  void sort_entry_list();
+  static bool isEntryLessThanKey(const std::pair<double, double>& entry, double key) { return entry.first < key; }
+  static bool isEntryLess(const std::pair<double, double>& first_entry, const std::pair<double, double>& second_entry)
+  {
+    return first_entry.first < second_entry.first;
+  }
+  void sort_entry_list() { std::sort(_entry_list.begin(), _entry_list.end(), isEntryLess); }
 
   std::vector<std::pair<double, double>> _entry_list;
 };
-
-inline std::optional<double> ProcessTable1D::query(double key) const
-{
-  if (_entry_list.empty()) {
-    return std::nullopt;
-  }
-  if (_entry_list.size() == 1 || key <= _entry_list.front().first) {
-    return _entry_list.front().second;
-  }
-  if (key >= _entry_list.back().first) {
-    return _entry_list.back().second;
-  }
-
-  std::vector<std::pair<double, double>>::const_iterator high_iter
-      = std::lower_bound(_entry_list.begin(), _entry_list.end(), key, isEntryLessThanKey);
-  if (high_iter == _entry_list.end()) {
-    return _entry_list.back().second;
-  }
-  if (high_iter->first == key) {
-    return high_iter->second;
-  }
-
-  std::vector<std::pair<double, double>>::const_iterator low_iter = std::prev(high_iter);
-  double key_delta = high_iter->first - low_iter->first;
-  if (key_delta == 0.0) {
-    return high_iter->second;
-  }
-  double ratio = (key - low_iter->first) / key_delta;
-  return std::lerp(low_iter->second, high_iter->second, ratio);
-}
-
-inline bool ProcessTable1D::isEntryLessThanKey(const std::pair<double, double>& entry, double key)
-{
-  return entry.first < key;
-}
-
-inline bool ProcessTable1D::isEntryLess(const std::pair<double, double>& first_entry, const std::pair<double, double>& second_entry)
-{
-  return first_entry.first < second_entry.first;
-}
-
-inline void ProcessTable1D::sort_entry_list()
-{
-  std::sort(_entry_list.begin(), _entry_list.end(), isEntryLess);
-}
 
 }  // namespace ircx

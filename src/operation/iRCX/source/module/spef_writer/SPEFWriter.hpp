@@ -53,21 +53,23 @@ class SPEFWriter
   void writeSWModel(SWModel& sw_model);
   void buildNameMap(SPEFNameMap& spef_name_map);
   void writeCornerSPEFList(SWModel& sw_model, SPEFNameMap& spef_name_map);
-  void writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, size_t corner_idx);
-  void buildNetCouplingRefList(SWModel& sw_model, size_t corner_idx);
+  void writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, int32_t corner_idx);
+  void buildNetCouplingRefList(SWModel& sw_model, int32_t corner_idx);
   void buildReportLayerList(SWModel& sw_model);
-  void writeHeader(std::ofstream& spef_file_stream, size_t corner_idx);
+  void writeHeader(std::ofstream& spef_file_stream, int32_t corner_idx);
   void writeNameMap(std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map);
   void writePortList(std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map);
   void writeLayerMap(SWModel& sw_model, std::ofstream& spef_file_stream);
-  void writeDNetList(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, size_t corner_idx);
-  void writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, size_t corner_idx, size_t net_idx);
-  void getNearestNodePair(TopoEdge& self_edge, TopoEdge& other_edge, size_t& self_node_idx, size_t& other_node_idx);
+  void writeDNetList(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, int32_t corner_idx);
+  void writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, int32_t corner_idx,
+                 int32_t net_idx);
+  void getNearestNodePair(TopoEdge& self_edge, TopoEdge& other_edge, int32_t& self_node_idx, int32_t& other_node_idx);
   std::string getNodeSPEFName(SPEFNameMap& spef_name_map, TopoNode& node);
   char getPinIO(Net& net, const std::string& pin_name);
   void writeNodeGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, TopoNode& node, double micron_per_dbu);
-  void writeResGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, size_t corner_idx, TopoEdge& edge, double micron_per_dbu);
-  size_t getReportLayerLevel(SWModel& sw_model, size_t design_layer_id);
+  void writeResGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, int32_t corner_idx, TopoEdge& edge,
+                        double micron_per_dbu);
+  int32_t getReportLayerLevel(SWModel& sw_model, int32_t design_layer_id);
 };
 
 }  // namespace ircx

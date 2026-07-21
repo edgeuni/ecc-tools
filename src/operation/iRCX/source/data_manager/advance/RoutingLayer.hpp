@@ -27,13 +27,13 @@ class RoutingLayer
   RoutingLayer() = default;
   ~RoutingLayer() = default;
   // getter
-  size_t get_layer_id() const { return _layer_id; }
+  int32_t get_layer_id() const { return _layer_id; }
   std::string& get_layer_name() { return _layer_name; }
   int32_t get_layer_width() const { return _layer_width; }
   bool get_is_prefer_horizontal() const { return _is_prefer_horizontal; }
   TrackInfo& get_track_info() { return _track_info; }
   // setter
-  void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
+  void set_layer_id(int32_t layer_id) { _layer_id = layer_id; }
   void set_layer_name(const std::string& layer_name) { _layer_name = layer_name; }
   void set_layer_width(int32_t layer_width) { _layer_width = layer_width; }
   void set_is_prefer_horizontal(bool is_prefer_horizontal) { _is_prefer_horizontal = is_prefer_horizontal; }
@@ -41,9 +41,9 @@ class RoutingLayer
   // function
 
  private:
-  size_t _layer_id = SIZE_MAX;
+  int32_t _layer_id = INT32_MAX;
   std::string _layer_name;
-  int32_t _layer_width = 0;
+  int32_t _layer_width = INT32_MAX;
   bool _is_prefer_horizontal = false;
   TrackInfo _track_info;
 };

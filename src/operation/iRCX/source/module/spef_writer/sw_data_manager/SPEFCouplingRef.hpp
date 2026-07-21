@@ -24,7 +24,7 @@ class SPEFCouplingRef
 {
  public:
   SPEFCouplingRef() = default;
-  SPEFCouplingRef(size_t self_edge_idx, size_t other_edge_idx, double cap)
+  SPEFCouplingRef(int32_t self_edge_idx, int32_t other_edge_idx, double cap)
   {
     _self_edge_idx = self_edge_idx;
     _other_edge_idx = other_edge_idx;
@@ -32,19 +32,19 @@ class SPEFCouplingRef
   }
   ~SPEFCouplingRef() = default;
   // getter
-  size_t get_self_edge_idx() const { return _self_edge_idx; }
-  size_t get_other_edge_idx() const { return _other_edge_idx; }
+  int32_t get_self_edge_idx() const { return _self_edge_idx; }
+  int32_t get_other_edge_idx() const { return _other_edge_idx; }
   double get_cap() const { return _cap; }
   // setter
-  void set_self_edge_idx(size_t self_edge_idx) { _self_edge_idx = self_edge_idx; }
-  void set_other_edge_idx(size_t other_edge_idx) { _other_edge_idx = other_edge_idx; }
+  void set_self_edge_idx(int32_t self_edge_idx) { _self_edge_idx = self_edge_idx; }
+  void set_other_edge_idx(int32_t other_edge_idx) { _other_edge_idx = other_edge_idx; }
   void set_cap(double cap) { _cap = cap; }
   // function
 
  private:
-  size_t _self_edge_idx = SIZE_MAX;
-  size_t _other_edge_idx = SIZE_MAX;
-  double _cap = 0.0;
+  int32_t _self_edge_idx = INT32_MAX;
+  int32_t _other_edge_idx = INT32_MAX;
+  double _cap = DBL_MAX;
 };
 
 }  // namespace ircx

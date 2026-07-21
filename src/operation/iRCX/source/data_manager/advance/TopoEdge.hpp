@@ -25,15 +25,15 @@ class TopoEdge
 {
  public:
   TopoEdge() = default;
-  explicit TopoEdge(size_t net_id) : _net_id(net_id) {}
+  explicit TopoEdge(int32_t net_id) : _net_id(net_id) {}
   ~TopoEdge() = default;
   // getter
-  size_t get_edge_id() const { return _edge_id; }
-  size_t get_net_id() const { return _net_id; }
+  int32_t get_edge_id() const { return _edge_id; }
+  int32_t get_net_id() const { return _net_id; }
   std::string& get_via_name() { return _via_name; }
-  size_t get_start_node_idx() const { return _start_node_idx; }
-  size_t get_end_node_idx() const { return _end_node_idx; }
-  size_t get_layer_id() const { return _layer_id; }
+  int32_t get_start_node_idx() const { return _start_node_idx; }
+  int32_t get_end_node_idx() const { return _end_node_idx; }
+  int32_t get_layer_id() const { return _layer_id; }
   GTLRectInt& get_shape() { return _shape; }
   int32_t get_width() const { return _width; }
   int32_t get_half_width() const { return _half_width; }
@@ -42,10 +42,31 @@ class TopoEdge
   LineSegment& get_line_segment() { return _line_segment; }
   // setter
   void set_via_name(const std::string& via_name) { _via_name = via_name; }
-  void set_start_node_idx(size_t start_node_idx) { _start_node_idx = start_node_idx; }
-  void set_end_node_idx(size_t end_node_idx) { _end_node_idx = end_node_idx; }
-  void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
-  void set_shape(const GTLRectInt& shape);
+  void set_start_node_idx(int32_t start_node_idx) { _start_node_idx = start_node_idx; }
+  void set_end_node_idx(int32_t end_node_idx) { _end_node_idx = end_node_idx; }
+  void set_layer_id(int32_t layer_id) { _layer_id = layer_id; }
+  void set_shape(const GTLRectInt& shape)
+  {
+    _shape = shape;
+
+    int32_t lower_x = boost::polygon::xl(_shape);
+    int32_t lower_y = boost::polygon::yl(_shape);
+    int32_t upper_x = boost::polygon::xh(_shape);
+    int32_t upper_y = boost::polygon::yh(_shape);
+    int32_t x_span = upper_x - lower_x;
+    int32_t y_span = upper_y - lower_y;
+    bool is_horizontal = x_span >= y_span;
+
+    _width = is_horizontal ? y_span : x_span;
+    _half_width = _width / 2;
+    _length = is_horizontal ? x_span : y_span;
+    _center = GTLPointInt(lower_x + x_span / 2, lower_y + y_span / 2);
+
+    _line_segment.set_is_horizontal(is_horizontal);
+    _line_segment.set_coordinate(is_horizontal ? lower_y + y_span / 2 : lower_x + x_span / 2);
+    _line_segment.set_lower(is_horizontal ? lower_x : lower_y);
+    _line_segment.set_upper(is_horizontal ? upper_x : upper_y);
+  }
   // function
   bool get_is_via() const { return !_via_name.empty(); }
   bool get_is_special_net() const { return _is_special_net; }
@@ -53,45 +74,22 @@ class TopoEdge
  private:
   friend class TopoPool;
 
-  void set_edge_id(size_t edge_id) { _edge_id = edge_id; }
+  void set_edge_id(int32_t edge_id) { _edge_id = edge_id; }
   void set_is_special_net(bool is_special_net) { _is_special_net = is_special_net; }
 
-  size_t _edge_id = SIZE_MAX;
-  size_t _net_id = SIZE_MAX;
+  int32_t _edge_id = INT32_MAX;
+  int32_t _net_id = INT32_MAX;
   bool _is_special_net = false;
   std::string _via_name;
-  size_t _start_node_idx = SIZE_MAX;
-  size_t _end_node_idx = SIZE_MAX;
-  size_t _layer_id = SIZE_MAX;
+  int32_t _start_node_idx = INT32_MAX;
+  int32_t _end_node_idx = INT32_MAX;
+  int32_t _layer_id = INT32_MAX;
   GTLRectInt _shape;
-  int32_t _width = 0;
-  int32_t _half_width = 0;
-  int32_t _length = 0;
+  int32_t _width = INT32_MAX;
+  int32_t _half_width = INT32_MAX;
+  int32_t _length = INT32_MAX;
   GTLPointInt _center;
   LineSegment _line_segment;
 };
-
-inline void TopoEdge::set_shape(const GTLRectInt& shape)
-{
-  _shape = shape;
-
-  int32_t lower_x = boost::polygon::xl(_shape);
-  int32_t lower_y = boost::polygon::yl(_shape);
-  int32_t upper_x = boost::polygon::xh(_shape);
-  int32_t upper_y = boost::polygon::yh(_shape);
-  int32_t x_span = upper_x - lower_x;
-  int32_t y_span = upper_y - lower_y;
-  bool is_horizontal = x_span >= y_span;
-
-  _width = is_horizontal ? y_span : x_span;
-  _half_width = _width / 2;
-  _length = is_horizontal ? x_span : y_span;
-  _center = GTLPointInt(lower_x + x_span / 2, lower_y + y_span / 2);
-
-  _line_segment.set_is_horizontal(is_horizontal);
-  _line_segment.set_coordinate(is_horizontal ? lower_y + y_span / 2 : lower_x + x_span / 2);
-  _line_segment.set_lower(is_horizontal ? lower_x : lower_y);
-  _line_segment.set_upper(is_horizontal ? upper_x : upper_y);
-}
 
 }  // namespace ircx

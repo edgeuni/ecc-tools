@@ -63,36 +63,36 @@ CapExtractor* CapExtractor::_ce_instance = nullptr;
 
 void CapExtractor::extractCap()
 {
-  size_t corner_num = RCXDM.getDatabase().get_corner_data_list().size();
-  for (size_t corner_idx = 0; corner_idx < corner_num; corner_idx++) {
+  int32_t corner_num = static_cast<int32_t>(RCXDM.getDatabase().get_corner_data_list().size());
+  for (int32_t corner_idx = 0; corner_idx < corner_num; ++corner_idx) {
     extractCornerCap(corner_idx);
   }
   RCXDM.getDatabase().get_rc_table().merge_net_ccap_entry_list();
 }
 
-void CapExtractor::extractCornerCap(size_t corner_idx)
+void CapExtractor::extractCornerCap(int32_t corner_idx)
 {
-  size_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
+  int32_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
   int32_t thread_num = RCXUTIL.getThreadNum(net_num, RCXDM.getConfig().thread_number);
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
-  for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
+  for (int32_t net_idx = 0; net_idx < net_num; ++net_idx) {
     extractNetCap(corner_idx, net_idx);
   }
 }
 
-void CapExtractor::extractNetCap(size_t corner_idx, size_t net_idx)
+void CapExtractor::extractNetCap(int32_t corner_idx, int32_t net_idx)
 {
   std::span<TopoEdge> edge_list = RCXDM.getDatabase().get_topo_pool().get_net_edge_list(net_idx);
-  for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
+  for (int32_t edge_idx = 0; edge_idx < static_cast<int32_t>(edge_list.size()); ++edge_idx) {
     extractEdgeCap(corner_idx, net_idx, edge_idx);
   }
 }
 
-void CapExtractor::extractEdgeCap(size_t corner_idx, size_t net_idx, size_t edge_idx)
+void CapExtractor::extractEdgeCap(int32_t corner_idx, int32_t net_idx, int32_t edge_idx)
 {
   Database& database = RCXDM.getDatabase();
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
-  TopoEdge& edge = edge_list[edge_idx];
+  TopoEdge& edge = edge_list[static_cast<size_t>(edge_idx)];
   if (edge.get_is_via()) {
     return;
   }
@@ -101,13 +101,13 @@ void CapExtractor::extractEdgeCap(size_t corner_idx, size_t net_idx, size_t edge
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
   std::span<EdgeEnvInterval> env_interval_list = net_env.get_edge_interval_list(edge_idx);
   std::span<EdgeEtchInterval> etch_interval_list = net_etch_profile.get_edge_interval_list(edge_idx);
-  size_t interval_num = std::min(env_interval_list.size(), etch_interval_list.size());
-  for (size_t interval_idx = 0; interval_idx < interval_num; interval_idx++) {
+  int32_t interval_num = static_cast<int32_t>(std::min(env_interval_list.size(), etch_interval_list.size()));
+  for (int32_t interval_idx = 0; interval_idx < interval_num; ++interval_idx) {
     extractEdgeIntervalCap(corner_idx, net_idx, edge_idx, interval_idx);
   }
 }
 
-void CapExtractor::extractEdgeIntervalCap(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx)
+void CapExtractor::extractEdgeIntervalCap(int32_t corner_idx, int32_t net_idx, int32_t edge_idx, int32_t interval_idx)
 {
   Database& database = RCXDM.getDatabase();
   NetEnv& net_env = database.get_net_env_list().at(net_idx);
@@ -121,12 +121,13 @@ void CapExtractor::extractEdgeIntervalCap(size_t corner_idx, size_t net_idx, siz
   }
   RCXUTIL.sortAndUnique(coordinate_list);
 
-  for (size_t coordinate_idx = 0; coordinate_idx + 1 < coordinate_list.size(); coordinate_idx++) {
-    extractCapSpan(corner_idx, net_idx, edge_idx, interval_idx, coordinate_list[coordinate_idx], coordinate_list[coordinate_idx + 1]);
+  for (int32_t coordinate_idx = 0; coordinate_idx + 1 < static_cast<int32_t>(coordinate_list.size()); ++coordinate_idx) {
+    extractCapSpan(corner_idx, net_idx, edge_idx, interval_idx, coordinate_list[static_cast<size_t>(coordinate_idx)],
+                   coordinate_list[static_cast<size_t>(coordinate_idx + 1)]);
   }
 }
 
-void CapExtractor::extractCapSpan(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx, int32_t start_coordinate,
+void CapExtractor::extractCapSpan(int32_t corner_idx, int32_t net_idx, int32_t edge_idx, int32_t interval_idx, int32_t start_coordinate,
                                   int32_t end_coordinate)
 {
   if (end_coordinate <= start_coordinate) {
@@ -136,7 +137,7 @@ void CapExtractor::extractCapSpan(size_t corner_idx, size_t net_idx, size_t edge
   Database& database = RCXDM.getDatabase();
   CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
-  TopoEdge& edge = edge_list[edge_idx];
+  TopoEdge& edge = edge_list[static_cast<size_t>(edge_idx)];
   ProcessConductor* conductor = getProcessConductor(corner_data, edge.get_layer_id());
   if (conductor == nullptr) {
     return;
@@ -196,8 +197,8 @@ void CapExtractor::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap
 {
   below_layer_name = "SUBSTRATE";
   above_layer_name.clear();
-  size_t below_layer_id = 0;
-  size_t above_layer_id = SIZE_MAX;
+  int32_t below_layer_id = 0;
+  int32_t above_layer_id = INT32_MAX;
   for (CrossOverlapSub& cross_overlap_sub : cross_overlap_sub_list) {
     if (cross_overlap_sub.get_start_coordinate() > start_coordinate || end_coordinate > cross_overlap_sub.get_end_coordinate()) {
       continue;
@@ -215,13 +216,13 @@ void CapExtractor::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap
     std::string& design_layer_name = layer_table.get_design_id_to_name_map().at(below_layer_id);
     below_layer_name = layer_table.get_design_name_to_process_name_map().at(design_layer_name);
   }
-  if (above_layer_id != SIZE_MAX) {
+  if (above_layer_id != INT32_MAX) {
     std::string& design_layer_name = layer_table.get_design_id_to_name_map().at(above_layer_id);
     above_layer_name = layer_table.get_design_name_to_process_name_map().at(design_layer_name);
   }
 }
 
-void CapExtractor::addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, double ground_cap)
+void CapExtractor::addGroundCap(int32_t corner_idx, int32_t net_idx, int32_t edge_idx, TopoEdge* adjacent_edge, double ground_cap)
 {
   if (ground_cap <= 0.0) {
     return;
@@ -235,7 +236,7 @@ void CapExtractor::addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_i
   }
 }
 
-void CapExtractor::addCouplingCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, double coupling_cap)
+void CapExtractor::addCouplingCap(int32_t corner_idx, int32_t net_idx, int32_t edge_idx, TopoEdge* adjacent_edge, double coupling_cap)
 {
   if (coupling_cap <= 0.0) {
     return;
@@ -246,16 +247,16 @@ void CapExtractor::addCouplingCap(size_t corner_idx, size_t net_idx, size_t edge
     std::span<double> ground_cap_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
     ground_cap_list[edge_idx] += coupling_cap;
   } else if (adjacent_edge->get_net_id() != net_idx) {
-    size_t edge_global_idx = database.get_topo_pool().get_edge_idx(net_idx, edge_idx);
-    size_t adjacent_edge_global_idx = database.get_topo_pool().get_edge_idx(adjacent_edge->get_net_id(), adjacent_edge->get_edge_id());
+    int32_t edge_global_idx = database.get_topo_pool().get_edge_idx(net_idx, edge_idx);
+    int32_t adjacent_edge_global_idx = database.get_topo_pool().get_edge_idx(adjacent_edge->get_net_id(), adjacent_edge->get_edge_id());
     database.get_rc_table().append_net_ccap_entry(net_idx, edge_global_idx, adjacent_edge_global_idx, corner_idx, coupling_cap);
   }
 }
 
-ProcessConductor* CapExtractor::getProcessConductor(CornerData& corner_data, size_t design_layer_id)
+ProcessConductor* CapExtractor::getProcessConductor(CornerData& corner_data, int32_t design_layer_id)
 {
   LayerTable& layer_table = RCXDM.getDatabase().get_layer_table();
-  std::unordered_map<size_t, std::string>& design_id_to_name_map = layer_table.get_design_id_to_name_map();
+  std::unordered_map<int32_t, std::string>& design_id_to_name_map = layer_table.get_design_id_to_name_map();
   if (design_id_to_name_map.count(design_layer_id) == 0) {
     return nullptr;
   }
@@ -305,9 +306,9 @@ void CapExtractor::getCap(CapTableConfig& cap_table_config, double spacing, doub
     return;
   }
 
-  for (size_t entry_idx = 0; entry_idx + 1 < entry_list.size(); entry_idx++) {
-    CapTableEntry& first_entry = entry_list[entry_idx];
-    CapTableEntry& second_entry = entry_list[entry_idx + 1];
+  for (int32_t entry_idx = 0; entry_idx + 1 < static_cast<int32_t>(entry_list.size()); ++entry_idx) {
+    CapTableEntry& first_entry = entry_list[static_cast<size_t>(entry_idx)];
+    CapTableEntry& second_entry = entry_list[static_cast<size_t>(entry_idx + 1)];
     if (first_entry.get_distance() <= spacing && spacing <= second_entry.get_distance()) {
       double distance_delta = second_entry.get_distance() - first_entry.get_distance();
       if (distance_delta == 0.0) {

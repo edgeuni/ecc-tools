@@ -24,7 +24,7 @@ class CcapEntry
 {
  public:
   CcapEntry() = default;
-  CcapEntry(size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, double cap)
+  CcapEntry(int32_t first_edge_idx, int32_t second_edge_idx, int32_t corner_idx, double cap)
   {
     _first_edge_idx = first_edge_idx;
     _second_edge_idx = second_edge_idx;
@@ -33,22 +33,22 @@ class CcapEntry
   }
   ~CcapEntry() = default;
   // getter
-  size_t get_first_edge_idx() const { return _first_edge_idx; }
-  size_t get_second_edge_idx() const { return _second_edge_idx; }
-  size_t get_corner_idx() const { return _corner_idx; }
+  int32_t get_first_edge_idx() const { return _first_edge_idx; }
+  int32_t get_second_edge_idx() const { return _second_edge_idx; }
+  int32_t get_corner_idx() const { return _corner_idx; }
   double get_cap() const { return _cap; }
   // setter
-  void set_first_edge_idx(size_t first_edge_idx) { _first_edge_idx = first_edge_idx; }
-  void set_second_edge_idx(size_t second_edge_idx) { _second_edge_idx = second_edge_idx; }
-  void set_corner_idx(size_t corner_idx) { _corner_idx = corner_idx; }
+  void set_first_edge_idx(int32_t first_edge_idx) { _first_edge_idx = first_edge_idx; }
+  void set_second_edge_idx(int32_t second_edge_idx) { _second_edge_idx = second_edge_idx; }
+  void set_corner_idx(int32_t corner_idx) { _corner_idx = corner_idx; }
   void set_cap(double cap) { _cap = cap; }
   // function
 
  private:
-  size_t _first_edge_idx = SIZE_MAX;
-  size_t _second_edge_idx = SIZE_MAX;
-  size_t _corner_idx = SIZE_MAX;
-  double _cap = 0.0;
+  int32_t _first_edge_idx = INT32_MAX;
+  int32_t _second_edge_idx = INT32_MAX;
+  int32_t _corner_idx = INT32_MAX;
+  double _cap = DBL_MAX;
 };
 
 }  // namespace ircx

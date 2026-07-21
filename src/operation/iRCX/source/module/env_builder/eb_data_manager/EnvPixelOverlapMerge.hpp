@@ -45,7 +45,7 @@ class EnvPixelOverlapMerge
     up_norm.reserve(up_inputs.size());
 
     for (const EnvLayerPixelOverlaps& input : dn_inputs) {
-      if (input.get_layer_id() == 0) {
+      if (input.get_layer_id() == 0 || input.get_layer_id() == INT32_MAX) {
         continue;
       }
       EnvLayerPixelOverlaps normalized_input;
@@ -57,7 +57,7 @@ class EnvPixelOverlapMerge
     }
 
     for (const EnvLayerPixelOverlaps& input : up_inputs) {
-      if (input.get_layer_id() == 0) {
+      if (input.get_layer_id() == 0 || input.get_layer_id() == INT32_MAX) {
         continue;
       }
       EnvLayerPixelOverlaps normalized_input;
@@ -69,7 +69,7 @@ class EnvPixelOverlapMerge
     }
 
     std::vector<int32_t> bp;
-    bp.reserve(2 + countBreakpoints(dn_norm) + countBreakpoints(up_norm));
+    bp.reserve(static_cast<size_t>(2 + countBreakpoints(dn_norm) + countBreakpoints(up_norm)));
     bp.push_back(query_a0);
     bp.push_back(query_a1);
 
@@ -82,29 +82,29 @@ class EnvPixelOverlapMerge
       return;
     }
 
-    std::vector<size_t> dn_cursor(dn_norm.size(), 0);
-    std::vector<size_t> up_cursor(up_norm.size(), 0);
+    std::vector<int32_t> dn_cursor(dn_norm.size(), 0);
+    std::vector<int32_t> up_cursor(up_norm.size(), 0);
 
-    for (size_t k = 0; k + 1 < bp.size(); ++k) {
-      const int32_t a0 = bp[k];
-      const int32_t a1 = bp[k + 1];
+    for (int32_t k = 0; k + 1 < static_cast<int32_t>(bp.size()); ++k) {
+      const int32_t a0 = bp[static_cast<size_t>(k)];
+      const int32_t a1 = bp[static_cast<size_t>(k + 1)];
       if (!(a0 < a1)) {
         continue;
       }
 
-      const size_t blw_layer = firstCoveringLayer(dn_norm, dn_cursor, a0, a1);
-      const size_t abv_layer = firstCoveringLayer(up_norm, up_cursor, a0, a1);
+      const int32_t blw_layer = firstCoveringLayer(dn_norm, dn_cursor, a0, a1);
+      const int32_t abv_layer = firstCoveringLayer(up_norm, up_cursor, a0, a1);
 
       emit(a0, a1, blw_layer, abv_layer, out);
     }
   }
 
  private:
-  static size_t countBreakpoints(const std::vector<EnvLayerPixelOverlaps>& inputs)
+  static int32_t countBreakpoints(const std::vector<EnvLayerPixelOverlaps>& inputs)
   {
-    size_t n = 0;
+    int32_t n = 0;
     for (const EnvLayerPixelOverlaps& input : inputs) {
-      n += input.get_pixel_overlap_list().size() * 2;
+      n += static_cast<int32_t>(input.get_pixel_overlap_list().size()) * 2;
     }
     return n;
   }
@@ -156,30 +156,32 @@ class EnvPixelOverlapMerge
     return lhs.get_end_coordinate() < rhs.get_end_coordinate();
   }
 
-  static void advanceCursor(const std::vector<EnvPixelOverlap>& segs, size_t& idx, int32_t x)
+  static void advanceCursor(const std::vector<EnvPixelOverlap>& segs, int32_t& idx, int32_t x)
   {
-    while (idx < segs.size() && segs[idx].get_end_coordinate() <= x) {
+    while (idx < static_cast<int32_t>(segs.size()) && segs[static_cast<size_t>(idx)].get_end_coordinate() <= x) {
       ++idx;
     }
   }
 
-  static bool covers(const std::vector<EnvPixelOverlap>& segs, size_t idx, int32_t a0, int32_t a1)
+  static bool covers(const std::vector<EnvPixelOverlap>& segs, int32_t idx, int32_t a0, int32_t a1)
   {
-    return idx < segs.size() && segs[idx].get_start_coordinate() < a1 && segs[idx].get_end_coordinate() > a0;
+    return idx < static_cast<int32_t>(segs.size()) && segs[static_cast<size_t>(idx)].get_start_coordinate() < a1
+           && segs[static_cast<size_t>(idx)].get_end_coordinate() > a0;
   }
 
-  static size_t firstCoveringLayer(const std::vector<EnvLayerPixelOverlaps>& inputs, std::vector<size_t>& cursors, int32_t a0, int32_t a1)
+  static int32_t firstCoveringLayer(const std::vector<EnvLayerPixelOverlaps>& inputs, std::vector<int32_t>& cursors, int32_t a0,
+                                    int32_t a1)
   {
-    for (size_t i = 0; i < inputs.size(); ++i) {
-      advanceCursor(inputs[i].get_pixel_overlap_list(), cursors[i], a0);
-      if (covers(inputs[i].get_pixel_overlap_list(), cursors[i], a0, a1)) {
-        return inputs[i].get_layer_id();
+    for (int32_t input_idx = 0; input_idx < static_cast<int32_t>(inputs.size()); ++input_idx) {
+      advanceCursor(inputs[static_cast<size_t>(input_idx)].get_pixel_overlap_list(), cursors[static_cast<size_t>(input_idx)], a0);
+      if (covers(inputs[static_cast<size_t>(input_idx)].get_pixel_overlap_list(), cursors[static_cast<size_t>(input_idx)], a0, a1)) {
+        return inputs[static_cast<size_t>(input_idx)].get_layer_id();
       }
     }
     return 0;
   }
 
-  static void emit(int32_t a0, int32_t a1, size_t blw_layer, size_t abv_layer, std::vector<CrossOverlapSub>& out)
+  static void emit(int32_t a0, int32_t a1, int32_t blw_layer, int32_t abv_layer, std::vector<CrossOverlapSub>& out)
   {
     if (!(a0 < a1)) {
       return;

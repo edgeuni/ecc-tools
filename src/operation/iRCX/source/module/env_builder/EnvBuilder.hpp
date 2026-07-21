@@ -56,7 +56,8 @@ class EnvBuilder
   void buildEBModel(EBModel& eb_model);
   bool buildNetEnvs(EBModel& eb_model);
   std::vector<CrossOverlapSub> clipCrossSegments(const std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t a0, int32_t a1);
-  std::vector<EnvLayerPixelOverlaps> collectCrossSide(EBModel& eb_model, const LineSegment& line_segment, size_t base_lid, bool search_up);
+  std::vector<EnvLayerPixelOverlaps> collectCrossSide(EBModel& eb_model, const LineSegment& line_segment, int32_t base_lid,
+                                                       bool search_up);
   bool buildTracks(EBModel& eb_model);
   void addTrackEdge(EBModel& eb_model, TopoEdge& edge);
   bool initTrackForDirection(EnvTrack& track, TrackInfo& track_info, GTLRectInt& rect, int32_t bucket_dlt, bool is_horz);

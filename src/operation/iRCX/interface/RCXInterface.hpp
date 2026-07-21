@@ -49,11 +49,11 @@ class RCXInterface
 #if 1  // iRCX
   void initRCX(std::map<std::string, std::any> config_map);
   void runRCX();
+  void destroyRCX();
   void compareSpef(std::map<std::string, std::any> config_map);
   void dumpNetShape();
   void runRCXFromTopo(std::map<std::string, std::any> config_map);
   void plotSpef(std::map<std::string, std::any> config_map);
-  void destroyRCX();
 #endif
 
 #endif
@@ -73,7 +73,7 @@ class RCXInterface
   void wrapRoutingLayer(idb::IdbLayerRouting* idb_routing_layer);
   void wrapSpefContext();
   void wrapNetList();
-  void wrapNet(Net& net, idb::IdbNet* idb_net, std::size_t net_idx);
+  void wrapNet(Net& net, idb::IdbNet* idb_net, int32_t net_idx);
   void wrapPinList(Net& net, idb::IdbNet* idb_net);
   void wrapPin(Net& net, idb::IdbPin* idb_pin, bool is_driver);
   std::string getSpefName(std::string name);

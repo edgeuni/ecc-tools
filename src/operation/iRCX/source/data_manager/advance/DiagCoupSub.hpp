@@ -41,11 +41,11 @@ class DiagCoupSub
   // function
 
  private:
-  int32_t _start_coordinate = 0;
-  int32_t _end_coordinate = 0;
+  int32_t _start_coordinate = INT32_MAX;
+  int32_t _end_coordinate = INT32_MAX;
   TopoEdge* _neighbor_edge = nullptr;
-  int32_t _distance = 0;
-  int32_t _layer_delta = 0;
+  int32_t _distance = INT32_MAX;
+  int32_t _layer_delta = INT32_MAX;
 };
 
 }  // namespace ircx

@@ -27,44 +27,33 @@ class CornerNetPool
   CornerNetPool() = default;
   ~CornerNetPool() = default;
   // getter
-  size_t get_corner_num() const { return _corner_num; }
-  size_t get_net_num() const { return _net_num; }
+  int32_t get_corner_num() const { return _corner_num; }
+  int32_t get_net_num() const { return _net_num; }
   std::vector<T>& get_item_list() { return _item_list; }
   // setter
-  void set_corner_num(size_t corner_num) { _corner_num = corner_num; }
-  void set_net_num(size_t net_num) { _net_num = net_num; }
+  void set_corner_num(int32_t corner_num) { _corner_num = corner_num; }
+  void set_net_num(int32_t net_num) { _net_num = net_num; }
   void set_item_list(const std::vector<T>& item_list) { _item_list = item_list; }
   // function
-  void init(size_t corner_num, size_t net_num);
-  T& get_item(CornerNetId corner_net_id);
+  void init(int32_t corner_num, int32_t net_num)
+  {
+    _corner_num = corner_num;
+    _net_num = net_num;
+    _item_list.clear();
+    _item_list.resize(static_cast<size_t>(_corner_num) * static_cast<size_t>(_net_num));
+  }
+  T& get_item(CornerNetId corner_net_id) { return _item_list.at(get_item_idx(corner_net_id)); }
 
  private:
-  size_t get_item_idx(CornerNetId corner_net_id) const;
+  size_t get_item_idx(CornerNetId corner_net_id) const
+  {
+    return static_cast<size_t>(corner_net_id.get_corner_idx()) * static_cast<size_t>(_net_num)
+           + static_cast<size_t>(corner_net_id.get_net_idx());
+  }
 
-  size_t _corner_num = 0;
-  size_t _net_num = 0;
+  int32_t _corner_num = 0;
+  int32_t _net_num = 0;
   std::vector<T> _item_list;
 };
-
-template <typename T>
-inline void CornerNetPool<T>::init(size_t corner_num, size_t net_num)
-{
-  _corner_num = corner_num;
-  _net_num = net_num;
-  _item_list.clear();
-  _item_list.resize(_corner_num * _net_num);
-}
-
-template <typename T>
-inline T& CornerNetPool<T>::get_item(CornerNetId corner_net_id)
-{
-  return _item_list.at(get_item_idx(corner_net_id));
-}
-
-template <typename T>
-inline size_t CornerNetPool<T>::get_item_idx(CornerNetId corner_net_id) const
-{
-  return corner_net_id.get_corner_idx() * _net_num + corner_net_id.get_net_idx();
-}
 
 }  // namespace ircx

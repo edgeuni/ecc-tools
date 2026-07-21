@@ -35,9 +35,9 @@ class CapTableEntry
   // function
 
  private:
-  double _distance = 0.0;
-  double _coupling_cap = 0.0;
-  double _ground_cap = 0.0;
+  double _distance = DBL_MAX;
+  double _coupling_cap = DBL_MAX;
+  double _ground_cap = DBL_MAX;
 };
 
 }  // namespace ircx

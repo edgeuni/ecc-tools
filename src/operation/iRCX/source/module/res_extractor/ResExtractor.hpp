@@ -51,15 +51,15 @@ class ResExtractor
   ResExtractor& operator=(ResExtractor&& other) = delete;
   // function
   void extractRes();
-  void extractCornerRes(size_t corner_idx);
-  void extractNetRes(size_t corner_idx, size_t net_idx);
+  void extractCornerRes(int32_t corner_idx);
+  void extractNetRes(int32_t corner_idx, int32_t net_idx);
   double extractWireRes(CornerData& corner_data, ProcessConductor& conductor, TopoEdge& edge,
                         std::span<EdgeEtchInterval> edge_interval_list);
   double extractViaRes(CornerData& corner_data, ProcessVia& via, TopoEdge& edge);
   double getTemperatureFactor(double temperature, double nominal_temperature, double temperature_coefficient1,
                               double temperature_coefficient2);
-  ProcessVia* getProcessVia(CornerData& corner_data, size_t design_layer_id);
-  ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
+  ProcessVia* getProcessVia(CornerData& corner_data, int32_t design_layer_id);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, int32_t design_layer_id);
 };
 
 }  // namespace ircx

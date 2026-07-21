@@ -24,23 +24,23 @@ class CornerNetId
 {
  public:
   CornerNetId() = default;
-  CornerNetId(size_t corner_idx, size_t net_idx)
+  CornerNetId(int32_t corner_idx, int32_t net_idx)
   {
     _corner_idx = corner_idx;
     _net_idx = net_idx;
   }
   ~CornerNetId() = default;
   // getter
-  size_t get_corner_idx() const { return _corner_idx; }
-  size_t get_net_idx() const { return _net_idx; }
+  int32_t get_corner_idx() const { return _corner_idx; }
+  int32_t get_net_idx() const { return _net_idx; }
   // setter
-  void set_corner_idx(size_t corner_idx) { _corner_idx = corner_idx; }
-  void set_net_idx(size_t net_idx) { _net_idx = net_idx; }
+  void set_corner_idx(int32_t corner_idx) { _corner_idx = corner_idx; }
+  void set_net_idx(int32_t net_idx) { _net_idx = net_idx; }
   // function
 
  private:
-  size_t _corner_idx = SIZE_MAX;
-  size_t _net_idx = SIZE_MAX;
+  int32_t _corner_idx = INT32_MAX;
+  int32_t _net_idx = INT32_MAX;
 };
 
 }  // namespace ircx

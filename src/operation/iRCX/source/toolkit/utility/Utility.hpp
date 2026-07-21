@@ -558,8 +558,8 @@ class Utility
   static GTLPolySetInt rectsToPolyset(const std::vector<GTLRectInt>& rects)
   {
     GTLPolySetInt ps;
-    for (const auto& r : rects) {
-      ps += r;
+    for (const GTLRectInt& rect : rects) {
+      ps += rect;
     }
     return ps;
   }
@@ -567,8 +567,8 @@ class Utility
   static GTLPolySetDBL rectsToPolyset(const std::vector<GTLRectDBL>& rects)
   {
     GTLPolySetDBL ps;
-    for (const auto& r : rects) {
-      ps += r;
+    for (const GTLRectDBL& rect : rects) {
+      ps += rect;
     }
     return ps;
   }
@@ -588,11 +588,11 @@ class Utility
     T miny = minY(rects[0]);
     T maxy = maxY(rects[0]);
 
-    for (size_t i = 1; i < rects.size(); ++i) {
-      minx = std::min(minx, minX(rects[i]));
-      maxx = std::max(maxx, maxX(rects[i]));
-      miny = std::min(miny, minY(rects[i]));
-      maxy = std::max(maxy, maxY(rects[i]));
+    for (int32_t rect_idx = 1; rect_idx < static_cast<int32_t>(rects.size()); ++rect_idx) {
+      minx = std::min(minx, minX(rects[static_cast<size_t>(rect_idx)]));
+      maxx = std::max(maxx, maxX(rects[static_cast<size_t>(rect_idx)]));
+      miny = std::min(miny, minY(rects[static_cast<size_t>(rect_idx)]));
+      maxy = std::max(maxy, maxY(rects[static_cast<size_t>(rect_idx)]));
     }
 
     return makeRect<Rect>(minx, miny, maxx, maxy);
@@ -637,16 +637,12 @@ class Utility
 
 #if 1  // omp
 
-  static int32_t getThreadNum(size_t work_item_num, int32_t requested_thread_num)
+  static int32_t getThreadNum(int32_t work_item_num, int32_t requested_thread_num)
   {
-    if (work_item_num == 0) {
+    if (work_item_num <= 0) {
       return 1;
     }
-
-    const size_t max_thread_num = static_cast<size_t>(INT32_MAX);
-    const int32_t work_item_thread_num
-        = work_item_num > max_thread_num ? INT32_MAX : static_cast<int32_t>(work_item_num);
-    return std::min(std::max(1, requested_thread_num), work_item_thread_num);
+    return std::min(std::max(1, requested_thread_num), work_item_num);
   }
 
 #endif
@@ -847,8 +843,8 @@ class Utility
   template <typename Key>
   static bool exist(const std::vector<Key>& vector, const Key& key)
   {
-    for (size_t i = 0; i < vector.size(); i++) {
-      if (vector[i] == key) {
+    for (int32_t value_idx = 0; value_idx < static_cast<int32_t>(vector.size()); ++value_idx) {
+      if (vector[static_cast<size_t>(value_idx)] == key) {
         return true;
       }
     }

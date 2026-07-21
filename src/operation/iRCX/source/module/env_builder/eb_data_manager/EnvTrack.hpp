@@ -388,13 +388,13 @@ class EnvTrack
   // each track -> multiple buckets
   std::vector<std::vector<EnvEdgeSet>> track_buckets_;
 
-  int32_t track_ori_ = 0;
+  int32_t track_ori_ = INT32_MAX;
   int32_t track_num_ = 0;
   int32_t track_dlt_ = 0;
 
-  int32_t bucket_ori_ = 0;
+  int32_t bucket_ori_ = INT32_MAX;
   int32_t bucket_num_ = 0;
-  int32_t bucket_dlt_ = 10000;
+  int32_t bucket_dlt_ = 0;
 
   bool trackValid(int32_t t) const { return 0 <= t && t < track_num_; }
   bool bucketValid(int32_t b) const { return 0 <= b && b < bucket_num_; }

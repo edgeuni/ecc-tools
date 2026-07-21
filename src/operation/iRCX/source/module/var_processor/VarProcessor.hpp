@@ -49,11 +49,11 @@ class VarProcessor
   VarProcessor& operator=(VarProcessor&& other) = delete;
   // function
   void buildCornerNetEtchProfilePool();
-  void buildNetEtchProfile(size_t corner_idx, size_t net_idx);
+  void buildNetEtchProfile(int32_t corner_idx, int32_t net_idx);
   void applyCornerNetEffectiveGeometryList();
-  void applyNetEffectiveGeometry(size_t corner_idx, size_t net_idx);
+  void applyNetEffectiveGeometry(int32_t corner_idx, int32_t net_idx);
   void applyEdgeEffectiveGeometry(ProcessConductor& conductor, EdgeEtchInterval& edge_interval);
-  ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, int32_t design_layer_id);
 };
 
 }  // namespace ircx

@@ -24,7 +24,7 @@ class CouplingKey
 {
  public:
   CouplingKey() = default;
-  CouplingKey(size_t first_edge_idx, size_t second_edge_idx)
+  CouplingKey(int32_t first_edge_idx, int32_t second_edge_idx)
   {
     _first_edge_idx = std::min(first_edge_idx, second_edge_idx);
     _second_edge_idx = std::max(first_edge_idx, second_edge_idx);
@@ -35,16 +35,16 @@ class CouplingKey
     return _first_edge_idx == other._first_edge_idx && _second_edge_idx == other._second_edge_idx;
   }
   // getter
-  size_t get_first_edge_idx() const { return _first_edge_idx; }
-  size_t get_second_edge_idx() const { return _second_edge_idx; }
+  int32_t get_first_edge_idx() const { return _first_edge_idx; }
+  int32_t get_second_edge_idx() const { return _second_edge_idx; }
   // setter
-  void set_first_edge_idx(size_t first_edge_idx) { _first_edge_idx = first_edge_idx; }
-  void set_second_edge_idx(size_t second_edge_idx) { _second_edge_idx = second_edge_idx; }
+  void set_first_edge_idx(int32_t first_edge_idx) { _first_edge_idx = first_edge_idx; }
+  void set_second_edge_idx(int32_t second_edge_idx) { _second_edge_idx = second_edge_idx; }
   // function
 
  private:
-  size_t _first_edge_idx = SIZE_MAX;
-  size_t _second_edge_idx = SIZE_MAX;
+  int32_t _first_edge_idx = INT32_MAX;
+  int32_t _second_edge_idx = INT32_MAX;
 };
 
 }  // namespace ircx

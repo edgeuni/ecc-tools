@@ -53,17 +53,17 @@ class CapExtractor
   CapExtractor& operator=(CapExtractor&& other) = delete;
   // function
   void extractCap();
-  void extractCornerCap(size_t corner_idx);
-  void extractNetCap(size_t corner_idx, size_t net_idx);
-  void extractEdgeCap(size_t corner_idx, size_t net_idx, size_t edge_idx);
-  void extractEdgeIntervalCap(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx);
-  void extractCapSpan(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx, int32_t start_coordinate,
+  void extractCornerCap(int32_t corner_idx);
+  void extractNetCap(int32_t corner_idx, int32_t net_idx);
+  void extractEdgeCap(int32_t corner_idx, int32_t net_idx, int32_t edge_idx);
+  void extractEdgeIntervalCap(int32_t corner_idx, int32_t net_idx, int32_t edge_idx, int32_t interval_idx);
+  void extractCapSpan(int32_t corner_idx, int32_t net_idx, int32_t edge_idx, int32_t interval_idx, int32_t start_coordinate,
                       int32_t end_coordinate);
   void getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t start_coordinate, int32_t end_coordinate,
                          std::string& below_layer_name, std::string& above_layer_name);
-  void addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, double ground_cap);
-  void addCouplingCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, double coupling_cap);
-  ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
+  void addGroundCap(int32_t corner_idx, int32_t net_idx, int32_t edge_idx, TopoEdge* adjacent_edge, double ground_cap);
+  void addCouplingCap(int32_t corner_idx, int32_t net_idx, int32_t edge_idx, TopoEdge* adjacent_edge, double coupling_cap);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, int32_t design_layer_id);
   CapTableConfig* getCapTableConfig(CornerData& corner_data, std::string& process_layer_name, std::string& below_layer_name,
                                     std::string& above_layer_name);
   void getCap(CapTableConfig& cap_table_config, double spacing, double& coupling_cap, double& ground_cap);

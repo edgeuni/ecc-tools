@@ -165,21 +165,21 @@ class EnvTrackOverlapMerge
       return;
     }
 
-    size_t i = 0;
-    size_t j = 0;
+    int32_t i = 0;
+    int32_t j = 0;
 
-    while (i < dn.size() && j < up.size()) {
-      const int32_t s = std::max(dn[i].get_start_coordinate(), up[j].get_start_coordinate());
-      const int32_t t = std::min(dn[i].get_end_coordinate(), up[j].get_end_coordinate());
+    while (i < static_cast<int32_t>(dn.size()) && j < static_cast<int32_t>(up.size())) {
+      const int32_t s = std::max(dn[static_cast<size_t>(i)].get_start_coordinate(), up[static_cast<size_t>(j)].get_start_coordinate());
+      const int32_t t = std::min(dn[static_cast<size_t>(i)].get_end_coordinate(), up[static_cast<size_t>(j)].get_end_coordinate());
 
       if (s < t) {
-        emitOutput(out, s, t, dn[i], up[j]);
+        emitOutput(out, s, t, dn[static_cast<size_t>(i)], up[static_cast<size_t>(j)]);
       }
 
-      if (dn[i].get_end_coordinate() == t) {
+      if (dn[static_cast<size_t>(i)].get_end_coordinate() == t) {
         ++i;
       }
-      if (up[j].get_end_coordinate() == t) {
+      if (up[static_cast<size_t>(j)].get_end_coordinate() == t) {
         ++j;
       }
     }

@@ -39,9 +39,9 @@ class LineSegment
 
  private:
   bool _is_horizontal = false;
-  int32_t _coordinate = 0;
-  int32_t _lower = 0;
-  int32_t _upper = 0;
+  int32_t _coordinate = INT32_MAX;
+  int32_t _lower = INT32_MAX;
+  int32_t _upper = INT32_MAX;
 };
 
 }  // namespace ircx

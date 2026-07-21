@@ -83,47 +83,48 @@ bool EnvBuilder::buildNetEnvs(EBModel& eb_model)
   }
   buildSearchTrackNumMap(eb_model);
 
-  size_t net_num = layout_data.get_regular_net_count();
+  int32_t net_num = layout_data.get_regular_net_count();
   std::vector<NetEnv>& net_envs = RCXDM.getDatabase().get_net_env_list();
   net_envs.clear();
-  net_envs.resize(net_num);
+  net_envs.resize(static_cast<size_t>(net_num));
 
-  std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
-  std::map<size_t, EnvTrack>& layer_to_track_prefer_dir = eb_model.get_layer_to_track_prefer_dir();
-  std::map<size_t, EnvTrack>& layer_to_track_nonprefer_dir = eb_model.get_layer_to_track_nonprefer_dir();
-  std::map<size_t, int32_t>& layer_to_search_track_num = eb_model.get_layer_to_search_track_num();
+  std::map<int32_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
+  std::map<int32_t, EnvTrack>& layer_to_track_prefer_dir = eb_model.get_layer_to_track_prefer_dir();
+  std::map<int32_t, EnvTrack>& layer_to_track_nonprefer_dir = eb_model.get_layer_to_track_nonprefer_dir();
+  std::map<int32_t, int32_t>& layer_to_search_track_num = eb_model.get_layer_to_search_track_num();
 
   const int32_t net_threads = RCXUTIL.getThreadNum(net_num, omp_get_max_threads());
 #pragma omp parallel for schedule(dynamic) num_threads(net_threads)
-  for (size_t nid = 0; nid < net_num; nid++) {
+  for (int32_t net_id = 0; net_id < net_num; ++net_id) {
     EnvTrackOverlapMerge track_merger;
     EnvPixelOverlapMerge pixel_merger;
-    NetEnv& env = net_envs[nid];
+    NetEnv& env = net_envs[static_cast<size_t>(net_id)];
 
-    for (TopoEdge& edge : topo_pool.get_net_edge_list(nid)) {
+    for (TopoEdge& edge : topo_pool.get_net_edge_list(net_id)) {
       if (edge.get_is_via()) {
         env.append_edge_interval_list({});  // placeholder to keep index aligned with TopoPool
         continue;
       }
 
-      const size_t lid = edge.get_layer_id();
+      const int32_t layer_id = edge.get_layer_id();
       LineSegment& query_seg = edge.get_line_segment();
 
       std::vector<EnvTrackOverlap> track_ov_up;
       std::vector<EnvTrackOverlap> track_ov_dn;
-      const bool layer_is_horz = routing_layers.at(lid).get_is_prefer_horizontal();
-      std::map<size_t, EnvTrack>& track_map
+      const bool layer_is_horz = routing_layers.at(layer_id).get_is_prefer_horizontal();
+      std::map<int32_t, EnvTrack>& track_map
           = edge.get_line_segment().get_is_horizontal() == layer_is_horz ? layer_to_track_prefer_dir : layer_to_track_nonprefer_dir;
-      if (const auto track_it = track_map.find(lid); track_it != track_map.end()) {
-        track_ov_up = track_it->second.overlap(query_seg, layer_to_search_track_num[lid]);
-        track_ov_dn = track_it->second.overlap(query_seg, -layer_to_search_track_num[lid]);
+      std::map<int32_t, EnvTrack>::iterator track_iter = track_map.find(layer_id);
+      if (track_iter != track_map.end()) {
+        track_ov_up = track_iter->second.overlap(query_seg, layer_to_search_track_num[layer_id]);
+        track_ov_dn = track_iter->second.overlap(query_seg, -layer_to_search_track_num[layer_id]);
       }
 
       std::vector<EdgeEnvInterval> out;
       track_merger.compute(query_seg.get_lower(), query_seg.get_upper(), track_ov_dn, track_ov_up, out);
 
-      std::vector<EnvLayerPixelOverlaps> dn_inputs = collectCrossSide(eb_model, query_seg, lid, false);
-      std::vector<EnvLayerPixelOverlaps> up_inputs = collectCrossSide(eb_model, query_seg, lid, true);
+      std::vector<EnvLayerPixelOverlaps> dn_inputs = collectCrossSide(eb_model, query_seg, layer_id, false);
+      std::vector<EnvLayerPixelOverlaps> up_inputs = collectCrossSide(eb_model, query_seg, layer_id, true);
 
       std::vector<CrossOverlapSub> cross_full;
       pixel_merger.compute(query_seg.get_lower(), query_seg.get_upper(), dn_inputs, up_inputs, cross_full);
@@ -165,19 +166,19 @@ std::vector<CrossOverlapSub> EnvBuilder::clipCrossSegments(const std::vector<Cro
   return clipped_cross_overlap_sub_list;
 }
 
-std::vector<EnvLayerPixelOverlaps> EnvBuilder::collectCrossSide(EBModel& eb_model, const LineSegment& line_segment, size_t base_lid,
+std::vector<EnvLayerPixelOverlaps> EnvBuilder::collectCrossSide(EBModel& eb_model, const LineSegment& line_segment, int32_t base_lid,
                                                                 bool search_up)
 {
   LayoutData& layout_data = RCXDM.getDatabase().get_layout_data();
-  std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
-  const size_t min_lid = routing_layers.empty() ? 0 : routing_layers.begin()->first;
-  const size_t max_lid = routing_layers.empty() ? 0 : routing_layers.rbegin()->first;
-  std::map<size_t, EnvPixel>& layer_to_pixel_prefer_dir = eb_model.get_layer_to_pixel_prefer_dir();
-  std::map<size_t, EnvPixel>& layer_to_pixel_nonprefer_dir = eb_model.get_layer_to_pixel_nonprefer_dir();
+  std::map<int32_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
+  const int32_t min_lid = routing_layers.empty() ? 0 : routing_layers.begin()->first;
+  const int32_t max_lid = routing_layers.empty() ? 0 : routing_layers.rbegin()->first;
+  std::map<int32_t, EnvPixel>& layer_to_pixel_prefer_dir = eb_model.get_layer_to_pixel_prefer_dir();
+  std::map<int32_t, EnvPixel>& layer_to_pixel_nonprefer_dir = eb_model.get_layer_to_pixel_nonprefer_dir();
   std::vector<EnvLayerPixelOverlaps> layer_pixel_overlap_list;
 
-  for (size_t delta = 1; delta <= eb_model.get_cross_layer(); ++delta) {
-    size_t candidate_layer_id = 0;
+  for (int32_t delta = 1; delta <= eb_model.get_cross_layer(); ++delta) {
+    int32_t candidate_layer_id = 0;
     if (search_up) {
       if (base_lid > max_lid || max_lid - base_lid < delta) {
         break;
@@ -190,15 +191,15 @@ std::vector<EnvLayerPixelOverlaps> EnvBuilder::collectCrossSide(EBModel& eb_mode
       candidate_layer_id = base_lid - delta;
     }
 
-    std::map<size_t, RoutingLayer>::iterator layer_iter = routing_layers.find(candidate_layer_id);
+    std::map<int32_t, RoutingLayer>::iterator layer_iter = routing_layers.find(candidate_layer_id);
     if (layer_iter == routing_layers.end()) {
       continue;
     }
 
-    std::map<size_t, EnvPixel>& pixel_map = (layer_iter->second.get_is_prefer_horizontal() != line_segment.get_is_horizontal())
+    std::map<int32_t, EnvPixel>& pixel_map = (layer_iter->second.get_is_prefer_horizontal() != line_segment.get_is_horizontal())
                                                 ? layer_to_pixel_prefer_dir
                                                 : layer_to_pixel_nonprefer_dir;
-    std::map<size_t, EnvPixel>::iterator pixel_iter = pixel_map.find(candidate_layer_id);
+    std::map<int32_t, EnvPixel>::iterator pixel_iter = pixel_map.find(candidate_layer_id);
     if (pixel_iter == pixel_map.end()) {
       continue;
     }
@@ -222,11 +223,11 @@ bool EnvBuilder::buildTracks(EBModel& eb_model)
   LayoutData& layout_data = database.get_layout_data();
   TopoPool& topo_pool = database.get_topo_pool();
 
-  std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
+  std::map<int32_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
   GTLRectInt& rect = layout_data.get_die_shape();
   int32_t bucket_dlt = static_cast<int32_t>(eb_model.get_bucket_size_um() * layout_data.get_dbu_per_micron());
-  std::map<size_t, EnvTrack>& layer_to_track_prefer_dir = eb_model.get_layer_to_track_prefer_dir();
-  std::map<size_t, EnvTrack>& layer_to_track_nonprefer_dir = eb_model.get_layer_to_track_nonprefer_dir();
+  std::map<int32_t, EnvTrack>& layer_to_track_prefer_dir = eb_model.get_layer_to_track_prefer_dir();
+  std::map<int32_t, EnvTrack>& layer_to_track_nonprefer_dir = eb_model.get_layer_to_track_nonprefer_dir();
 
   layer_to_track_prefer_dir.clear();
   layer_to_track_nonprefer_dir.clear();
@@ -264,12 +265,12 @@ void EnvBuilder::addTrackEdge(EBModel& eb_model, TopoEdge& edge)
   }
 
   LayoutData& layout_data = RCXDM.getDatabase().get_layout_data();
-  std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
-  std::map<size_t, EnvTrack>& layer_to_track_prefer_dir = eb_model.get_layer_to_track_prefer_dir();
-  std::map<size_t, EnvTrack>& layer_to_track_nonprefer_dir = eb_model.get_layer_to_track_nonprefer_dir();
-  const size_t layer_id = edge.get_layer_id();
+  std::map<int32_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
+  std::map<int32_t, EnvTrack>& layer_to_track_prefer_dir = eb_model.get_layer_to_track_prefer_dir();
+  std::map<int32_t, EnvTrack>& layer_to_track_nonprefer_dir = eb_model.get_layer_to_track_nonprefer_dir();
+  const int32_t layer_id = edge.get_layer_id();
   const bool layer_is_horz = routing_layers.at(layer_id).get_is_prefer_horizontal();
-  std::map<size_t, EnvTrack>& track_map
+  std::map<int32_t, EnvTrack>& track_map
       = edge.get_line_segment().get_is_horizontal() == layer_is_horz ? layer_to_track_prefer_dir : layer_to_track_nonprefer_dir;
   track_map.at(layer_id).addEdge(edge);
 }
@@ -284,7 +285,7 @@ bool EnvBuilder::initTrackForDirection(EnvTrack& track, TrackInfo& track_info, G
   const int32_t die_dy = RCXUTIL.deltaY(rect);
 
   const int32_t track_ori = is_horz ? track_info.get_y_start() : track_info.get_x_start();
-  const int32_t track_num = is_horz ? static_cast<int32_t>(track_info.get_y_count()) : static_cast<int32_t>(track_info.get_x_count());
+  const int32_t track_num = is_horz ? track_info.get_y_count() : track_info.get_x_count();
   const int32_t track_dlt = is_horz ? track_info.get_y_step() : track_info.get_x_step();
   const int32_t axis_lo = is_horz ? die_y0 : die_x0;
   const int32_t axis_hi = is_horz ? die_y1 : die_x1;
@@ -329,14 +330,14 @@ bool EnvBuilder::buildPixels(EBModel& eb_model)
   LayoutData& layout_data = database.get_layout_data();
   TopoPool& topo_pool = database.get_topo_pool();
 
-  std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
+  std::map<int32_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
   GTLRectInt& rect = layout_data.get_die_shape();
   int32_t die_x0 = RCXUTIL.minX(rect);
   int32_t die_y0 = RCXUTIL.minY(rect);
   int32_t die_x1 = RCXUTIL.maxX(rect);
   int32_t die_y1 = RCXUTIL.maxY(rect);
-  std::map<size_t, EnvPixel>& layer_to_pixel_prefer_dir = eb_model.get_layer_to_pixel_prefer_dir();
-  std::map<size_t, EnvPixel>& layer_to_pixel_nonprefer_dir = eb_model.get_layer_to_pixel_nonprefer_dir();
+  std::map<int32_t, EnvPixel>& layer_to_pixel_prefer_dir = eb_model.get_layer_to_pixel_prefer_dir();
+  std::map<int32_t, EnvPixel>& layer_to_pixel_nonprefer_dir = eb_model.get_layer_to_pixel_nonprefer_dir();
 
   layer_to_pixel_prefer_dir.clear();
   layer_to_pixel_nonprefer_dir.clear();
@@ -347,8 +348,8 @@ bool EnvBuilder::buildPixels(EBModel& eb_model)
 
     int32_t x0 = track_info.get_x_start();
     int32_t y0 = track_info.get_y_start();
-    int32_t nx = static_cast<int32_t>(track_info.get_x_count());
-    int32_t ny = static_cast<int32_t>(track_info.get_y_count());
+    int32_t nx = track_info.get_x_count();
+    int32_t ny = track_info.get_y_count();
     int32_t dx = track_info.get_x_step();
     int32_t dy = track_info.get_y_step();
 
@@ -386,10 +387,10 @@ void EnvBuilder::addPixelEdge(EBModel& eb_model, TopoEdge& edge)
   }
 
   LayoutData& layout_data = RCXDM.getDatabase().get_layout_data();
-  std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
-  std::map<size_t, EnvPixel>& layer_to_pixel_prefer_dir = eb_model.get_layer_to_pixel_prefer_dir();
-  std::map<size_t, EnvPixel>& layer_to_pixel_nonprefer_dir = eb_model.get_layer_to_pixel_nonprefer_dir();
-  const size_t layer_id = edge.get_layer_id();
+  std::map<int32_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
+  std::map<int32_t, EnvPixel>& layer_to_pixel_prefer_dir = eb_model.get_layer_to_pixel_prefer_dir();
+  std::map<int32_t, EnvPixel>& layer_to_pixel_nonprefer_dir = eb_model.get_layer_to_pixel_nonprefer_dir();
+  const int32_t layer_id = edge.get_layer_id();
   const bool layer_is_horz = routing_layers.at(layer_id).get_is_prefer_horizontal();
 
   if (edge.get_line_segment().get_is_horizontal() == layer_is_horz) {
@@ -402,8 +403,8 @@ void EnvBuilder::addPixelEdge(EBModel& eb_model, TopoEdge& edge)
 void EnvBuilder::buildSearchTrackNumMap(EBModel& eb_model)
 {
   LayoutData& layout_data = RCXDM.getDatabase().get_layout_data();
-  std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
-  std::map<size_t, int32_t>& layer_to_search_track_num = eb_model.get_layer_to_search_track_num();
+  std::map<int32_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
+  std::map<int32_t, int32_t>& layer_to_search_track_num = eb_model.get_layer_to_search_track_num();
 
   layer_to_search_track_num.clear();
 

@@ -23,18 +23,18 @@ namespace ircx {
 class TopoNode
 {
  public:
-  explicit TopoNode(size_t net_id) : _net_id(net_id) {}
+  explicit TopoNode(int32_t net_id) : _net_id(net_id) {}
   TopoNode() = delete;
   ~TopoNode() = default;
   // getter
-  size_t get_node_id() const { return _node_id; }
-  size_t get_net_id() const { return _net_id; }
-  size_t get_layer_id() const { return _layer_id; }
+  int32_t get_node_id() const { return _node_id; }
+  int32_t get_net_id() const { return _net_id; }
+  int32_t get_layer_id() const { return _layer_id; }
   GTLPointInt& get_point() { return _point; }
   GTLRectInt& get_shape() { return _shape; }
   std::string& get_pin_name() { return _pin_name; }
   // setter
-  void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
+  void set_layer_id(int32_t layer_id) { _layer_id = layer_id; }
   void set_point(const GTLPointInt& point) { _point = point; }
   void set_shape(const GTLRectInt& shape) { _shape = shape; }
   void set_pin_name(const std::string& pin_name) { _pin_name = pin_name; }
@@ -44,11 +44,11 @@ class TopoNode
  private:
   friend class TopoPool;
 
-  void set_node_id(size_t node_id) { _node_id = node_id; }
+  void set_node_id(int32_t node_id) { _node_id = node_id; }
 
-  size_t _node_id = SIZE_MAX;
-  size_t _net_id = SIZE_MAX;
-  size_t _layer_id = SIZE_MAX;
+  int32_t _node_id = INT32_MAX;
+  int32_t _net_id = INT32_MAX;
+  int32_t _layer_id = INT32_MAX;
   GTLPointInt _point;
   GTLRectInt _shape;
   std::string _pin_name;

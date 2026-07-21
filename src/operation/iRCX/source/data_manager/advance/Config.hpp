@@ -29,7 +29,7 @@ class Config
   /////////////////////////////////////////////
   // **********        RCX        ********** //
   std::string config_file_path;             // required
-  int32_t thread_number = 64;               // required
+  int32_t thread_number = INT32_MAX;        // required
   std::string output_directory_path = ".";  // optional
   bool report_geometry = false;             // optional
   std::string mapping_file_path;            // required

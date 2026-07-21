@@ -284,7 +284,7 @@ void RCXInterface::wrapLayerList()
   LayerTable& layer_table = RCXDM.getDatabase().get_layer_table();
   layer_table.register_design_layer(0, "SUBSTRATE");
 
-  size_t layer_id = 1;
+  int32_t layer_id = 1;
   for (idb::IdbLayer* idb_layer : idb_layers->get_routing_layers()) {
     layer_table.register_design_layer(layer_id, idb_layer->get_name());
     layer_id++;
@@ -377,12 +377,12 @@ void RCXInterface::wrapNetList()
   std::vector<idb::IdbNet*>& idb_net_list_ref = idb_net_list->get_net_list();
   std::vector<Net>& net_list = RCXDM.getDatabase().get_layout_data().get_net_list();
   net_list.resize(idb_net_list_ref.size());
-  for (size_t net_idx = 0; net_idx < idb_net_list_ref.size(); net_idx++) {
-    wrapNet(net_list[net_idx], idb_net_list_ref[net_idx], net_idx);
+  for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(idb_net_list_ref.size()); ++net_idx) {
+    wrapNet(net_list[static_cast<size_t>(net_idx)], idb_net_list_ref[static_cast<size_t>(net_idx)], net_idx);
   }
 }
 
-void RCXInterface::wrapNet(Net& net, idb::IdbNet* idb_net, std::size_t net_idx)
+void RCXInterface::wrapNet(Net& net, idb::IdbNet* idb_net, int32_t net_idx)
 {
   net.set_net_id(net_idx);
   net.set_net_name(getSpefName(idb_net->get_net_name()));
@@ -433,7 +433,7 @@ void RCXInterface::wrapPin(Net& net, idb::IdbPin* idb_pin, bool is_driver)
       continue;
     }
 
-    size_t layer_id = RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer_shape->get_layer()->get_name());
+    int32_t layer_id = RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer_shape->get_layer()->get_name());
     for (idb::IdbRect* idb_rect : idb_layer_shape->get_rect_list()) {
       if (idb_rect == nullptr) {
         continue;
@@ -453,9 +453,10 @@ std::string RCXInterface::getSpefName(std::string name)
 
   std::string spef_name;
   spef_name.reserve(name.size());
-  for (size_t name_idx = 0; name_idx < name.size(); name_idx++) {
-    char name_char = name[name_idx];
-    if ((name_char == '.' || name_char == '[' || name_char == ']') && (name_idx == 0 || name[name_idx - 1] != '\\')) {
+  for (int32_t name_idx = 0; name_idx < static_cast<int32_t>(name.size()); ++name_idx) {
+    char name_char = name[static_cast<size_t>(name_idx)];
+    if ((name_char == '.' || name_char == '[' || name_char == ']')
+        && (name_idx == 0 || name[static_cast<size_t>(name_idx - 1)] != '\\')) {
       spef_name.push_back('\\');
     }
     spef_name.push_back(name_char);

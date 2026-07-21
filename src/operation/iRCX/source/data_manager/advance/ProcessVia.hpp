@@ -58,12 +58,53 @@ class ProcessVia
   void set_temperature_coefficient1(double temperature_coefficient1) { _temperature_coefficient1 = temperature_coefficient1; }
   void set_temperature_coefficient2(double temperature_coefficient2) { _temperature_coefficient2 = temperature_coefficient2; }
   // function
-  std::optional<double> query_res(double area) const;
-  void query_temperature_coefficient(double area, double& temperature_coefficient1, double& temperature_coefficient2) const;
-  std::pair<double, double> query_etch(ProcessEffectType effect_type, double width, double length) const;
+  std::optional<double> query_res(double area) const
+  {
+    if (_res > 0.0) {
+      return _res;
+    }
+    return _res_by_area_table.query(area);
+  }
+
+  void query_temperature_coefficient(double area, double& temperature_coefficient1, double& temperature_coefficient2) const
+  {
+    temperature_coefficient1 = _temperature_coefficient1;
+    temperature_coefficient2 = _temperature_coefficient2;
+    std::optional<double> coefficient1 = _temperature_coefficient1_by_area_table.query(area);
+    std::optional<double> coefficient2 = _temperature_coefficient2_by_area_table.query(area);
+    if (coefficient1.has_value()) {
+      temperature_coefficient1 = coefficient1.value();
+    }
+    if (coefficient2.has_value()) {
+      temperature_coefficient2 = coefficient2.value();
+    }
+  }
+
+  std::pair<double, double> query_etch(ProcessEffectType effect_type, double width, double length) const
+  {
+    double length_etch = 0.0;
+    double width_etch = 0.0;
+    for (const ProcessViaEtchTable& etch_table : _etch_table_list) {
+      if (!get_effect_is_applied(etch_table.get_effect_type(), effect_type)) {
+        continue;
+      }
+      std::optional<double> table_length_etch = etch_table.get_length_table().query(width, length);
+      std::optional<double> table_width_etch = etch_table.get_width_table().query(width, length);
+      if (table_length_etch.has_value()) {
+        length_etch += table_length_etch.value();
+      }
+      if (table_width_etch.has_value()) {
+        width_etch += table_width_etch.value();
+      }
+    }
+    return std::make_pair(length_etch, width_etch);
+  }
 
  private:
-  bool get_effect_is_applied(ProcessEffectType table_effect_type, ProcessEffectType query_effect_type) const;
+  bool get_effect_is_applied(ProcessEffectType table_effect_type, ProcessEffectType query_effect_type) const
+  {
+    return table_effect_type == ProcessEffectType::kBoth || table_effect_type == query_effect_type;
+  }
 
   std::string _layer_name;
   std::string _from_layer_name;
@@ -80,52 +121,5 @@ class ProcessVia
   ProcessTable1D _temperature_coefficient2_by_area_table;
   std::vector<ProcessViaEtchTable> _etch_table_list;
 };
-
-inline std::optional<double> ProcessVia::query_res(double area) const
-{
-  if (_res > 0.0) {
-    return _res;
-  }
-  return _res_by_area_table.query(area);
-}
-
-inline void ProcessVia::query_temperature_coefficient(double area, double& temperature_coefficient1, double& temperature_coefficient2) const
-{
-  temperature_coefficient1 = _temperature_coefficient1;
-  temperature_coefficient2 = _temperature_coefficient2;
-  std::optional<double> coefficient1 = _temperature_coefficient1_by_area_table.query(area);
-  std::optional<double> coefficient2 = _temperature_coefficient2_by_area_table.query(area);
-  if (coefficient1.has_value()) {
-    temperature_coefficient1 = coefficient1.value();
-  }
-  if (coefficient2.has_value()) {
-    temperature_coefficient2 = coefficient2.value();
-  }
-}
-
-inline std::pair<double, double> ProcessVia::query_etch(ProcessEffectType effect_type, double width, double length) const
-{
-  double length_etch = 0.0;
-  double width_etch = 0.0;
-  for (const ProcessViaEtchTable& etch_table : _etch_table_list) {
-    if (!get_effect_is_applied(etch_table.get_effect_type(), effect_type)) {
-      continue;
-    }
-    std::optional<double> table_length_etch = etch_table.get_length_table().query(width, length);
-    std::optional<double> table_width_etch = etch_table.get_width_table().query(width, length);
-    if (table_length_etch.has_value()) {
-      length_etch += table_length_etch.value();
-    }
-    if (table_width_etch.has_value()) {
-      width_etch += table_width_etch.value();
-    }
-  }
-  return std::make_pair(length_etch, width_etch);
-}
-
-inline bool ProcessVia::get_effect_is_applied(ProcessEffectType table_effect_type, ProcessEffectType query_effect_type) const
-{
-  return table_effect_type == ProcessEffectType::kBoth || table_effect_type == query_effect_type;
-}
 
 }  // namespace ircx
