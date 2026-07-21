@@ -40,16 +40,16 @@ class Config
   std::string log_file_path;                               // building
   // **********    DataManager    ********** //
   std::string dm_temp_directory_path;  // building
-  // ********** TopologyBuilder  ********** //
+  // ********** TopoBuilder  ********** //
   std::string tb_temp_directory_path;  // building
-  // ********** EnvironmentBuilder ******** //
+  // ********** EnvBuilder ******** //
   std::string eb_temp_directory_path;  // building
-  // ********** VariationProcessor ******** //
+  // ********** VarProcessor ******** //
   std::string vp_temp_directory_path;  // building
-  // ********** ResistanceCalculator ****** //
-  std::string rc_temp_directory_path;  // building
-  // ********** CapacitanceCalculator **** //
-  std::string cc_temp_directory_path;  // building
+  // ********** ResExtractor ****** //
+  std::string re_temp_directory_path;  // building
+  // ********** CapExtractor **** //
+  std::string ce_temp_directory_path;  // building
   // **********     SPEFWriter    ********** //
   std::string sw_temp_directory_path;  // building
   /////////////////////////////////////////////

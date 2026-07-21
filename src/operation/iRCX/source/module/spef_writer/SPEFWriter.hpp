@@ -50,7 +50,6 @@ class SPEFWriter
   SPEFWriter& operator=(const SPEFWriter& other) = delete;
   SPEFWriter& operator=(SPEFWriter&& other) = delete;
   // function
-  SWModel initSWModel();
   void writeSWModel(SWModel& sw_model);
   void buildNameMap(SPEFNameMap& spef_name_map);
   void writeCornerSPEFList(SWModel& sw_model, SPEFNameMap& spef_name_map);

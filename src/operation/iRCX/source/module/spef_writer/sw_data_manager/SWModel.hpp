@@ -15,7 +15,6 @@
 // ***************************************************************************************
 #pragma once
 
-#include "Database.hpp"
 #include "RCXHeader.hpp"
 #include "SPEFCouplingRef.hpp"
 #include "SPEFReportLayer.hpp"
@@ -28,8 +27,6 @@ class SWModel
   SWModel() = default;
   ~SWModel() = default;
   // getter
-  Database* get_database() { return _database; }
-  std::string& get_temp_directory_path() { return _temp_directory_path; }
   std::vector<std::vector<SPEFCouplingRef>>& get_net_coupling_ref_list() { return _net_coupling_ref_list; }
   std::vector<SPEFReportLayer>& get_report_layer_list() { return _report_layer_list; }
   std::unordered_map<size_t, size_t>& get_design_layer_id_to_report_layer_id_map()
@@ -37,8 +34,6 @@ class SWModel
     return _design_layer_id_to_report_layer_id_map;
   }
   // setter
-  void set_database(Database* database) { _database = database; }
-  void set_temp_directory_path(const std::string& temp_directory_path) { _temp_directory_path = temp_directory_path; }
   void set_net_coupling_ref_list(const std::vector<std::vector<SPEFCouplingRef>>& net_coupling_ref_list)
   {
     _net_coupling_ref_list = net_coupling_ref_list;
@@ -51,8 +46,6 @@ class SWModel
   // function
 
  private:
-  Database* _database = nullptr;
-  std::string _temp_directory_path;
   std::vector<std::vector<SPEFCouplingRef>> _net_coupling_ref_list;
   std::vector<SPEFReportLayer> _report_layer_list;
   std::unordered_map<size_t, size_t> _design_layer_id_to_report_layer_id_map;

@@ -16,18 +16,18 @@
 // ***************************************************************************************
 #include "RCXInterface.hpp"
 
-#include "CapacitanceCalculator.hpp"
+#include "CapExtractor.hpp"
 #include "Corner.hpp"
 #include "DataManager.hpp"
-#include "EnvironmentBuilder.hpp"
+#include "EnvBuilder.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "RCXHeader.hpp"
-#include "ResistanceCalculator.hpp"
+#include "ResExtractor.hpp"
 #include "SPEFWriter.hpp"
-#include "TopologyBuilder.hpp"
+#include "TopoBuilder.hpp"
 #include "Utility.hpp"
-#include "VariationProcessor.hpp"
+#include "VarProcessor.hpp"
 #include "builder.h"
 #include "idm.h"
 
@@ -85,25 +85,25 @@ void RCXInterface::runRCX()
   Monitor monitor;
   RCXLOG.info(Loc::current(), "Starting...");
 
-  TopologyBuilder::initInst();
+  TopoBuilder::initInst();
   RCXTB.build();
-  TopologyBuilder::destroyInst();
+  TopoBuilder::destroyInst();
 
-  EnvironmentBuilder::initInst();
+  EnvBuilder::initInst();
   RCXEB.build();
-  EnvironmentBuilder::destroyInst();
+  EnvBuilder::destroyInst();
 
-  VariationProcessor::initInst();
+  VarProcessor::initInst();
   RCXVP.process();
-  VariationProcessor::destroyInst();
+  VarProcessor::destroyInst();
 
-  ResistanceCalculator::initInst();
-  RCXRC.calculate();
-  ResistanceCalculator::destroyInst();
+  ResExtractor::initInst();
+  RCXRE.extract();
+  ResExtractor::destroyInst();
 
-  CapacitanceCalculator::initInst();
-  RCXCC.calculate();
-  CapacitanceCalculator::destroyInst();
+  CapExtractor::initInst();
+  RCXCE.extract();
+  CapExtractor::destroyInst();
 
   SPEFWriter::initInst();
   RCXSW.write();

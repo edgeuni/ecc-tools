@@ -94,16 +94,16 @@ void DataManager::buildConfig()
   _config.log_file_path = _config.temp_directory_path + "rcx.log";
   // **********    DataManager    ********** //
   _config.dm_temp_directory_path = _config.temp_directory_path + "data_manager/";
-  // ********** TopologyBuilder  ********** //
-  _config.tb_temp_directory_path = _config.temp_directory_path + "topology_builder/";
-  // ********** EnvironmentBuilder ******** //
-  _config.eb_temp_directory_path = _config.temp_directory_path + "environment_builder/";
-  // ********** VariationProcessor ******** //
-  _config.vp_temp_directory_path = _config.temp_directory_path + "variation_processor/";
-  // ********** ResistanceCalculator ****** //
-  _config.rc_temp_directory_path = _config.temp_directory_path + "resistance_calculator/";
-  // ********** CapacitanceCalculator **** //
-  _config.cc_temp_directory_path = _config.temp_directory_path + "capacitance_calculator/";
+  // ********** TopoBuilder  ********** //
+  _config.tb_temp_directory_path = _config.temp_directory_path + "topo_builder/";
+  // ********** EnvBuilder ******** //
+  _config.eb_temp_directory_path = _config.temp_directory_path + "env_builder/";
+  // ********** VarProcessor ******** //
+  _config.vp_temp_directory_path = _config.temp_directory_path + "var_processor/";
+  // ********** ResExtractor ****** //
+  _config.re_temp_directory_path = _config.temp_directory_path + "res_extractor/";
+  // ********** CapExtractor **** //
+  _config.ce_temp_directory_path = _config.temp_directory_path + "cap_extractor/";
   // **********     SPEFWriter    ********** //
   _config.sw_temp_directory_path = _config.temp_directory_path + "spef_writer/";
   /////////////////////////////////////////////
@@ -113,16 +113,16 @@ void DataManager::buildConfig()
   RCXUTIL.createDirByFile(_config.log_file_path);
   // **********    DataManager    ********** //
   RCXUTIL.createDir(_config.dm_temp_directory_path);
-  // ********** TopologyBuilder  ********** //
+  // ********** TopoBuilder  ********** //
   RCXUTIL.createDir(_config.tb_temp_directory_path);
-  // ********** EnvironmentBuilder ******** //
+  // ********** EnvBuilder ******** //
   RCXUTIL.createDir(_config.eb_temp_directory_path);
-  // ********** VariationProcessor ******** //
+  // ********** VarProcessor ******** //
   RCXUTIL.createDir(_config.vp_temp_directory_path);
-  // ********** ResistanceCalculator ****** //
-  RCXUTIL.createDir(_config.rc_temp_directory_path);
-  // ********** CapacitanceCalculator **** //
-  RCXUTIL.createDir(_config.cc_temp_directory_path);
+  // ********** ResExtractor ****** //
+  RCXUTIL.createDir(_config.re_temp_directory_path);
+  // ********** CapExtractor **** //
+  RCXUTIL.createDir(_config.ce_temp_directory_path);
   // **********     SPEFWriter    ********** //
   RCXUTIL.createDir(_config.sw_temp_directory_path);
   /////////////////////////////////////////////
@@ -803,21 +803,21 @@ void DataManager::printConfig()
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "DataManager");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "dm_temp_directory_path");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.dm_temp_directory_path);
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "TopologyBuilder");
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "TopoBuilder");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "tb_temp_directory_path");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.tb_temp_directory_path);
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "EnvironmentBuilder");
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "EnvBuilder");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "eb_temp_directory_path");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.eb_temp_directory_path);
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "VariationProcessor");
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "VarProcessor");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "vp_temp_directory_path");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.vp_temp_directory_path);
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "ResistanceCalculator");
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "rc_temp_directory_path");
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.rc_temp_directory_path);
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "CapacitanceCalculator");
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "cc_temp_directory_path");
-  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.cc_temp_directory_path);
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "ResExtractor");
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "re_temp_directory_path");
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.re_temp_directory_path);
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "CapExtractor");
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "ce_temp_directory_path");
+  RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.ce_temp_directory_path);
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(1), "SPEFWriter");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "sw_temp_directory_path");
   RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), _config.sw_temp_directory_path);

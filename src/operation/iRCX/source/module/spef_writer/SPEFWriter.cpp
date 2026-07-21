@@ -52,7 +52,7 @@ void SPEFWriter::write()
   Monitor monitor;
   RCXLOG.info(Loc::current(), "Starting...");
 
-  SWModel sw_model = initSWModel();
+  SWModel sw_model;
   writeSWModel(sw_model);
 
   RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -61,14 +61,6 @@ void SPEFWriter::write()
 // private
 
 SPEFWriter* SPEFWriter::_sw_instance = nullptr;
-
-SWModel SPEFWriter::initSWModel()
-{
-  SWModel sw_model;
-  sw_model.set_database(&RCXDM.getDatabase());
-  sw_model.set_temp_directory_path(RCXDM.getConfig().sw_temp_directory_path);
-  return sw_model;
-}
 
 void SPEFWriter::writeSWModel(SWModel& sw_model)
 {

@@ -1,0 +1,77 @@
+// ***************************************************************************************
+// Copyright (c) 2023-2025 Peng Cheng Laboratory
+// Copyright (c) 2023-2025 Institute of Computing Technology, Chinese Academy of Sciences
+// Copyright (c) 2023-2025 Beijing Institute of Open Source Chip
+//
+// iEDA is licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+// http://license.coscl.org.cn/MulanPSL2
+//
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
+// See the Mulan PSL v2 for more details.
+// ***************************************************************************************
+#pragma once
+
+#include "DataManager.hpp"
+#include "CapTableConfig.hpp"
+#include "CornerData.hpp"
+#include "CrossOverlapSub.hpp"
+#include "EdgeEnvironmentInterval.hpp"
+#include "EdgeEtchInterval.hpp"
+#include "Logger.hpp"
+#include "Monitor.hpp"
+#include "ProcessConductor.hpp"
+#include "RCXHeader.hpp"
+#include "TopoEdge.hpp"
+
+namespace ircx {
+
+#define RCXCE (ircx::CapExtractor::getInst())
+
+class CapExtractor
+{
+ public:
+  static void initInst();
+  static CapExtractor& getInst();
+  static void destroyInst();
+  // function
+  void extract();
+
+ private:
+  // self
+  static CapExtractor* _ce_instance;
+
+  CapExtractor() = default;
+  CapExtractor(const CapExtractor& other) = delete;
+  CapExtractor(CapExtractor&& other) = delete;
+  ~CapExtractor() = default;
+  CapExtractor& operator=(const CapExtractor& other) = delete;
+  CapExtractor& operator=(CapExtractor&& other) = delete;
+  // function
+  void extractCapacitance();
+  void extractCornerCapacitance(size_t corner_idx);
+  void extractNetCapacitance(size_t corner_idx, size_t net_idx);
+  void extractEdgeCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx);
+  void extractEdgeIntervalCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx);
+  void extractCapacitanceSpan(size_t corner_idx,
+                                size_t net_idx,
+                                size_t edge_idx,
+                                size_t interval_idx,
+                                int32_t start_coordinate,
+                                int32_t end_coordinate);
+  void getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t start_coordinate, int32_t end_coordinate,
+                         std::string& below_layer_name, std::string& above_layer_name);
+  void addGroundCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, F64 ground_capacitance);
+  void addCouplingCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, F64 coupling_capacitance);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
+  CapTableConfig* getCapTableConfig(CornerData& corner_data, std::string& process_layer_name, std::string& below_layer_name,
+                                    std::string& above_layer_name);
+  void getCapacitance(CapTableConfig& cap_table_config, double spacing, F64& coupling_capacitance, F64& ground_capacitance);
+  void getFarthestCapacitance(CapTableConfig& cap_table_config, F64& coupling_capacitance, F64& ground_capacitance);
+};
+
+}  // namespace ircx

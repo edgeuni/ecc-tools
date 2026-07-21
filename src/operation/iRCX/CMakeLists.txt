@@ -15,11 +15,11 @@ set(CMAKE_CXX_STANDARD 20)
 
 ############################ debug source module ############################
 
-# set(DEBUG_IRCX_TOPOLOGY_BUILDER ON)
-# set(DEBUG_IRCX_ENVIRONMENT_BUILDER ON)
-# set(DEBUG_IRCX_VARIATION_PROCESSOR ON)
-# set(DEBUG_IRCX_RESISTANCE_CALCULATOR ON)
-# set(DEBUG_IRCX_CAPACITANCE_CALCULATOR ON)
+# set(DEBUG_IRCX_TOPO_BUILDER ON)
+# set(DEBUG_IRCX_ENV_BUILDER ON)
+# set(DEBUG_IRCX_VAR_PROCESSOR ON)
+# set(DEBUG_IRCX_RES_EXTRACTOR ON)
+# set(DEBUG_IRCX_CAP_EXTRACTOR ON)
 # set(DEBUG_IRCX_SPEF_WRITER ON)
 
 ############################ debug source toolkit ############################
