@@ -41,6 +41,12 @@ LVSCheckResult LVSChecker::check(const LVSNetlist& expected_netlist, const LVSNe
     if (expected_net.terminal_list.size() > 1 && physical_net.wire_segment_num == 0) {
       result.unrouted_net_num++;
     }
+    if (physical_net.terminal_component_num > 1 || physical_net.floating_terminal_num > 0) {
+      result.open_net_num++;
+    }
+    if (physical_net.floating_terminal_num > 0) {
+      result.missing_terminal_num += physical_net.floating_terminal_num;
+    }
   }
   for (const auto& [net_name, physical_net] : physical_netlist.net_map) {
     (void) physical_net;
@@ -48,6 +54,9 @@ LVSCheckResult LVSChecker::check(const LVSNetlist& expected_netlist, const LVSNe
       result.unexpected_net_num++;
     }
   }
+  result.short_component_num = physical_netlist.physical_graph.short_component_num;
+  result.floating_power_port_num = physical_netlist.physical_graph.floating_power_port_num;
+  result.floating_ground_port_num = physical_netlist.physical_graph.floating_ground_port_num;
   return result;
 }
 

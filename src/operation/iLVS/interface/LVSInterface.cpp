@@ -87,9 +87,14 @@ void LVSInterface::runLVS()
                           << "Expected"
                           << "Physical" << fort::endr;
     netlist_summary_table << "Net" << check_result.expected_net_num << check_result.physical_net_num << fort::endr;
+    netlist_summary_table << "Instance" << expected_netlist.logical_graph.instance_map.size() << physical_netlist.logical_graph.instance_map.size()
+                          << fort::endr;
+    netlist_summary_table << "Net Edge" << expected_netlist.logical_graph.net_edge_num << physical_netlist.logical_graph.net_edge_num << fort::endr;
     netlist_summary_table << "Terminal" << expected_terminal_num << physical_terminal_num << fort::endr;
     netlist_summary_table << "Wire Segment" << "-" << physical_wire_segment_num << fort::endr;
     netlist_summary_table << "Via" << "-" << physical_via_num << fort::endr;
+    netlist_summary_table << "Graph Node" << "-" << physical_netlist.physical_graph.node_num << fort::endr;
+    netlist_summary_table << "Graph Component" << "-" << physical_netlist.physical_graph.component_num << fort::endr;
   }
 
   uint64_t total_mismatch_num = 0;
@@ -103,8 +108,12 @@ void LVSInterface::runLVS()
     check_summary_table << "Open Net" << check_result.open_net_num << fort::endr;
     check_summary_table << "Missing Terminal" << check_result.missing_terminal_num << fort::endr;
     check_summary_table << "Unrouted Net" << check_result.unrouted_net_num << fort::endr;
+    check_summary_table << "Short Component" << check_result.short_component_num << fort::endr;
+    check_summary_table << "Floating Power Port" << check_result.floating_power_port_num << fort::endr;
+    check_summary_table << "Floating Ground Port" << check_result.floating_ground_port_num << fort::endr;
     total_mismatch_num = check_result.missing_net_num + check_result.unexpected_net_num + check_result.open_net_num
-                         + check_result.missing_terminal_num + check_result.unrouted_net_num;
+                         + check_result.missing_terminal_num + check_result.unrouted_net_num + check_result.short_component_num
+                         + check_result.floating_power_port_num + check_result.floating_ground_port_num;
     check_summary_table << fort::header << "Total" << total_mismatch_num << fort::endr;
   }
   LVSUTIL.printTableList({netlist_summary_table, check_summary_table});

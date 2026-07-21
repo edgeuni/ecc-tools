@@ -19,7 +19,7 @@ namespace ilvs {
 class NetlistExtractor
 {
  public:
-  static LVSNetlist extract(idb::IdbDesign* design);
+ static LVSNetlist extract(idb::IdbDesign* design);
 
  private:
   static std::string getTerminalName(idb::IdbPin* pin);

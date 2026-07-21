@@ -20,12 +20,41 @@ struct LVSNet
   std::vector<std::string> terminal_list;
   uint64_t wire_segment_num = 0;
   uint64_t via_num = 0;
+  uint64_t terminal_component_num = 0;
+  uint64_t floating_terminal_num = 0;
+};
+
+struct LVSPhysicalGraph
+{
+  uint64_t node_num = 0;
+  uint64_t edge_num = 0;
+  uint64_t component_num = 0;
+  uint64_t short_component_num = 0;
+  uint64_t power_port_num = 0;
+  uint64_t floating_power_port_num = 0;
+  uint64_t ground_port_num = 0;
+  uint64_t floating_ground_port_num = 0;
+};
+
+struct LVSInstanceNode
+{
+  std::string name;
+  std::vector<std::string> pin_list;
+};
+
+struct LVSLogicalGraph
+{
+  std::unordered_map<std::string, LVSInstanceNode> instance_map;
+  std::vector<std::string> io_pin_list;
+  uint64_t net_edge_num = 0;
 };
 
 struct LVSNetlist
 {
   std::string design_name;
   std::unordered_map<std::string, LVSNet> net_map;
+  LVSLogicalGraph logical_graph;
+  LVSPhysicalGraph physical_graph;
 };
 
 struct LVSCheckResult
@@ -37,6 +66,9 @@ struct LVSCheckResult
   uint64_t open_net_num = 0;
   uint64_t missing_terminal_num = 0;
   uint64_t unrouted_net_num = 0;
+  uint64_t short_component_num = 0;
+  uint64_t floating_power_port_num = 0;
+  uint64_t floating_ground_port_num = 0;
 };
 
 class LVSDatabase
