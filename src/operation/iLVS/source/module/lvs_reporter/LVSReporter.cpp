@@ -19,6 +19,8 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
   rpt_file << "Short Components: " << check_result.short_component_num << "\n";
   rpt_file << "Floating Power Ports: " << check_result.floating_power_port_num << "\n";
   rpt_file << "Floating Ground Ports: " << check_result.floating_ground_port_num << "\n";
+  rpt_file << "Floating Power Pins: " << check_result.floating_power_pin_num << "\n";
+  rpt_file << "Floating Ground Pins: " << check_result.floating_ground_pin_num << "\n";
   rpt_file << "Total: " << check_result.violation_list.size() << "\n\n";
   for (const LVSViolation& violation : check_result.violation_list) {
     rpt_file << "[" << violation.type << "] net=" << violation.net_name << " components=";
@@ -31,6 +33,7 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
   nlohmann::json json;
   json["summary"] = {{"expected_nets", check_result.expected_net_num}, {"physical_nets", check_result.physical_net_num},
                      {"open_nets", check_result.open_net_num}, {"short_components", check_result.short_component_num},
+                     {"floating_power_pins", check_result.floating_power_pin_num}, {"floating_ground_pins", check_result.floating_ground_pin_num},
                      {"total", check_result.violation_list.size()}};
   json["physical_graph"] = {{"nodes", physical_netlist.physical_graph.node_num}, {"edges", physical_netlist.physical_graph.edge_num},
                             {"components", physical_netlist.physical_graph.component_num}};

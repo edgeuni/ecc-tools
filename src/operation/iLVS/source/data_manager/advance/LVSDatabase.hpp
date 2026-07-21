@@ -34,8 +34,14 @@ struct LVSPhysicalGraph
   uint64_t floating_power_port_num = 0;
   uint64_t ground_port_num = 0;
   uint64_t floating_ground_port_num = 0;
+  uint64_t power_pin_num = 0;
+  uint64_t floating_power_pin_num = 0;
+  uint64_t ground_pin_num = 0;
+  uint64_t floating_ground_pin_num = 0;
   std::vector<std::string> floating_power_port_list;
   std::vector<std::string> floating_ground_port_list;
+  std::vector<std::string> floating_power_pin_list;
+  std::vector<std::string> floating_ground_pin_list;
   std::unordered_map<uint64_t, std::vector<std::string>> component_terminal_map;
   std::unordered_map<uint64_t, std::vector<std::string>> component_net_map;
   std::unordered_map<std::string, uint64_t> terminal_component_map;
@@ -82,6 +88,8 @@ struct LVSCheckResult
   uint64_t short_component_num = 0;
   uint64_t floating_power_port_num = 0;
   uint64_t floating_ground_port_num = 0;
+  uint64_t floating_power_pin_num = 0;
+  uint64_t floating_ground_pin_num = 0;
   std::vector<LVSViolation> violation_list;
 };
 

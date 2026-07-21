@@ -83,11 +83,19 @@ LVSCheckResult LVSChecker::check(const LVSNetlist& expected_netlist, const LVSNe
   }
   result.floating_power_port_num = physical_netlist.physical_graph.floating_power_port_num;
   result.floating_ground_port_num = physical_netlist.physical_graph.floating_ground_port_num;
+  result.floating_power_pin_num = physical_netlist.physical_graph.floating_power_pin_num;
+  result.floating_ground_pin_num = physical_netlist.physical_graph.floating_ground_pin_num;
   if (!physical_netlist.physical_graph.floating_power_port_list.empty()) {
     result.violation_list.push_back({"FloatingPowerPort", "", physical_netlist.physical_graph.floating_power_port_list, {}});
   }
   if (!physical_netlist.physical_graph.floating_ground_port_list.empty()) {
     result.violation_list.push_back({"FloatingGroundPort", "", physical_netlist.physical_graph.floating_ground_port_list, {}});
+  }
+  if (!physical_netlist.physical_graph.floating_power_pin_list.empty()) {
+    result.violation_list.push_back({"FloatingPowerPin", "", physical_netlist.physical_graph.floating_power_pin_list, {}});
+  }
+  if (!physical_netlist.physical_graph.floating_ground_pin_list.empty()) {
+    result.violation_list.push_back({"FloatingGroundPin", "", physical_netlist.physical_graph.floating_ground_pin_list, {}});
   }
   return result;
 }

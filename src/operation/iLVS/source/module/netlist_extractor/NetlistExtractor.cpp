@@ -28,8 +28,9 @@ struct GraphNode
   idb::IdbRect rect;
   int32_t layer_id = -1;
   bool is_terminal = false;
-  bool is_power_port = false;
-  bool is_ground_port = false;
+  bool is_io_terminal = false;
+  bool is_power_terminal = false;
+  bool is_ground_terminal = false;
 };
 
 class DisjointSet
@@ -125,11 +126,11 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
   std::unordered_map<std::string, std::vector<std::vector<size_t>>> terminal_node_map;
   std::unordered_map<std::string, std::vector<std::string>> terminal_name_map;
   const auto add_shape = [&graph_node_list](const std::string& net_name, idb::IdbLayer* layer, const idb::IdbRect& rect, bool is_terminal = false,
-                                            bool is_power_port = false, bool is_ground_port = false) {
+                                            bool is_io_terminal = false, bool is_power_terminal = false, bool is_ground_terminal = false) {
     if (layer == nullptr || !layer->is_routing()) {
       return static_cast<size_t>(-1);
     }
-    graph_node_list.push_back({net_name, rect, layer->get_id(), is_terminal, is_power_port, is_ground_port});
+    graph_node_list.push_back({net_name, rect, layer->get_id(), is_terminal, is_io_terminal, is_power_terminal, is_ground_terminal});
     return graph_node_list.size() - 1;
   };
   const auto add_pin = [&add_shape, &terminal_node_map, &terminal_name_map](const std::string& net_name, idb::IdbPin* pin, bool is_power_port,
@@ -141,7 +142,7 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
       }
       for (idb::IdbRect* rect : layer_shape->get_rect_list()) {
         if (rect != nullptr) {
-          size_t node = add_shape(net_name, layer_shape->get_layer(), *rect, true, is_power_port, is_ground_port);
+          size_t node = add_shape(net_name, layer_shape->get_layer(), *rect, true, pin->is_io_pin(), is_power_port, is_ground_port);
           if (node != static_cast<size_t>(-1)) {
             pin_node_list.push_back(node);
           }
@@ -208,7 +209,7 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
     }
     for (idb::IdbPin* pin : special_net->get_instance_pin_list()->get_pin_list()) {
       if (pin != nullptr) {
-        add_pin(net_name, pin, false, false);
+        add_pin(net_name, pin, special_net->is_vdd(), special_net->is_vss());
       }
     }
     for (idb::IdbSpecialWire* wire : special_net->get_wire_list()->get_wire_list()) {
@@ -302,17 +303,25 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
         floating_terminal_num++;
       }
       const GraphNode& node = graph_node_list[nodes.front()];
-      if (node.is_power_port) {
-        netlist.physical_graph.power_port_num++;
-        netlist.physical_graph.floating_power_port_num += !component_metal_map[root];
-        if (!component_metal_map[root]) {
-          netlist.physical_graph.floating_power_port_list.push_back(terminal_name_map[net_name][pin_idx]);
+      if (node.is_power_terminal) {
+        if (node.is_io_terminal) {
+          netlist.physical_graph.power_port_num++;
+          netlist.physical_graph.floating_power_port_num += !component_metal_map[root];
+          if (!component_metal_map[root]) netlist.physical_graph.floating_power_port_list.push_back(terminal_name_map[net_name][pin_idx]);
+        } else {
+          netlist.physical_graph.power_pin_num++;
+          netlist.physical_graph.floating_power_pin_num += !component_metal_map[root];
+          if (!component_metal_map[root]) netlist.physical_graph.floating_power_pin_list.push_back(terminal_name_map[net_name][pin_idx]);
         }
-      } else if (node.is_ground_port) {
-        netlist.physical_graph.ground_port_num++;
-        netlist.physical_graph.floating_ground_port_num += !component_metal_map[root];
-        if (!component_metal_map[root]) {
-          netlist.physical_graph.floating_ground_port_list.push_back(terminal_name_map[net_name][pin_idx]);
+      } else if (node.is_ground_terminal) {
+        if (node.is_io_terminal) {
+          netlist.physical_graph.ground_port_num++;
+          netlist.physical_graph.floating_ground_port_num += !component_metal_map[root];
+          if (!component_metal_map[root]) netlist.physical_graph.floating_ground_port_list.push_back(terminal_name_map[net_name][pin_idx]);
+        } else {
+          netlist.physical_graph.ground_pin_num++;
+          netlist.physical_graph.floating_ground_pin_num += !component_metal_map[root];
+          if (!component_metal_map[root]) netlist.physical_graph.floating_ground_pin_list.push_back(terminal_name_map[net_name][pin_idx]);
         }
       }
     }
