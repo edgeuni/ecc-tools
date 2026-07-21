@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 
+#include "Config.hpp"
 #include "LVSDatabase.hpp"
 
 namespace ilvs {
@@ -18,6 +19,8 @@ class DataManager
   static void destroyInst();
 
   // getter
+  Config& getConfig() { return _config; }
+  const Config& getConfig() const { return _config; }
   LVSDatabase& getDatabase() { return _database; }
   const LVSDatabase& getDatabase() const { return _database; }
 
@@ -29,6 +32,7 @@ class DataManager
 
  private:
   static DataManager* _dm_instance;
+  Config _config;
   LVSDatabase _database;
 
   DataManager() = default;
@@ -38,6 +42,12 @@ class DataManager
   DataManager& operator=(const DataManager& other) = delete;
   DataManager& operator=(DataManager&& other) = delete;
   // function
+#if 1  // build
+  void buildConfig();
+  void buildDatabase();
+  void printConfig();
+  void printDatabase();
+#endif
 };
 
 }  // namespace ilvs

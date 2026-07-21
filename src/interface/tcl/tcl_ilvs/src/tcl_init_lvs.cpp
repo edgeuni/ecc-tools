@@ -6,14 +6,10 @@ namespace tcl {
 
 TclInitLVS::TclInitLVS(const char* cmd_name) : TclCmd(cmd_name)
 {
-  // std::string netlist_path;  // required
-  _config_list.push_back(std::make_pair("-netlist", ValueType::kString));
-  // std::string def_path;      // required
-  _config_list.push_back(std::make_pair("-def", ValueType::kString));
-  // std::string top_module;    // optional
-  _config_list.push_back(std::make_pair("-top_module", ValueType::kString));
-  // std::string report_directory_path;  // optional
-  _config_list.push_back(std::make_pair("-report_directory_path", ValueType::kString));
+  // std::string temp_directory_path;  // required
+  _config_list.push_back(std::make_pair("-temp_directory_path", ValueType::kString));
+  // int32_t thread_number;             // optional
+  _config_list.push_back(std::make_pair("-thread_number", ValueType::kInt));
 
   TclUtil::addOption(this, _config_list);
 }

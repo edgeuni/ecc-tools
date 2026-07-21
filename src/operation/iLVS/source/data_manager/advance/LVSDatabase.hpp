@@ -29,6 +29,8 @@ struct LVSPhysicalGraph
 {
   uint64_t node_num = 0;
   uint64_t edge_num = 0;
+  uint64_t candidate_pair_num = 0;
+  uint64_t max_active_shape_num = 0;
   uint64_t component_num = 0;
   uint64_t short_component_num = 0;
   uint64_t power_port_num = 0;

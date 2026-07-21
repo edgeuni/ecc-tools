@@ -7,6 +7,7 @@
 // ***************************************************************************************
 #include "LVSChecker.hpp"
 
+#include <algorithm>
 #include <unordered_set>
 
 namespace ilvs {
@@ -19,58 +20,71 @@ LVSCheckResult LVSChecker::check(const LVSNetlist& expected_netlist, const LVSNe
   std::unordered_map<uint64_t, std::unordered_set<std::string>> logical_component_net_map;
 
   for (const auto& [net_name, expected_net] : expected_netlist.net_map) {
-    LVSViolation violation;
-    violation.net_name = net_name;
+    LVSViolation open_violation;
+    open_violation.net_name = net_name;
     std::unordered_set<uint64_t> component_id_set;
     for (const std::string& terminal_name : expected_net.terminal_list) {
       auto component_iter = physical_netlist.physical_graph.terminal_component_map.find(terminal_name);
       if (component_iter == physical_netlist.physical_graph.terminal_component_map.end()) {
-        violation.terminal_list.push_back(terminal_name);
+        open_violation.terminal_list.push_back(terminal_name);
       } else {
         component_id_set.insert(component_iter->second);
         logical_component_net_map[component_iter->second].insert(net_name);
       }
     }
-    violation.component_id_list.assign(component_id_set.begin(), component_id_set.end());
+    open_violation.component_id_list.assign(component_id_set.begin(), component_id_set.end());
     auto physical_net_iter = physical_netlist.net_map.find(net_name);
     if (physical_net_iter == physical_netlist.net_map.end()) {
       result.missing_net_num++;
       result.open_net_num++;
       result.missing_terminal_num += expected_net.terminal_list.size();
-      violation.type = "MissingNet";
-      violation.terminal_list = expected_net.terminal_list;
-      result.violation_list.push_back(std::move(violation));
+      open_violation.type = "MissingNet";
+      open_violation.terminal_list = expected_net.terminal_list;
+      result.violation_list.push_back(std::move(open_violation));
       continue;
     }
 
     const LVSNet& physical_net = physical_net_iter->second;
     std::unordered_set<std::string> physical_terminal_set(physical_net.terminal_list.begin(), physical_net.terminal_list.end());
-    uint64_t missing_terminal_num = 0;
     for (const std::string& terminal_name : expected_net.terminal_list) {
       if (!physical_terminal_set.contains(terminal_name)) {
-        missing_terminal_num++;
+        open_violation.terminal_list.push_back(terminal_name);
       }
     }
-    if (missing_terminal_num > 0) {
-      result.open_net_num++;
-      result.missing_terminal_num += missing_terminal_num;
+    std::sort(open_violation.terminal_list.begin(), open_violation.terminal_list.end());
+    open_violation.terminal_list.erase(std::unique(open_violation.terminal_list.begin(), open_violation.terminal_list.end()),
+                                       open_violation.terminal_list.end());
+    if (!open_violation.terminal_list.empty()) {
+      result.missing_terminal_num += open_violation.terminal_list.size();
     }
+
     if (expected_net.terminal_list.size() > 1 && physical_net.wire_segment_num == 0) {
       result.unrouted_net_num++;
+      LVSViolation unrouted_violation;
+      unrouted_violation.type = "Unrouted";
+      unrouted_violation.net_name = net_name;
+      unrouted_violation.terminal_list = expected_net.terminal_list;
+      unrouted_violation.component_id_list.assign(component_id_set.begin(), component_id_set.end());
+      result.violation_list.push_back(std::move(unrouted_violation));
     }
-    if (component_id_set.size() > 1 || physical_net.floating_terminal_num > 0 || !violation.terminal_list.empty()) {
+
+    if (component_id_set.size() > 1 || physical_net.floating_terminal_num > 0 || !open_violation.terminal_list.empty()) {
       result.open_net_num++;
-      violation.type = "Open";
-      result.violation_list.push_back(std::move(violation));
+      open_violation.type = "Open";
+      result.violation_list.push_back(std::move(open_violation));
     }
     if (physical_net.floating_terminal_num > 0) {
       result.missing_terminal_num += physical_net.floating_terminal_num;
     }
   }
   for (const auto& [net_name, physical_net] : physical_netlist.net_map) {
-    (void) physical_net;
     if (!expected_netlist.net_map.contains(net_name)) {
       result.unexpected_net_num++;
+      LVSViolation violation;
+      violation.type = "UnexpectedNet";
+      violation.net_name = net_name;
+      violation.terminal_list = physical_net.terminal_list;
+      result.violation_list.push_back(std::move(violation));
     }
   }
   std::unordered_set<uint64_t> reported_short_component_set;

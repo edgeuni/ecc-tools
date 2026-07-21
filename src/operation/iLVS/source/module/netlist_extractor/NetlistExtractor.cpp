@@ -235,6 +235,8 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
 
   DisjointSet graph(graph_node_list.size());
   uint64_t edge_num = 0;
+  uint64_t candidate_pair_num = 0;
+  uint64_t max_active_shape_num = 0;
   std::unordered_map<int32_t, std::vector<size_t>> layer_node_map;
   for (size_t node_idx = 0; node_idx < graph_node_list.size(); node_idx++) {
     layer_node_map[graph_node_list[node_idx].layer_id].push_back(node_idx);
@@ -252,11 +254,13 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
                              }),
                              active_node_list.end());
       for (size_t active_node_idx : active_node_list) {
+        candidate_pair_num++;
         if (graph_node_list[active_node_idx].rect.isIntersection(node_rect) && graph.unite(active_node_idx, node_idx)) {
           edge_num++;
         }
       }
       active_node_list.push_back(node_idx);
+      max_active_shape_num = std::max(max_active_shape_num, static_cast<uint64_t>(active_node_list.size()));
     }
   }
   for (const auto& [bottom_node, top_node] : via_node_pair_list) {
@@ -284,6 +288,8 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
   }
   netlist.physical_graph.node_num = graph_node_list.size();
   netlist.physical_graph.edge_num = edge_num;
+  netlist.physical_graph.candidate_pair_num = candidate_pair_num;
+  netlist.physical_graph.max_active_shape_num = max_active_shape_num;
   netlist.physical_graph.component_num = component_net_map.size();
   std::unordered_map<size_t, uint64_t> component_id_map;
   uint64_t component_id = 0;
