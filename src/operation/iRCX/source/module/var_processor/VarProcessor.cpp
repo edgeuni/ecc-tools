@@ -82,7 +82,7 @@ void VarProcessor::buildNetEtchProfile(size_t corner_idx, size_t net_idx)
   Database& database = RCXDM.getDatabase();
   CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
-  NetEnvironment& net_environment = database.get_net_environment_list().at(net_idx);
+  NetEnv& net_env = database.get_net_env_list().at(net_idx);
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
   double micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
 
@@ -92,21 +92,21 @@ void VarProcessor::buildNetEtchProfile(size_t corner_idx, size_t net_idx)
     if (!edge.get_is_via()) {
       ProcessConductor* conductor = getProcessConductor(corner_data, edge.get_layer_id());
       if (conductor != nullptr) {
-        std::span<EdgeEnvironmentInterval> environment_interval_list = net_environment.get_edge_interval_list(edge_idx);
-        for (EdgeEnvironmentInterval& environment_interval : environment_interval_list) {
+        std::span<EdgeEnvInterval> env_interval_list = net_env.get_edge_interval_list(edge_idx);
+        for (EdgeEnvInterval& env_interval : env_interval_list) {
           EdgeEtchInterval edge_interval;
-          edge_interval.set_start_coordinate(environment_interval.get_start_coordinate() * micron_per_dbu);
-          edge_interval.set_end_coordinate(environment_interval.get_end_coordinate() * micron_per_dbu);
+          edge_interval.set_start_coordinate(env_interval.get_start_coordinate() * micron_per_dbu);
+          edge_interval.set_end_coordinate(env_interval.get_end_coordinate() * micron_per_dbu);
           edge_interval.set_center(edge.get_line_segment().get_coordinate() * micron_per_dbu);
           edge_interval.set_width(edge.get_width() * micron_per_dbu);
-          if (environment_interval.get_lower_adjacent_edge() != nullptr) {
-            edge_interval.set_lower_spacing((environment_interval.get_lower_spacing() - edge.get_half_width()
-                                              - environment_interval.get_lower_adjacent_edge()->get_half_width())
+          if (env_interval.get_lower_adjacent_edge() != nullptr) {
+            edge_interval.set_lower_spacing((env_interval.get_lower_spacing() - edge.get_half_width()
+                                              - env_interval.get_lower_adjacent_edge()->get_half_width())
                                              * micron_per_dbu);
           }
-          if (environment_interval.get_upper_adjacent_edge() != nullptr) {
-            edge_interval.set_upper_spacing((environment_interval.get_upper_spacing() - edge.get_half_width()
-                                              - environment_interval.get_upper_adjacent_edge()->get_half_width())
+          if (env_interval.get_upper_adjacent_edge() != nullptr) {
+            edge_interval.set_upper_spacing((env_interval.get_upper_spacing() - edge.get_half_width()
+                                              - env_interval.get_upper_adjacent_edge()->get_half_width())
                                              * micron_per_dbu);
           }
           edge_interval.set_thickness(conductor->get_thickness());

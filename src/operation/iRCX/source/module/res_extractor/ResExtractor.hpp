@@ -50,12 +50,12 @@ class ResExtractor
   ResExtractor& operator=(const ResExtractor& other) = delete;
   ResExtractor& operator=(ResExtractor&& other) = delete;
   // function
-  void extractResistance();
-  void extractCornerResistance(size_t corner_idx);
-  void extractNetResistance(size_t corner_idx, size_t net_idx);
-  F64 extractWireResistance(CornerData& corner_data, ProcessConductor& conductor, TopoEdge& edge,
+  void extractRes();
+  void extractCornerRes(size_t corner_idx);
+  void extractNetRes(size_t corner_idx, size_t net_idx);
+  F64 extractWireRes(CornerData& corner_data, ProcessConductor& conductor, TopoEdge& edge,
                               std::span<EdgeEtchInterval> edge_interval_list);
-  F64 extractViaResistance(CornerData& corner_data, ProcessVia& via, TopoEdge& edge);
+  F64 extractViaRes(CornerData& corner_data, ProcessVia& via, TopoEdge& edge);
   F64 getTemperatureFactor(F64 temperature, F64 nominal_temperature, F64 temperature_coefficient1,
                            F64 temperature_coefficient2);
   ProcessVia* getProcessVia(CornerData& corner_data, size_t design_layer_id);

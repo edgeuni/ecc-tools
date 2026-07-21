@@ -50,7 +50,7 @@ void CapExtractor::extract()
   Monitor monitor;
   RCXLOG.info(Loc::current(), "Starting...");
 
-  extractCapacitance();
+  extractCap();
 
   RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -59,34 +59,34 @@ void CapExtractor::extract()
 
 CapExtractor* CapExtractor::_ce_instance = nullptr;
 
-void CapExtractor::extractCapacitance()
+void CapExtractor::extractCap()
 {
   size_t corner_num = RCXDM.getDatabase().get_corner_data_list().size();
   for (size_t corner_idx = 0; corner_idx < corner_num; corner_idx++) {
-    extractCornerCapacitance(corner_idx);
+    extractCornerCap(corner_idx);
   }
   RCXDM.getDatabase().get_rc_table().merge_net_ccap_entry_list();
 }
 
-void CapExtractor::extractCornerCapacitance(size_t corner_idx)
+void CapExtractor::extractCornerCap(size_t corner_idx)
 {
   size_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
   int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
   for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
-    extractNetCapacitance(corner_idx, net_idx);
+    extractNetCap(corner_idx, net_idx);
   }
 }
 
-void CapExtractor::extractNetCapacitance(size_t corner_idx, size_t net_idx)
+void CapExtractor::extractNetCap(size_t corner_idx, size_t net_idx)
 {
   std::span<TopoEdge> edge_list = RCXDM.getDatabase().get_topo_pool().get_net_edge_list(net_idx);
   for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
-    extractEdgeCapacitance(corner_idx, net_idx, edge_idx);
+    extractEdgeCap(corner_idx, net_idx, edge_idx);
   }
 }
 
-void CapExtractor::extractEdgeCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx)
+void CapExtractor::extractEdgeCap(size_t corner_idx, size_t net_idx, size_t edge_idx)
 {
   Database& database = RCXDM.getDatabase();
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
@@ -95,38 +95,38 @@ void CapExtractor::extractEdgeCapacitance(size_t corner_idx, size_t net_idx, siz
     return;
   }
 
-  NetEnvironment& net_environment = database.get_net_environment_list().at(net_idx);
+  NetEnv& net_env = database.get_net_env_list().at(net_idx);
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
-  std::span<EdgeEnvironmentInterval> environment_interval_list = net_environment.get_edge_interval_list(edge_idx);
+  std::span<EdgeEnvInterval> env_interval_list = net_env.get_edge_interval_list(edge_idx);
   std::span<EdgeEtchInterval> etch_interval_list = net_etch_profile.get_edge_interval_list(edge_idx);
-  size_t interval_num = std::min(environment_interval_list.size(), etch_interval_list.size());
+  size_t interval_num = std::min(env_interval_list.size(), etch_interval_list.size());
   for (size_t interval_idx = 0; interval_idx < interval_num; interval_idx++) {
-    extractEdgeIntervalCapacitance(corner_idx, net_idx, edge_idx, interval_idx);
+    extractEdgeIntervalCap(corner_idx, net_idx, edge_idx, interval_idx);
   }
 }
 
-void CapExtractor::extractEdgeIntervalCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx)
+void CapExtractor::extractEdgeIntervalCap(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx)
 {
   Database& database = RCXDM.getDatabase();
-  NetEnvironment& net_environment = database.get_net_environment_list().at(net_idx);
-  EdgeEnvironmentInterval& environment_interval = net_environment.get_edge_interval_list(edge_idx)[interval_idx];
+  NetEnv& net_env = database.get_net_env_list().at(net_idx);
+  EdgeEnvInterval& env_interval = net_env.get_edge_interval_list(edge_idx)[interval_idx];
   std::vector<int32_t> coordinate_list;
-  coordinate_list.push_back(environment_interval.get_start_coordinate());
-  coordinate_list.push_back(environment_interval.get_end_coordinate());
-  for (CrossOverlapSub& cross_overlap_sub : environment_interval.get_cross_overlap_sub_list()) {
-    coordinate_list.push_back(std::max(environment_interval.get_start_coordinate(), cross_overlap_sub.get_start_coordinate()));
-    coordinate_list.push_back(std::min(environment_interval.get_end_coordinate(), cross_overlap_sub.get_end_coordinate()));
+  coordinate_list.push_back(env_interval.get_start_coordinate());
+  coordinate_list.push_back(env_interval.get_end_coordinate());
+  for (CrossOverlapSub& cross_overlap_sub : env_interval.get_cross_overlap_sub_list()) {
+    coordinate_list.push_back(std::max(env_interval.get_start_coordinate(), cross_overlap_sub.get_start_coordinate()));
+    coordinate_list.push_back(std::min(env_interval.get_end_coordinate(), cross_overlap_sub.get_end_coordinate()));
   }
   std::sort(coordinate_list.begin(), coordinate_list.end());
   coordinate_list.erase(std::unique(coordinate_list.begin(), coordinate_list.end()), coordinate_list.end());
 
   for (size_t coordinate_idx = 0; coordinate_idx + 1 < coordinate_list.size(); coordinate_idx++) {
-    extractCapacitanceSpan(
+    extractCapSpan(
         corner_idx, net_idx, edge_idx, interval_idx, coordinate_list[coordinate_idx], coordinate_list[coordinate_idx + 1]);
   }
 }
 
-void CapExtractor::extractCapacitanceSpan(size_t corner_idx,
+void CapExtractor::extractCapSpan(size_t corner_idx,
                                                       size_t net_idx,
                                                       size_t edge_idx,
                                                       size_t interval_idx,
@@ -146,14 +146,14 @@ void CapExtractor::extractCapacitanceSpan(size_t corner_idx,
     return;
   }
 
-  NetEnvironment& net_environment = database.get_net_environment_list().at(net_idx);
+  NetEnv& net_env = database.get_net_env_list().at(net_idx);
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
-  EdgeEnvironmentInterval& environment_interval = net_environment.get_edge_interval_list(edge_idx)[interval_idx];
+  EdgeEnvInterval& env_interval = net_env.get_edge_interval_list(edge_idx)[interval_idx];
   EdgeEtchInterval& etch_interval = net_etch_profile.get_edge_interval_list(edge_idx)[interval_idx];
   std::string below_layer_name;
   std::string above_layer_name;
   getCrossLayerName(
-      environment_interval.get_cross_overlap_sub_list(), start_coordinate, end_coordinate, below_layer_name, above_layer_name);
+      env_interval.get_cross_overlap_sub_list(), start_coordinate, end_coordinate, below_layer_name, above_layer_name);
 
   CapTableConfig* cap_table_config = getCapTableConfig(corner_data, conductor->get_layer_name(), below_layer_name, above_layer_name);
   if (cap_table_config == nullptr) {
@@ -162,41 +162,41 @@ void CapExtractor::extractCapacitanceSpan(size_t corner_idx,
 
   double micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
   double span_length = (end_coordinate - start_coordinate) * micron_per_dbu;
-  TopoEdge* lower_adjacent_edge = environment_interval.get_lower_adjacent_edge();
-  TopoEdge* upper_adjacent_edge = environment_interval.get_upper_adjacent_edge();
+  TopoEdge* lower_adjacent_edge = env_interval.get_lower_adjacent_edge();
+  TopoEdge* upper_adjacent_edge = env_interval.get_upper_adjacent_edge();
   if (lower_adjacent_edge != nullptr && upper_adjacent_edge != nullptr) {
-    F64 lower_coupling_capacitance = 0.0;
-    F64 lower_ground_capacitance = 0.0;
-    F64 upper_coupling_capacitance = 0.0;
-    F64 upper_ground_capacitance = 0.0;
-    getCapacitance(*cap_table_config, etch_interval.get_capacitance_lower_spacing(), lower_coupling_capacitance,
-                   lower_ground_capacitance);
-    getCapacitance(*cap_table_config, etch_interval.get_capacitance_upper_spacing(), upper_coupling_capacitance,
-                   upper_ground_capacitance);
-    addGroundCapacitance(corner_idx, net_idx, edge_idx, lower_adjacent_edge, span_length * lower_ground_capacitance);
-    addGroundCapacitance(corner_idx, net_idx, edge_idx, upper_adjacent_edge, span_length * upper_ground_capacitance);
-    addCouplingCapacitance(corner_idx, net_idx, edge_idx, lower_adjacent_edge, span_length * lower_coupling_capacitance / 2.0);
-    addCouplingCapacitance(corner_idx, net_idx, edge_idx, upper_adjacent_edge, span_length * upper_coupling_capacitance / 2.0);
+    F64 lower_coupling_cap = 0.0;
+    F64 lower_ground_cap = 0.0;
+    F64 upper_coupling_cap = 0.0;
+    F64 upper_ground_cap = 0.0;
+    getCap(*cap_table_config, etch_interval.get_cap_lower_spacing(), lower_coupling_cap,
+                   lower_ground_cap);
+    getCap(*cap_table_config, etch_interval.get_cap_upper_spacing(), upper_coupling_cap,
+                   upper_ground_cap);
+    addGroundCap(corner_idx, net_idx, edge_idx, lower_adjacent_edge, span_length * lower_ground_cap);
+    addGroundCap(corner_idx, net_idx, edge_idx, upper_adjacent_edge, span_length * upper_ground_cap);
+    addCouplingCap(corner_idx, net_idx, edge_idx, lower_adjacent_edge, span_length * lower_coupling_cap / 2.0);
+    addCouplingCap(corner_idx, net_idx, edge_idx, upper_adjacent_edge, span_length * upper_coupling_cap / 2.0);
     return;
   }
 
   if (lower_adjacent_edge != nullptr || upper_adjacent_edge != nullptr) {
     TopoEdge* adjacent_edge = lower_adjacent_edge != nullptr ? lower_adjacent_edge : upper_adjacent_edge;
-    double spacing = lower_adjacent_edge != nullptr ? etch_interval.get_capacitance_lower_spacing()
-                                                     : etch_interval.get_capacitance_upper_spacing();
-    F64 coupling_capacitance = 0.0;
-    F64 ground_capacitance = 0.0;
-    getCapacitance(*cap_table_config, spacing, coupling_capacitance, ground_capacitance);
-    addGroundCapacitance(corner_idx, net_idx, edge_idx, adjacent_edge, 2.0 * span_length * ground_capacitance);
-    addCouplingCapacitance(corner_idx, net_idx, edge_idx, adjacent_edge, span_length * coupling_capacitance);
+    double spacing = lower_adjacent_edge != nullptr ? etch_interval.get_cap_lower_spacing()
+                                                     : etch_interval.get_cap_upper_spacing();
+    F64 coupling_cap = 0.0;
+    F64 ground_cap = 0.0;
+    getCap(*cap_table_config, spacing, coupling_cap, ground_cap);
+    addGroundCap(corner_idx, net_idx, edge_idx, adjacent_edge, 2.0 * span_length * ground_cap);
+    addCouplingCap(corner_idx, net_idx, edge_idx, adjacent_edge, span_length * coupling_cap);
     return;
   }
 
-  F64 coupling_capacitance = 0.0;
-  F64 ground_capacitance = 0.0;
-  getFarthestCapacitance(*cap_table_config, coupling_capacitance, ground_capacitance);
-  std::span<F64> ground_capacitance_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
-  ground_capacitance_list[edge_idx] += 2.0 * span_length * (coupling_capacitance + ground_capacitance);
+  F64 coupling_cap = 0.0;
+  F64 ground_cap = 0.0;
+  getFarthestCap(*cap_table_config, coupling_cap, ground_cap);
+  std::span<F64> ground_cap_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
+  ground_cap_list[edge_idx] += 2.0 * span_length * (coupling_cap + ground_cap);
 }
 
 void CapExtractor::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t start_coordinate,
@@ -230,37 +230,37 @@ void CapExtractor::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap
   }
 }
 
-void CapExtractor::addGroundCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge,
-                                                  F64 ground_capacitance)
+void CapExtractor::addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge,
+                                                  F64 ground_cap)
 {
-  if (ground_capacitance <= 0.0) {
+  if (ground_cap <= 0.0) {
     return;
   }
 
-  std::span<F64> ground_capacitance_list = RCXDM.getDatabase().get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
+  std::span<F64> ground_cap_list = RCXDM.getDatabase().get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
   if (adjacent_edge->get_net_id() == net_idx) {
-    ground_capacitance_list[edge_idx] += ground_capacitance / 2.0;
+    ground_cap_list[edge_idx] += ground_cap / 2.0;
   } else {
-    ground_capacitance_list[edge_idx] += ground_capacitance;
+    ground_cap_list[edge_idx] += ground_cap;
   }
 }
 
-void CapExtractor::addCouplingCapacitance(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge,
-                                                    F64 coupling_capacitance)
+void CapExtractor::addCouplingCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge,
+                                                    F64 coupling_cap)
 {
-  if (coupling_capacitance <= 0.0) {
+  if (coupling_cap <= 0.0) {
     return;
   }
 
   Database& database = RCXDM.getDatabase();
   if (adjacent_edge->get_net_id() == kSpecialNetId) {
-    std::span<F64> ground_capacitance_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
-    ground_capacitance_list[edge_idx] += coupling_capacitance;
+    std::span<F64> ground_cap_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
+    ground_cap_list[edge_idx] += coupling_cap;
   } else if (adjacent_edge->get_net_id() != net_idx) {
     size_t edge_global_idx = database.get_topo_pool().get_edge_idx(net_idx, edge_idx);
     size_t adjacent_edge_global_idx = database.get_topo_pool().get_edge_idx(*adjacent_edge);
     database.get_rc_table().append_net_ccap_entry(net_idx, edge_global_idx, adjacent_edge_global_idx, corner_idx,
-                                                   static_cast<F32>(coupling_capacitance));
+                                                   static_cast<F32>(coupling_cap));
   }
 }
 
@@ -300,8 +300,8 @@ CapTableConfig* CapExtractor::getCapTableConfig(CornerData& corner_data, std::st
   return nullptr;
 }
 
-void CapExtractor::getCapacitance(CapTableConfig& cap_table_config, double spacing, F64& coupling_capacitance,
-                                            F64& ground_capacitance)
+void CapExtractor::getCap(CapTableConfig& cap_table_config, double spacing, F64& coupling_cap,
+                                            F64& ground_cap)
 {
   std::vector<CapTableEntry>& entry_list = cap_table_config.get_entry_list();
   if (entry_list.empty()) {
@@ -309,12 +309,12 @@ void CapExtractor::getCapacitance(CapTableConfig& cap_table_config, double spaci
   }
   spacing = std::max(spacing, 0.0);
   if (spacing > entry_list.back().get_distance()) {
-    ground_capacitance = entry_list.back().get_ground_capacitance();
+    ground_cap = entry_list.back().get_ground_cap();
     return;
   }
   if (spacing <= entry_list.front().get_distance()) {
-    coupling_capacitance = entry_list.front().get_coupling_capacitance();
-    ground_capacitance = entry_list.front().get_ground_capacitance();
+    coupling_cap = entry_list.front().get_coupling_cap();
+    ground_cap = entry_list.front().get_ground_cap();
     return;
   }
 
@@ -324,32 +324,32 @@ void CapExtractor::getCapacitance(CapTableConfig& cap_table_config, double spaci
     if (first_entry.get_distance() <= spacing && spacing <= second_entry.get_distance()) {
       F64 distance_delta = second_entry.get_distance() - first_entry.get_distance();
       if (distance_delta == 0.0) {
-        coupling_capacitance = (first_entry.get_coupling_capacitance() + second_entry.get_coupling_capacitance()) / 2.0;
-        ground_capacitance = (first_entry.get_ground_capacitance() + second_entry.get_ground_capacitance()) / 2.0;
+        coupling_cap = (first_entry.get_coupling_cap() + second_entry.get_coupling_cap()) / 2.0;
+        ground_cap = (first_entry.get_ground_cap() + second_entry.get_ground_cap()) / 2.0;
         return;
       }
-      coupling_capacitance = first_entry.get_coupling_capacitance()
-                             + (second_entry.get_coupling_capacitance() - first_entry.get_coupling_capacitance())
+      coupling_cap = first_entry.get_coupling_cap()
+                             + (second_entry.get_coupling_cap() - first_entry.get_coupling_cap())
                                    * (spacing - first_entry.get_distance()) / distance_delta;
-      ground_capacitance = first_entry.get_ground_capacitance()
-                           + (second_entry.get_ground_capacitance() - first_entry.get_ground_capacitance())
+      ground_cap = first_entry.get_ground_cap()
+                           + (second_entry.get_ground_cap() - first_entry.get_ground_cap())
                                  * (spacing - first_entry.get_distance()) / distance_delta;
       return;
     }
   }
-  coupling_capacitance = entry_list.back().get_coupling_capacitance();
-  ground_capacitance = entry_list.back().get_ground_capacitance();
+  coupling_cap = entry_list.back().get_coupling_cap();
+  ground_cap = entry_list.back().get_ground_cap();
 }
 
-void CapExtractor::getFarthestCapacitance(CapTableConfig& cap_table_config, F64& coupling_capacitance,
-                                                    F64& ground_capacitance)
+void CapExtractor::getFarthestCap(CapTableConfig& cap_table_config, F64& coupling_cap,
+                                                    F64& ground_cap)
 {
   std::vector<CapTableEntry>& entry_list = cap_table_config.get_entry_list();
   if (entry_list.empty()) {
     return;
   }
-  coupling_capacitance = entry_list.back().get_coupling_capacitance();
-  ground_capacitance = entry_list.back().get_ground_capacitance();
+  coupling_cap = entry_list.back().get_coupling_cap();
+  ground_cap = entry_list.back().get_ground_cap();
 }
 
 }  // namespace ircx

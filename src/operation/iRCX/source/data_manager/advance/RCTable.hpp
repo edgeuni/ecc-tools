@@ -55,7 +55,7 @@ class RCTable
   void init(size_t corner_num, size_t net_num, TopoPool& topo_pool);
   std::span<F64> get_corner_net_res_list(CornerNetId corner_net_id);
   std::span<F64> get_corner_net_gcap_list(CornerNetId corner_net_id);
-  void append_net_ccap_entry(size_t net_idx, size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, F32 capacitance);
+  void append_net_ccap_entry(size_t net_idx, size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, F32 cap);
   void merge_net_ccap_entry_list();
 
  private:
@@ -102,9 +102,9 @@ inline void RCTable::append_net_ccap_entry(size_t net_idx,
                                            size_t first_edge_idx,
                                            size_t second_edge_idx,
                                            size_t corner_idx,
-                                           F32 capacitance)
+                                           F32 cap)
 {
-  _net_ccap_entry_list.at(net_idx).emplace_back(first_edge_idx, second_edge_idx, corner_idx, capacitance);
+  _net_ccap_entry_list.at(net_idx).emplace_back(first_edge_idx, second_edge_idx, corner_idx, cap);
 }
 
 inline void RCTable::merge_net_ccap_entry_list()
@@ -115,7 +115,7 @@ inline void RCTable::merge_net_ccap_entry_list()
       if (_merged_ccap_map.count(coupling_key) == 0) {
         _merged_ccap_map[coupling_key].resize(_corner_num, 0.0F);
       }
-      _merged_ccap_map[coupling_key].at(ccap_entry.get_corner_idx()) += ccap_entry.get_capacitance();
+      _merged_ccap_map[coupling_key].at(ccap_entry.get_corner_idx()) += ccap_entry.get_cap();
     }
     ccap_entry_list.clear();
   }

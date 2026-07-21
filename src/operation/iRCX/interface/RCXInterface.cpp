@@ -151,7 +151,7 @@ void RCXInterface::dumpNetShape()
   RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void RCXInterface::runRCXFromTopology(std::map<std::string, std::any>)
+void RCXInterface::runRCXFromTopo(std::map<std::string, std::any>)
 {
   Monitor monitor;
   RCXLOG.info(Loc::current(), "Starting...");

@@ -21,8 +21,8 @@ enum class ProcessEffectType
 {
   kNone,
   kBoth,
-  kResistance,
-  kCapacitance
+  kRes,
+  kCap
 };
 
 }  // namespace ircx

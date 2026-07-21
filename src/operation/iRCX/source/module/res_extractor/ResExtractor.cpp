@@ -56,7 +56,7 @@ void ResExtractor::extract()
   Monitor monitor;
   RCXLOG.info(Loc::current(), "Starting...");
 
-  extractResistance();
+  extractRes();
 
   RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -65,7 +65,7 @@ void ResExtractor::extract()
 
 ResExtractor* ResExtractor::_re_instance = nullptr;
 
-void ResExtractor::extractResistance()
+void ResExtractor::extractRes()
 {
   Database& database = RCXDM.getDatabase();
   size_t corner_num = database.get_corner_data_list().size();
@@ -73,26 +73,26 @@ void ResExtractor::extractResistance()
   database.get_rc_table().init(corner_num, net_num, database.get_topo_pool());
 
   for (size_t corner_idx = 0; corner_idx < corner_num; corner_idx++) {
-    extractCornerResistance(corner_idx);
+    extractCornerRes(corner_idx);
   }
 }
 
-void ResExtractor::extractCornerResistance(size_t corner_idx)
+void ResExtractor::extractCornerRes(size_t corner_idx)
 {
   size_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
   int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
   for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
-    extractNetResistance(corner_idx, net_idx);
+    extractNetRes(corner_idx, net_idx);
   }
 }
 
-void ResExtractor::extractNetResistance(size_t corner_idx, size_t net_idx)
+void ResExtractor::extractNetRes(size_t corner_idx, size_t net_idx)
 {
   Database& database = RCXDM.getDatabase();
   CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
-  std::span<F64> resistance_list = database.get_rc_table().get_corner_net_res_list(CornerNetId(corner_idx, net_idx));
+  std::span<F64> res_list = database.get_rc_table().get_corner_net_res_list(CornerNetId(corner_idx, net_idx));
   NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
 
   for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
@@ -100,7 +100,7 @@ void ResExtractor::extractNetResistance(size_t corner_idx, size_t net_idx)
     if (edge.get_is_via()) {
       ProcessVia* via = getProcessVia(corner_data, edge.get_layer_id());
       if (via != nullptr) {
-        resistance_list[edge_idx] = extractViaResistance(corner_data, *via, edge);
+        res_list[edge_idx] = extractViaRes(corner_data, *via, edge);
       }
       continue;
     }
@@ -111,11 +111,11 @@ void ResExtractor::extractNetResistance(size_t corner_idx, size_t net_idx)
     }
 
     std::span<EdgeEtchInterval> edge_interval_list = net_etch_profile.get_edge_interval_list(edge_idx);
-    resistance_list[edge_idx] = extractWireResistance(corner_data, *conductor, edge, edge_interval_list);
+    res_list[edge_idx] = extractWireRes(corner_data, *conductor, edge, edge_interval_list);
   }
 }
 
-F64 ResExtractor::extractWireResistance(CornerData& corner_data,
+F64 ResExtractor::extractWireRes(CornerData& corner_data,
                                                    ProcessConductor& conductor,
                                                    TopoEdge& edge,
                                                    std::span<EdgeEtchInterval> edge_interval_list)
@@ -132,7 +132,7 @@ F64 ResExtractor::extractWireResistance(CornerData& corner_data,
     std::swap(segment_start, segment_end);
   }
 
-  F64 resistance = 0.0;
+  F64 res = 0.0;
   for (EdgeEtchInterval& edge_interval : edge_interval_list) {
     double overlap_start = std::max(edge_interval.get_start_coordinate(), segment_start);
     double overlap_end = std::min(edge_interval.get_end_coordinate(), segment_end);
@@ -151,19 +151,19 @@ F64 ResExtractor::extractWireResistance(CornerData& corner_data,
                                                                                                    static_cast<F32>(width));
     F32 resistivity_value = resistivity.has_value() ? static_cast<F32>(resistivity.value())
                                                      : static_cast<F32>(conductor.get_resistivity());
-    F32 sheet_resistance_value = 0.0F;
+    F32 sheet_res_value = 0.0F;
     if (resistivity_value <= 0.0F) {
-      std::optional<F64> sheet_resistance = conductor.get_sheet_resistance_by_width_table().query(static_cast<F32>(width));
-      sheet_resistance_value = sheet_resistance.has_value() ? static_cast<F32>(sheet_resistance.value())
-                                                             : static_cast<F32>(conductor.get_sheet_resistance());
+      std::optional<F64> sheet_res = conductor.get_sheet_res_by_width_table().query(static_cast<F32>(width));
+      sheet_res_value = sheet_res.has_value() ? static_cast<F32>(sheet_res.value())
+                                                             : static_cast<F32>(conductor.get_sheet_res());
     }
 
-    F64 base_resistance = 0.0;
+    F64 base_res = 0.0;
     if (resistivity_value > 0.0F) {
-      base_resistance = resistivity_value * length / (width * thickness);
+      base_res = resistivity_value * length / (width * thickness);
     }
-    if (sheet_resistance_value > 0.0F) {
-      base_resistance += sheet_resistance_value * length / width;
+    if (sheet_res_value > 0.0F) {
+      base_res += sheet_res_value * length / width;
     }
 
     F64 temperature_coefficient1 = 0.0;
@@ -173,14 +173,14 @@ F64 ResExtractor::extractWireResistance(CornerData& corner_data,
     temperature_coefficient2 = static_cast<F32>(temperature_coefficient2);
     F64 nominal_temperature = conductor.get_has_nominal_temperature() ? conductor.get_nominal_temperature()
                                                                         : corner_data.get_global_temperature();
-    resistance += base_resistance
+    res += base_res
                   * getTemperatureFactor(corner_data.get_temperature(), nominal_temperature, temperature_coefficient1,
                                          temperature_coefficient2);
   }
-  return resistance;
+  return res;
 }
 
-F64 ResExtractor::extractViaResistance(CornerData& corner_data, ProcessVia& via, TopoEdge& edge)
+F64 ResExtractor::extractViaRes(CornerData& corner_data, ProcessVia& via, TopoEdge& edge)
 {
   Database& database = RCXDM.getDatabase();
   double micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
@@ -189,12 +189,12 @@ F64 ResExtractor::extractViaResistance(CornerData& corner_data, ProcessVia& via,
   double y_span = (boost::polygon::yh(via_shape) - boost::polygon::yl(via_shape)) * micron_per_dbu;
   double length = std::max(x_span, y_span) * corner_data.get_half_node_scale_factor();
   double width = std::min(x_span, y_span) * corner_data.get_half_node_scale_factor();
-  std::pair<double, double> etch_pair = via.query_etch(ProcessEffectType::kResistance, width, length);
+  std::pair<double, double> etch_pair = via.query_etch(ProcessEffectType::kRes, width, length);
   length = std::max<double>(0.0, length - 2.0 * etch_pair.first);
   width = std::max<double>(0.0, width - 2.0 * etch_pair.second);
   F64 area = length * width;
-  std::optional<F64> base_resistance = via.query_resistance(area);
-  if (!base_resistance.has_value()) {
+  std::optional<F64> base_res = via.query_res(area);
+  if (!base_res.has_value()) {
     return 0.0;
   }
 
@@ -202,7 +202,7 @@ F64 ResExtractor::extractViaResistance(CornerData& corner_data, ProcessVia& via,
   F64 temperature_coefficient2 = 0.0;
   via.query_temperature_coefficient(area, temperature_coefficient1, temperature_coefficient2);
   F64 nominal_temperature = via.get_has_nominal_temperature() ? via.get_nominal_temperature() : corner_data.get_global_temperature();
-  return base_resistance.value()
+  return base_res.value()
          * getTemperatureFactor(corner_data.get_temperature(), nominal_temperature, temperature_coefficient1,
                                 temperature_coefficient2);
 }

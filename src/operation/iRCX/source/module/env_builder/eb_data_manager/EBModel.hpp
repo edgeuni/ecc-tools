@@ -22,7 +22,7 @@
 
 #include "EnvPixel.hpp"
 #include "EnvTrack.hpp"
-#include "NetEnvironment.hpp"
+#include "NetEnv.hpp"
 #include "RCXHeader.hpp"
 
 namespace ircx {

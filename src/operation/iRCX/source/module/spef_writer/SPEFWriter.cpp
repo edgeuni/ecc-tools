@@ -130,12 +130,12 @@ void SPEFWriter::buildNetCouplingRefList(SWModel& sw_model, size_t corner_idx)
   std::vector<std::vector<SPEFCouplingRef>>& net_coupling_ref_list = sw_model.get_net_coupling_ref_list();
   net_coupling_ref_list.assign(net_num, std::vector<SPEFCouplingRef>());
 
-  for (auto& [coupling_key, capacitance_list] : database.get_rc_table().get_merged_ccap_map()) {
-    if (corner_idx >= capacitance_list.size()) {
+  for (auto& [coupling_key, cap_list] : database.get_rc_table().get_merged_ccap_map()) {
+    if (corner_idx >= cap_list.size()) {
       continue;
     }
-    F64 capacitance = capacitance_list[corner_idx];
-    if (capacitance <= 0.0) {
+    F64 cap = cap_list[corner_idx];
+    if (cap <= 0.0) {
       continue;
     }
 
@@ -151,9 +151,9 @@ void SPEFWriter::buildNetCouplingRefList(SWModel& sw_model, size_t corner_idx)
       continue;
     }
 
-    net_coupling_ref_list[first_edge.get_net_id()].emplace_back(first_edge_idx, second_edge_idx, capacitance);
+    net_coupling_ref_list[first_edge.get_net_id()].emplace_back(first_edge_idx, second_edge_idx, cap);
     if (first_edge.get_net_id() != second_edge.get_net_id()) {
-      net_coupling_ref_list[second_edge.get_net_id()].emplace_back(second_edge_idx, first_edge_idx, capacitance);
+      net_coupling_ref_list[second_edge.get_net_id()].emplace_back(second_edge_idx, first_edge_idx, cap);
     }
   }
 }
@@ -295,18 +295,18 @@ void SPEFWriter::writeDNet(SWModel& sw_model,
   }
 
   size_t node_offset = topo_pool.get_net_node_range(net_idx).first;
-  std::vector<F64> node_ground_capacitance_list(node_list.size(), 0.0);
-  std::span<F64> ground_capacitance_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
+  std::vector<F64> node_ground_cap_list(node_list.size(), 0.0);
+  std::span<F64> ground_cap_list = database.get_rc_table().get_corner_net_gcap_list(CornerNetId(corner_idx, net_idx));
   for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
     TopoEdge& edge = edge_list[edge_idx];
-    if (edge.get_is_via() || ground_capacitance_list[edge_idx] <= 0.0) {
+    if (edge.get_is_via() || ground_cap_list[edge_idx] <= 0.0) {
       continue;
     }
-    node_ground_capacitance_list[edge.get_start_node_idx() - node_offset] += ground_capacitance_list[edge_idx] / 2.0;
-    node_ground_capacitance_list[edge.get_end_node_idx() - node_offset] += ground_capacitance_list[edge_idx] / 2.0;
+    node_ground_cap_list[edge.get_start_node_idx() - node_offset] += ground_cap_list[edge_idx] / 2.0;
+    node_ground_cap_list[edge.get_end_node_idx() - node_offset] += ground_cap_list[edge_idx] / 2.0;
   }
 
-  std::map<std::pair<size_t, std::string>, F64> node_coupling_capacitance_map;
+  std::map<std::pair<size_t, std::string>, F64> node_coupling_cap_map;
   for (SPEFCouplingRef& coupling_ref : sw_model.get_net_coupling_ref_list().at(net_idx)) {
     TopoEdge& self_edge = topo_pool.get_edge(coupling_ref.get_self_edge_idx());
     TopoEdge& other_edge = topo_pool.get_edge(coupling_ref.get_other_edge_idx());
@@ -320,21 +320,21 @@ void SPEFWriter::writeDNet(SWModel& sw_model,
     size_t other_node_idx = kMaxSize;
     getNearestNodePair(self_edge, other_edge, self_node_idx, other_node_idx);
     TopoNode& other_node = topo_pool.get_node(other_node_idx);
-    node_coupling_capacitance_map[
+    node_coupling_cap_map[
         std::make_pair(self_node_idx - node_offset, getNodeSPEFName(spef_name_map, other_node))]
-        += coupling_ref.get_capacitance();
+        += coupling_ref.get_cap();
   }
 
-  F64 total_capacitance = 0.0;
-  for (F64 ground_capacitance : node_ground_capacitance_list) {
-    total_capacitance += ground_capacitance;
+  F64 total_cap = 0.0;
+  for (F64 ground_cap : node_ground_cap_list) {
+    total_cap += ground_cap;
   }
-  for (std::pair<const std::pair<size_t, std::string>, F64>& node_coupling_capacitance : node_coupling_capacitance_map) {
-    total_capacitance += node_coupling_capacitance.second;
+  for (std::pair<const std::pair<size_t, std::string>, F64>& node_coupling_cap : node_coupling_cap_map) {
+    total_cap += node_coupling_cap.second;
   }
 
   double micron_per_dbu = unit::to_micron(1, database.get_layout_data().get_dbu_per_micron());
-  spef_file_stream << "\n*D_NET " << net_spef_name << " " << std::fixed << std::setprecision(6) << total_capacitance << "\n\n";
+  spef_file_stream << "\n*D_NET " << net_spef_name << " " << std::fixed << std::setprecision(6) << total_cap << "\n\n";
   spef_file_stream << "*CONN\n";
   for (TopoNode& node : node_list) {
     if (!node.get_is_pin_node() || node.get_pin_name().find(':') != std::string::npos) {
@@ -380,24 +380,24 @@ void SPEFWriter::writeDNet(SWModel& sw_model,
 
   spef_file_stream << "\n*CAP\n";
   size_t cap_id = 1;
-  for (std::pair<const std::pair<size_t, std::string>, F64>& node_coupling_capacitance : node_coupling_capacitance_map) {
-    if (node_coupling_capacitance.second <= 0.0) {
+  for (std::pair<const std::pair<size_t, std::string>, F64>& node_coupling_cap : node_coupling_cap_map) {
+    if (node_coupling_cap.second <= 0.0) {
       continue;
     }
-    spef_file_stream << cap_id++ << " " << getNodeSPEFName(spef_name_map, node_list[node_coupling_capacitance.first.first]) << " "
-                     << node_coupling_capacitance.first.second << " " << std::setprecision(6) << node_coupling_capacitance.second << "\n";
+    spef_file_stream << cap_id++ << " " << getNodeSPEFName(spef_name_map, node_list[node_coupling_cap.first.first]) << " "
+                     << node_coupling_cap.first.second << " " << std::setprecision(6) << node_coupling_cap.second << "\n";
   }
   for (size_t node_idx = 0; node_idx < node_list.size(); node_idx++) {
-    if (node_ground_capacitance_list[node_idx] <= 0.0) {
+    if (node_ground_cap_list[node_idx] <= 0.0) {
       continue;
     }
     spef_file_stream << cap_id++ << " " << getNodeSPEFName(spef_name_map, node_list[node_idx]) << " " << std::setprecision(6)
-                     << node_ground_capacitance_list[node_idx] << "\n";
+                     << node_ground_cap_list[node_idx] << "\n";
   }
 
   spef_file_stream << "\n*RES\n";
-  std::span<F64> resistance_list = database.get_rc_table().get_corner_net_res_list(CornerNetId(corner_idx, net_idx));
-  size_t resistance_id = 1;
+  std::span<F64> res_list = database.get_rc_table().get_corner_net_res_list(CornerNetId(corner_idx, net_idx));
+  size_t res_id = 1;
   for (size_t edge_idx = 0; edge_idx < edge_list.size(); edge_idx++) {
     TopoEdge& edge = edge_list[edge_idx];
     if (edge.get_start_node_idx() == kMaxSize || edge.get_end_node_idx() == kMaxSize) {
@@ -405,10 +405,10 @@ void SPEFWriter::writeDNet(SWModel& sw_model,
     }
     TopoNode& start_node = topo_pool.get_node(edge.get_start_node_idx());
     TopoNode& end_node = topo_pool.get_node(edge.get_end_node_idx());
-    spef_file_stream << resistance_id++ << " " << getNodeSPEFName(spef_name_map, start_node) << " "
+    spef_file_stream << res_id++ << " " << getNodeSPEFName(spef_name_map, start_node) << " "
                      << getNodeSPEFName(spef_name_map, end_node)
-                     << " " << std::setprecision(6) << resistance_list[edge_idx];
-    writeResistanceGeometry(sw_model, spef_file_stream, corner_idx, edge, micron_per_dbu);
+                     << " " << std::setprecision(6) << res_list[edge_idx];
+    writeResGeometry(sw_model, spef_file_stream, corner_idx, edge, micron_per_dbu);
     spef_file_stream << "\n";
   }
   spef_file_stream << "*END\n";
@@ -493,7 +493,7 @@ void SPEFWriter::writeNodeGeometry(SWModel& sw_model, std::ofstream& spef_file_s
                    << boost::polygon::yh(shape) * micron_per_dbu << " $lvl=" << getReportLayerLevel(sw_model, node.get_layer_id());
 }
 
-void SPEFWriter::writeResistanceGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, size_t corner_idx, TopoEdge& edge,
+void SPEFWriter::writeResGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, size_t corner_idx, TopoEdge& edge,
                                          double micron_per_dbu)
 {
   if (!RCXDM.getConfig().report_geometry) {

@@ -34,60 +34,60 @@ class EdgeEtchInterval
   double get_upper_spacing() const { return _upper_spacing; }
   double get_thickness() const { return _thickness; }
   double get_height() const { return _height; }
-  double get_resistance_center() const { return _resistance_center; }
-  double get_resistance_width() const { return _resistance_width; }
-  double get_resistance_lower_spacing() const { return _resistance_lower_spacing; }
-  double get_resistance_upper_spacing() const { return _resistance_upper_spacing; }
-  double get_resistance_thickness() const { return _resistance_thickness; }
-  double get_capacitance_center() const { return _capacitance_center; }
-  double get_capacitance_width() const { return _capacitance_width; }
-  double get_capacitance_lower_spacing() const { return _capacitance_lower_spacing; }
-  double get_capacitance_upper_spacing() const { return _capacitance_upper_spacing; }
-  double get_capacitance_thickness() const { return _capacitance_thickness; }
+  double get_res_center() const { return _res_center; }
+  double get_res_width() const { return _res_width; }
+  double get_res_lower_spacing() const { return _res_lower_spacing; }
+  double get_res_upper_spacing() const { return _res_upper_spacing; }
+  double get_res_thickness() const { return _res_thickness; }
+  double get_cap_center() const { return _cap_center; }
+  double get_cap_width() const { return _cap_width; }
+  double get_cap_lower_spacing() const { return _cap_lower_spacing; }
+  double get_cap_upper_spacing() const { return _cap_upper_spacing; }
+  double get_cap_thickness() const { return _cap_thickness; }
   // setter
   void set_start_coordinate(double start_coordinate) { _start_coordinate = start_coordinate; }
   void set_end_coordinate(double end_coordinate) { _end_coordinate = end_coordinate; }
   void set_center(double center)
   {
     _center = center;
-    _resistance_center = center;
-    _capacitance_center = center;
+    _res_center = center;
+    _cap_center = center;
   }
   void set_width(double width)
   {
     _width = width;
-    _resistance_width = width;
-    _capacitance_width = width;
+    _res_width = width;
+    _cap_width = width;
   }
   void set_lower_spacing(double lower_spacing)
   {
     _lower_spacing = lower_spacing;
-    _resistance_lower_spacing = lower_spacing;
-    _capacitance_lower_spacing = lower_spacing;
+    _res_lower_spacing = lower_spacing;
+    _cap_lower_spacing = lower_spacing;
   }
   void set_upper_spacing(double upper_spacing)
   {
     _upper_spacing = upper_spacing;
-    _resistance_upper_spacing = upper_spacing;
-    _capacitance_upper_spacing = upper_spacing;
+    _res_upper_spacing = upper_spacing;
+    _cap_upper_spacing = upper_spacing;
   }
   void set_thickness(double thickness)
   {
     _thickness = thickness;
-    _resistance_thickness = thickness;
-    _capacitance_thickness = thickness;
+    _res_thickness = thickness;
+    _cap_thickness = thickness;
   }
   void set_height(double height) { _height = height; }
-  void set_resistance_center(double resistance_center) { _resistance_center = resistance_center; }
-  void set_resistance_width(double resistance_width) { _resistance_width = resistance_width; }
-  void set_resistance_lower_spacing(double resistance_lower_spacing) { _resistance_lower_spacing = resistance_lower_spacing; }
-  void set_resistance_upper_spacing(double resistance_upper_spacing) { _resistance_upper_spacing = resistance_upper_spacing; }
-  void set_resistance_thickness(double resistance_thickness) { _resistance_thickness = resistance_thickness; }
-  void set_capacitance_center(double capacitance_center) { _capacitance_center = capacitance_center; }
-  void set_capacitance_width(double capacitance_width) { _capacitance_width = capacitance_width; }
-  void set_capacitance_lower_spacing(double capacitance_lower_spacing) { _capacitance_lower_spacing = capacitance_lower_spacing; }
-  void set_capacitance_upper_spacing(double capacitance_upper_spacing) { _capacitance_upper_spacing = capacitance_upper_spacing; }
-  void set_capacitance_thickness(double capacitance_thickness) { _capacitance_thickness = capacitance_thickness; }
+  void set_res_center(double res_center) { _res_center = res_center; }
+  void set_res_width(double res_width) { _res_width = res_width; }
+  void set_res_lower_spacing(double res_lower_spacing) { _res_lower_spacing = res_lower_spacing; }
+  void set_res_upper_spacing(double res_upper_spacing) { _res_upper_spacing = res_upper_spacing; }
+  void set_res_thickness(double res_thickness) { _res_thickness = res_thickness; }
+  void set_cap_center(double cap_center) { _cap_center = cap_center; }
+  void set_cap_width(double cap_width) { _cap_width = cap_width; }
+  void set_cap_lower_spacing(double cap_lower_spacing) { _cap_lower_spacing = cap_lower_spacing; }
+  void set_cap_upper_spacing(double cap_upper_spacing) { _cap_upper_spacing = cap_upper_spacing; }
+  void set_cap_thickness(double cap_thickness) { _cap_thickness = cap_thickness; }
   // function
 
  private:
@@ -99,16 +99,16 @@ class EdgeEtchInterval
   double _upper_spacing = kMaxMicron;
   double _thickness = 0.0;
   double _height = 0.0;
-  double _resistance_center = 0.0;
-  double _resistance_width = 0.0;
-  double _resistance_lower_spacing = kMaxMicron;
-  double _resistance_upper_spacing = kMaxMicron;
-  double _resistance_thickness = 0.0;
-  double _capacitance_center = 0.0;
-  double _capacitance_width = 0.0;
-  double _capacitance_lower_spacing = kMaxMicron;
-  double _capacitance_upper_spacing = kMaxMicron;
-  double _capacitance_thickness = 0.0;
+  double _res_center = 0.0;
+  double _res_width = 0.0;
+  double _res_lower_spacing = kMaxMicron;
+  double _res_upper_spacing = kMaxMicron;
+  double _res_thickness = 0.0;
+  double _cap_center = 0.0;
+  double _cap_width = 0.0;
+  double _cap_lower_spacing = kMaxMicron;
+  double _cap_upper_spacing = kMaxMicron;
+  double _cap_thickness = 0.0;
 };
 
 }  // namespace ircx

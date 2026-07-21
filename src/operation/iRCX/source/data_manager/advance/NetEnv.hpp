@@ -16,33 +16,33 @@
 // ***************************************************************************************
 #pragma once
 
-#include "EdgeEnvironmentInterval.hpp"
+#include "EdgeEnvInterval.hpp"
 #include "GroupPool.hpp"
 
 namespace ircx {
 
-class NetEnvironment
+class NetEnv
 {
  public:
-  NetEnvironment() = default;
-  ~NetEnvironment() = default;
+  NetEnv() = default;
+  ~NetEnv() = default;
   // getter
-  GroupPool<EdgeEnvironmentInterval>& get_edge_interval_pool() { return _edge_interval_pool; }
+  GroupPool<EdgeEnvInterval>& get_edge_interval_pool() { return _edge_interval_pool; }
   // setter
-  void set_edge_interval_pool(const GroupPool<EdgeEnvironmentInterval>& edge_interval_pool) { _edge_interval_pool = edge_interval_pool; }
+  void set_edge_interval_pool(const GroupPool<EdgeEnvInterval>& edge_interval_pool) { _edge_interval_pool = edge_interval_pool; }
   // function
-  void append_edge_interval_list(std::vector<EdgeEnvironmentInterval> edge_interval_list)
+  void append_edge_interval_list(std::vector<EdgeEnvInterval> edge_interval_list)
   {
     _edge_interval_pool.append(std::move(edge_interval_list));
   }
-  std::span<EdgeEnvironmentInterval> get_edge_interval_list(size_t edge_idx) { return _edge_interval_pool.get_group_item_list(edge_idx); }
-  std::span<const EdgeEnvironmentInterval> get_edge_interval_list(size_t edge_idx) const
+  std::span<EdgeEnvInterval> get_edge_interval_list(size_t edge_idx) { return _edge_interval_pool.get_group_item_list(edge_idx); }
+  std::span<const EdgeEnvInterval> get_edge_interval_list(size_t edge_idx) const
   {
     return _edge_interval_pool.get_group_item_list(edge_idx);
   }
 
  private:
-  GroupPool<EdgeEnvironmentInterval> _edge_interval_pool;
+  GroupPool<EdgeEnvInterval> _edge_interval_pool;
 };
 
 }  // namespace ircx

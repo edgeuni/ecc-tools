@@ -25,27 +25,27 @@ class SPEFCouplingRef
 {
  public:
   SPEFCouplingRef() = default;
-  SPEFCouplingRef(size_t self_edge_idx, size_t other_edge_idx, F64 capacitance)
+  SPEFCouplingRef(size_t self_edge_idx, size_t other_edge_idx, F64 cap)
   {
     _self_edge_idx = self_edge_idx;
     _other_edge_idx = other_edge_idx;
-    _capacitance = capacitance;
+    _cap = cap;
   }
   ~SPEFCouplingRef() = default;
   // getter
   size_t get_self_edge_idx() const { return _self_edge_idx; }
   size_t get_other_edge_idx() const { return _other_edge_idx; }
-  F64 get_capacitance() const { return _capacitance; }
+  F64 get_cap() const { return _cap; }
   // setter
   void set_self_edge_idx(size_t self_edge_idx) { _self_edge_idx = self_edge_idx; }
   void set_other_edge_idx(size_t other_edge_idx) { _other_edge_idx = other_edge_idx; }
-  void set_capacitance(F64 capacitance) { _capacitance = capacitance; }
+  void set_cap(F64 cap) { _cap = cap; }
   // function
 
  private:
   size_t _self_edge_idx = kMaxSize;
   size_t _other_edge_idx = kMaxSize;
-  F64 _capacitance = 0.0;
+  F64 _cap = 0.0;
 };
 
 }  // namespace ircx

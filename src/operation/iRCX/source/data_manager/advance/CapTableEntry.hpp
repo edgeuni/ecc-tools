@@ -26,18 +26,18 @@ class CapTableEntry
   ~CapTableEntry() = default;
   // getter
   double get_distance() const { return _distance; }
-  F64 get_coupling_capacitance() const { return _coupling_capacitance; }
-  F64 get_ground_capacitance() const { return _ground_capacitance; }
+  F64 get_coupling_cap() const { return _coupling_cap; }
+  F64 get_ground_cap() const { return _ground_cap; }
   // setter
   void set_distance(double distance) { _distance = distance; }
-  void set_coupling_capacitance(F64 coupling_capacitance) { _coupling_capacitance = coupling_capacitance; }
-  void set_ground_capacitance(F64 ground_capacitance) { _ground_capacitance = ground_capacitance; }
+  void set_coupling_cap(F64 coupling_cap) { _coupling_cap = coupling_cap; }
+  void set_ground_cap(F64 ground_cap) { _ground_cap = ground_cap; }
   // function
 
  private:
   double _distance = 0.0;
-  F64 _coupling_capacitance = 0.0;
-  F64 _ground_capacitance = 0.0;
+  F64 _coupling_cap = 0.0;
+  F64 _ground_cap = 0.0;
 };
 
 }  // namespace ircx

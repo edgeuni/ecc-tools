@@ -51,7 +51,7 @@ class RCXInterface
   void runRCX();
   void compareSpef(std::map<std::string, std::any> config_map);
   void dumpNetShape();
-  void runRCXFromTopology(std::map<std::string, std::any> config_map);
+  void runRCXFromTopo(std::map<std::string, std::any> config_map);
   void plotSpef(std::map<std::string, std::any> config_map);
   void destroyRCX();
 #endif

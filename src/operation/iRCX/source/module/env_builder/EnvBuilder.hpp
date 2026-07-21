@@ -53,7 +53,7 @@ class EnvBuilder
   EnvBuilder& operator=(EnvBuilder&& other) = delete;
   // function
   void buildEBModel(EBModel& eb_model);
-  bool buildNetEnvironments(EBModel& eb_model);
+  bool buildNetEnvs(EBModel& eb_model);
   std::vector<CrossOverlapSub> clipCrossSegments(const std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t a0, int32_t a1);
   std::vector<EnvPixelOverlapMerge::EnvLayerPixelOverlaps> collectCrossSide(EBModel& eb_model,
                                                                               const LineSegment& line_segment,

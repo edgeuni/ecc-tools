@@ -20,7 +20,7 @@
  */
 #pragma once
 
-#include "EdgeEnvironmentInterval.hpp"
+#include "EdgeEnvInterval.hpp"
 #include "EnvPixel.hpp"
 #include "EnvTrack.hpp"
 #include "RCXHeader.hpp"
@@ -34,7 +34,7 @@ class EnvTrackOverlapMerge
                int32_t query_a1,
                const std::vector<EnvTrackOverlap>& dn_in,
                const std::vector<EnvTrackOverlap>& up_in,
-               std::vector<EdgeEnvironmentInterval>& out) const
+               std::vector<EdgeEnvInterval>& out) const
   {
     if (query_a0 > query_a1) {
       std::swap(query_a0, query_a1);
@@ -143,7 +143,7 @@ class EnvTrackOverlapMerge
     return lhs.sp < rhs.sp;
   }
 
-  static void emitOutput(std::vector<EdgeEnvironmentInterval>& out,
+  static void emitOutput(std::vector<EdgeEnvInterval>& out,
                          int32_t a0,
                          int32_t a1,
                          const EnvTrackOverlap& dn,
@@ -168,7 +168,7 @@ class EnvTrackOverlapMerge
       return;
     }
 
-    EdgeEnvironmentInterval iv;
+    EdgeEnvInterval iv;
     iv.set_start_coordinate(a0);
     iv.set_end_coordinate(a1);
     iv.set_lower_adjacent_edge(l_edge);
@@ -180,7 +180,7 @@ class EnvTrackOverlapMerge
 
   static void mergeTwoSides(const std::vector<EnvTrackOverlap>& dn,
                             const std::vector<EnvTrackOverlap>& up,
-                            std::vector<EdgeEnvironmentInterval>& out)
+                            std::vector<EdgeEnvInterval>& out)
   {
     out.clear();
     if (dn.empty() || up.empty()) {

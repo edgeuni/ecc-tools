@@ -31,7 +31,7 @@ class ProcessConductor
   std::string& get_layer_name() { return _layer_name; }
   const std::string& get_layer_name() const { return _layer_name; }
   double get_thickness() const { return _thickness; }
-  F64 get_sheet_resistance() const { return _sheet_resistance; }
+  F64 get_sheet_res() const { return _sheet_res; }
   F64 get_resistivity() const { return _resistivity; }
   bool get_has_nominal_temperature() const { return _has_nominal_temperature; }
   F64 get_nominal_temperature() const { return _nominal_temperature; }
@@ -40,10 +40,10 @@ class ProcessConductor
   double get_etch() const { return _etch; }
   double get_resistive_only_etch() const { return _resistive_only_etch; }
   double get_capacitive_only_etch() const { return _capacitive_only_etch; }
-  ProcessTable1D& get_sheet_resistance_by_width_table() { return _sheet_resistance_by_width_table; }
+  ProcessTable1D& get_sheet_res_by_width_table() { return _sheet_res_by_width_table; }
   ProcessTable1D& get_temperature_coefficient1_by_width_table() { return _temperature_coefficient1_by_width_table; }
   ProcessTable1D& get_temperature_coefficient2_by_width_table() { return _temperature_coefficient2_by_width_table; }
-  ProcessTable2D& get_sheet_resistance_by_width_spacing_table() { return _sheet_resistance_by_width_spacing_table; }
+  ProcessTable2D& get_sheet_res_by_width_spacing_table() { return _sheet_res_by_width_spacing_table; }
   ProcessTable2D& get_resistivity_by_width_thickness_table() { return _resistivity_by_width_thickness_table; }
   ProcessTable2D& get_resistivity_by_width_spacing_table() { return _resistivity_by_width_spacing_table; }
   std::vector<ProcessEtchTable>& get_etch_table_list() { return _etch_table_list; }
@@ -53,7 +53,7 @@ class ProcessConductor
   // setter
   void set_layer_name(const std::string& layer_name) { _layer_name = layer_name; }
   void set_thickness(double thickness) { _thickness = thickness; }
-  void set_sheet_resistance(F64 sheet_resistance) { _sheet_resistance = sheet_resistance; }
+  void set_sheet_res(F64 sheet_res) { _sheet_res = sheet_res; }
   void set_resistivity(F64 resistivity) { _resistivity = resistivity; }
   void set_nominal_temperature(F64 nominal_temperature)
   {
@@ -66,7 +66,7 @@ class ProcessConductor
   void set_resistive_only_etch(double resistive_only_etch) { _resistive_only_etch = resistive_only_etch; }
   void set_capacitive_only_etch(double capacitive_only_etch) { _capacitive_only_etch = capacitive_only_etch; }
   // function
-  std::optional<F64> query_sheet_resistance(double width, double lower_spacing, double upper_spacing) const;
+  std::optional<F64> query_sheet_res(double width, double lower_spacing, double upper_spacing) const;
   std::optional<F64> query_resistivity(double width, double thickness, double lower_spacing, double upper_spacing) const;
   void query_temperature_coefficient(double width, F64& temperature_coefficient1, F64& temperature_coefficient2) const;
   double query_etch(ProcessEffectType effect_type, double width, double spacing) const;
@@ -77,7 +77,7 @@ class ProcessConductor
 
   std::string _layer_name;
   double _thickness = 0.0;
-  F64 _sheet_resistance = 0.0;
+  F64 _sheet_res = 0.0;
   F64 _resistivity = 0.0;
   bool _has_nominal_temperature = false;
   F64 _nominal_temperature = 25.0;
@@ -86,29 +86,29 @@ class ProcessConductor
   double _etch = 0.0;
   double _resistive_only_etch = 0.0;
   double _capacitive_only_etch = 0.0;
-  ProcessTable1D _sheet_resistance_by_width_table;
+  ProcessTable1D _sheet_res_by_width_table;
   ProcessTable1D _temperature_coefficient1_by_width_table;
   ProcessTable1D _temperature_coefficient2_by_width_table;
-  ProcessTable2D _sheet_resistance_by_width_spacing_table;
+  ProcessTable2D _sheet_res_by_width_spacing_table;
   ProcessTable2D _resistivity_by_width_thickness_table;
   ProcessTable2D _resistivity_by_width_spacing_table;
   std::vector<ProcessEtchTable> _etch_table_list;
   std::vector<ProcessEtchTable> _thickness_change_table_list;
 };
 
-inline std::optional<F64> ProcessConductor::query_sheet_resistance(double width, double lower_spacing, double upper_spacing) const
+inline std::optional<F64> ProcessConductor::query_sheet_res(double width, double lower_spacing, double upper_spacing) const
 {
   double spacing = std::min(lower_spacing, upper_spacing);
-  std::optional<F64> sheet_resistance = _sheet_resistance_by_width_spacing_table.query(width, spacing);
-  if (sheet_resistance.has_value()) {
-    return sheet_resistance;
+  std::optional<F64> sheet_res = _sheet_res_by_width_spacing_table.query(width, spacing);
+  if (sheet_res.has_value()) {
+    return sheet_res;
   }
-  sheet_resistance = _sheet_resistance_by_width_table.query(width);
-  if (sheet_resistance.has_value()) {
-    return sheet_resistance;
+  sheet_res = _sheet_res_by_width_table.query(width);
+  if (sheet_res.has_value()) {
+    return sheet_res;
   }
-  if (_sheet_resistance > 0.0) {
-    return _sheet_resistance;
+  if (_sheet_res > 0.0) {
+    return _sheet_res;
   }
   return std::nullopt;
 }
@@ -152,9 +152,9 @@ inline void ProcessConductor::query_temperature_coefficient(double width,
 inline double ProcessConductor::query_etch(ProcessEffectType effect_type, double width, double spacing) const
 {
   double etch = _etch;
-  if (effect_type == ProcessEffectType::kResistance) {
+  if (effect_type == ProcessEffectType::kRes) {
     etch += _resistive_only_etch;
-  } else if (effect_type == ProcessEffectType::kCapacitance) {
+  } else if (effect_type == ProcessEffectType::kCap) {
     etch += _capacitive_only_etch;
   }
   for (const ProcessEtchTable& etch_table : _etch_table_list) {

@@ -243,7 +243,7 @@ void DataManager::buildProcessConductor(CornerData& corner_data,
       continue;
     }
     if (property_name == "RPSQ" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      conductor.set_sheet_resistance(property_value);
+      conductor.set_sheet_res(property_value);
       token_idx += 3;
       continue;
     }
@@ -300,7 +300,7 @@ void DataManager::buildProcessConductor(CornerData& corner_data,
     if (property_name == "RPSQ_VS_SI_WIDTH") {
       getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
       for (size_t value_idx = 0; value_idx + 1 < value_list.size(); value_idx += 2) {
-        conductor.get_sheet_resistance_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
+        conductor.get_sheet_res_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
       }
     } else if (property_name == "CRT_VS_SI_WIDTH") {
       getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
@@ -317,7 +317,7 @@ void DataManager::buildProcessConductor(CornerData& corner_data,
       table.set_column_list(column_list);
       table.set_value_list(value_list);
       if (property_name == "RPSQ_VS_WIDTH_AND_SPACING") {
-        conductor.get_sheet_resistance_by_width_spacing_table() = table;
+        conductor.get_sheet_res_by_width_spacing_table() = table;
       } else if (property_name == "RHO_VS_WIDTH_AND_SPACING") {
         conductor.get_resistivity_by_width_spacing_table() = table;
       } else if (!table.get_is_empty()) {
@@ -373,7 +373,7 @@ void DataManager::buildProcessVia(CornerData& corner_data,
       continue;
     }
     if (property_name == "RPV" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      via.set_resistance(property_value);
+      via.set_res(property_value);
       token_idx += 3;
       continue;
     }
@@ -415,7 +415,7 @@ void DataManager::buildProcessVia(CornerData& corner_data,
     if (property_name == "RPV_VS_AREA") {
       getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
       for (size_t value_idx = 0; value_idx + 1 < value_list.size(); value_idx += 2) {
-        via.get_resistance_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
+        via.get_res_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
       }
     } else if (property_name == "CRT_VS_AREA") {
       getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
@@ -613,10 +613,10 @@ ProcessEffectType DataManager::getItfEffectType(std::vector<std::string>& itf_to
   for (size_t token_idx = start_idx; token_idx < end_idx; token_idx++) {
     std::string effect_name = getItfUpperString(itf_token_list[token_idx]);
     if (effect_name == "RESISTIVE_ONLY") {
-      return ProcessEffectType::kResistance;
+      return ProcessEffectType::kRes;
     }
     if (effect_name == "CAPACITIVE_ONLY") {
-      return ProcessEffectType::kCapacitance;
+      return ProcessEffectType::kCap;
     }
   }
   return ProcessEffectType::kBoth;
@@ -731,16 +731,16 @@ void DataManager::buildCapTableConfig(CornerData& corner_data, const std::string
   for (const std::string& data_line : data_line_list) {
     std::istringstream data_stream(data_line);
     F64 distance = 0.0;
-    F64 coupling_capacitance = 0.0;
-    F64 ground_capacitance = 0.0;
-    if (!(data_stream >> distance >> coupling_capacitance >> ground_capacitance)) {
+    F64 coupling_cap = 0.0;
+    F64 ground_cap = 0.0;
+    if (!(data_stream >> distance >> coupling_cap >> ground_cap)) {
       continue;
     }
 
     CapTableEntry cap_table_entry;
     cap_table_entry.set_distance(distance);
-    cap_table_entry.set_coupling_capacitance(coupling_capacitance);
-    cap_table_entry.set_ground_capacitance(ground_capacitance);
+    cap_table_entry.set_coupling_cap(coupling_cap);
+    cap_table_entry.set_ground_cap(ground_cap);
     cap_table_config.get_entry_list().push_back(std::move(cap_table_entry));
   }
   if (!cap_table_config.get_entry_list().empty()) {

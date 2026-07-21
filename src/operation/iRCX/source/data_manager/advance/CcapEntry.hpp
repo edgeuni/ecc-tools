@@ -24,31 +24,31 @@ class CcapEntry
 {
  public:
   CcapEntry() = default;
-  CcapEntry(size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, F32 capacitance)
+  CcapEntry(size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, F32 cap)
   {
     _first_edge_idx = first_edge_idx;
     _second_edge_idx = second_edge_idx;
     _corner_idx = corner_idx;
-    _capacitance = capacitance;
+    _cap = cap;
   }
   ~CcapEntry() = default;
   // getter
   size_t get_first_edge_idx() const { return _first_edge_idx; }
   size_t get_second_edge_idx() const { return _second_edge_idx; }
   size_t get_corner_idx() const { return _corner_idx; }
-  F32 get_capacitance() const { return _capacitance; }
+  F32 get_cap() const { return _cap; }
   // setter
   void set_first_edge_idx(size_t first_edge_idx) { _first_edge_idx = first_edge_idx; }
   void set_second_edge_idx(size_t second_edge_idx) { _second_edge_idx = second_edge_idx; }
   void set_corner_idx(size_t corner_idx) { _corner_idx = corner_idx; }
-  void set_capacitance(F32 capacitance) { _capacitance = capacitance; }
+  void set_cap(F32 cap) { _cap = cap; }
   // function
 
  private:
   size_t _first_edge_idx = kMaxSize;
   size_t _second_edge_idx = kMaxSize;
   size_t _corner_idx = kMaxSize;
-  F32 _capacitance = 0.0F;
+  F32 _cap = 0.0F;
 };
 
 }  // namespace ircx

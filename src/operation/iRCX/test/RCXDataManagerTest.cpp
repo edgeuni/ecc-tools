@@ -59,21 +59,21 @@ int main()
   ircx::RCTable rc_table;
   rc_table.init(2, 1, topo_pool);
   ircx::CornerNetId corner_net_id(1, 0);
-  std::span<ircx::F64> resistance_list = rc_table.get_corner_net_res_list(corner_net_id);
-  std::span<ircx::F64> ground_capacitance_list = rc_table.get_corner_net_gcap_list(corner_net_id);
-  assert(resistance_list.size() == 1);
-  assert(ground_capacitance_list.size() == 1);
-  resistance_list[0] = 1.25;
-  ground_capacitance_list[0] = 0.75;
+  std::span<ircx::F64> res_list = rc_table.get_corner_net_res_list(corner_net_id);
+  std::span<ircx::F64> ground_cap_list = rc_table.get_corner_net_gcap_list(corner_net_id);
+  assert(res_list.size() == 1);
+  assert(ground_cap_list.size() == 1);
+  res_list[0] = 1.25;
+  ground_cap_list[0] = 0.75;
   rc_table.append_net_ccap_entry(0, 0, 0, 1, 0.5F);
   rc_table.merge_net_ccap_entry_list();
   ircx::CouplingKey coupling_key(0, 0);
   assert(rc_table.get_merged_ccap_map().at(coupling_key).at(1) == 0.5F);
 
-  ircx::NetEnvironment net_environment;
-  std::vector<ircx::EdgeEnvironmentInterval> environment_interval_list(1);
-  net_environment.append_edge_interval_list(std::move(environment_interval_list));
-  assert(net_environment.get_edge_interval_list(0).size() == 1);
+  ircx::NetEnv net_env;
+  std::vector<ircx::EdgeEnvInterval> env_interval_list(1);
+  net_env.append_edge_interval_list(std::move(env_interval_list));
+  assert(net_env.get_edge_interval_list(0).size() == 1);
 
   ircx::NetEtchProfile net_etch_profile;
   std::vector<ircx::EdgeEtchInterval> etch_interval_list(1);

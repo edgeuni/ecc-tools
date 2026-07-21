@@ -16,7 +16,7 @@
 // ***************************************************************************************
 /**
  * @file EnvBuilder.cpp
- * @brief iRCX environment-builder module implementation.
+ * @brief iRCX env-builder module implementation.
  */
 #include "EnvBuilder.hpp"
 
@@ -69,12 +69,12 @@ EnvBuilder* EnvBuilder::_eb_instance = nullptr;
 
 void EnvBuilder::buildEBModel(EBModel& eb_model)
 {
-  if (!buildNetEnvironments(eb_model)) {
-    RCXLOG.error(Loc::current(), "Build net environment failed!");
+  if (!buildNetEnvs(eb_model)) {
+    RCXLOG.error(Loc::current(), "Build net env failed!");
   }
 }
 
-bool EnvBuilder::buildNetEnvironments(EBModel& eb_model)
+bool EnvBuilder::buildNetEnvs(EBModel& eb_model)
 {
   Database& database = RCXDM.getDatabase();
   LayoutData& layout_data = database.get_layout_data();
@@ -86,9 +86,9 @@ bool EnvBuilder::buildNetEnvironments(EBModel& eb_model)
   buildSearchTrackNumMap(eb_model);
 
   size_t net_num = layout_data.get_regular_net_count();
-  std::vector<NetEnvironment>& net_environments = RCXDM.getDatabase().get_net_environment_list();
-  net_environments.clear();
-  net_environments.resize(net_num);
+  std::vector<NetEnv>& net_envs = RCXDM.getDatabase().get_net_env_list();
+  net_envs.clear();
+  net_envs.resize(net_num);
 
   std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
   std::map<size_t, EnvTrack>& layer_to_track_prefer_dir = eb_model.get_layer_to_track_prefer_dir();
@@ -100,11 +100,11 @@ bool EnvBuilder::buildNetEnvironments(EBModel& eb_model)
   for (size_t nid = 0; nid < net_num; nid++) {
     EnvTrackOverlapMerge track_merger;
     EnvPixelOverlapMerge pixel_merger;
-    NetEnvironment& environment = net_environments[nid];
+    NetEnv& env = net_envs[nid];
 
     for (TopoEdge& edge : topo_pool.get_net_edge_list(nid)) {
       if (edge.get_is_via()) {
-        environment.append_edge_interval_list({});  // placeholder to keep index aligned with TopoPool
+        env.append_edge_interval_list({});  // placeholder to keep index aligned with TopoPool
         continue;
       }
 
@@ -121,7 +121,7 @@ bool EnvBuilder::buildNetEnvironments(EBModel& eb_model)
         track_ov_dn = track_it->second.overlap(query_seg, -layer_to_search_track_num[lid]);
       }
 
-      std::vector<EdgeEnvironmentInterval> out;
+      std::vector<EdgeEnvInterval> out;
       track_merger.compute(query_seg.get_lower(), query_seg.get_upper(), track_ov_dn, track_ov_up, out);
 
       std::vector<EnvPixelOverlapMerge::EnvLayerPixelOverlaps> dn_inputs = collectCrossSide(eb_model, query_seg, lid, false);
@@ -130,12 +130,12 @@ bool EnvBuilder::buildNetEnvironments(EBModel& eb_model)
       std::vector<CrossOverlapSub> cross_full;
       pixel_merger.compute(query_seg.get_lower(), query_seg.get_upper(), dn_inputs, up_inputs, cross_full);
 
-      for (EdgeEnvironmentInterval& interval : out) {
+      for (EdgeEnvInterval& interval : out) {
         interval.set_cross_overlap_sub_list(
             clipCrossSegments(cross_full, interval.get_start_coordinate(), interval.get_end_coordinate()));
       }
 
-      environment.append_edge_interval_list(std::move(out));
+      env.append_edge_interval_list(std::move(out));
     }
   }
 

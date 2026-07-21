@@ -22,11 +22,11 @@
 
 namespace ircx {
 
-class EdgeEnvironmentInterval
+class EdgeEnvInterval
 {
  public:
-  EdgeEnvironmentInterval() = default;
-  ~EdgeEnvironmentInterval() = default;
+  EdgeEnvInterval() = default;
+  ~EdgeEnvInterval() = default;
   // getter
   int32_t get_start_coordinate() const { return _start_coordinate; }
   int32_t get_end_coordinate() const { return _end_coordinate; }

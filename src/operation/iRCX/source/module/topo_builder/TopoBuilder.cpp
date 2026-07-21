@@ -69,24 +69,24 @@ void TopoBuilder::buildAll()
     return;
   }
 
-  std::vector<TBNetTopo> net_topology_list(net_num);
+  std::vector<TBNetTopo> net_topo_list(net_num);
   int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
   for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
-    net_topology_list[net_idx] = buildNet(net_list[net_idx]);
+    net_topo_list[net_idx] = buildNet(net_list[net_idx]);
   }
 
   size_t node_num = 0;
   size_t edge_num = 0;
-  for (TBNetTopo& net_topology : net_topology_list) {
-    node_num += net_topology.get_node_list().size();
-    edge_num += net_topology.get_edge_list().size();
+  for (TBNetTopo& net_topo : net_topo_list) {
+    node_num += net_topo.get_node_list().size();
+    edge_num += net_topo.get_edge_list().size();
   }
 
   TopoPool& topo_pool = RCXDM.getDatabase().get_topo_pool();
   topo_pool.reserve(net_num, node_num, edge_num);
-  for (TBNetTopo& net_topology : net_topology_list) {
-    topo_pool.add_net(std::move(net_topology.get_node_list()), std::move(net_topology.get_edge_list()));
+  for (TBNetTopo& net_topo : net_topo_list) {
+    topo_pool.add_net(std::move(net_topo.get_node_list()), std::move(net_topo.get_edge_list()));
   }
 
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
@@ -101,9 +101,9 @@ void TopoBuilder::buildAll()
 
 TBNetTopo TopoBuilder::buildNet(Net& net)
 {
-  TBNetTopo net_topology;
-  std::vector<TopoNode>& node_list = net_topology.get_node_list();
-  std::vector<TopoEdge>& edge_list = net_topology.get_edge_list();
+  TBNetTopo net_topo;
+  std::vector<TopoNode>& node_list = net_topo.get_node_list();
+  std::vector<TopoEdge>& edge_list = net_topo.get_edge_list();
   std::vector<bool> node_shape_valid_list;
   std::map<std::tuple<size_t, int32_t, int32_t>, size_t> node_key_to_idx_map;
   std::map<std::string, bool> pin_consumed_map;
@@ -167,7 +167,7 @@ TBNetTopo TopoBuilder::buildNet(Net& net)
     edge.set_via_name(via.get_via_name());
     edge_list.push_back(std::move(edge));
   }
-  return net_topology;
+  return net_topo;
 }
 
 void TopoBuilder::appendNodeIfAbsent(Net& net,

@@ -36,7 +36,7 @@ unsigned TclRunRCXFromTopology::exec()
     return 0;
   }
   std::map<std::string, std::any> config_map = TclUtil::getConfigMap(this, _config_list);
-  RCXI.runRCXFromTopology(config_map);
+  RCXI.runRCXFromTopo(config_map);
   return 1;
 }
 

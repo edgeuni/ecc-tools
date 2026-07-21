@@ -32,13 +32,13 @@ class ProcessVia
   std::string& get_to_layer_name() { return _to_layer_name; }
   const std::string& get_layer_name() const { return _layer_name; }
   double get_area() const { return _area; }
-  F64 get_resistance() const { return _resistance; }
+  F64 get_res() const { return _res; }
   F64 get_resistivity() const { return _resistivity; }
   bool get_has_nominal_temperature() const { return _has_nominal_temperature; }
   F64 get_nominal_temperature() const { return _nominal_temperature; }
   F64 get_temperature_coefficient1() const { return _temperature_coefficient1; }
   F64 get_temperature_coefficient2() const { return _temperature_coefficient2; }
-  ProcessTable1D& get_resistance_by_area_table() { return _resistance_by_area_table; }
+  ProcessTable1D& get_res_by_area_table() { return _res_by_area_table; }
   ProcessTable1D& get_temperature_coefficient1_by_area_table() { return _temperature_coefficient1_by_area_table; }
   ProcessTable1D& get_temperature_coefficient2_by_area_table() { return _temperature_coefficient2_by_area_table; }
   std::vector<ProcessViaEtchTable>& get_etch_table_list() { return _etch_table_list; }
@@ -48,7 +48,7 @@ class ProcessVia
   void set_from_layer_name(const std::string& from_layer_name) { _from_layer_name = from_layer_name; }
   void set_to_layer_name(const std::string& to_layer_name) { _to_layer_name = to_layer_name; }
   void set_area(double area) { _area = area; }
-  void set_resistance(F64 resistance) { _resistance = resistance; }
+  void set_res(F64 res) { _res = res; }
   void set_resistivity(F64 resistivity) { _resistivity = resistivity; }
   void set_nominal_temperature(F64 nominal_temperature)
   {
@@ -58,7 +58,7 @@ class ProcessVia
   void set_temperature_coefficient1(F64 temperature_coefficient1) { _temperature_coefficient1 = temperature_coefficient1; }
   void set_temperature_coefficient2(F64 temperature_coefficient2) { _temperature_coefficient2 = temperature_coefficient2; }
   // function
-  std::optional<F64> query_resistance(F64 area) const;
+  std::optional<F64> query_res(F64 area) const;
   void query_temperature_coefficient(F64 area, F64& temperature_coefficient1, F64& temperature_coefficient2) const;
   std::pair<double, double> query_etch(ProcessEffectType effect_type, double width, double length) const;
 
@@ -69,24 +69,24 @@ class ProcessVia
   std::string _from_layer_name;
   std::string _to_layer_name;
   double _area = 0.0;
-  F64 _resistance = 0.0;
+  F64 _res = 0.0;
   F64 _resistivity = 0.0;
   bool _has_nominal_temperature = false;
   F64 _nominal_temperature = 25.0;
   F64 _temperature_coefficient1 = 0.0;
   F64 _temperature_coefficient2 = 0.0;
-  ProcessTable1D _resistance_by_area_table;
+  ProcessTable1D _res_by_area_table;
   ProcessTable1D _temperature_coefficient1_by_area_table;
   ProcessTable1D _temperature_coefficient2_by_area_table;
   std::vector<ProcessViaEtchTable> _etch_table_list;
 };
 
-inline std::optional<F64> ProcessVia::query_resistance(F64 area) const
+inline std::optional<F64> ProcessVia::query_res(F64 area) const
 {
-  if (_resistance > 0.0) {
-    return _resistance;
+  if (_res > 0.0) {
+    return _res;
   }
-  return _resistance_by_area_table.query(area);
+  return _res_by_area_table.query(area);
 }
 
 inline void ProcessVia::query_temperature_coefficient(F64 area,
