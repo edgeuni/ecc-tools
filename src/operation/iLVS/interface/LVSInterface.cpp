@@ -111,6 +111,7 @@ void LVSInterface::runLVS()
     check_summary_table << "Missing Terminal" << check_result.missing_terminal_num << fort::endr;
     check_summary_table << "Unrouted Net" << check_result.unrouted_net_num << fort::endr;
     check_summary_table << "Short Component" << check_result.short_component_num << fort::endr;
+    check_summary_table << "Power/Ground Short" << check_result.power_ground_short_num << fort::endr;
     check_summary_table << "Floating Power Port" << check_result.floating_power_port_num << fort::endr;
     check_summary_table << "Floating Ground Port" << check_result.floating_ground_port_num << fort::endr;
     total_mismatch_num = check_result.missing_net_num + check_result.unexpected_net_num + check_result.open_net_num

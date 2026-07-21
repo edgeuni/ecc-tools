@@ -75,7 +75,14 @@ LVSCheckResult LVSChecker::check(const LVSNetlist& expected_netlist, const LVSNe
   for (const auto& [component_id, net_name_list] : physical_netlist.physical_graph.component_net_map) {
     if (net_name_list.size() > 1) {
       LVSViolation violation;
-      violation.type = "Short";
+      bool has_power_net = false;
+      bool has_ground_net = false;
+      for (const std::string& net_name : net_name_list) {
+        has_power_net = has_power_net || physical_netlist.physical_graph.power_net_set.contains(net_name);
+        has_ground_net = has_ground_net || physical_netlist.physical_graph.ground_net_set.contains(net_name);
+      }
+      violation.type = has_power_net && has_ground_net ? "PowerGroundShort" : "Short";
+      result.power_ground_short_num += has_power_net && has_ground_net;
       violation.component_id_list.push_back(component_id);
       violation.terminal_list = net_name_list;
       result.violation_list.push_back(std::move(violation));

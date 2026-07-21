@@ -202,6 +202,11 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
       continue;
     }
     const std::string net_name = special_net->get_net_name();
+    if (special_net->is_vdd()) {
+      netlist.physical_graph.power_net_set.insert(net_name);
+    } else if (special_net->is_vss()) {
+      netlist.physical_graph.ground_net_set.insert(net_name);
+    }
     for (idb::IdbPin* pin : special_net->get_io_pins()->get_pin_list()) {
       if (pin != nullptr) {
         add_pin(net_name, pin, special_net->is_vdd(), special_net->is_vss());

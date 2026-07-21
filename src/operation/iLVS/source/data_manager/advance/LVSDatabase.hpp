@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace ilvs {
@@ -45,6 +46,8 @@ struct LVSPhysicalGraph
   std::unordered_map<uint64_t, std::vector<std::string>> component_terminal_map;
   std::unordered_map<uint64_t, std::vector<std::string>> component_net_map;
   std::unordered_map<std::string, uint64_t> terminal_component_map;
+  std::unordered_set<std::string> power_net_set;
+  std::unordered_set<std::string> ground_net_set;
 };
 
 struct LVSViolation
@@ -90,6 +93,7 @@ struct LVSCheckResult
   uint64_t floating_ground_port_num = 0;
   uint64_t floating_power_pin_num = 0;
   uint64_t floating_ground_pin_num = 0;
+  uint64_t power_ground_short_num = 0;
   std::vector<LVSViolation> violation_list;
 };
 
