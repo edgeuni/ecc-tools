@@ -18,11 +18,26 @@ LVSCheckResult LVSChecker::check(const LVSNetlist& expected_netlist, const LVSNe
   result.physical_net_num = physical_netlist.net_map.size();
 
   for (const auto& [net_name, expected_net] : expected_netlist.net_map) {
+    LVSViolation violation;
+    violation.net_name = net_name;
+    std::unordered_set<uint64_t> component_id_set;
+    for (const std::string& terminal_name : expected_net.terminal_list) {
+      auto component_iter = physical_netlist.physical_graph.terminal_component_map.find(terminal_name);
+      if (component_iter == physical_netlist.physical_graph.terminal_component_map.end()) {
+        violation.terminal_list.push_back(terminal_name);
+      } else {
+        component_id_set.insert(component_iter->second);
+      }
+    }
+    violation.component_id_list.assign(component_id_set.begin(), component_id_set.end());
     auto physical_net_iter = physical_netlist.net_map.find(net_name);
     if (physical_net_iter == physical_netlist.net_map.end()) {
       result.missing_net_num++;
       result.open_net_num++;
       result.missing_terminal_num += expected_net.terminal_list.size();
+      violation.type = "MissingNet";
+      violation.terminal_list = expected_net.terminal_list;
+      result.violation_list.push_back(std::move(violation));
       continue;
     }
 
@@ -43,6 +58,8 @@ LVSCheckResult LVSChecker::check(const LVSNetlist& expected_netlist, const LVSNe
     }
     if (physical_net.terminal_component_num > 1 || physical_net.floating_terminal_num > 0) {
       result.open_net_num++;
+      violation.type = "Open";
+      result.violation_list.push_back(std::move(violation));
     }
     if (physical_net.floating_terminal_num > 0) {
       result.missing_terminal_num += physical_net.floating_terminal_num;
@@ -55,6 +72,15 @@ LVSCheckResult LVSChecker::check(const LVSNetlist& expected_netlist, const LVSNe
     }
   }
   result.short_component_num = physical_netlist.physical_graph.short_component_num;
+  for (const auto& [component_id, net_name_list] : physical_netlist.physical_graph.component_net_map) {
+    if (net_name_list.size() > 1) {
+      LVSViolation violation;
+      violation.type = "Short";
+      violation.component_id_list.push_back(component_id);
+      violation.terminal_list = net_name_list;
+      result.violation_list.push_back(std::move(violation));
+    }
+  }
   result.floating_power_port_num = physical_netlist.physical_graph.floating_power_port_num;
   result.floating_ground_port_num = physical_netlist.physical_graph.floating_ground_port_num;
   return result;

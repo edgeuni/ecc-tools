@@ -123,6 +123,7 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
   std::vector<GraphNode> graph_node_list;
   std::vector<std::pair<size_t, size_t>> via_node_pair_list;
   std::unordered_map<std::string, std::vector<std::vector<size_t>>> terminal_node_map;
+  std::unordered_map<std::string, std::vector<std::string>> terminal_name_map;
   const auto add_shape = [&graph_node_list](const std::string& net_name, idb::IdbLayer* layer, const idb::IdbRect& rect, bool is_terminal = false,
                                             bool is_power_port = false, bool is_ground_port = false) {
     if (layer == nullptr || !layer->is_routing()) {
@@ -131,7 +132,8 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
     graph_node_list.push_back({net_name, rect, layer->get_id(), is_terminal, is_power_port, is_ground_port});
     return graph_node_list.size() - 1;
   };
-  const auto add_pin = [&add_shape, &terminal_node_map](const std::string& net_name, idb::IdbPin* pin, bool is_power_port, bool is_ground_port) {
+  const auto add_pin = [&add_shape, &terminal_node_map, &terminal_name_map](const std::string& net_name, idb::IdbPin* pin, bool is_power_port,
+                                                                             bool is_ground_port) {
     std::vector<size_t> pin_node_list;
     for (idb::IdbLayerShape* layer_shape : pin->get_port_box_list()) {
       if (layer_shape == nullptr) {
@@ -148,6 +150,7 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
     }
     if (!pin_node_list.empty()) {
       terminal_node_map[net_name].push_back(std::move(pin_node_list));
+      terminal_name_map[net_name].push_back(getTerminalName(pin));
     }
   };
   const auto add_via = [&add_shape, &via_node_pair_list](const std::string& net_name, idb::IdbVia* via) {
@@ -276,18 +279,25 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
   netlist.physical_graph.node_num = graph_node_list.size();
   netlist.physical_graph.edge_num = edge_num;
   netlist.physical_graph.component_num = component_net_map.size();
+  std::unordered_map<size_t, uint64_t> component_id_map;
+  uint64_t component_id = 0;
   for (const auto& [root, net_name_set] : component_net_map) {
-    (void) root;
+    component_id_map[root] = component_id;
+    netlist.physical_graph.component_net_map[component_id] = {net_name_set.begin(), net_name_set.end()};
     if (net_name_set.size() > 1) {
       netlist.physical_graph.short_component_num++;
     }
+    component_id++;
   }
   for (const auto& [net_name, pin_node_list] : terminal_node_map) {
     std::unordered_set<size_t> terminal_component_set;
     uint64_t floating_terminal_num = 0;
-    for (const std::vector<size_t>& nodes : pin_node_list) {
+    for (size_t pin_idx = 0; pin_idx < pin_node_list.size(); pin_idx++) {
+      const std::vector<size_t>& nodes = pin_node_list[pin_idx];
       size_t root = graph.find(nodes.front());
       terminal_component_set.insert(root);
+      netlist.physical_graph.component_terminal_map[component_id_map[root]].push_back(terminal_name_map[net_name][pin_idx]);
+      netlist.physical_graph.terminal_component_map[terminal_name_map[net_name][pin_idx]] = component_id_map[root];
       if (!component_metal_map[root]) {
         floating_terminal_num++;
       }

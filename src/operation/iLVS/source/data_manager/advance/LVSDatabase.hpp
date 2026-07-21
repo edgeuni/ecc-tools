@@ -34,6 +34,17 @@ struct LVSPhysicalGraph
   uint64_t floating_power_port_num = 0;
   uint64_t ground_port_num = 0;
   uint64_t floating_ground_port_num = 0;
+  std::unordered_map<uint64_t, std::vector<std::string>> component_terminal_map;
+  std::unordered_map<uint64_t, std::vector<std::string>> component_net_map;
+  std::unordered_map<std::string, uint64_t> terminal_component_map;
+};
+
+struct LVSViolation
+{
+  std::string type;
+  std::string net_name;
+  std::vector<std::string> terminal_list;
+  std::vector<uint64_t> component_id_list;
 };
 
 struct LVSInstanceNode
@@ -69,6 +80,7 @@ struct LVSCheckResult
   uint64_t short_component_num = 0;
   uint64_t floating_power_port_num = 0;
   uint64_t floating_ground_port_num = 0;
+  std::vector<LVSViolation> violation_list;
 };
 
 class LVSDatabase
