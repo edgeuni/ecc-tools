@@ -52,8 +52,12 @@ void DataManager::input(std::map<std::string, std::any>& config_map)
   const std::string netlist_path = get_path("-netlist", true);
   const std::string def_path = get_path("-def", true);
   const std::string top_module = get_path("-top_module", false);
+  const std::string report_directory_path = get_path("-report_directory_path", false);
 
   _database.reset();
+  if (!report_directory_path.empty()) {
+    _database.setReportDirectoryPath(report_directory_path);
+  }
   if (!dmInst->readVerilog(netlist_path, top_module)) {
     LVSLOG.error(Loc::current(), "Failed to read Verilog netlist '", netlist_path, "' through IDB!");
   }

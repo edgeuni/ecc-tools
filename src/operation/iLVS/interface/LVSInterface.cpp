@@ -2,6 +2,7 @@
 
 #include "DataManager.hpp"
 #include "LVSChecker.hpp"
+#include "LVSReporter.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
 #include "Utility.hpp"
@@ -64,6 +65,7 @@ void LVSInterface::runLVS()
   const LVSNetlist& expected_netlist = database.getExpectedNetlist();
   const LVSNetlist& physical_netlist = database.getPhysicalNetlist();
   check_result = LVSChecker::check(expected_netlist, physical_netlist);
+  LVSReporter::report(check_result, expected_netlist, physical_netlist, database.getReportDirectoryPath());
 
   uint64_t expected_terminal_num = 0;
   for (const auto& [net_name, net] : expected_netlist.net_map) {

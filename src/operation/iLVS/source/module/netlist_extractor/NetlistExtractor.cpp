@@ -305,9 +305,15 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
       if (node.is_power_port) {
         netlist.physical_graph.power_port_num++;
         netlist.physical_graph.floating_power_port_num += !component_metal_map[root];
+        if (!component_metal_map[root]) {
+          netlist.physical_graph.floating_power_port_list.push_back(terminal_name_map[net_name][pin_idx]);
+        }
       } else if (node.is_ground_port) {
         netlist.physical_graph.ground_port_num++;
         netlist.physical_graph.floating_ground_port_num += !component_metal_map[root];
+        if (!component_metal_map[root]) {
+          netlist.physical_graph.floating_ground_port_list.push_back(terminal_name_map[net_name][pin_idx]);
+        }
       }
     }
     auto net_iter = netlist.net_map.find(net_name);

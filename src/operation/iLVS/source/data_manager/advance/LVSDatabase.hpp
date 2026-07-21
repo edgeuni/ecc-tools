@@ -34,6 +34,8 @@ struct LVSPhysicalGraph
   uint64_t floating_power_port_num = 0;
   uint64_t ground_port_num = 0;
   uint64_t floating_ground_port_num = 0;
+  std::vector<std::string> floating_power_port_list;
+  std::vector<std::string> floating_ground_port_list;
   std::unordered_map<uint64_t, std::vector<std::string>> component_terminal_map;
   std::unordered_map<uint64_t, std::vector<std::string>> component_net_map;
   std::unordered_map<std::string, uint64_t> terminal_component_map;
@@ -92,6 +94,8 @@ class LVSDatabase
   const LVSNetlist& getPhysicalNetlist() const { return _physical_netlist; }
   LVSCheckResult& getCheckResult() { return _check_result; }
   const LVSCheckResult& getCheckResult() const { return _check_result; }
+  const std::string& getReportDirectoryPath() const { return _report_directory_path; }
+  void setReportDirectoryPath(std::string path) { _report_directory_path = std::move(path); }
 
   void reset()
   {
@@ -104,6 +108,7 @@ class LVSDatabase
   LVSNetlist _expected_netlist;
   LVSNetlist _physical_netlist;
   LVSCheckResult _check_result;
+  std::string _report_directory_path = ".";
 };
 
 }  // namespace ilvs
