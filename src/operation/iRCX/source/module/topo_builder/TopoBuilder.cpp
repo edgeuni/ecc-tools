@@ -73,7 +73,7 @@ void TopoBuilder::buildAll()
   }
 
   std::vector<TBNetTopo> net_topo_list(net_num);
-  int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
+  int32_t thread_num = RCXUTIL.getThreadNum(net_num, RCXDM.getConfig().thread_number);
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
   for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
     net_topo_list[net_idx] = buildNet(net_list[net_idx]);
@@ -196,8 +196,7 @@ void TopoBuilder::appendNodeIfAbsent(Net& net, std::vector<TopoNode>& node_list,
       }
 
       GTLRectInt& pin_shape = layer_shape.get_shape();
-      if (RCXUTIL.minX(pin_shape) <= RCXUTIL.x(point) && RCXUTIL.x(point) <= RCXUTIL.maxX(pin_shape)
-          && RCXUTIL.minY(pin_shape) <= RCXUTIL.y(point) && RCXUTIL.y(point) <= RCXUTIL.maxY(pin_shape)) {
+      if (RCXUTIL.rectContainsPoint(pin_shape, point)) {
         pin_consumed_map[pin.get_pin_name()] = true;
         node.set_pin_name(pin.get_pin_name());
         node.set_shape(pin_shape);
@@ -235,15 +234,12 @@ void TopoBuilder::mergeNodeShape(std::vector<TopoNode>& node_list, std::vector<b
   }
 
   GTLRectInt& old_shape = node.get_shape();
-  node.set_shape(GTLRectInt(std::min(RCXUTIL.minX(old_shape), RCXUTIL.minX(shape)), std::min(RCXUTIL.minY(old_shape), RCXUTIL.minY(shape)),
-                            std::max(RCXUTIL.maxX(old_shape), RCXUTIL.maxX(shape)),
-                            std::max(RCXUTIL.maxY(old_shape), RCXUTIL.maxY(shape))));
+  node.set_shape(RCXUTIL.getBoundingRect(old_shape, shape));
 }
 
 GTLRectInt TopoBuilder::getEndpointShape(Segment& segment, const GTLPointInt& point)
 {
-  bool is_horizontal = std::abs(RCXUTIL.x(segment.get_start_point()) - RCXUTIL.x(segment.get_end_point()))
-                       >= std::abs(RCXUTIL.y(segment.get_start_point()) - RCXUTIL.y(segment.get_end_point()));
+  bool is_horizontal = RCXUTIL.isHorizontalDominant(segment.get_start_point(), segment.get_end_point());
   GTLRectInt& shape = segment.get_shape();
   if (is_horizontal) {
     return GTLRectInt(RCXUTIL.x(point), RCXUTIL.minY(shape), RCXUTIL.x(point), RCXUTIL.maxY(shape));

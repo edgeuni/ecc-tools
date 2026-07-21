@@ -10,6 +10,17 @@ if(BUILD_TESTING)
 
   add_test(NAME ircx_data_manager_test COMMAND ircx_data_manager_test)
 
+  add_executable(ircx_utility_test
+      RCXUtilityTest.cpp
+  )
+
+  target_link_libraries(ircx_utility_test
+      PRIVATE
+      ircx_utility
+  )
+
+  add_test(NAME ircx_utility_test COMMAND ircx_utility_test)
+
   add_executable(ircx_interface_test
       RCXInterfaceTest.cpp
   )

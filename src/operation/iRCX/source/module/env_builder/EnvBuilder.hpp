@@ -61,7 +61,6 @@ class EnvBuilder
   void addTrackEdge(EBModel& eb_model, TopoEdge& edge);
   bool initTrackForDirection(EnvTrack& track, TrackInfo& track_info, GTLRectInt& rect, int32_t bucket_dlt, bool is_horz);
   EnvAxis coverAxis(int32_t origin, int32_t count, int32_t step, int32_t lo, int32_t hi);
-  int32_t ceilDivPositive(int32_t value, int32_t divisor);
   bool buildPixels(EBModel& eb_model);
   void addPixelEdge(EBModel& eb_model, TopoEdge& edge);
   void buildSearchTrackNumMap(EBModel& eb_model);

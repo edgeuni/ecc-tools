@@ -313,6 +313,14 @@ class Utility
     return x(p) >= minX(r) && x(p) <= maxX(r) && y(p) >= minY(r) && y(p) <= maxY(r);
   }
 
+  template <class R>
+  static remove_cvref_t<R> getBoundingRect(const R& first_rect, const R& second_rect)
+  {
+    using Rect = remove_cvref_t<R>;
+    return makeRect<Rect>(std::min(minX(first_rect), minX(second_rect)), std::min(minY(first_rect), minY(second_rect)),
+                          std::max(maxX(first_rect), maxX(second_rect)), std::max(maxY(first_rect), maxY(second_rect)));
+  }
+
   // ============================================================
   //  area / intersects
   // ============================================================
@@ -615,6 +623,34 @@ class Utility
 
 #endif
 
+#if 1  // math
+
+  static int32_t ceilDivPositive(int32_t value, int32_t divisor)
+  {
+    if (value <= 0 || divisor <= 0) {
+      return 0;
+    }
+    return (value + divisor - 1) / divisor;
+  }
+
+#endif
+
+#if 1  // omp
+
+  static int32_t getThreadNum(size_t work_item_num, int32_t requested_thread_num)
+  {
+    if (work_item_num == 0) {
+      return 1;
+    }
+
+    const size_t max_thread_num = static_cast<size_t>(INT32_MAX);
+    const int32_t work_item_thread_num
+        = work_item_num > max_thread_num ? INT32_MAX : static_cast<int32_t>(work_item_num);
+    return std::min(std::max(1, requested_thread_num), work_item_thread_num);
+  }
+
+#endif
+
 #if 1  // std数据结构工具函数
 
   template <typename T>
@@ -623,6 +659,13 @@ class Utility
     if (start > end) {
       std::swap(start, end);
     }
+  }
+
+  template <typename T>
+  static void sortAndUnique(std::vector<T>& list)
+  {
+    std::sort(list.begin(), list.end());
+    list.erase(std::unique(list.begin(), list.end()), list.end());
   }
 
   template <typename T>

@@ -20,7 +20,6 @@
  */
 #include "EnvBuilder.hpp"
 
-#include "EnvParallel.hpp"
 #include "EnvTrackOverlapMerge.hpp"
 #include "Utility.hpp"
 
@@ -94,7 +93,7 @@ bool EnvBuilder::buildNetEnvs(EBModel& eb_model)
   std::map<size_t, EnvTrack>& layer_to_track_nonprefer_dir = eb_model.get_layer_to_track_nonprefer_dir();
   std::map<size_t, int32_t>& layer_to_search_track_num = eb_model.get_layer_to_search_track_num();
 
-  const int32_t net_threads = env_parallel::threadCount(net_num);
+  const int32_t net_threads = RCXUTIL.getThreadNum(net_num, omp_get_max_threads());
 #pragma omp parallel for schedule(dynamic) num_threads(net_threads)
   for (size_t nid = 0; nid < net_num; nid++) {
     EnvTrackOverlapMerge track_merger;
@@ -295,7 +294,7 @@ bool EnvBuilder::initTrackForDirection(EnvTrack& track, TrackInfo& track_info, G
   track.set_track_count(track_axis.get_count());
   track.set_track_step(track_axis.get_step());
   track.set_bucket_origin(is_horz ? die_x0 : die_y0);
-  track.set_bucket_count(ceilDivPositive(is_horz ? die_dx : die_dy, bucket_dlt));
+  track.set_bucket_count(RCXUTIL.ceilDivPositive(is_horz ? die_dx : die_dy, bucket_dlt));
   track.set_bucket_step(bucket_dlt);
   return track.initTrack();
 }
@@ -322,14 +321,6 @@ EnvAxis EnvBuilder::coverAxis(int32_t origin, int32_t count, int32_t step, int32
   }
 
   return EnvAxis(axis_origin, axis_count, step);
-}
-
-int32_t EnvBuilder::ceilDivPositive(int32_t value, int32_t divisor)
-{
-  if (value <= 0 || divisor <= 0) {
-    return 0;
-  }
-  return (value + divisor - 1) / divisor;
 }
 
 bool EnvBuilder::buildPixels(EBModel& eb_model)

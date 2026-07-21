@@ -81,7 +81,7 @@ void ResExtractor::extractRes()
 void ResExtractor::extractCornerRes(size_t corner_idx)
 {
   size_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
-  int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
+  int32_t thread_num = RCXUTIL.getThreadNum(net_num, RCXDM.getConfig().thread_number);
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
   for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
     extractNetRes(corner_idx, net_idx);

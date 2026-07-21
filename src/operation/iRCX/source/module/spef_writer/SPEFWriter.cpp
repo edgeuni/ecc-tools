@@ -415,8 +415,7 @@ void SPEFWriter::getNearestNodePair(TopoEdge& self_edge, TopoEdge& other_edge, s
     for (size_t other_idx = 0; other_idx < 2; other_idx++) {
       TopoNode& self_node = topo_pool.get_node(self_node_idx_list[self_idx]);
       TopoNode& other_node = topo_pool.get_node(other_node_idx_list[other_idx]);
-      int32_t distance = std::abs(RCXUTIL.x(self_node.get_point()) - RCXUTIL.x(other_node.get_point()))
-                         + std::abs(RCXUTIL.y(self_node.get_point()) - RCXUTIL.y(other_node.get_point()));
+      int32_t distance = RCXUTIL.manhattanDistance(self_node.get_point(), other_node.get_point());
       if (distance < min_distance) {
         min_distance = distance;
         self_node_idx = self_node_idx_list[self_idx];

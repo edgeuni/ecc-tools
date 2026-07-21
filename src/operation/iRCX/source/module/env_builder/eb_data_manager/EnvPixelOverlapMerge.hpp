@@ -20,6 +20,7 @@
 #include "EnvLayerPixelOverlaps.hpp"
 #include "EnvPixel.hpp"
 #include "RCXHeader.hpp"
+#include "Utility.hpp"
 
 namespace ircx {
 
@@ -75,8 +76,7 @@ class EnvPixelOverlapMerge
     addBreakpoints(dn_norm, bp);
     addBreakpoints(up_norm, bp);
 
-    std::sort(bp.begin(), bp.end());
-    bp.erase(std::unique(bp.begin(), bp.end()), bp.end());
+    RCXUTIL.sortAndUnique(bp);
 
     if (bp.size() < 2) {
       return;

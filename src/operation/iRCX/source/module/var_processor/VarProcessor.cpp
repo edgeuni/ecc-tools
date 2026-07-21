@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #include "VarProcessor.hpp"
 
+#include "Utility.hpp"
+
 namespace ircx {
 
 // public
@@ -69,7 +71,7 @@ void VarProcessor::buildCornerNetEtchProfilePool()
   corner_net_etch_profile_pool.init(corner_num, net_num);
 
   for (size_t corner_idx = 0; corner_idx < corner_num; corner_idx++) {
-    int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
+    int32_t thread_num = RCXUTIL.getThreadNum(net_num, RCXDM.getConfig().thread_number);
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
     for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
       buildNetEtchProfile(corner_idx, net_idx);
@@ -123,7 +125,7 @@ void VarProcessor::applyCornerNetEffectiveGeometryList()
   Database& database = RCXDM.getDatabase();
   size_t corner_num = database.get_corner_data_list().size();
   size_t net_num = database.get_layout_data().get_regular_net_count();
-  int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
+  int32_t thread_num = RCXUTIL.getThreadNum(net_num, RCXDM.getConfig().thread_number);
 
   for (size_t corner_idx = 0; corner_idx < corner_num; corner_idx++) {
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)

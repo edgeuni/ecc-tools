@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #include "CapExtractor.hpp"
 
+#include "Utility.hpp"
+
 namespace ircx {
 
 // public
@@ -71,7 +73,7 @@ void CapExtractor::extractCap()
 void CapExtractor::extractCornerCap(size_t corner_idx)
 {
   size_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
-  int32_t thread_num = std::max(1, std::min(RCXDM.getConfig().thread_number, static_cast<int32_t>(net_num)));
+  int32_t thread_num = RCXUTIL.getThreadNum(net_num, RCXDM.getConfig().thread_number);
 #pragma omp parallel for schedule(dynamic) num_threads(thread_num)
   for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
     extractNetCap(corner_idx, net_idx);
@@ -117,8 +119,7 @@ void CapExtractor::extractEdgeIntervalCap(size_t corner_idx, size_t net_idx, siz
     coordinate_list.push_back(std::max(env_interval.get_start_coordinate(), cross_overlap_sub.get_start_coordinate()));
     coordinate_list.push_back(std::min(env_interval.get_end_coordinate(), cross_overlap_sub.get_end_coordinate()));
   }
-  std::sort(coordinate_list.begin(), coordinate_list.end());
-  coordinate_list.erase(std::unique(coordinate_list.begin(), coordinate_list.end()), coordinate_list.end());
+  RCXUTIL.sortAndUnique(coordinate_list);
 
   for (size_t coordinate_idx = 0; coordinate_idx + 1 < coordinate_list.size(); coordinate_idx++) {
     extractCapSpan(corner_idx, net_idx, edge_idx, interval_idx, coordinate_list[coordinate_idx], coordinate_list[coordinate_idx + 1]);
