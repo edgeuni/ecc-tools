@@ -128,9 +128,8 @@ class EnvTrack
   //   6) recurse to the next track, until all requested tracks are processed or no remaining
   //      interval is left;
   //   7) any remaining uncovered intervals are returned with edge == nullptr.
-  std::vector<EnvTrackOverlap> overlap(const LineSegment& line_seg,
-                                        int32_t search_track_num,
-                                        const EnvOverlapWidenFunc& widen_func = {}) const
+  std::vector<EnvTrackOverlap> overlap(const LineSegment& line_seg, int32_t search_track_num,
+                                       const EnvOverlapWidenFunc& widen_func = {}) const
   {
     std::vector<EnvTrackOverlap> result;
     if (search_track_num == 0) {
@@ -176,8 +175,7 @@ class EnvTrack
   }
 
  private:
-  static bool edgeIsInSearchDirection(TopoEdge* edge,
-                                      const EnvSearchContext& ctx)
+  static bool edgeIsInSearchDirection(TopoEdge* edge, const EnvSearchContext& ctx)
   {
     if (edge == nullptr) {
       return false;
@@ -186,16 +184,13 @@ class EnvTrack
                                 : (edge->get_line_segment().get_coordinate() < ctx.get_coordinate());
   }
 
-  static EnvTrackOverlap applyWidenAndClip(const EnvTrackOverlap& ov,
-                                        int32_t track_idx,
-                                        const EnvSearchContext& ctx)
+  static EnvTrackOverlap applyWidenAndClip(const EnvTrackOverlap& ov, int32_t track_idx, const EnvSearchContext& ctx)
   {
     EnvTrackOverlap widened = ov;
 
     if (ctx.get_widen_func() && ov.get_edge() != nullptr) {
       const EnvOverlapWidenContext widen_context(std::abs(track_idx - ctx.get_base_track_index()),
-                                                  ov.get_end_coordinate() - ov.get_start_coordinate(),
-                                                  *ov.get_edge());
+                                                 ov.get_end_coordinate() - ov.get_start_coordinate(), *ov.get_edge());
 
       int32_t ext = ctx.get_widen_func()(widen_context);
       if (ext < 0) {
@@ -207,18 +202,14 @@ class EnvTrack
     }
 
     // clip into original query interval [query_a0, query_a1]
-    widened.set_start_coordinate(std::clamp(widened.get_start_coordinate(),
-                                            ctx.get_query_start_coordinate(),
-                                            ctx.get_query_end_coordinate()));
-    widened.set_end_coordinate(std::clamp(widened.get_end_coordinate(),
-                                          ctx.get_query_start_coordinate(),
-                                          ctx.get_query_end_coordinate()));
+    widened.set_start_coordinate(
+        std::clamp(widened.get_start_coordinate(), ctx.get_query_start_coordinate(), ctx.get_query_end_coordinate()));
+    widened.set_end_coordinate(std::clamp(widened.get_end_coordinate(), ctx.get_query_start_coordinate(), ctx.get_query_end_coordinate()));
 
     return widened;
   }
 
-  EnvEdgeSet collectCandidateEdgesOnTrack(int32_t track_idx,
-                                       const std::vector<EnvRemainingInterval>& remaining) const
+  EnvEdgeSet collectCandidateEdgesOnTrack(int32_t track_idx, const std::vector<EnvRemainingInterval>& remaining) const
   {
     EnvEdgeSet ordered;
     if (!trackValid(track_idx)) {
@@ -245,8 +236,7 @@ class EnvTrack
     return ordered;
   }
 
-  bool edgeHitsRemaining(TopoEdge* edge,
-                         const std::vector<EnvRemainingInterval>& remaining) const
+  bool edgeHitsRemaining(TopoEdge* edge, const std::vector<EnvRemainingInterval>& remaining) const
   {
     if (edge == nullptr) {
       return false;
@@ -264,10 +254,8 @@ class EnvTrack
     return false;
   }
 
-  std::vector<EnvTrackOverlap> computeEdgeOverlaps(int32_t track_idx,
-                                                TopoEdge* edge,
-                                                const std::vector<EnvRemainingInterval>& remaining,
-                                                const EnvSearchContext& ctx) const
+  std::vector<EnvTrackOverlap> computeEdgeOverlaps(int32_t track_idx, TopoEdge* edge, const std::vector<EnvRemainingInterval>& remaining,
+                                                   const EnvSearchContext& ctx) const
   {
     std::vector<EnvTrackOverlap> overlaps;
     if (edge == nullptr) {
@@ -283,8 +271,7 @@ class EnvTrack
         continue;
       }
 
-      const IntervalRange<int32_t> overlap =
-          RCXUTIL.getIntervalIntersection(edge_a0, edge_a1, interval.get_start(), interval.get_end());
+      const IntervalRange<int32_t> overlap = RCXUTIL.getIntervalIntersection(edge_a0, edge_a1, interval.get_start(), interval.get_end());
       EnvTrackOverlap ov;
       ov.set_start_coordinate(overlap.get_start());
       ov.set_end_coordinate(overlap.get_end());
@@ -310,9 +297,7 @@ class EnvTrack
   // Iteratively consume one track using a single ordered candidate set.
   // The key invariant is that `remaining` only shrinks, so an edge that does not
   // belong to the initial candidate set can never become relevant later.
-  void searchWithinTrack(int32_t track_idx,
-                         std::vector<EnvRemainingInterval> remaining,
-                         std::vector<EnvTrackOverlap>& result,
+  void searchWithinTrack(int32_t track_idx, std::vector<EnvRemainingInterval> remaining, std::vector<EnvTrackOverlap>& result,
                          const EnvSearchContext& ctx) const
   {
     if (!trackValid(track_idx) || remaining.empty()) {
@@ -325,25 +310,20 @@ class EnvTrack
     }
 
     if (ctx.get_step() > 0) {
-      for (EnvEdgeSet::const_iterator iter = ordered.upper_bound(ctx.get_coordinate());
-           iter != ordered.end() && !remaining.empty();
+      for (EnvEdgeSet::const_iterator iter = ordered.upper_bound(ctx.get_coordinate()); iter != ordered.end() && !remaining.empty();
            ++iter) {
         consumeEdge(track_idx, *iter, remaining, result, ctx);
       }
     } else {
       EnvEdgeSet::const_iterator iter = ordered.lower_bound(ctx.get_coordinate());
       for (EnvEdgeSet::const_reverse_iterator reverse_iter = std::make_reverse_iterator(iter);
-           reverse_iter != ordered.rend() && !remaining.empty();
-           ++reverse_iter) {
+           reverse_iter != ordered.rend() && !remaining.empty(); ++reverse_iter) {
         consumeEdge(track_idx, *reverse_iter, remaining, result, ctx);
       }
     }
   }
 
-  void consumeEdge(int32_t track_idx,
-                   TopoEdge* edge,
-                   std::vector<EnvRemainingInterval>& remaining,
-                   std::vector<EnvTrackOverlap>& result,
+  void consumeEdge(int32_t track_idx, TopoEdge* edge, std::vector<EnvRemainingInterval>& remaining, std::vector<EnvTrackOverlap>& result,
                    const EnvSearchContext& ctx) const
   {
     if (!edgeHitsRemaining(edge, remaining)) {
@@ -374,11 +354,8 @@ class EnvTrack
   //   3) subtract those committed overlap pieces from remaining;
   //   4) recurse to the next track;
   //   5) return whatever interval is still uncovered after all requested tracks are processed.
-  std::vector<EnvRemainingInterval> searchAcrossTracks(int32_t track_idx,
-                                              int32_t tracks_left,
-                                              std::vector<EnvRemainingInterval> remaining,
-                                              std::vector<EnvTrackOverlap>& result,
-                                              const EnvSearchContext& ctx) const
+  std::vector<EnvRemainingInterval> searchAcrossTracks(int32_t track_idx, int32_t tracks_left, std::vector<EnvRemainingInterval> remaining,
+                                                       std::vector<EnvTrackOverlap>& result, const EnvSearchContext& ctx) const
   {
     if (tracks_left <= 0 || remaining.empty()) {
       return remaining;

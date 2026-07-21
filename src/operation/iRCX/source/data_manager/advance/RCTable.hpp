@@ -102,11 +102,7 @@ inline std::span<double> RCTable::get_corner_net_gcap_list(CornerNetId corner_ne
   return std::span<double>(gcap_list);
 }
 
-inline void RCTable::append_net_ccap_entry(size_t net_idx,
-                                           size_t first_edge_idx,
-                                           size_t second_edge_idx,
-                                           size_t corner_idx,
-                                           double cap)
+inline void RCTable::append_net_ccap_entry(size_t net_idx, size_t first_edge_idx, size_t second_edge_idx, size_t corner_idx, double cap)
 {
   _net_ccap_entry_list.at(net_idx).emplace_back(first_edge_idx, second_edge_idx, corner_idx, cap);
 }

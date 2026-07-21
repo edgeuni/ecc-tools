@@ -26,11 +26,8 @@ namespace ircx {
 class EnvPixelOverlapMerge
 {
  public:
-  void compute(int32_t query_a0,
-               int32_t query_a1,
-               const std::vector<EnvLayerPixelOverlaps>& dn_inputs,
-               const std::vector<EnvLayerPixelOverlaps>& up_inputs,
-               std::vector<CrossOverlapSub>& out) const
+  void compute(int32_t query_a0, int32_t query_a1, const std::vector<EnvLayerPixelOverlaps>& dn_inputs,
+               const std::vector<EnvLayerPixelOverlaps>& up_inputs, std::vector<CrossOverlapSub>& out) const
   {
     if (query_a0 > query_a1) {
       std::swap(query_a0, query_a1);
@@ -122,10 +119,7 @@ class EnvPixelOverlapMerge
     }
   }
 
-  static void normalizeOne(int32_t query_a0,
-                           int32_t query_a1,
-                           const std::vector<EnvPixelOverlap>& in,
-                           std::vector<EnvPixelOverlap>& out)
+  static void normalizeOne(int32_t query_a0, int32_t query_a1, const std::vector<EnvPixelOverlap>& in, std::vector<EnvPixelOverlap>& out)
   {
     out.clear();
     out.reserve(in.size());
@@ -174,10 +168,7 @@ class EnvPixelOverlapMerge
     return idx < segs.size() && segs[idx].get_start_coordinate() < a1 && segs[idx].get_end_coordinate() > a0;
   }
 
-  static size_t firstCoveringLayer(const std::vector<EnvLayerPixelOverlaps>& inputs,
-                                   std::vector<size_t>& cursors,
-                                   int32_t a0,
-                                   int32_t a1)
+  static size_t firstCoveringLayer(const std::vector<EnvLayerPixelOverlaps>& inputs, std::vector<size_t>& cursors, int32_t a0, int32_t a1)
   {
     for (size_t i = 0; i < inputs.size(); ++i) {
       advanceCursor(inputs[i].get_pixel_overlap_list(), cursors[i], a0);
@@ -188,11 +179,7 @@ class EnvPixelOverlapMerge
     return 0;
   }
 
-  static void emit(int32_t a0,
-                   int32_t a1,
-                   size_t blw_layer,
-                   size_t abv_layer,
-                   std::vector<CrossOverlapSub>& out)
+  static void emit(int32_t a0, int32_t a1, size_t blw_layer, size_t abv_layer, std::vector<CrossOverlapSub>& out)
   {
     if (!(a0 < a1)) {
       return;

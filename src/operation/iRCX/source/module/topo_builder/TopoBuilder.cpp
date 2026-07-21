@@ -130,10 +130,10 @@ TBNetTopo TopoBuilder::buildNet(Net& net)
 
   for (Segment& segment : net.get_segment_list()) {
     size_t layer_id = segment.get_layer_id();
-    size_t start_node_idx = node_key_to_idx_map.at(
-        std::make_tuple(layer_id, RCXUTIL.x(segment.get_start_point()), RCXUTIL.y(segment.get_start_point())));
-    size_t end_node_idx = node_key_to_idx_map.at(
-        std::make_tuple(layer_id, RCXUTIL.x(segment.get_end_point()), RCXUTIL.y(segment.get_end_point())));
+    size_t start_node_idx
+        = node_key_to_idx_map.at(std::make_tuple(layer_id, RCXUTIL.x(segment.get_start_point()), RCXUTIL.y(segment.get_start_point())));
+    size_t end_node_idx
+        = node_key_to_idx_map.at(std::make_tuple(layer_id, RCXUTIL.x(segment.get_end_point()), RCXUTIL.y(segment.get_end_point())));
     mergeNodeShape(node_list, node_shape_valid_list, start_node_idx, getEndpointShape(segment, segment.get_start_point()));
     mergeNodeShape(node_list, node_shape_valid_list, end_node_idx, getEndpointShape(segment, segment.get_end_point()));
 
@@ -155,10 +155,9 @@ TBNetTopo TopoBuilder::buildNet(Net& net)
   for (Via& via : net.get_via_list()) {
     size_t top_layer_id = via.get_top_layer_shape().get_layer_id();
     size_t bottom_layer_id = via.get_bottom_layer_shape().get_layer_id();
-    size_t top_node_idx = node_key_to_idx_map.at(
-        std::make_tuple(top_layer_id, RCXUTIL.x(via.get_point()), RCXUTIL.y(via.get_point())));
-    size_t bottom_node_idx = node_key_to_idx_map.at(
-        std::make_tuple(bottom_layer_id, RCXUTIL.x(via.get_point()), RCXUTIL.y(via.get_point())));
+    size_t top_node_idx = node_key_to_idx_map.at(std::make_tuple(top_layer_id, RCXUTIL.x(via.get_point()), RCXUTIL.y(via.get_point())));
+    size_t bottom_node_idx
+        = node_key_to_idx_map.at(std::make_tuple(bottom_layer_id, RCXUTIL.x(via.get_point()), RCXUTIL.y(via.get_point())));
     mergeNodeShape(node_list, node_shape_valid_list, top_node_idx, via.get_top_layer_shape().get_shape());
     mergeNodeShape(node_list, node_shape_valid_list, bottom_node_idx, via.get_bottom_layer_shape().get_shape());
 
@@ -173,13 +172,9 @@ TBNetTopo TopoBuilder::buildNet(Net& net)
   return net_topo;
 }
 
-void TopoBuilder::appendNodeIfAbsent(Net& net,
-                                         std::vector<TopoNode>& node_list,
-                                         std::vector<bool>& node_shape_valid_list,
-                                         std::map<std::tuple<size_t, int32_t, int32_t>, size_t>& node_key_to_idx_map,
-                                         std::map<std::string, bool>& pin_consumed_map,
-                                         size_t layer_id,
-                                         const GTLPointInt& point)
+void TopoBuilder::appendNodeIfAbsent(Net& net, std::vector<TopoNode>& node_list, std::vector<bool>& node_shape_valid_list,
+                                     std::map<std::tuple<size_t, int32_t, int32_t>, size_t>& node_key_to_idx_map,
+                                     std::map<std::string, bool>& pin_consumed_map, size_t layer_id, const GTLPointInt& point)
 {
   std::tuple<size_t, int32_t, int32_t> node_key = std::make_tuple(layer_id, RCXUTIL.x(point), RCXUTIL.y(point));
   if (node_key_to_idx_map.count(node_key) != 0) {
@@ -215,27 +210,22 @@ void TopoBuilder::appendNodeIfAbsent(Net& net,
     }
   }
   if (!is_shape_valid) {
-    node.set_shape(GTLRectInt(RCXUTIL.x(point) - 1, RCXUTIL.y(point) - 1, RCXUTIL.x(point) + 1,
-                            RCXUTIL.y(point) + 1));
+    node.set_shape(GTLRectInt(RCXUTIL.x(point) - 1, RCXUTIL.y(point) - 1, RCXUTIL.x(point) + 1, RCXUTIL.y(point) + 1));
   }
 
   node_key_to_idx_map[node_key] = appendNode(node_list, node_shape_valid_list, std::move(node), is_shape_valid);
 }
 
-size_t TopoBuilder::appendNode(std::vector<TopoNode>& node_list,
-                                 std::vector<bool>& node_shape_valid_list,
-                                 TopoNode node,
-                                 bool is_shape_valid)
+size_t TopoBuilder::appendNode(std::vector<TopoNode>& node_list, std::vector<bool>& node_shape_valid_list, TopoNode node,
+                               bool is_shape_valid)
 {
   node_list.push_back(std::move(node));
   node_shape_valid_list.push_back(is_shape_valid);
   return node_list.size() - 1;
 }
 
-void TopoBuilder::mergeNodeShape(std::vector<TopoNode>& node_list,
-                                     std::vector<bool>& node_shape_valid_list,
-                                     size_t node_idx,
-                                     const GTLRectInt& shape)
+void TopoBuilder::mergeNodeShape(std::vector<TopoNode>& node_list, std::vector<bool>& node_shape_valid_list, size_t node_idx,
+                                 const GTLRectInt& shape)
 {
   TopoNode& node = node_list[node_idx];
   if (!node_shape_valid_list[node_idx]) {
@@ -245,10 +235,9 @@ void TopoBuilder::mergeNodeShape(std::vector<TopoNode>& node_list,
   }
 
   GTLRectInt& old_shape = node.get_shape();
-  node.set_shape(GTLRectInt(std::min(RCXUTIL.minX(old_shape), RCXUTIL.minX(shape)),
-                          std::min(RCXUTIL.minY(old_shape), RCXUTIL.minY(shape)),
-                          std::max(RCXUTIL.maxX(old_shape), RCXUTIL.maxX(shape)),
-                          std::max(RCXUTIL.maxY(old_shape), RCXUTIL.maxY(shape))));
+  node.set_shape(GTLRectInt(std::min(RCXUTIL.minX(old_shape), RCXUTIL.minX(shape)), std::min(RCXUTIL.minY(old_shape), RCXUTIL.minY(shape)),
+                            std::max(RCXUTIL.maxX(old_shape), RCXUTIL.maxX(shape)),
+                            std::max(RCXUTIL.maxY(old_shape), RCXUTIL.maxY(shape))));
 }
 
 GTLRectInt TopoBuilder::getEndpointShape(Segment& segment, const GTLPointInt& point)

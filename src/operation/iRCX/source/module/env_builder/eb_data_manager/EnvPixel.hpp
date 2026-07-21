@@ -23,8 +23,8 @@
 #include "EnvPixelOverlap.hpp"
 #include "LineSegment.hpp"
 #include "RCXHeader.hpp"
-#include "Utility.hpp"
 #include "TopoEdge.hpp"
+#include "Utility.hpp"
 
 namespace ircx {
 
@@ -135,10 +135,7 @@ class EnvPixel
   }
 
  private:
-  std::vector<EnvPixelOverlap> collectConductorRuns(int32_t a0,
-                                                 int32_t a1,
-                                                 int32_t fixed_idx,
-                                                 bool is_horz) const
+  std::vector<EnvPixelOverlap> collectConductorRuns(int32_t a0, int32_t a1, int32_t fixed_idx, bool is_horz) const
   {
     std::vector<EnvPixelOverlap> ret;
     if (a0 >= a1) {
@@ -173,11 +170,7 @@ class EnvPixel
     return ret;
   }
 
-  void appendConductorRun(std::vector<EnvPixelOverlap>& pixel_overlap_list,
-                          int32_t a0,
-                          int32_t a1,
-                          bool is_horz,
-                          int32_t start_idx,
+  void appendConductorRun(std::vector<EnvPixelOverlap>& pixel_overlap_list, int32_t a0, int32_t a1, bool is_horz, int32_t start_idx,
                           int32_t end_idx_exclusive) const
   {
     if (end_idx_exclusive <= start_idx) {
@@ -185,8 +178,8 @@ class EnvPixel
     }
 
     const int32_t lo = RCXUTIL.getIntervalMidpoint(getAxisCoordinate(start_idx, is_horz), getAxisCoordinate(start_idx + 1, is_horz));
-    const int32_t hi =
-        RCXUTIL.getIntervalMidpoint(getAxisCoordinate(end_idx_exclusive - 1, is_horz), getAxisCoordinate(end_idx_exclusive, is_horz));
+    const int32_t hi
+        = RCXUTIL.getIntervalMidpoint(getAxisCoordinate(end_idx_exclusive - 1, is_horz), getAxisCoordinate(end_idx_exclusive, is_horz));
     EnvPixelOverlap pixel_overlap = clipPixelOverlap(lo, hi, a0, a1);
     if (!pixel_overlap.empty()) {
       pixel_overlap_list.push_back(pixel_overlap);

@@ -60,7 +60,6 @@ class EBModel final
   std::map<size_t, EnvTrack> layer_to_track_prefer_dir_;
   std::map<size_t, EnvTrack> layer_to_track_nonprefer_dir_;
   std::map<size_t, int32_t> layer_to_search_track_num_;
-
 };
 
-} // namespace ircx
+}  // namespace ircx

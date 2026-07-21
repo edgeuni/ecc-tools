@@ -24,11 +24,7 @@ namespace ircx {
 class EnvSearchContext
 {
  public:
-  EnvSearchContext(int32_t coordinate,
-                   int32_t base_track_index,
-                   int32_t query_start_coordinate,
-                   int32_t query_end_coordinate,
-                   int32_t step,
+  EnvSearchContext(int32_t coordinate, int32_t base_track_index, int32_t query_start_coordinate, int32_t query_end_coordinate, int32_t step,
                    const EnvOverlapWidenFunc& widen_func)
       : _coordinate(coordinate),
         _base_track_index(base_track_index),

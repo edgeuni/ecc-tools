@@ -33,8 +33,7 @@ inline int32_t cappedWorkItems(size_t work_items)
   return work_items > max_thread_count ? INT32_MAX : static_cast<int32_t>(work_items);
 }
 
-inline int32_t threadCount(size_t work_items,
-                           int32_t requested_threads)
+inline int32_t threadCount(size_t work_items, int32_t requested_threads)
 {
   if (work_items == 0) {
     return 1;
@@ -50,8 +49,7 @@ inline int32_t threadCount(size_t work_items)
   return threadCount(work_items, static_cast<int32_t>(omp_get_max_threads()));
 }
 
-inline int32_t requestedThreadCount(size_t work_items,
-                                    int32_t requested_threads)
+inline int32_t requestedThreadCount(size_t work_items, int32_t requested_threads)
 {
   if (work_items == 0) {
     return 1;

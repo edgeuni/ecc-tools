@@ -20,9 +20,9 @@
  */
 #include "EnvBuilder.hpp"
 
+#include "EnvParallel.hpp"
 #include "EnvTrackOverlapMerge.hpp"
 #include "Utility.hpp"
-#include "EnvParallel.hpp"
 
 namespace ircx {
 
@@ -113,8 +113,8 @@ bool EnvBuilder::buildNetEnvs(EBModel& eb_model)
       std::vector<EnvTrackOverlap> track_ov_up;
       std::vector<EnvTrackOverlap> track_ov_dn;
       const bool layer_is_horz = routing_layers.at(lid).get_is_prefer_horizontal();
-      std::map<size_t, EnvTrack>& track_map =
-          edge.get_line_segment().get_is_horizontal() == layer_is_horz ? layer_to_track_prefer_dir : layer_to_track_nonprefer_dir;
+      std::map<size_t, EnvTrack>& track_map
+          = edge.get_line_segment().get_is_horizontal() == layer_is_horz ? layer_to_track_prefer_dir : layer_to_track_nonprefer_dir;
       if (const auto track_it = track_map.find(lid); track_it != track_map.end()) {
         track_ov_up = track_it->second.overlap(query_seg, layer_to_search_track_num[lid]);
         track_ov_dn = track_it->second.overlap(query_seg, -layer_to_search_track_num[lid]);
@@ -130,8 +130,7 @@ bool EnvBuilder::buildNetEnvs(EBModel& eb_model)
       pixel_merger.compute(query_seg.get_lower(), query_seg.get_upper(), dn_inputs, up_inputs, cross_full);
 
       for (EdgeEnvInterval& interval : out) {
-        interval.set_cross_overlap_sub_list(
-            clipCrossSegments(cross_full, interval.get_start_coordinate(), interval.get_end_coordinate()));
+        interval.set_cross_overlap_sub_list(clipCrossSegments(cross_full, interval.get_start_coordinate(), interval.get_end_coordinate()));
       }
 
       env.append_edge_interval_list(std::move(out));
@@ -141,9 +140,8 @@ bool EnvBuilder::buildNetEnvs(EBModel& eb_model)
   return true;
 }
 
-std::vector<CrossOverlapSub> EnvBuilder::clipCrossSegments(const std::vector<CrossOverlapSub>& cross_overlap_sub_list,
-                                                                    int32_t a0,
-                                                                    int32_t a1)
+std::vector<CrossOverlapSub> EnvBuilder::clipCrossSegments(const std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t a0,
+                                                           int32_t a1)
 {
   std::vector<CrossOverlapSub> clipped_cross_overlap_sub_list;
   for (const CrossOverlapSub& cross_overlap_sub : cross_overlap_sub_list) {
@@ -152,8 +150,7 @@ std::vector<CrossOverlapSub> EnvBuilder::clipCrossSegments(const std::vector<Cro
     if (!(clipped_a0 < clipped_a1)) {
       continue;
     }
-    if (!clipped_cross_overlap_sub_list.empty()
-        && clipped_cross_overlap_sub_list.back().get_end_coordinate() == clipped_a0
+    if (!clipped_cross_overlap_sub_list.empty() && clipped_cross_overlap_sub_list.back().get_end_coordinate() == clipped_a0
         && clipped_cross_overlap_sub_list.back().get_below_layer_id() == cross_overlap_sub.get_below_layer_id()
         && clipped_cross_overlap_sub_list.back().get_above_layer_id() == cross_overlap_sub.get_above_layer_id()) {
       clipped_cross_overlap_sub_list.back().set_end_coordinate(clipped_a1);
@@ -169,10 +166,8 @@ std::vector<CrossOverlapSub> EnvBuilder::clipCrossSegments(const std::vector<Cro
   return clipped_cross_overlap_sub_list;
 }
 
-std::vector<EnvLayerPixelOverlaps> EnvBuilder::collectCrossSide(EBModel& eb_model,
-                                                                 const LineSegment& line_segment,
-                                                                 size_t base_lid,
-                                                                 bool search_up)
+std::vector<EnvLayerPixelOverlaps> EnvBuilder::collectCrossSide(EBModel& eb_model, const LineSegment& line_segment, size_t base_lid,
+                                                                bool search_up)
 {
   LayoutData& layout_data = RCXDM.getDatabase().get_layout_data();
   std::map<size_t, RoutingLayer>& routing_layers = layout_data.get_routing_layer_map();
@@ -201,9 +196,9 @@ std::vector<EnvLayerPixelOverlaps> EnvBuilder::collectCrossSide(EBModel& eb_mode
       continue;
     }
 
-    std::map<size_t, EnvPixel>& pixel_map =
-        (layer_iter->second.get_is_prefer_horizontal() != line_segment.get_is_horizontal()) ? layer_to_pixel_prefer_dir
-                                                                                               : layer_to_pixel_nonprefer_dir;
+    std::map<size_t, EnvPixel>& pixel_map = (layer_iter->second.get_is_prefer_horizontal() != line_segment.get_is_horizontal())
+                                                ? layer_to_pixel_prefer_dir
+                                                : layer_to_pixel_nonprefer_dir;
     std::map<size_t, EnvPixel>::iterator pixel_iter = pixel_map.find(candidate_layer_id);
     if (pixel_iter == pixel_map.end()) {
       continue;
@@ -275,16 +270,12 @@ void EnvBuilder::addTrackEdge(EBModel& eb_model, TopoEdge& edge)
   std::map<size_t, EnvTrack>& layer_to_track_nonprefer_dir = eb_model.get_layer_to_track_nonprefer_dir();
   const size_t layer_id = edge.get_layer_id();
   const bool layer_is_horz = routing_layers.at(layer_id).get_is_prefer_horizontal();
-  std::map<size_t, EnvTrack>& track_map =
-      edge.get_line_segment().get_is_horizontal() == layer_is_horz ? layer_to_track_prefer_dir : layer_to_track_nonprefer_dir;
+  std::map<size_t, EnvTrack>& track_map
+      = edge.get_line_segment().get_is_horizontal() == layer_is_horz ? layer_to_track_prefer_dir : layer_to_track_nonprefer_dir;
   track_map.at(layer_id).addEdge(edge);
 }
 
-bool EnvBuilder::initTrackForDirection(EnvTrack& track,
-                                                TrackInfo& track_info,
-                                                GTLRectInt& rect,
-                                                int32_t bucket_dlt,
-                                                bool is_horz)
+bool EnvBuilder::initTrackForDirection(EnvTrack& track, TrackInfo& track_info, GTLRectInt& rect, int32_t bucket_dlt, bool is_horz)
 {
   const int32_t die_x0 = RCXUTIL.minX(rect);
   const int32_t die_y0 = RCXUTIL.minY(rect);

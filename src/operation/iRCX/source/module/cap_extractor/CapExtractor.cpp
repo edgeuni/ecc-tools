@@ -121,17 +121,12 @@ void CapExtractor::extractEdgeIntervalCap(size_t corner_idx, size_t net_idx, siz
   coordinate_list.erase(std::unique(coordinate_list.begin(), coordinate_list.end()), coordinate_list.end());
 
   for (size_t coordinate_idx = 0; coordinate_idx + 1 < coordinate_list.size(); coordinate_idx++) {
-    extractCapSpan(
-        corner_idx, net_idx, edge_idx, interval_idx, coordinate_list[coordinate_idx], coordinate_list[coordinate_idx + 1]);
+    extractCapSpan(corner_idx, net_idx, edge_idx, interval_idx, coordinate_list[coordinate_idx], coordinate_list[coordinate_idx + 1]);
   }
 }
 
-void CapExtractor::extractCapSpan(size_t corner_idx,
-                                                      size_t net_idx,
-                                                      size_t edge_idx,
-                                                      size_t interval_idx,
-                                                      int32_t start_coordinate,
-                                                      int32_t end_coordinate)
+void CapExtractor::extractCapSpan(size_t corner_idx, size_t net_idx, size_t edge_idx, size_t interval_idx, int32_t start_coordinate,
+                                  int32_t end_coordinate)
 {
   if (end_coordinate <= start_coordinate) {
     return;
@@ -152,8 +147,7 @@ void CapExtractor::extractCapSpan(size_t corner_idx,
   EdgeEtchInterval& etch_interval = net_etch_profile.get_edge_interval_list(edge_idx)[interval_idx];
   std::string below_layer_name;
   std::string above_layer_name;
-  getCrossLayerName(
-      env_interval.get_cross_overlap_sub_list(), start_coordinate, end_coordinate, below_layer_name, above_layer_name);
+  getCrossLayerName(env_interval.get_cross_overlap_sub_list(), start_coordinate, end_coordinate, below_layer_name, above_layer_name);
 
   CapTableConfig* cap_table_config = getCapTableConfig(corner_data, conductor->get_layer_name(), below_layer_name, above_layer_name);
   if (cap_table_config == nullptr) {
@@ -169,10 +163,8 @@ void CapExtractor::extractCapSpan(size_t corner_idx,
     double lower_ground_cap = 0.0;
     double upper_coupling_cap = 0.0;
     double upper_ground_cap = 0.0;
-    getCap(*cap_table_config, etch_interval.get_cap_lower_spacing(), lower_coupling_cap,
-                   lower_ground_cap);
-    getCap(*cap_table_config, etch_interval.get_cap_upper_spacing(), upper_coupling_cap,
-                   upper_ground_cap);
+    getCap(*cap_table_config, etch_interval.get_cap_lower_spacing(), lower_coupling_cap, lower_ground_cap);
+    getCap(*cap_table_config, etch_interval.get_cap_upper_spacing(), upper_coupling_cap, upper_ground_cap);
     addGroundCap(corner_idx, net_idx, edge_idx, lower_adjacent_edge, span_length * lower_ground_cap);
     addGroundCap(corner_idx, net_idx, edge_idx, upper_adjacent_edge, span_length * upper_ground_cap);
     addCouplingCap(corner_idx, net_idx, edge_idx, lower_adjacent_edge, span_length * lower_coupling_cap / 2.0);
@@ -182,8 +174,7 @@ void CapExtractor::extractCapSpan(size_t corner_idx,
 
   if (lower_adjacent_edge != nullptr || upper_adjacent_edge != nullptr) {
     TopoEdge* adjacent_edge = lower_adjacent_edge != nullptr ? lower_adjacent_edge : upper_adjacent_edge;
-    double spacing = lower_adjacent_edge != nullptr ? etch_interval.get_cap_lower_spacing()
-                                                     : etch_interval.get_cap_upper_spacing();
+    double spacing = lower_adjacent_edge != nullptr ? etch_interval.get_cap_lower_spacing() : etch_interval.get_cap_upper_spacing();
     double coupling_cap = 0.0;
     double ground_cap = 0.0;
     getCap(*cap_table_config, spacing, coupling_cap, ground_cap);
@@ -199,8 +190,8 @@ void CapExtractor::extractCapSpan(size_t corner_idx,
   ground_cap_list[edge_idx] += 2.0 * span_length * (coupling_cap + ground_cap);
 }
 
-void CapExtractor::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t start_coordinate,
-                                               int32_t end_coordinate, std::string& below_layer_name, std::string& above_layer_name)
+void CapExtractor::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t start_coordinate, int32_t end_coordinate,
+                                     std::string& below_layer_name, std::string& above_layer_name)
 {
   below_layer_name = "SUBSTRATE";
   above_layer_name.clear();
@@ -210,8 +201,7 @@ void CapExtractor::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap
     if (cross_overlap_sub.get_start_coordinate() > start_coordinate || end_coordinate > cross_overlap_sub.get_end_coordinate()) {
       continue;
     }
-    if (cross_overlap_sub.get_below_layer_id() != 0
-        && (below_layer_id == 0 || below_layer_id < cross_overlap_sub.get_below_layer_id())) {
+    if (cross_overlap_sub.get_below_layer_id() != 0 && (below_layer_id == 0 || below_layer_id < cross_overlap_sub.get_below_layer_id())) {
       below_layer_id = cross_overlap_sub.get_below_layer_id();
     }
     if (cross_overlap_sub.get_above_layer_id() != 0 && cross_overlap_sub.get_above_layer_id() < above_layer_id) {
@@ -230,8 +220,7 @@ void CapExtractor::getCrossLayerName(std::vector<CrossOverlapSub>& cross_overlap
   }
 }
 
-void CapExtractor::addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge,
-                                                  double ground_cap)
+void CapExtractor::addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, double ground_cap)
 {
   if (ground_cap <= 0.0) {
     return;
@@ -245,8 +234,7 @@ void CapExtractor::addGroundCap(size_t corner_idx, size_t net_idx, size_t edge_i
   }
 }
 
-void CapExtractor::addCouplingCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge,
-                                                    double coupling_cap)
+void CapExtractor::addCouplingCap(size_t corner_idx, size_t net_idx, size_t edge_idx, TopoEdge* adjacent_edge, double coupling_cap)
 {
   if (coupling_cap <= 0.0) {
     return;
@@ -286,8 +274,8 @@ ProcessConductor* CapExtractor::getProcessConductor(CornerData& corner_data, siz
   return nullptr;
 }
 
-CapTableConfig* CapExtractor::getCapTableConfig(CornerData& corner_data, std::string& process_layer_name,
-                                                          std::string& below_layer_name, std::string& above_layer_name)
+CapTableConfig* CapExtractor::getCapTableConfig(CornerData& corner_data, std::string& process_layer_name, std::string& below_layer_name,
+                                                std::string& above_layer_name)
 {
   for (CapTableConfig& cap_table_config : corner_data.get_cap_table_config_list()) {
     std::string type = above_layer_name.empty() ? "A" : "B";
@@ -299,8 +287,7 @@ CapTableConfig* CapExtractor::getCapTableConfig(CornerData& corner_data, std::st
   return nullptr;
 }
 
-void CapExtractor::getCap(CapTableConfig& cap_table_config, double spacing, double& coupling_cap,
-                                            double& ground_cap)
+void CapExtractor::getCap(CapTableConfig& cap_table_config, double spacing, double& coupling_cap, double& ground_cap)
 {
   std::vector<CapTableEntry>& entry_list = cap_table_config.get_entry_list();
   if (entry_list.empty()) {
@@ -327,12 +314,12 @@ void CapExtractor::getCap(CapTableConfig& cap_table_config, double spacing, doub
         ground_cap = (first_entry.get_ground_cap() + second_entry.get_ground_cap()) / 2.0;
         return;
       }
-      coupling_cap = first_entry.get_coupling_cap()
-                             + (second_entry.get_coupling_cap() - first_entry.get_coupling_cap())
-                                   * (spacing - first_entry.get_distance()) / distance_delta;
-      ground_cap = first_entry.get_ground_cap()
-                           + (second_entry.get_ground_cap() - first_entry.get_ground_cap())
-                                 * (spacing - first_entry.get_distance()) / distance_delta;
+      coupling_cap
+          = first_entry.get_coupling_cap()
+            + (second_entry.get_coupling_cap() - first_entry.get_coupling_cap()) * (spacing - first_entry.get_distance()) / distance_delta;
+      ground_cap
+          = first_entry.get_ground_cap()
+            + (second_entry.get_ground_cap() - first_entry.get_ground_cap()) * (spacing - first_entry.get_distance()) / distance_delta;
       return;
     }
   }
@@ -340,8 +327,7 @@ void CapExtractor::getCap(CapTableConfig& cap_table_config, double spacing, doub
   ground_cap = entry_list.back().get_ground_cap();
 }
 
-void CapExtractor::getFarthestCap(CapTableConfig& cap_table_config, double& coupling_cap,
-                                                    double& ground_cap)
+void CapExtractor::getFarthestCap(CapTableConfig& cap_table_config, double& coupling_cap, double& ground_cap)
 {
   std::vector<CapTableEntry>& entry_list = cap_table_config.get_entry_list();
   if (entry_list.empty()) {

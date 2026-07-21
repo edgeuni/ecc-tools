@@ -104,7 +104,7 @@ void SPEFWriter::writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, 
   Database& database = RCXDM.getDatabase();
   CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
   std::filesystem::path spef_file_path = std::filesystem::path(RCXDM.getConfig().sw_temp_directory_path)
-                                          / RCXUTIL.getString(database.get_design_name(), "_", corner_data.get_corner_name(), ".spef");
+                                         / RCXUTIL.getString(database.get_design_name(), "_", corner_data.get_corner_name(), ".spef");
   std::ofstream* spef_file_stream = RCXUTIL.getOutputFileStream(spef_file_path.string());
   if (!spef_file_stream->is_open()) {
     RCXUTIL.closeFileStream(spef_file_stream);
@@ -263,10 +263,7 @@ void SPEFWriter::writeLayerMap(SWModel& sw_model, std::ofstream& spef_file_strea
   }
 }
 
-void SPEFWriter::writeDNetList(SWModel& sw_model,
-                               std::ofstream& spef_file_stream,
-                               SPEFNameMap& spef_name_map,
-                               size_t corner_idx)
+void SPEFWriter::writeDNetList(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, size_t corner_idx)
 {
   size_t net_num = RCXDM.getDatabase().get_layout_data().get_regular_net_count();
   for (size_t net_idx = 0; net_idx < net_num; net_idx++) {
@@ -274,10 +271,7 @@ void SPEFWriter::writeDNetList(SWModel& sw_model,
   }
 }
 
-void SPEFWriter::writeDNet(SWModel& sw_model,
-                           std::ofstream& spef_file_stream,
-                           SPEFNameMap& spef_name_map,
-                           size_t corner_idx,
+void SPEFWriter::writeDNet(SWModel& sw_model, std::ofstream& spef_file_stream, SPEFNameMap& spef_name_map, size_t corner_idx,
                            size_t net_idx)
 {
   Database& database = RCXDM.getDatabase();
@@ -311,8 +305,7 @@ void SPEFWriter::writeDNet(SWModel& sw_model,
     TopoEdge& self_edge = topo_pool.get_edge(coupling_ref.get_self_edge_idx());
     TopoEdge& other_edge = topo_pool.get_edge(coupling_ref.get_other_edge_idx());
     if (self_edge.get_start_node_idx() == SIZE_MAX || self_edge.get_end_node_idx() == SIZE_MAX
-        || other_edge.get_start_node_idx() == SIZE_MAX
-        || other_edge.get_end_node_idx() == SIZE_MAX) {
+        || other_edge.get_start_node_idx() == SIZE_MAX || other_edge.get_end_node_idx() == SIZE_MAX) {
       continue;
     }
 
@@ -320,8 +313,7 @@ void SPEFWriter::writeDNet(SWModel& sw_model,
     size_t other_node_idx = SIZE_MAX;
     getNearestNodePair(self_edge, other_edge, self_node_idx, other_node_idx);
     TopoNode& other_node = topo_pool.get_node(other_node_idx);
-    node_coupling_cap_map[
-        std::make_pair(self_node_idx - node_offset, getNodeSPEFName(spef_name_map, other_node))]
+    node_coupling_cap_map[std::make_pair(self_node_idx - node_offset, getNodeSPEFName(spef_name_map, other_node))]
         += coupling_ref.get_cap();
   }
 
@@ -349,8 +341,8 @@ void SPEFWriter::writeDNet(SWModel& sw_model,
         break;
       }
     }
-    spef_file_stream << "*P " << getNodeSPEFName(spef_name_map, node) << " " << port_io << " *C " << std::fixed
-                     << std::setprecision(3) << x << " " << y;
+    spef_file_stream << "*P " << getNodeSPEFName(spef_name_map, node) << " " << port_io << " *C " << std::fixed << std::setprecision(3) << x
+                     << " " << y;
     writeNodeGeometry(sw_model, spef_file_stream, node, micron_per_dbu);
     spef_file_stream << "\n";
   }
@@ -405,8 +397,7 @@ void SPEFWriter::writeDNet(SWModel& sw_model,
     }
     TopoNode& start_node = topo_pool.get_node(edge.get_start_node_idx());
     TopoNode& end_node = topo_pool.get_node(edge.get_end_node_idx());
-    spef_file_stream << res_id++ << " " << getNodeSPEFName(spef_name_map, start_node) << " "
-                     << getNodeSPEFName(spef_name_map, end_node)
+    spef_file_stream << res_id++ << " " << getNodeSPEFName(spef_name_map, start_node) << " " << getNodeSPEFName(spef_name_map, end_node)
                      << " " << std::setprecision(6) << res_list[edge_idx];
     writeResGeometry(sw_model, spef_file_stream, corner_idx, edge, micron_per_dbu);
     spef_file_stream << "\n";
@@ -425,7 +416,7 @@ void SPEFWriter::getNearestNodePair(TopoEdge& self_edge, TopoEdge& other_edge, s
       TopoNode& self_node = topo_pool.get_node(self_node_idx_list[self_idx]);
       TopoNode& other_node = topo_pool.get_node(other_node_idx_list[other_idx]);
       int32_t distance = std::abs(RCXUTIL.x(self_node.get_point()) - RCXUTIL.x(other_node.get_point()))
-                     + std::abs(RCXUTIL.y(self_node.get_point()) - RCXUTIL.y(other_node.get_point()));
+                         + std::abs(RCXUTIL.y(self_node.get_point()) - RCXUTIL.y(other_node.get_point()));
       if (distance < min_distance) {
         min_distance = distance;
         self_node_idx = self_node_idx_list[self_idx];
@@ -488,13 +479,13 @@ void SPEFWriter::writeNodeGeometry(SWModel& sw_model, std::ofstream& spef_file_s
   }
 
   GTLRectInt& shape = node.get_shape();
-  spef_file_stream << " // $llx=" << std::fixed << std::setprecision(3) << RCXUTIL.minX(shape) * micron_per_dbu << " $lly="
-                   << RCXUTIL.minY(shape) * micron_per_dbu << " $urx=" << RCXUTIL.maxX(shape) * micron_per_dbu << " $ury="
-                   << RCXUTIL.maxY(shape) * micron_per_dbu << " $lvl=" << getReportLayerLevel(sw_model, node.get_layer_id());
+  spef_file_stream << " // $llx=" << std::fixed << std::setprecision(3) << RCXUTIL.minX(shape) * micron_per_dbu
+                   << " $lly=" << RCXUTIL.minY(shape) * micron_per_dbu << " $urx=" << RCXUTIL.maxX(shape) * micron_per_dbu
+                   << " $ury=" << RCXUTIL.maxY(shape) * micron_per_dbu << " $lvl=" << getReportLayerLevel(sw_model, node.get_layer_id());
 }
 
 void SPEFWriter::writeResGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, size_t corner_idx, TopoEdge& edge,
-                                         double micron_per_dbu)
+                                  double micron_per_dbu)
 {
   if (!RCXDM.getConfig().report_geometry) {
     return;
@@ -506,11 +497,10 @@ void SPEFWriter::writeResGeometry(SWModel& sw_model, std::ofstream& spef_file_st
   spef_file_stream << " // ";
   if (edge.get_is_via()) {
     double area = delta_x * delta_y * micron_per_dbu * micron_per_dbu;
-    spef_file_stream << " $a=" << std::fixed << std::setprecision(6) << area << " $lvl="
-                     << getReportLayerLevel(sw_model, edge.get_layer_id())
-                     << " $llx=" << std::setprecision(3) << RCXUTIL.minX(shape) * micron_per_dbu << " $lly="
-                     << RCXUTIL.minY(shape) * micron_per_dbu << " $urx=" << RCXUTIL.maxX(shape) * micron_per_dbu << " $ury="
-                     << RCXUTIL.maxY(shape) * micron_per_dbu;
+    spef_file_stream << " $a=" << std::fixed << std::setprecision(6) << area
+                     << " $lvl=" << getReportLayerLevel(sw_model, edge.get_layer_id()) << " $llx=" << std::setprecision(3)
+                     << RCXUTIL.minX(shape) * micron_per_dbu << " $lly=" << RCXUTIL.minY(shape) * micron_per_dbu
+                     << " $urx=" << RCXUTIL.maxX(shape) * micron_per_dbu << " $ury=" << RCXUTIL.maxY(shape) * micron_per_dbu;
     return;
   }
 
@@ -527,8 +517,8 @@ void SPEFWriter::writeResGeometry(SWModel& sw_model, std::ofstream& spef_file_st
   double length = (axis_distance > 0 ? axis_distance : shape_axis_distance) * micron_per_dbu * corner_data.get_half_node_scale_factor();
   double width = shape_width * micron_per_dbu;
   bool is_virtual_overlap = (node_delta_x == 0 && node_delta_y == 0) || delta_x == 0 || delta_y == 0;
-  spef_file_stream << " $l=" << std::fixed << std::setprecision(3) << length << " $w=" << width << " $lvl="
-                   << getReportLayerLevel(sw_model, edge.get_layer_id());
+  spef_file_stream << " $l=" << std::fixed << std::setprecision(3) << length << " $w=" << width
+                   << " $lvl=" << getReportLayerLevel(sw_model, edge.get_layer_id());
   if (is_virtual_overlap) {
     return;
   }

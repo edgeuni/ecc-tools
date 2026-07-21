@@ -113,10 +113,8 @@ inline std::optional<double> ProcessConductor::query_sheet_res(double width, dou
   return std::nullopt;
 }
 
-inline std::optional<double> ProcessConductor::query_resistivity(double width,
-                                                              double thickness,
-                                                              double lower_spacing,
-                                                              double upper_spacing) const
+inline std::optional<double> ProcessConductor::query_resistivity(double width, double thickness, double lower_spacing,
+                                                                 double upper_spacing) const
 {
   std::optional<double> resistivity = _resistivity_by_width_thickness_table.query(thickness, width);
   if (resistivity.has_value()) {
@@ -133,9 +131,8 @@ inline std::optional<double> ProcessConductor::query_resistivity(double width,
   return std::nullopt;
 }
 
-inline void ProcessConductor::query_temperature_coefficient(double width,
-                                                             double& temperature_coefficient1,
-                                                             double& temperature_coefficient2) const
+inline void ProcessConductor::query_temperature_coefficient(double width, double& temperature_coefficient1,
+                                                            double& temperature_coefficient2) const
 {
   temperature_coefficient1 = _temperature_coefficient1;
   temperature_coefficient2 = _temperature_coefficient2;

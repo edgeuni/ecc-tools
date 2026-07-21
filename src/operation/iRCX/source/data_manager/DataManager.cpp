@@ -225,10 +225,7 @@ void DataManager::buildProcessCorner(CornerData& corner_data, std::string itf_fi
   }
 }
 
-void DataManager::buildProcessConductor(CornerData& corner_data,
-                                        std::vector<std::string>& itf_token_list,
-                                        size_t start_idx,
-                                        size_t end_idx,
+void DataManager::buildProcessConductor(CornerData& corner_data, std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx,
                                         std::string conductor_name)
 {
   ProcessConductor conductor;
@@ -344,11 +341,8 @@ void DataManager::buildProcessConductor(CornerData& corner_data,
   corner_data.get_process_conductor_list().push_back(std::move(conductor));
 }
 
-void DataManager::buildProcessVia(CornerData& corner_data,
-                                 std::vector<std::string>& itf_token_list,
-                                 size_t start_idx,
-                                 size_t end_idx,
-                                 std::string via_name)
+void DataManager::buildProcessVia(CornerData& corner_data, std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx,
+                                  std::string via_name)
 {
   ProcessVia via;
   via.set_layer_name(via_name);
@@ -495,8 +489,8 @@ void DataManager::getItfTokenList(std::string& itf_text, std::vector<std::string
       char_idx++;
       continue;
     }
-    if (current_char == '{' || current_char == '}' || current_char == '=' || current_char == '('
-        || current_char == ')' || current_char == ',') {
+    if (current_char == '{' || current_char == '}' || current_char == '=' || current_char == '(' || current_char == ')'
+        || current_char == ',') {
       appendItfToken(token, itf_token_list);
       itf_token_list.emplace_back(1, current_char);
       char_idx++;
@@ -586,9 +580,7 @@ bool DataManager::getItfNumber(std::string& token, double& number)
   return start_ptr != end_ptr && *end_ptr == '\0';
 }
 
-void DataManager::getItfNumberList(std::vector<std::string>& itf_token_list,
-                                   size_t start_idx,
-                                   size_t end_idx,
+void DataManager::getItfNumberList(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx,
                                    std::vector<double>& number_list)
 {
   number_list.clear();
@@ -622,15 +614,9 @@ ProcessEffectType DataManager::getItfEffectType(std::vector<std::string>& itf_to
   return ProcessEffectType::kBoth;
 }
 
-void DataManager::getItfTableValueList(std::vector<std::string>& itf_token_list,
-                                       size_t start_idx,
-                                       size_t end_idx,
-                                       std::string row_name,
-                                       std::string column_name,
-                                       std::string value_name,
-                                       std::vector<double>& row_list,
-                                       std::vector<double>& column_list,
-                                       std::vector<double>& value_list)
+void DataManager::getItfTableValueList(std::vector<std::string>& itf_token_list, size_t start_idx, size_t end_idx, std::string row_name,
+                                       std::string column_name, std::string value_name, std::vector<double>& row_list,
+                                       std::vector<double>& column_list, std::vector<double>& value_list)
 {
   row_list.clear();
   column_list.clear();

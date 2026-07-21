@@ -51,15 +51,9 @@ class EnvTopoEdgeFixedLess
     return lhs->get_edge_id() < rhs->get_edge_id();
   }
 
-  bool operator()(TopoEdge* lhs, int32_t rhs_coordinate) const
-  {
-    return lhs->get_line_segment().get_coordinate() < rhs_coordinate;
-  }
+  bool operator()(TopoEdge* lhs, int32_t rhs_coordinate) const { return lhs->get_line_segment().get_coordinate() < rhs_coordinate; }
 
-  bool operator()(int32_t lhs_coordinate, TopoEdge* rhs) const
-  {
-    return lhs_coordinate < rhs->get_line_segment().get_coordinate();
-  }
+  bool operator()(int32_t lhs_coordinate, TopoEdge* rhs) const { return lhs_coordinate < rhs->get_line_segment().get_coordinate(); }
 };
 
 }  // namespace ircx

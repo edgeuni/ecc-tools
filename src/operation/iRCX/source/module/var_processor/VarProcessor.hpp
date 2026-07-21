@@ -16,8 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include "DataManager.hpp"
 #include "CornerData.hpp"
+#include "DataManager.hpp"
 #include "EdgeEtchInterval.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"

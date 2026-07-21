@@ -116,19 +116,17 @@ void ResExtractor::extractNetRes(size_t corner_idx, size_t net_idx)
   }
 }
 
-double ResExtractor::extractWireRes(CornerData& corner_data,
-                                                   ProcessConductor& conductor,
-                                                   TopoEdge& edge,
-                                                   std::span<EdgeEtchInterval> edge_interval_list)
+double ResExtractor::extractWireRes(CornerData& corner_data, ProcessConductor& conductor, TopoEdge& edge,
+                                    std::span<EdgeEtchInterval> edge_interval_list)
 {
   Database& database = RCXDM.getDatabase();
   TopoNode& start_node = database.get_topo_pool().get_node(edge.get_start_node_idx());
   TopoNode& end_node = database.get_topo_pool().get_node(edge.get_end_node_idx());
   double micron_per_dbu = 1 / 1.0 / database.get_layout_data().get_dbu_per_micron();
   double segment_start = edge.get_line_segment().get_is_horizontal() ? RCXUTIL.x(start_node.get_point()) * micron_per_dbu
-                                                                      : RCXUTIL.y(start_node.get_point()) * micron_per_dbu;
+                                                                     : RCXUTIL.y(start_node.get_point()) * micron_per_dbu;
   double segment_end = edge.get_line_segment().get_is_horizontal() ? RCXUTIL.x(end_node.get_point()) * micron_per_dbu
-                                                                    : RCXUTIL.y(end_node.get_point()) * micron_per_dbu;
+                                                                   : RCXUTIL.y(end_node.get_point()) * micron_per_dbu;
   if (segment_end < segment_start) {
     std::swap(segment_start, segment_end);
   }
@@ -167,11 +165,10 @@ double ResExtractor::extractWireRes(CornerData& corner_data,
     double temperature_coefficient1 = 0.0;
     double temperature_coefficient2 = 0.0;
     conductor.query_temperature_coefficient(width, temperature_coefficient1, temperature_coefficient2);
-    double nominal_temperature = conductor.get_has_nominal_temperature() ? conductor.get_nominal_temperature()
-                                                                        : corner_data.get_global_temperature();
+    double nominal_temperature
+        = conductor.get_has_nominal_temperature() ? conductor.get_nominal_temperature() : corner_data.get_global_temperature();
     res += base_res
-                  * getTemperatureFactor(corner_data.get_temperature(), nominal_temperature, temperature_coefficient1,
-                                         temperature_coefficient2);
+           * getTemperatureFactor(corner_data.get_temperature(), nominal_temperature, temperature_coefficient1, temperature_coefficient2);
   }
   return res;
 }
@@ -199,14 +196,11 @@ double ResExtractor::extractViaRes(CornerData& corner_data, ProcessVia& via, Top
   via.query_temperature_coefficient(area, temperature_coefficient1, temperature_coefficient2);
   double nominal_temperature = via.get_has_nominal_temperature() ? via.get_nominal_temperature() : corner_data.get_global_temperature();
   return base_res.value()
-         * getTemperatureFactor(corner_data.get_temperature(), nominal_temperature, temperature_coefficient1,
-                                temperature_coefficient2);
+         * getTemperatureFactor(corner_data.get_temperature(), nominal_temperature, temperature_coefficient1, temperature_coefficient2);
 }
 
-double ResExtractor::getTemperatureFactor(double temperature,
-                                                double nominal_temperature,
-                                                double temperature_coefficient1,
-                                                double temperature_coefficient2)
+double ResExtractor::getTemperatureFactor(double temperature, double nominal_temperature, double temperature_coefficient1,
+                                          double temperature_coefficient2)
 {
   double temperature_delta = temperature - nominal_temperature;
   return 1.0 + temperature_coefficient1 * temperature_delta + temperature_coefficient2 * temperature_delta * temperature_delta;

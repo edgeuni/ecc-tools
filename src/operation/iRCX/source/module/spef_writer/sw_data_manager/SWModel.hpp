@@ -29,10 +29,7 @@ class SWModel
   // getter
   std::vector<std::vector<SPEFCouplingRef>>& get_net_coupling_ref_list() { return _net_coupling_ref_list; }
   std::vector<SPEFReportLayer>& get_report_layer_list() { return _report_layer_list; }
-  std::unordered_map<size_t, size_t>& get_design_layer_id_to_report_layer_id_map()
-  {
-    return _design_layer_id_to_report_layer_id_map;
-  }
+  std::unordered_map<size_t, size_t>& get_design_layer_id_to_report_layer_id_map() { return _design_layer_id_to_report_layer_id_map; }
   // setter
   void set_net_coupling_ref_list(const std::vector<std::vector<SPEFCouplingRef>>& net_coupling_ref_list)
   {

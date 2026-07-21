@@ -26,10 +26,7 @@ namespace ircx {
 class EnvTrackOverlapMerge
 {
  public:
-  void compute(int32_t query_a0,
-               int32_t query_a1,
-               const std::vector<EnvTrackOverlap>& dn_in,
-               const std::vector<EnvTrackOverlap>& up_in,
+  void compute(int32_t query_a0, int32_t query_a1, const std::vector<EnvTrackOverlap>& dn_in, const std::vector<EnvTrackOverlap>& up_in,
                std::vector<EdgeEnvInterval>& out) const
   {
     if (query_a0 > query_a1) {
@@ -51,10 +48,7 @@ class EnvTrackOverlapMerge
   }
 
  private:
-  static EnvTrackOverlap makeNullOverlap(int32_t a0, int32_t a1)
-  {
-    return EnvTrackOverlap(a0, a1, INT32_MAX, nullptr);
-  }
+  static EnvTrackOverlap makeNullOverlap(int32_t a0, int32_t a1) { return EnvTrackOverlap(a0, a1, INT32_MAX, nullptr); }
 
   static void emitTrackOverlap(std::vector<EnvTrackOverlap>& out, const EnvTrackOverlap& ov)
   {
@@ -62,8 +56,8 @@ class EnvTrackOverlapMerge
       return;
     }
 
-    if (!out.empty() && out.back().get_end_coordinate() == ov.get_start_coordinate()
-        && out.back().get_edge() == ov.get_edge() && out.back().get_spacing() == ov.get_spacing()) {
+    if (!out.empty() && out.back().get_end_coordinate() == ov.get_start_coordinate() && out.back().get_edge() == ov.get_edge()
+        && out.back().get_spacing() == ov.get_spacing()) {
       out.back().set_end_coordinate(ov.get_end_coordinate());
       return;
     }
@@ -71,10 +65,7 @@ class EnvTrackOverlapMerge
     out.push_back(ov);
   }
 
-  void normalizeSide(int32_t query_a0,
-                     int32_t query_a1,
-                     const std::vector<EnvTrackOverlap>& in,
-                     std::vector<EnvTrackOverlap>& out) const
+  void normalizeSide(int32_t query_a0, int32_t query_a1, const std::vector<EnvTrackOverlap>& in, std::vector<EnvTrackOverlap>& out) const
   {
     out.clear();
 
@@ -138,11 +129,7 @@ class EnvTrackOverlapMerge
     return lhs.get_spacing() < rhs.get_spacing();
   }
 
-  static void emitOutput(std::vector<EdgeEnvInterval>& out,
-                         int32_t a0,
-                         int32_t a1,
-                         const EnvTrackOverlap& dn,
-                         const EnvTrackOverlap& up)
+  static void emitOutput(std::vector<EdgeEnvInterval>& out, int32_t a0, int32_t a1, const EnvTrackOverlap& dn, const EnvTrackOverlap& up)
   {
     if (!(a0 < a1)) {
       return;
@@ -170,8 +157,7 @@ class EnvTrackOverlapMerge
     out.push_back(iv);
   }
 
-  static void mergeTwoSides(const std::vector<EnvTrackOverlap>& dn,
-                            const std::vector<EnvTrackOverlap>& up,
+  static void mergeTwoSides(const std::vector<EnvTrackOverlap>& dn, const std::vector<EnvTrackOverlap>& up,
                             std::vector<EdgeEnvInterval>& out)
   {
     out.clear();

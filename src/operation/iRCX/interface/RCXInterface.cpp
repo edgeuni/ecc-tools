@@ -433,8 +433,7 @@ void RCXInterface::wrapPin(Net& net, idb::IdbPin* idb_pin, bool is_driver)
       continue;
     }
 
-    size_t layer_id = RCXDM.getDatabase().get_layer_table().get_design_id(
-        idb_layer_shape->get_layer()->get_name());
+    size_t layer_id = RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer_shape->get_layer()->get_name());
     for (idb::IdbRect* idb_rect : idb_layer_shape->get_rect_list()) {
       if (idb_rect == nullptr) {
         continue;
@@ -456,8 +455,7 @@ std::string RCXInterface::getSpefName(std::string name)
   spef_name.reserve(name.size());
   for (size_t name_idx = 0; name_idx < name.size(); name_idx++) {
     char name_char = name[name_idx];
-    if ((name_char == '.' || name_char == '[' || name_char == ']')
-        && (name_idx == 0 || name[name_idx - 1] != '\\')) {
+    if ((name_char == '.' || name_char == '[' || name_char == ']') && (name_idx == 0 || name[name_idx - 1] != '\\')) {
       spef_name.push_back('\\');
     }
     spef_name.push_back(name_char);
@@ -514,10 +512,9 @@ void RCXInterface::wrapPatch(Net& net, idb::IdbRegularWireSegment* idb_segment)
 
   Patch patch;
   patch.set_layer_id(RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer->get_name()));
-  patch.set_shape(GTLRectInt(idb_anchor_point->get_x() + idb_delta_shape->get_low_x(),
-                           idb_anchor_point->get_y() + idb_delta_shape->get_low_y(),
-                           idb_anchor_point->get_x() + idb_delta_shape->get_high_x(),
-                           idb_anchor_point->get_y() + idb_delta_shape->get_high_y()));
+  patch.set_shape(
+      GTLRectInt(idb_anchor_point->get_x() + idb_delta_shape->get_low_x(), idb_anchor_point->get_y() + idb_delta_shape->get_low_y(),
+                 idb_anchor_point->get_x() + idb_delta_shape->get_high_x(), idb_anchor_point->get_y() + idb_delta_shape->get_high_y()));
   net.get_patch_list().push_back(std::move(patch));
 }
 
@@ -538,9 +535,8 @@ void RCXInterface::wrapVia(Net& net, idb::IdbVia* idb_via)
   idb::IdbLayerShape idb_cut_layer_shape = idb_via->get_cut_layer_shape();
   idb::IdbLayerShape idb_bottom_layer_shape = idb_via->get_bottom_layer_shape();
   if (idb_top_layer_shape.get_layer() == nullptr || idb_cut_layer_shape.get_layer() == nullptr
-      || idb_bottom_layer_shape.get_layer() == nullptr
-      || idb_top_layer_shape.get_rect_list().size() != 1 || idb_cut_layer_shape.get_rect_list().size() != 1
-      || idb_bottom_layer_shape.get_rect_list().size() != 1) {
+      || idb_bottom_layer_shape.get_layer() == nullptr || idb_top_layer_shape.get_rect_list().size() != 1
+      || idb_cut_layer_shape.get_rect_list().size() != 1 || idb_bottom_layer_shape.get_rect_list().size() != 1) {
     return;
   }
 
@@ -551,24 +547,15 @@ void RCXInterface::wrapVia(Net& net, idb::IdbVia* idb_via)
   idb::IdbRect* idb_top_shape = idb_top_layer_shape.get_rect_list().front();
   idb::IdbRect* idb_cut_shape = idb_cut_layer_shape.get_rect_list().front();
   idb::IdbRect* idb_bottom_shape = idb_bottom_layer_shape.get_rect_list().front();
-  via.set_top_layer_shape(
-      LayerShape(RCXDM.getDatabase().get_layer_table().get_design_id(idb_top_layer_shape.get_layer()->get_name()),
-                 GTLRectInt(idb_top_shape->get_low_x(),
-                          idb_top_shape->get_low_y(),
-                          idb_top_shape->get_high_x(),
-                          idb_top_shape->get_high_y())));
-  via.set_cut_layer_shape(
-      LayerShape(RCXDM.getDatabase().get_layer_table().get_design_id(idb_cut_layer_shape.get_layer()->get_name()),
-                 GTLRectInt(idb_cut_shape->get_low_x(),
-                          idb_cut_shape->get_low_y(),
-                          idb_cut_shape->get_high_x(),
-                          idb_cut_shape->get_high_y())));
-  via.set_bottom_layer_shape(
-      LayerShape(RCXDM.getDatabase().get_layer_table().get_design_id(idb_bottom_layer_shape.get_layer()->get_name()),
-                 GTLRectInt(idb_bottom_shape->get_low_x(),
-                          idb_bottom_shape->get_low_y(),
-                          idb_bottom_shape->get_high_x(),
-                          idb_bottom_shape->get_high_y())));
+  via.set_top_layer_shape(LayerShape(
+      RCXDM.getDatabase().get_layer_table().get_design_id(idb_top_layer_shape.get_layer()->get_name()),
+      GTLRectInt(idb_top_shape->get_low_x(), idb_top_shape->get_low_y(), idb_top_shape->get_high_x(), idb_top_shape->get_high_y())));
+  via.set_cut_layer_shape(LayerShape(
+      RCXDM.getDatabase().get_layer_table().get_design_id(idb_cut_layer_shape.get_layer()->get_name()),
+      GTLRectInt(idb_cut_shape->get_low_x(), idb_cut_shape->get_low_y(), idb_cut_shape->get_high_x(), idb_cut_shape->get_high_y())));
+  via.set_bottom_layer_shape(LayerShape(RCXDM.getDatabase().get_layer_table().get_design_id(idb_bottom_layer_shape.get_layer()->get_name()),
+                                        GTLRectInt(idb_bottom_shape->get_low_x(), idb_bottom_shape->get_low_y(),
+                                                   idb_bottom_shape->get_high_x(), idb_bottom_shape->get_high_y())));
   net.get_via_list().push_back(std::move(via));
 }
 

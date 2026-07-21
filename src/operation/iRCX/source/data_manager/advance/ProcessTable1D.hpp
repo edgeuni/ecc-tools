@@ -62,8 +62,8 @@ inline std::optional<double> ProcessTable1D::query(double key) const
     return _entry_list.back().second;
   }
 
-  std::vector<std::pair<double, double>>::const_iterator high_iter = std::lower_bound(
-      _entry_list.begin(), _entry_list.end(), key, isEntryLessThanKey);
+  std::vector<std::pair<double, double>>::const_iterator high_iter
+      = std::lower_bound(_entry_list.begin(), _entry_list.end(), key, isEntryLessThanKey);
   if (high_iter == _entry_list.end()) {
     return _entry_list.back().second;
   }

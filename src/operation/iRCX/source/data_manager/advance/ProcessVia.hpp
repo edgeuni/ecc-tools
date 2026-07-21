@@ -89,9 +89,7 @@ inline std::optional<double> ProcessVia::query_res(double area) const
   return _res_by_area_table.query(area);
 }
 
-inline void ProcessVia::query_temperature_coefficient(double area,
-                                                       double& temperature_coefficient1,
-                                                       double& temperature_coefficient2) const
+inline void ProcessVia::query_temperature_coefficient(double area, double& temperature_coefficient1, double& temperature_coefficient2) const
 {
   temperature_coefficient1 = _temperature_coefficient1;
   temperature_coefficient2 = _temperature_coefficient2;

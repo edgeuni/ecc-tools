@@ -36,14 +36,8 @@ class EnvLayerPixelOverlaps
   const std::vector<EnvPixelOverlap>& get_pixel_overlap_list() const { return _pixel_overlap_list; }
   // setter
   void set_layer_id(size_t layer_id) { _layer_id = layer_id; }
-  void set_pixel_overlap_list(const std::vector<EnvPixelOverlap>& pixel_overlap_list)
-  {
-    _pixel_overlap_list = pixel_overlap_list;
-  }
-  void set_pixel_overlap_list(std::vector<EnvPixelOverlap>&& pixel_overlap_list)
-  {
-    _pixel_overlap_list = std::move(pixel_overlap_list);
-  }
+  void set_pixel_overlap_list(const std::vector<EnvPixelOverlap>& pixel_overlap_list) { _pixel_overlap_list = pixel_overlap_list; }
+  void set_pixel_overlap_list(std::vector<EnvPixelOverlap>&& pixel_overlap_list) { _pixel_overlap_list = std::move(pixel_overlap_list); }
   // function
 
  private:

@@ -19,10 +19,10 @@
 #include "DataManager.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "Net.hpp"
 #include "RCXHeader.hpp"
 #include "SPEFNameMap.hpp"
 #include "SWModel.hpp"
-#include "Net.hpp"
 #include "TopoEdge.hpp"
 #include "TopoNode.hpp"
 
@@ -66,8 +66,7 @@ class SPEFWriter
   std::string getNodeSPEFName(SPEFNameMap& spef_name_map, TopoNode& node);
   char getPinIO(Net& net, const std::string& pin_name);
   void writeNodeGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, TopoNode& node, double micron_per_dbu);
-  void writeResGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, size_t corner_idx, TopoEdge& edge,
-                               double micron_per_dbu);
+  void writeResGeometry(SWModel& sw_model, std::ofstream& spef_file_stream, size_t corner_idx, TopoEdge& edge, double micron_per_dbu);
   size_t getReportLayerLevel(SWModel& sw_model, size_t design_layer_id);
 };
 

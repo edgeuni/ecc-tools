@@ -16,8 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include "DataManager.hpp"
 #include "CornerData.hpp"
+#include "DataManager.hpp"
 #include "EdgeEtchInterval.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
@@ -54,10 +54,10 @@ class ResExtractor
   void extractCornerRes(size_t corner_idx);
   void extractNetRes(size_t corner_idx, size_t net_idx);
   double extractWireRes(CornerData& corner_data, ProcessConductor& conductor, TopoEdge& edge,
-                              std::span<EdgeEtchInterval> edge_interval_list);
+                        std::span<EdgeEtchInterval> edge_interval_list);
   double extractViaRes(CornerData& corner_data, ProcessVia& via, TopoEdge& edge);
   double getTemperatureFactor(double temperature, double nominal_temperature, double temperature_coefficient1,
-                           double temperature_coefficient2);
+                              double temperature_coefficient2);
   ProcessVia* getProcessVia(CornerData& corner_data, size_t design_layer_id);
   ProcessConductor* getProcessConductor(CornerData& corner_data, size_t design_layer_id);
 };
