@@ -48,6 +48,8 @@ bool destroy_rcx()
 {
   if (active_backend == RCXBackendType::kNative) {
     RCXI.destroyRCX();
+  } else if (active_backend == RCXBackendType::kIcs55) {
+    ircx_ics55_destroy();
   }
   active_backend = RCXBackendType::kNone;
   return true;
@@ -62,12 +64,9 @@ bool init_rcx(const std::string& config, const std::optional<std::string>& pdk)
   }
 
   if (is_ics55_pdk(pdk)) {
-    if (ircx_ics55_init(config.c_str()) != 0) {
-      active_backend = RCXBackendType::kIcs55;
-      return true;
-    }
-
-    return false;
+    ircx_ics55_init(config.c_str(), dmInst->get_idb_design());
+    active_backend = RCXBackendType::kIcs55;
+    return true;
   }
 
   std::map<std::string, std::any> config_map;
@@ -80,10 +79,8 @@ bool init_rcx(const std::string& config, const std::optional<std::string>& pdk)
 bool run_rcx()
 {
   if (active_backend == RCXBackendType::kIcs55) {
-    if (ircx_ics55_run_with_idb_design(dmInst->get_idb_design()) == 0) {
-      return false;
-    }
-    return ircx_ics55_report() != 0;
+    ircx_ics55_run();
+    return true;
   }
 
   if (active_backend != RCXBackendType::kNative) {
