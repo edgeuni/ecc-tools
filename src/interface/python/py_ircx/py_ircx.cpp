@@ -17,7 +17,7 @@
 #include "py_ircx.h"
 
 #include "RCXBackendType.hpp"
-#include "RCXAPI.hh"
+#include "RCXInterface.hpp"
 #include "ircx_ics55.h"
 #include "idm.h"
 
@@ -44,6 +44,15 @@ bool validate_pdk(const std::optional<std::string>& pdk)
 
 }  // namespace
 
+bool destroy_rcx()
+{
+  if (active_backend == RCXBackendType::kNative) {
+    RCXI.destroyRCX();
+  }
+  active_backend = RCXBackendType::kNone;
+  return true;
+}
+
 bool init_rcx(const std::string& config, const std::optional<std::string>& pdk)
 {
   active_backend = RCXBackendType::kNone;
@@ -61,25 +70,28 @@ bool init_rcx(const std::string& config, const std::optional<std::string>& pdk)
     return false;
   }
 
-  if (RCX_API_INST.init(config)) {
-    active_backend = RCXBackendType::kNative;
-    return true;
-  }
-
-  return false;
+  std::map<std::string, std::any> config_map;
+  config_map["-config"] = config;
+  RCXI.initRCX(config_map);
+  active_backend = RCXBackendType::kNative;
+  return true;
 }
 
 bool run_rcx()
 {
   if (active_backend == RCXBackendType::kIcs55) {
-    return ircx_ics55_run_with_idb_design(dmInst->get_idb_design()) != 0;
+    if (ircx_ics55_run_with_idb_design(dmInst->get_idb_design()) == 0) {
+      return false;
+    }
+    return ircx_ics55_report() != 0;
   }
 
   if (active_backend != RCXBackendType::kNative) {
     return false;
   }
 
-  return RCX_API_INST.run();
+  RCXI.runRCX();
+  return true;
 }
 
 }  // namespace python_interface

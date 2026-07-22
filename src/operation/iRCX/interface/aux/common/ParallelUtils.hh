@@ -10,24 +10,25 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "Types.hh"
+#include "Utility.hpp"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx::parallel {
 
-void register_ircx(py::module& m)
+inline int threadCount(Size work_item_num, int requested_thread_num)
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
+  return RCXUTIL.getThreadNum(static_cast<int32_t>(std::min(work_item_num, static_cast<Size>(INT32_MAX))), requested_thread_num);
 }
 
-}  // namespace python_interface
+inline int threadCount(Size work_item_num)
+{
+  return threadCount(work_item_num, omp_get_max_threads());
+}
+
+}  // namespace ircx::parallel

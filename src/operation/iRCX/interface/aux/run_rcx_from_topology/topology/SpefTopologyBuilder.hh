@@ -10,24 +10,37 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file SpefTopologyBuilder.hh
+ * @brief Build iRCX topology from StarRC SPEF connectivity and annotations.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include <string>
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx {
 
-void register_ircx(py::module& m)
+class LayerTable;
+class LayoutData;
+class TopoPool;
+
+namespace run_rcx_from_topology {
+
+class SpefTopologyBuilder
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  explicit SpefTopologyBuilder(TopoPool& topo_pool) : _topo_pool(topo_pool) {}
+  ~SpefTopologyBuilder() = default;
 
-}  // namespace python_interface
+  bool build(LayoutData& layout_data, LayerTable& layer_table, const std::string& spef_file_path, bool strict);
+
+ private:
+  TopoPool& _topo_pool;
+};
+
+}  // namespace run_rcx_from_topology
+}  // namespace ircx

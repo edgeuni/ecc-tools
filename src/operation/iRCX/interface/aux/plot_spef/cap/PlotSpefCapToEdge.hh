@@ -14,20 +14,16 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefCapToEdge.hh
+ * @brief Assign capacitors to edges only when the owner edge is unique.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+namespace ircx::plot_spef {
 
-namespace python_interface {
-namespace py = pybind11;
+struct Model;
 
-void register_ircx(py::module& m)
-{
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+auto assignCapEdges(Model& model) -> void;
 
-}  // namespace python_interface
+}  // namespace ircx::plot_spef

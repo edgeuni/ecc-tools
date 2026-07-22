@@ -10,24 +10,30 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file RunRCXFromTopologyConfig.hh
+ * @brief run_rcx_from_topology implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "Types.hh"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx::run_rcx_from_topology {
 
-void register_ircx(py::module& m)
+struct Config
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+  std::string spef_file;
+  bool strict = true;
+};
 
-}  // namespace python_interface
+class ConfigValidator
+{
+ public:
+  auto validate(const Config& config) const -> bool;
+};
+
+}  // namespace ircx::run_rcx_from_topology

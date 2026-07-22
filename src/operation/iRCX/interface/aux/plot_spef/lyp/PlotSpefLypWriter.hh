@@ -14,20 +14,24 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefLypWriter.hh
+ * @brief plot_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+namespace ircx::plot_spef {
 
-namespace python_interface {
-namespace py = pybind11;
+struct Config;
+struct Model;
+struct Visibility;
 
-void register_ircx(py::module& m)
+class LypWriter
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  auto write(const Model& model,
+             const Visibility& visibility,
+             const Config& config) const -> bool;
+};
 
-}  // namespace python_interface
+}  // namespace ircx::plot_spef

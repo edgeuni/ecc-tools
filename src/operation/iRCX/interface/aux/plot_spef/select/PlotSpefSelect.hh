@@ -14,20 +14,31 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefSelect.hh
+ * @brief Select the plot_spef objects that should be visible.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include <string>
 
-namespace python_interface {
-namespace py = pybind11;
+#include "model/PlotSpefVisibility.hh"
 
-void register_ircx(py::module& m)
-{
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
+namespace spef {
+struct Exchange;
 }
 
-}  // namespace python_interface
+namespace ircx::plot_spef {
+
+struct Config;
+struct Model;
+
+auto makeVisibleObjects(const Model& model,
+                        const spef::Exchange& exchange,
+                        const Config& config) -> Visibility;
+
+auto makeEdgeVisibleObjects(const Model& model,
+                            const spef::Exchange& exchange,
+                            const Config& config) -> Visibility;
+
+}  // namespace ircx::plot_spef

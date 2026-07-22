@@ -14,20 +14,18 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file DumpNetShapeTool.hh
+ * @brief Facade for dumping AI-readable net-shape files.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+namespace ircx {
 
-namespace python_interface {
-namespace py = pybind11;
-
-void register_ircx(py::module& m)
+class DumpNetShapeTool
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  static auto run() -> bool;
+};
 
-}  // namespace python_interface
+}  // namespace ircx

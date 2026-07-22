@@ -14,20 +14,32 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file CouplingCapComparator.hh
+ * @brief compare_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "compare/NetSelector.hh"
+#include "config/CompareSpefConfig.hh"
+#include "data/CompareSpefData.hh"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx {
+namespace compare_spef {
 
-void register_ircx(py::module& m)
+class CouplingCapComparator
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  explicit CouplingCapComparator(const Config& config);
 
-}  // namespace python_interface
+  void compare(const Data& test,
+               const Data& reference,
+               Result& result) const;
+
+ private:
+  const Config& _config;
+  NetSelector _net_selector;
+};
+
+}  // namespace compare_spef
+}  // namespace ircx

@@ -10,24 +10,42 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "Logger.hpp"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx {
 
-void register_ircx(py::module& m)
+class AuxLogMessage
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  explicit AuxLogMessage(bool is_error) : _is_error(is_error) {}
+  ~AuxLogMessage()
+  {
+    if (_is_error) {
+      RCXLOG.warn(Loc::current(), _stream.str());
+    } else {
+      RCXLOG.info(Loc::current(), _stream.str());
+    }
+  }
 
-}  // namespace python_interface
+  template <typename T>
+  AuxLogMessage& operator<<(const T& value)
+  {
+    _stream << value;
+    return *this;
+  }
+
+ private:
+  bool _is_error = false;
+  std::ostringstream _stream;
+};
+
+}  // namespace ircx
+
+#define LOG_INFO ircx::AuxLogMessage(false)
+#define LOG_ERROR ircx::AuxLogMessage(true)

@@ -14,20 +14,28 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file ReportWriter.hh
+ * @brief compare_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "config/CompareSpefConfig.hh"
+#include "data/CompareSpefData.hh"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx {
+namespace compare_spef {
 
-void register_ircx(py::module& m)
+class ReportWriter
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  explicit ReportWriter(const Config& config);
 
-}  // namespace python_interface
+  auto write(const Result& result) const -> bool;
+
+ private:
+  const Config& _config;
+};
+
+}  // namespace compare_spef
+}  // namespace ircx

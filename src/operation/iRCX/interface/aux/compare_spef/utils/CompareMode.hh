@@ -14,20 +14,33 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file CompareMode.hh
+ * @brief compare_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "config/CompareSpefConfig.hh"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx {
+namespace compare_spef {
+namespace compare_mode {
 
-void register_ircx(py::module& m)
+inline auto hasExplicitCompareMode(const Config& config) -> bool
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
+  return config.compare_capacitance || config.compare_resistance || config.compare_delay;
 }
 
-}  // namespace python_interface
+inline auto compareCapacitance(const Config& config) -> bool
+{
+  return hasExplicitCompareMode(config) ? config.compare_capacitance : true;
+}
+
+inline auto compareResistance(const Config& config) -> bool
+{
+  return hasExplicitCompareMode(config) ? config.compare_resistance : true;
+}
+
+}  // namespace compare_mode
+}  // namespace compare_spef
+}  // namespace ircx

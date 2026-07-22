@@ -10,24 +10,26 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file RunRCXFromTopologyTool.hh
+ * @brief run_rcx_from_topology implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+namespace ircx {
 
-namespace python_interface {
-namespace py = pybind11;
-
-void register_ircx(py::module& m)
-{
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
+namespace run_rcx_from_topology {
+struct Config;
 }
 
-}  // namespace python_interface
+class RunRCXFromTopologyTool
+{
+ public:
+  static auto run(run_rcx_from_topology::Config config) -> bool;
+};
+
+}  // namespace ircx

@@ -14,20 +14,30 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefGdsWriter.hh
+ * @brief plot_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "Types.hh"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx::plot_spef {
 
-void register_ircx(py::module& m)
+struct Config;
+struct Model;
+struct Visibility;
+
+class GdsWriter
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  auto write(const Model& model,
+             const Visibility& visibility,
+             const Config& config) const -> bool;
 
-}  // namespace python_interface
+ private:
+  static auto formatValue(F64 value,
+                          const std::string& unit) -> std::string;
+};
+
+}  // namespace ircx::plot_spef

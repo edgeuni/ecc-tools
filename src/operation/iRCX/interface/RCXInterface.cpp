@@ -17,19 +17,27 @@
 #include "RCXInterface.hpp"
 
 #include "CapExtractor.hpp"
+#include "CompareSpefTool.hh"
 #include "Corner.hpp"
+#include "CornerData.hpp"
 #include "DataManager.hpp"
+#include "DumpNetShapeTool.hh"
 #include "EnvBuilder.hpp"
 #include "LayerShape.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "PlotSpefTool.hh"
 #include "RCXHeader.hpp"
 #include "ResExtractor.hpp"
+#include "RunRCXFromTopologyTool.hh"
 #include "SPEFWriter.hpp"
 #include "TopoBuilder.hpp"
 #include "Utility.hpp"
 #include "VarProcessor.hpp"
 #include "builder.h"
+#include "config/CompareSpefConfig.hh"
+#include "config/PlotSpefConfig.hh"
+#include "config/RunRCXFromTopologyConfig.hh"
 #include "idm.h"
 
 namespace ircx {
@@ -136,10 +144,39 @@ void RCXInterface::destroyRCX()
   Logger::destroyInst();
 }
 
-void RCXInterface::compareSpef(std::map<std::string, std::any>)
+void RCXInterface::compareSpef(std::map<std::string, std::any> config_map)
 {
   Monitor monitor;
   RCXLOG.info(Loc::current(), "Starting...");
+
+  compare_spef::Config config;
+  config.test_file = RCXUTIL.getConfigValue<std::string>(config_map, "-test_file", "");
+  config.reference_file = RCXUTIL.getConfigValue<std::string>(config_map, "-reference_file", "");
+  config.output_dir = RCXUTIL.getConfigValue<std::string>(config_map, "-output_dir", ".");
+  config.cores = RCXUTIL.getConfigValue<int32_t>(config_map, "-cores", 1);
+  config.tcap_threshold = RCXUTIL.getConfigValue<double>(config_map, "-tcap", 3.0);
+  std::string ccap_threshold = RCXUTIL.getConfigValue<std::string>(config_map, "-ccap", "");
+  if (!ccap_threshold.empty()) {
+    config.ccap_abs_threshold = std::stod(ccap_threshold);
+  }
+  std::string ccap_rel_threshold = RCXUTIL.getConfigValue<std::string>(config_map, "-ccap_rel", "");
+  if (!ccap_rel_threshold.empty()) {
+    config.ccap_rel_threshold = std::stod(ccap_rel_threshold);
+  }
+  config.res_threshold = RCXUTIL.getConfigValue<double>(config_map, "-res", 50.0);
+  config.corner = RCXUTIL.getConfigValue<std::string>(config_map, "-corner", "");
+  config.match_mode = RCXUTIL.getConfigValue<std::string>(config_map, "-match", "name");
+  config.net_name = RCXUTIL.getConfigValue<std::string>(config_map, "-net", "");
+  config.from_pin = RCXUTIL.getConfigValue<std::string>(config_map, "-from_pin", "");
+  config.to_pin = RCXUTIL.getConfigValue<std::string>(config_map, "-to_pin", "");
+  config.net_config_file = RCXUTIL.getConfigValue<std::string>(config_map, "-net_config", "");
+  config.timeout_seconds = RCXUTIL.getConfigValue<int32_t>(config_map, "-timeout", 5400);
+  config.delay_threshold = RCXUTIL.getConfigValue<double>(config_map, "-delay", 1.0);
+  config.compare_resistance = RCXUTIL.getConfigValue<int32_t>(config_map, "-compare_resistance", 0) != 0;
+  config.compare_capacitance = RCXUTIL.getConfigValue<int32_t>(config_map, "-compare_capacitance", 0) != 0;
+  config.compare_delay = RCXUTIL.getConfigValue<int32_t>(config_map, "-compare_delay", 0) != 0;
+  config.delay_pin_load = RCXUTIL.getConfigValue<int32_t>(config_map, "-delay_pin_load", 0) != 0;
+  CompareSpefTool::run(config);
 
   RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -149,21 +186,70 @@ void RCXInterface::dumpNetShape()
   Monitor monitor;
   RCXLOG.info(Loc::current(), "Starting...");
 
-  RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
-}
-
-void RCXInterface::runRCXFromTopo(std::map<std::string, std::any>)
-{
-  Monitor monitor;
-  RCXLOG.info(Loc::current(), "Starting...");
+  DumpNetShapeTool::run();
 
   RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void RCXInterface::plotSpef(std::map<std::string, std::any>)
+void RCXInterface::runRCXFromTopo(std::map<std::string, std::any> config_map)
 {
   Monitor monitor;
   RCXLOG.info(Loc::current(), "Starting...");
+
+  run_rcx_from_topology::Config config;
+  config.spef_file = RCXUTIL.getConfigValue<std::string>(config_map, "-spef_file", "");
+  config.strict = RCXUTIL.getConfigValue<int32_t>(config_map, "-strict", 1) != 0;
+  if (!RunRCXFromTopologyTool::run(config)) {
+    return;
+  }
+
+  EnvBuilder::initInst();
+  RCXEB.build();
+  EnvBuilder::destroyInst();
+
+  VarProcessor::initInst();
+  RCXVP.process();
+  VarProcessor::destroyInst();
+
+  ResExtractor::initInst();
+  RCXRE.extract();
+  ResExtractor::destroyInst();
+
+  CapExtractor::initInst();
+  RCXCE.extract();
+  CapExtractor::destroyInst();
+
+  SPEFWriter::initInst();
+  RCXSW.write();
+  SPEFWriter::destroyInst();
+
+  RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void RCXInterface::plotSpef(std::map<std::string, std::any> config_map)
+{
+  Monitor monitor;
+  RCXLOG.info(Loc::current(), "Starting...");
+
+  Database& database = RCXDM.getDatabase();
+  plot_spef::Config config;
+  config.spef_file = RCXUTIL.getConfigValue<std::string>(config_map, "-spef_file", "");
+  if (config.spef_file.empty() && !database.get_corner_data_list().empty()) {
+    CornerData& corner_data = database.get_corner_data_list().front();
+    config.spef_file = (std::filesystem::path(RCXDM.getConfig().sw_temp_directory_path)
+                        / RCXUTIL.getString(database.get_design_name(), "_", corner_data.get_corner_name(), ".spef"))
+                           .string();
+  }
+  config.output_dir = RCXUTIL.getConfigValue<std::string>(
+      config_map, "-output_dir", (std::filesystem::path(RCXDM.getConfig().sw_temp_directory_path) / "plot_spef").string());
+  config.net_name = RCXUTIL.getConfigValue<std::string>(config_map, "-net", "");
+  config.dbu = RCXUTIL.getConfigValue<int32_t>(config_map, "-dbu", database.get_layout_data().get_dbu_per_micron());
+  config.cores = RCXUTIL.getConfigValue<int32_t>(config_map, "-cores", RCXDM.getConfig().thread_number);
+  config.output_edge_gds = RCXUTIL.getConfigValue<int32_t>(config_map, "-output_edge_gds", 0) != 0;
+  config.output_resistance = RCXUTIL.getConfigValue<int32_t>(config_map, "-output_resistance", 0) != 0;
+  config.output_coupling_cap = RCXUTIL.getConfigValue<int32_t>(config_map, "-output_coupling_cap", 0) != 0;
+  config.output_ground_cap = RCXUTIL.getConfigValue<int32_t>(config_map, "-output_ground_cap", 0) != 0;
+  PlotSpefTool::run(config);
 
   RCXLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }

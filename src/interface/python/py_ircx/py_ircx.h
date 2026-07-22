@@ -19,10 +19,9 @@
 #include <optional>
 #include <string>
 
-#include "RCXAPI.hh"
-
 namespace python_interface {
 
+bool destroy_rcx();
 bool init_rcx(const std::string& config, const std::optional<std::string>& pdk = std::nullopt);
 bool run_rcx();
 

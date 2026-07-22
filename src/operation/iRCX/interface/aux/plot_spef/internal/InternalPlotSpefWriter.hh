@@ -14,20 +14,20 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file InternalPlotSpefWriter.hh
+ * @brief Direct plot_spef GDS output from iRCX internal RC data.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "Types.hh"
+#include "config/PlotSpefConfig.hh"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx {
 
-void register_ircx(py::module& m)
-{
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+class RCXData;
 
-}  // namespace python_interface
+auto writeInternalPlotSpef(const RCXData& data,
+                           const plot_spef::Config& config) -> bool;
+
+}  // namespace ircx

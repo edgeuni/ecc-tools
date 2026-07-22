@@ -10,24 +10,40 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "RCXHeader.hpp"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx {
 
-void register_ircx(py::module& m)
+using F64 = double;
+using I64 = int64_t;
+using Size = size_t;
+
+using Dbu = int32_t;
+using Micron = double;
+
+using GtlPointI = GTLPointInt;
+using GtlRectI = GTLRectInt;
+
+inline constexpr Size kMaxSize = SIZE_MAX;
+
+namespace unit {
+
+inline Micron toMicron(Dbu value, Dbu dbu_per_micron)
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
+  return value / 1.0 / dbu_per_micron;
 }
 
-}  // namespace python_interface
+inline Dbu toDbu(Micron value, Dbu dbu_per_micron)
+{
+  return static_cast<Dbu>(std::llround(value * dbu_per_micron));
+}
+
+}  // namespace unit
+
+}  // namespace ircx

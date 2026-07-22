@@ -14,20 +14,24 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefGdsType.hh
+ * @brief plot_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+namespace ircx::plot_spef {
 
-namespace python_interface {
-namespace py = pybind11;
-
-void register_ircx(py::module& m)
+enum GdsDataType
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+  kNode = 1,
+  kEdge = 2,
+  kTargetEdge = 3,
+  kTextNode = 5,
+  kTextRes = 6,
+  kTextCg = 7,
+  kTextCc = 8,
+  kCc = 9
+};
 
-}  // namespace python_interface
+}  // namespace ircx::plot_spef

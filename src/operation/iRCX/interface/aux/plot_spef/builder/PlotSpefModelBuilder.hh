@@ -14,20 +14,26 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefModelBuilder.hh
+ * @brief plot_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
-
-namespace python_interface {
-namespace py = pybind11;
-
-void register_ircx(py::module& m)
-{
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
+namespace spef {
+struct Exchange;
 }
 
-}  // namespace python_interface
+namespace ircx::plot_spef {
+
+struct Config;
+struct Model;
+
+class ModelBuilder
+{
+ public:
+  auto build(const spef::Exchange& exchange,
+             const Config& config) const -> Model;
+};
+
+}  // namespace ircx::plot_spef

@@ -14,20 +14,35 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file NetSelector.hh
+ * @brief compare_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include <unordered_set>
 
-namespace python_interface {
-namespace py = pybind11;
+#include "config/CompareSpefConfig.hh"
+#include "data/CompareSpefData.hh"
 
-void register_ircx(py::module& m)
+namespace ircx {
+namespace compare_spef {
+
+class NetSelector
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  explicit NetSelector(const Config& config);
 
-}  // namespace python_interface
+  auto selected(const Net& net) const -> bool;
+  auto hasPathFilter() const -> bool;
+
+ private:
+  static auto configuredNetNames(const Config& config) -> std::unordered_set<std::string>;
+  auto matchesPathFilter(const Net& net) const -> bool;
+
+  const Config& _config;
+  std::unordered_set<std::string> _configured_net_names;
+};
+
+}  // namespace compare_spef
+}  // namespace ircx

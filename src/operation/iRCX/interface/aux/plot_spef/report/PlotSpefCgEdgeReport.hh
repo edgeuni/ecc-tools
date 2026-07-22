@@ -14,20 +14,37 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file PlotSpefCgEdgeReport.hh
+ * @brief Write SPEF *RES indexes for ground caps that can be assigned to edges.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include <string>
+#include <vector>
 
-namespace python_interface {
-namespace py = pybind11;
+#include "Types.hh"
 
-void register_ircx(py::module& m)
+namespace ircx::plot_spef {
+
+struct Config;
+struct Model;
+
+struct EdgeRow
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+  std::string net_name;
+  Size res_index = 0;
+};
 
-}  // namespace python_interface
+auto collectCgEdgeRows(const Model& model) -> std::vector<EdgeRow>;
+
+auto collectCoupledEdgeRows(const Model& model) -> std::vector<EdgeRow>;
+
+class CgEdgeReport
+{
+ public:
+  auto write(const Model& model,
+             const Config& config) const -> bool;
+};
+
+}  // namespace ircx::plot_spef

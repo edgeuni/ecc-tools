@@ -14,20 +14,24 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file ResultSorter.hh
+ * @brief compare_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include "data/CompareSpefData.hh"
 
-namespace python_interface {
-namespace py = pybind11;
+namespace ircx {
+namespace compare_spef {
 
-void register_ircx(py::module& m)
+class ResultSorter
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  void sort(Result& result,
+            const Data& test,
+            const Data& reference) const;
+};
 
-}  // namespace python_interface
+}  // namespace compare_spef
+}  // namespace ircx

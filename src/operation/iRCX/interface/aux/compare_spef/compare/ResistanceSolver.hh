@@ -14,20 +14,34 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file ResistanceSolver.hh
+ * @brief compare_spef implementation detail.
+ */
 #pragma once
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include "py_ircx.h"
+#include <optional>
+#include <vector>
 
-namespace python_interface {
-namespace py = pybind11;
+#include "data/CompareSpefData.hh"
 
-void register_ircx(py::module& m)
+namespace ircx {
+namespace compare_spef {
+
+class ResistanceSolver
 {
-  m.def("destroy_rcx", destroy_rcx);
-  m.def("init_rcx", init_rcx, py::arg("config"), py::arg("pdk") = py::none());
-  m.def("run_rcx", run_rcx);
-}
+ public:
+  auto equivalentResistance(const Net& net,
+                            const std::string& from_node,
+                            const std::string& to_node) const -> std::optional<F64>;
+  auto equivalentResistances(const Net& net,
+                             const std::vector<NodePair>& pairs) const
+      -> std::vector<std::optional<F64>>;
+  auto equivalentResistances(const Net& net,
+                             const std::vector<NodePair>& pairs,
+                             const std::vector<Size>& pair_indices) const
+      -> std::vector<std::optional<F64>>;
+};
 
-}  // namespace python_interface
+}  // namespace compare_spef
+}  // namespace ircx
