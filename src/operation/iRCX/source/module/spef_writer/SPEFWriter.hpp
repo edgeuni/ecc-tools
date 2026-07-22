@@ -54,8 +54,8 @@ class SPEFWriter
   // function
   void writeSWModel(SWModel& sw_model);
   void buildNameMap(SPEFNameMap& spef_name_map);
-  void writeCornerSPEFList(SWModel& sw_model, SPEFNameMap& spef_name_map);
-  void writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, int32_t corner_idx);
+  void writeSPEFList(SWModel& sw_model, SPEFNameMap& spef_name_map);
+  void writeSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, int32_t corner_idx);
   void buildNetCouplingRefList(SWModel& sw_model, int32_t corner_idx);
   void buildReportLayerList(SWModel& sw_model);
   void writeHeader(std::ofstream& spef_file_stream, int32_t corner_idx);

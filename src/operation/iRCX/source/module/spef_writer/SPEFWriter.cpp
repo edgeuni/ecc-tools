@@ -66,7 +66,7 @@ void SPEFWriter::writeSWModel(SWModel& sw_model)
 {
   SPEFNameMap spef_name_map;
   buildNameMap(spef_name_map);
-  writeCornerSPEFList(sw_model, spef_name_map);
+  writeSPEFList(sw_model, spef_name_map);
 }
 
 void SPEFWriter::buildNameMap(SPEFNameMap& spef_name_map)
@@ -92,14 +92,14 @@ void SPEFWriter::buildNameMap(SPEFNameMap& spef_name_map)
   }
 }
 
-void SPEFWriter::writeCornerSPEFList(SWModel& sw_model, SPEFNameMap& spef_name_map)
+void SPEFWriter::writeSPEFList(SWModel& sw_model, SPEFNameMap& spef_name_map)
 {
   for (int32_t corner_idx = 0; corner_idx < static_cast<int32_t>(RCXDM.getDatabase().get_corner_data_list().size()); ++corner_idx) {
-    writeCornerSPEF(sw_model, spef_name_map, corner_idx);
+    writeSPEF(sw_model, spef_name_map, corner_idx);
   }
 }
 
-void SPEFWriter::writeCornerSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, int32_t corner_idx)
+void SPEFWriter::writeSPEF(SWModel& sw_model, SPEFNameMap& spef_name_map, int32_t corner_idx)
 {
   Database& database = RCXDM.getDatabase();
   CornerData& corner_data = database.get_corner_data_list()[corner_idx];
