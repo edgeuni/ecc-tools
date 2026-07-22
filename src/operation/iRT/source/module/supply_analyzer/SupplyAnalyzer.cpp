@@ -55,12 +55,9 @@ void SupplyAnalyzer::analyze()
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
   SAModel sa_model = initSAModel();
-  setSAComParam(sa_model);
+  initRoutingEdgeMap();
   buildSupplySchedule(sa_model);
   analyzeSupply(sa_model);
-  buildIgnoreNet(sa_model);
-  buildMacroPinEscapeIgnore(sa_model);
-  analyzeDemandUnit(sa_model);
   // debugPlotSAModel(sa_model);
   updateSummary(sa_model);
   printSummary(sa_model);
@@ -79,21 +76,25 @@ SAModel SupplyAnalyzer::initSAModel()
   return sa_model;
 }
 
-void SupplyAnalyzer::setSAComParam(SAModel& sa_model)
+void SupplyAnalyzer::initRoutingEdgeMap()
 {
-  int32_t supply_reduction = 0;
-  double boundary_wire_unit = 1;
-  double internal_wire_unit = 1;
-  double internal_via_unit = 1;
-  /**
-   * supply_reduction, boundary_wire_unit, internal_wire_unit, internal_via_unit
-   */
-  SAComParam sa_com_param(supply_reduction, boundary_wire_unit, internal_wire_unit, internal_via_unit);
-  RTLOG.info(Loc::current(), "supply_reduction: ", sa_com_param.get_supply_reduction());
-  RTLOG.info(Loc::current(), "boundary_wire_unit: ", sa_com_param.get_boundary_wire_unit());
-  RTLOG.info(Loc::current(), "internal_wire_unit: ", sa_com_param.get_internal_wire_unit());
-  RTLOG.info(Loc::current(), "internal_via_unit: ", sa_com_param.get_internal_via_unit());
-  sa_model.set_sa_com_param(sa_com_param);
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
+  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
+  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
+
+  routing_h_edge_map.resize(routing_layer_list.size());
+  routing_v_edge_map.resize(routing_layer_list.size());
+  for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(routing_layer_list.size()); layer_idx++) {
+    routing_h_edge_map[layer_idx].init(std::max(0, gcell_map.get_x_size() - 1), gcell_map.get_y_size());
+    routing_v_edge_map[layer_idx].init(gcell_map.get_x_size(), std::max(0, gcell_map.get_y_size() - 1));
+  }
+  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
+      gcell_map[x][y].set_routing_orient_supply_map({});
+      gcell_map[x][y].set_routing_ignore_net_orient_map({});
+    }
+  }
 }
 
 void SupplyAnalyzer::buildSupplySchedule(SAModel& sa_model)
@@ -137,7 +138,8 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
   RTLOG.info(Loc::current(), "Starting...");
 
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
-  int32_t supply_reduction = sa_model.get_sa_com_param().get_supply_reduction();
+  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
+  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
 
   size_t total_pair_num = 0;
   for (std::vector<std::pair<LayerCoord, LayerCoord>>& grid_pair_list : sa_model.get_grid_pair_list_list()) {
@@ -153,6 +155,9 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
       LayerCoord second_coord = grid_pair.second;
       EXTLayerRect search_rect = getSearchRect(first_coord, second_coord);
 
+      bool is_horizontal = RTUTIL.isHorizontal(first_coord, second_coord);
+      RoutingEdge& routing_edge = is_horizontal ? routing_h_edge_map[first_coord.get_layer_idx()][first_coord.get_x()][first_coord.get_y()]
+                                                : routing_v_edge_map[first_coord.get_layer_idx()][first_coord.get_x()][first_coord.get_y()];
       std::map<Orientation, int32_t>& first_orient_supply_map
           = gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_orient_supply_map()[search_rect.get_layer_idx()];
       std::map<Orientation, int32_t>& second_orient_supply_map
@@ -160,6 +165,7 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
 
       Orientation first_orientation = RTUTIL.getOrientation(first_coord, second_coord);
       Orientation second_orientation = RTUTIL.getOppositeOrientation(first_orientation);
+      std::set<int32_t>& ignore_net_set = routing_edge.get_ignore_net_set();
 
       std::vector<PlanarRect> obs_rect_list;
       {
@@ -188,6 +194,11 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
                 continue;
               }
               obs_rect_list.push_back(net_shape);
+              ignore_net_set.insert(net_idx);
+              gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
+                  first_orientation);
+              gcell_map[second_coord.get_x()][second_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
+                  second_orientation);
             }
           }
         }
@@ -197,21 +208,25 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
               continue;
             }
             obs_rect_list.push_back(patch->get_real_rect());
+            ignore_net_set.insert(net_idx);
+            gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
+                first_orientation);
+            gcell_map[second_coord.get_x()][second_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
+                second_orientation);
           }
         }
       }
       std::vector<LayerRect> wire_list = getCrossingWireList(search_rect);
-      int32_t max_supply = std::max(0, static_cast<int32_t>(wire_list.size()) - supply_reduction);
-
       int32_t supply = 0;
       for (LayerRect& wire : wire_list) {
         if (isAccess(wire, obs_rect_list)) {
           supply++;
         }
       }
+      routing_edge.set_supply(supply);
       if (supply > 0) {
-        first_orient_supply_map[first_orientation] = std::min(supply, max_supply);
-        second_orient_supply_map[second_orientation] = std::min(supply, max_supply);
+        first_orient_supply_map[first_orientation] = routing_edge.get_supply();
+        second_orient_supply_map[second_orientation] = routing_edge.get_supply();
       }
     }
     analyzed_pair_num += grid_pair_list.size();
@@ -297,168 +312,6 @@ bool SupplyAnalyzer::isAccess(LayerRect& wire, std::vector<PlanarRect>& obs_rect
     }
   }
   return true;
-}
-
-void SupplyAnalyzer::buildIgnoreNet(SAModel& sa_model)
-{
-  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
-  int32_t bottom_routing_layer_idx = RTDM.getConfig().bottom_routing_layer_idx;
-  int32_t top_routing_layer_idx = RTDM.getConfig().top_routing_layer_idx;
-
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      std::map<int32_t, std::map<int32_t, std::set<Orientation>>> routing_ignore_net_orient_map;
-      for (auto& [is_routing, layer_net_fixed_rect_map] : gcell_map[x][y].get_type_layer_net_fixed_rect_map()) {
-        if (!is_routing) {
-          continue;
-        }
-        for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
-          for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
-            if (net_idx == -1) {
-              continue;
-            }
-            for (EXTLayerRect* fixed_rect : fixed_rect_set) {
-              if (RTUTIL.isClosedOverlap(gcell_map[x][y], fixed_rect->get_real_rect())) {
-                routing_ignore_net_orient_map[layer_idx][net_idx] = {};
-              }
-            }
-          }
-        }
-      }
-      for (auto& [net_idx, segment_set] : gcell_map[x][y].get_net_detailed_result_map()) {
-        for (Segment<LayerCoord>* segment : segment_set) {
-          for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
-            if (!net_shape.get_is_routing()) {
-              continue;
-            }
-            if (RTUTIL.isClosedOverlap(gcell_map[x][y], net_shape.get_rect())) {
-              routing_ignore_net_orient_map[net_shape.get_layer_idx()][net_idx] = {};
-            }
-          }
-        }
-      }
-      for (auto& [net_idx, patch_set] : gcell_map[x][y].get_net_detailed_patch_map()) {
-        for (EXTLayerRect* patch : patch_set) {
-          if (RTUTIL.isClosedOverlap(gcell_map[x][y], patch->get_real_rect())) {
-            routing_ignore_net_orient_map[patch->get_layer_idx()][net_idx] = {};
-          }
-        }
-      }
-      for (auto& [routing_layer_idx, ignore_net_orient_map] : routing_ignore_net_orient_map) {
-        std::set<Orientation> ignore_orient_set;
-        ignore_orient_set.insert(Orientation::kAbove);
-        ignore_orient_set.insert(Orientation::kBelow);
-        if (bottom_routing_layer_idx <= routing_layer_idx && routing_layer_idx <= top_routing_layer_idx) {
-          if (routing_layer_list[routing_layer_idx].isPreferH()) {
-            ignore_orient_set.insert(Orientation::kWest);
-            ignore_orient_set.insert(Orientation::kEast);
-          } else {
-            ignore_orient_set.insert(Orientation::kSouth);
-            ignore_orient_set.insert(Orientation::kNorth);
-          }
-        }
-        for (auto& [net_idx, orient_set] : ignore_net_orient_map) {
-          orient_set = ignore_orient_set;
-        }
-      }
-      gcell_map[x][y].set_routing_ignore_net_orient_map(routing_ignore_net_orient_map);
-    }
-  }
-}
-
-void SupplyAnalyzer::buildMacroPinEscapeIgnore(SAModel& sa_model)
-{
-  (void) sa_model;
-  Die& die = RTDM.getDatabase().get_die();
-  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
-  std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
-
-  for (Net& net : net_list) {
-    int32_t net_idx = net.get_net_idx();
-    for (Pin& pin : net.get_pin_list()) {
-      if (!pin.get_is_macro() && !pin.get_is_pad()) {
-        continue;
-      }
-      AccessPoint& access_point = pin.get_access_point();
-      if (access_point.get_real_coord() == PlanarCoord(-1, -1) || access_point.get_layer_idx() == -1) {
-        continue;
-      }
-      MacroPinEdge macro_pin_edge = pin.get_macro_pin_edge();
-      if (macro_pin_edge == MacroPinEdge::kNone) {
-        continue;
-      }
-      std::vector<int32_t> layer_idx_list = {access_point.get_layer_idx()};
-      if (pin.get_preferred_conn_layer_idx() != -1) {
-        layer_idx_list.push_back(pin.get_preferred_conn_layer_idx());
-      }
-      std::sort(layer_idx_list.begin(), layer_idx_list.end());
-      layer_idx_list.erase(std::unique(layer_idx_list.begin(), layer_idx_list.end()), layer_idx_list.end());
-
-      PlanarCoord access_grid_coord = access_point.get_grid_coord();
-      if (access_grid_coord == PlanarCoord(-1, -1)) {
-        PlanarRect real_rect(access_point.get_real_coord(), access_point.get_real_coord());
-        if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-          continue;
-        }
-        access_grid_coord = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis).get_ll();
-      }
-
-      int32_t step_x = 0;
-      int32_t step_y = 0;
-      std::set<Orientation> orient_set = {Orientation::kAbove, Orientation::kBelow};
-      if (macro_pin_edge == MacroPinEdge::kNorth) {
-        step_y = 1;
-        orient_set.insert(Orientation::kNorth);
-        orient_set.insert(Orientation::kSouth);
-      } else if (macro_pin_edge == MacroPinEdge::kSouth) {
-        step_y = -1;
-        orient_set.insert(Orientation::kNorth);
-        orient_set.insert(Orientation::kSouth);
-      } else if (macro_pin_edge == MacroPinEdge::kEast) {
-        step_x = 1;
-        orient_set.insert(Orientation::kEast);
-        orient_set.insert(Orientation::kWest);
-      } else {
-        step_x = -1;
-        orient_set.insert(Orientation::kEast);
-        orient_set.insert(Orientation::kWest);
-      }
-      PlanarCoord outside_grid_coord(access_grid_coord.get_x() + step_x, access_grid_coord.get_y() + step_y);
-
-      for (PlanarCoord grid_coord : {access_grid_coord, outside_grid_coord}) {
-        if (!gcell_map.isInside(grid_coord.get_x(), grid_coord.get_y())) {
-          continue;
-        }
-        for (int32_t layer_idx : layer_idx_list) {
-          GCell& gcell = gcell_map[grid_coord.get_x()][grid_coord.get_y()];
-          std::set<Orientation>& gcell_orient_set = gcell.get_routing_ignore_net_orient_map()[layer_idx][net_idx];
-          gcell_orient_set.insert(orient_set.begin(), orient_set.end());
-          for (auto& [orient, supply] : gcell.get_routing_orient_supply_map()[layer_idx]) {
-            supply = 0;
-          }
-        }
-      }
-    }
-  }
-}
-
-void SupplyAnalyzer::analyzeDemandUnit(SAModel& sa_model)
-{
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
-  double boundary_wire_unit = sa_model.get_sa_com_param().get_boundary_wire_unit();
-  double internal_wire_unit = sa_model.get_sa_com_param().get_internal_wire_unit();
-  double internal_via_unit = sa_model.get_sa_com_param().get_internal_via_unit();
-
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      GCell& gcell = gcell_map[x][y];
-      gcell.set_boundary_wire_unit(boundary_wire_unit);
-      gcell.set_internal_wire_unit(internal_wire_unit);
-      gcell.set_internal_via_unit(internal_via_unit);
-    }
-  }
 }
 
 #if 1  // exhibit

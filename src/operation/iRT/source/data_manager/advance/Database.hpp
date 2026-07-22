@@ -24,6 +24,7 @@
 #include "Net.hpp"
 #include "Obstacle.hpp"
 #include "RTHeader.hpp"
+#include "RoutingEdge.hpp"
 #include "RoutingLayer.hpp"
 #include "Row.hpp"
 #include "Summary.hpp"
@@ -63,6 +64,10 @@ class Database
   std::vector<Net>& get_net_list() { return _net_list; }
   int32_t get_detection_distance() const { return _detection_distance; }
   GridMap<GCell>& get_gcell_map() { return _gcell_map; }
+  GridMap<RoutingEdge>& get_planar_routing_h_edge_map() { return _planar_routing_h_edge_map; }
+  GridMap<RoutingEdge>& get_planar_routing_v_edge_map() { return _planar_routing_v_edge_map; }
+  std::vector<GridMap<RoutingEdge>>& get_routing_h_edge_map() { return _routing_h_edge_map; }
+  std::vector<GridMap<RoutingEdge>>& get_routing_v_edge_map() { return _routing_v_edge_map; }
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   Summary& get_summary() { return _summary; }
   // setter
@@ -100,6 +105,10 @@ class Database
   std::vector<Net> _net_list;
   int32_t _detection_distance = -1;
   GridMap<GCell> _gcell_map;
+  GridMap<RoutingEdge> _planar_routing_h_edge_map;
+  GridMap<RoutingEdge> _planar_routing_v_edge_map;
+  std::vector<GridMap<RoutingEdge>> _routing_h_edge_map;
+  std::vector<GridMap<RoutingEdge>> _routing_v_edge_map;
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
   Summary _summary;
 };
