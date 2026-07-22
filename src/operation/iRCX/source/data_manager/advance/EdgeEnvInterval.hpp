@@ -16,8 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "CrossOverlapSub.hpp"
-#include "DiagCoupSub.hpp"
+#include "CrossLayerOverlap.hpp"
 #include "TopoEdge.hpp"
 
 namespace ircx {
@@ -28,37 +27,34 @@ class EdgeEnvInterval
   EdgeEnvInterval() = default;
   ~EdgeEnvInterval() = default;
   // getter
-  int32_t get_start_coordinate() const { return _start_coordinate; }
-  int32_t get_end_coordinate() const { return _end_coordinate; }
+  int32_t get_start_coord() const { return _start_coord; }
+  int32_t get_end_coord() const { return _end_coord; }
   int32_t get_lower_spacing() const { return _lower_spacing; }
   int32_t get_upper_spacing() const { return _upper_spacing; }
   TopoEdge* get_lower_adjacent_edge() const { return _lower_adjacent_edge; }
   TopoEdge* get_upper_adjacent_edge() const { return _upper_adjacent_edge; }
-  std::vector<CrossOverlapSub>& get_cross_overlap_sub_list() { return _cross_overlap_sub_list; }
-  std::vector<DiagCoupSub>& get_diag_coup_sub_list() { return _diag_coup_sub_list; }
+  std::vector<CrossLayerOverlap>& get_cross_layer_overlap_list() { return _cross_layer_overlap_list; }
   // setter
-  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
+  void set_start_coord(int32_t start_coord) { _start_coord = start_coord; }
+  void set_end_coord(int32_t end_coord) { _end_coord = end_coord; }
   void set_lower_spacing(int32_t lower_spacing) { _lower_spacing = lower_spacing; }
   void set_upper_spacing(int32_t upper_spacing) { _upper_spacing = upper_spacing; }
   void set_lower_adjacent_edge(TopoEdge* lower_adjacent_edge) { _lower_adjacent_edge = lower_adjacent_edge; }
   void set_upper_adjacent_edge(TopoEdge* upper_adjacent_edge) { _upper_adjacent_edge = upper_adjacent_edge; }
-  void set_cross_overlap_sub_list(const std::vector<CrossOverlapSub>& cross_overlap_sub_list)
+  void set_cross_layer_overlap_list(const std::vector<CrossLayerOverlap>& cross_layer_overlap_list)
   {
-    _cross_overlap_sub_list = cross_overlap_sub_list;
+    _cross_layer_overlap_list = cross_layer_overlap_list;
   }
-  void set_diag_coup_sub_list(const std::vector<DiagCoupSub>& diag_coup_sub_list) { _diag_coup_sub_list = diag_coup_sub_list; }
   // function
 
  private:
-  int32_t _start_coordinate = INT32_MAX;
-  int32_t _end_coordinate = INT32_MAX;
-  int32_t _lower_spacing = INT32_MAX;
-  int32_t _upper_spacing = INT32_MAX;
+  int32_t _start_coord = -1;
+  int32_t _end_coord = -1;
+  int32_t _lower_spacing = -1;
+  int32_t _upper_spacing = -1;
   TopoEdge* _lower_adjacent_edge = nullptr;
   TopoEdge* _upper_adjacent_edge = nullptr;
-  std::vector<CrossOverlapSub> _cross_overlap_sub_list;
-  std::vector<DiagCoupSub> _diag_coup_sub_list;
+  std::vector<CrossLayerOverlap> _cross_layer_overlap_list;
 };
 
 }  // namespace ircx

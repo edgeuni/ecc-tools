@@ -142,35 +142,37 @@ void DataManager::buildDatabase()
 void DataManager::buildCornerDataList()
 {
   for (Corner& corner : _config.corner_list) {
-    for (double temperature : corner.get_temperature_list()) {
-      buildCornerData(corner, temperature);
+    for (double tmpr : corner.get_tmpr_list()) {
+      buildCornerData(corner, tmpr);
     }
   }
 }
 
-void DataManager::buildCornerData(Corner& corner, double temperature)
+void DataManager::buildCornerData(Corner& corner, double tmpr)
 {
   CornerData corner_data;
-  corner_data.set_corner_name(getTemperatureCornerName(corner.get_corner_name(), temperature));
-  corner_data.set_temperature(temperature);
+  corner_data.set_corner_name(getTmprCornerName(corner.get_corner_name(), tmpr));
+  corner_data.set_tmpr(tmpr);
+  corner_data.set_global_tmpr(25.0);
+  corner_data.set_half_node_scale_factor(1.0);
   buildProcessCorner(corner_data, corner.get_itf_file_path());
   buildCapTable(corner_data, corner.get_captab_file_path());
   _database.get_corner_data_list().push_back(std::move(corner_data));
 }
 
-std::string DataManager::getTemperatureCornerName(std::string corner_name, double temperature)
+std::string DataManager::getTmprCornerName(std::string corner_name, double tmpr)
 {
-  std::ostringstream temperature_stream;
-  temperature_stream << std::setprecision(12) << temperature;
-  std::string temperature_name = temperature_stream.str();
-  for (char& temperature_char : temperature_name) {
-    if (temperature_char == '.') {
-      temperature_char = 'p';
-    } else if (temperature_char == '-') {
-      temperature_char = 'm';
+  std::ostringstream tmpr_stream;
+  tmpr_stream << std::setprecision(12) << tmpr;
+  std::string tmpr_name = tmpr_stream.str();
+  for (char& tmpr_char : tmpr_name) {
+    if (tmpr_char == '.') {
+      tmpr_char = 'p';
+    } else if (tmpr_char == '-') {
+      tmpr_char = 'm';
     }
   }
-  return RCXUTIL.getString(corner_name, "_", temperature_name, "C");
+  return RCXUTIL.getString(corner_name, "_", tmpr_name, "C");
 }
 
 void DataManager::buildProcessCorner(CornerData& corner_data, std::string itf_file_path)
@@ -187,29 +189,29 @@ void DataManager::buildProcessCorner(CornerData& corner_data, std::string itf_fi
   std::string itf_text = itf_stream.str();
 
   std::vector<std::string> itf_token_list;
-  getItfTokenList(itf_text, itf_token_list);
+  getITFTokenList(itf_text, itf_token_list);
 
   for (int32_t token_idx = 0; token_idx < static_cast<int32_t>(itf_token_list.size());) {
-    std::string token_name = getItfUpperString(itf_token_list[token_idx]);
+    std::string token_name = RCXUTIL.getUpperString(itf_token_list[token_idx]);
     double property_value = 0.0;
-    if (token_name == "GLOBAL_TEMPERATURE" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      corner_data.set_global_temperature(property_value);
+    if (token_name == "GLOBAL_TEMPERATURE" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      corner_data.set_global_tmpr(property_value);
       token_idx += 3;
       continue;
     }
-    if (token_name == "HALF_NODE_SCALE_FACTOR" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
+    if (token_name == "HALF_NODE_SCALE_FACTOR" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
       corner_data.set_half_node_scale_factor(property_value);
       token_idx += 3;
       continue;
     }
     if ((token_name == "CONDUCTOR" || token_name == "VIA") && token_idx + 2 < static_cast<int32_t>(itf_token_list.size())) {
-      int32_t block_start_idx = getItfBlockStart(itf_token_list, token_idx + 2);
-      if (block_start_idx == INT32_MAX) {
+      int32_t block_start_idx = getITFBlockStart(itf_token_list, token_idx + 2);
+      if (block_start_idx == -1) {
         token_idx++;
         continue;
       }
-      int32_t block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
-      if (block_end_idx == INT32_MAX) {
+      int32_t block_end_idx = getITFBlockEnd(itf_token_list, block_start_idx);
+      if (block_end_idx == -1) {
         token_idx++;
         continue;
       }
@@ -230,63 +232,66 @@ void DataManager::buildProcessConductor(CornerData& corner_data, std::vector<std
 {
   ProcessConductor conductor;
   conductor.set_layer_name(conductor_name);
+  conductor.set_thickness(0.0);
+  conductor.set_sheet_resistance(0.0);
+  conductor.set_resistivity(0.0);
 
   for (int32_t token_idx = start_idx; token_idx < end_idx;) {
-    std::string property_name = getItfUpperString(itf_token_list[token_idx]);
+    std::string property_name = RCXUTIL.getUpperString(itf_token_list[token_idx]);
     double property_value = 0.0;
-    if (property_name == "THICKNESS" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
+    if (property_name == "THICKNESS" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
       conductor.set_thickness(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "RPSQ" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      conductor.set_sheet_res(property_value);
+    if (property_name == "RPSQ" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      conductor.set_sheet_resistance(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "RHO" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
+    if (property_name == "RHO" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
       conductor.set_resistivity(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "T0" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      conductor.set_nominal_temperature(property_value);
+    if (property_name == "T0" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      conductor.set_nominal_tmpr(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "CRT1" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      conductor.set_temperature_coefficient1(property_value);
+    if (property_name == "CRT1" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      conductor.set_tmpr_coefficient1(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "CRT2" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      conductor.set_temperature_coefficient2(property_value);
+    if (property_name == "CRT2" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      conductor.set_tmpr_coefficient2(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "ETCH" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
+    if (property_name == "ETCH" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
       conductor.set_etch(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "RESISTIVE_ONLY_ETCH" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
+    if (property_name == "RESISTIVE_ONLY_ETCH" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
       conductor.set_resistive_only_etch(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "CAPACITIVE_ONLY_ETCH" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
+    if (property_name == "CAPACITIVE_ONLY_ETCH" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
       conductor.set_capacitive_only_etch(property_value);
       token_idx += 3;
       continue;
     }
 
-    int32_t block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
-    if (block_start_idx == INT32_MAX) {
+    int32_t block_start_idx = getITFBlockStart(itf_token_list, token_idx + 1);
+    if (block_start_idx == -1) {
       token_idx++;
       continue;
     }
-    int32_t block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
-    if (block_end_idx == INT32_MAX || block_end_idx > end_idx) {
+    int32_t block_end_idx = getITFBlockEnd(itf_token_list, block_start_idx);
+    if (block_end_idx == -1 || block_end_idx > end_idx) {
       token_idx++;
       continue;
     }
@@ -295,31 +300,31 @@ void DataManager::buildProcessConductor(CornerData& corner_data, std::vector<std
     std::vector<double> column_list;
     std::vector<double> value_list;
     if (property_name == "RPSQ_VS_SI_WIDTH") {
-      getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
+      getITFNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
       for (int32_t value_idx = 0; value_idx + 1 < static_cast<int32_t>(value_list.size()); value_idx += 2) {
-        conductor.get_sheet_res_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
+        conductor.get_sheet_resistance_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
       }
     } else if (property_name == "CRT_VS_SI_WIDTH") {
-      getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
+      getITFNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
       for (int32_t value_idx = 0; value_idx + 2 < static_cast<int32_t>(value_list.size()); value_idx += 3) {
-        conductor.get_temperature_coefficient1_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
-        conductor.get_temperature_coefficient2_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 2]);
+        conductor.get_tmpr_coefficient1_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
+        conductor.get_tmpr_coefficient2_by_width_table().add_entry(value_list[value_idx], value_list[value_idx + 2]);
       }
     } else if (property_name == "RPSQ_VS_WIDTH_AND_SPACING" || property_name == "RHO_VS_WIDTH_AND_SPACING"
                || property_name == "ETCH_VS_WIDTH_AND_SPACING" || property_name == "THICKNESS_VS_WIDTH_AND_SPACING") {
-      getItfTableValueList(itf_token_list, block_start_idx + 1, block_end_idx, "WIDTHS", "SPACINGS", "VALUES", row_list, column_list,
+      getITFTableValueList(itf_token_list, block_start_idx + 1, block_end_idx, "WIDTHS", "SPACINGS", "VALUES", row_list, column_list,
                            value_list);
       ProcessTable2D table;
       table.set_row_list(row_list);
       table.set_column_list(column_list);
       table.set_value_list(value_list);
       if (property_name == "RPSQ_VS_WIDTH_AND_SPACING") {
-        conductor.get_sheet_res_by_width_spacing_table() = table;
+        conductor.get_sheet_resistance_by_width_spacing_table() = table;
       } else if (property_name == "RHO_VS_WIDTH_AND_SPACING") {
         conductor.get_resistivity_by_width_spacing_table() = table;
       } else if (!table.get_is_empty()) {
         ProcessEtchTable process_table;
-        process_table.set_effect_type(getItfEffectType(itf_token_list, token_idx + 1, block_start_idx));
+        process_table.set_effect_type(getITFEffectType(itf_token_list, token_idx + 1, block_start_idx));
         process_table.set_table(table);
         if (property_name == "ETCH_VS_WIDTH_AND_SPACING") {
           conductor.get_etch_table_list().push_back(std::move(process_table));
@@ -328,7 +333,7 @@ void DataManager::buildProcessConductor(CornerData& corner_data, std::vector<std
         }
       }
     } else if (property_name == "RHO_VS_SI_WIDTH_AND_THICKNESS") {
-      getItfTableValueList(itf_token_list, block_start_idx + 1, block_end_idx, "THICKNESS", "WIDTH", "VALUES", row_list, column_list,
+      getITFTableValueList(itf_token_list, block_start_idx + 1, block_end_idx, "THICKNESS", "WIDTH", "VALUES", row_list, column_list,
                            value_list);
       conductor.get_resistivity_by_width_thickness_table().set_row_list(row_list);
       conductor.get_resistivity_by_width_thickness_table().set_column_list(column_list);
@@ -346,59 +351,62 @@ void DataManager::buildProcessVia(CornerData& corner_data, std::vector<std::stri
 {
   ProcessVia via;
   via.set_layer_name(via_name);
+  via.set_area(0.0);
+  via.set_resistance(0.0);
+  via.set_resistivity(0.0);
 
   for (int32_t token_idx = start_idx; token_idx < end_idx;) {
-    std::string property_name = getItfUpperString(itf_token_list[token_idx]);
+    std::string property_name = RCXUTIL.getUpperString(itf_token_list[token_idx]);
     double property_value = 0.0;
     std::string property_string;
-    if (property_name == "FROM" && getItfAssignmentString(itf_token_list, token_idx, property_string)) {
+    if (property_name == "FROM" && getITFAssignmentString(itf_token_list, token_idx, property_string)) {
       via.set_from_layer_name(property_string);
       token_idx += 3;
       continue;
     }
-    if (property_name == "TO" && getItfAssignmentString(itf_token_list, token_idx, property_string)) {
+    if (property_name == "TO" && getITFAssignmentString(itf_token_list, token_idx, property_string)) {
       via.set_to_layer_name(property_string);
       token_idx += 3;
       continue;
     }
-    if (property_name == "AREA" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
+    if (property_name == "AREA" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
       via.set_area(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "RPV" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      via.set_res(property_value);
+    if (property_name == "RPV" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      via.set_resistance(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "RHO" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
+    if (property_name == "RHO" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
       via.set_resistivity(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "T0" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      via.set_nominal_temperature(property_value);
+    if (property_name == "T0" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      via.set_nominal_tmpr(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "CRT1" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      via.set_temperature_coefficient1(property_value);
+    if (property_name == "CRT1" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      via.set_tmpr_coefficient1(property_value);
       token_idx += 3;
       continue;
     }
-    if (property_name == "CRT2" && getItfAssignmentNumber(itf_token_list, token_idx, property_value)) {
-      via.set_temperature_coefficient2(property_value);
+    if (property_name == "CRT2" && getITFAssignmentNumber(itf_token_list, token_idx, property_value)) {
+      via.set_tmpr_coefficient2(property_value);
       token_idx += 3;
       continue;
     }
 
-    int32_t block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
-    if (block_start_idx == INT32_MAX) {
+    int32_t block_start_idx = getITFBlockStart(itf_token_list, token_idx + 1);
+    if (block_start_idx == -1) {
       token_idx++;
       continue;
     }
-    int32_t block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
-    if (block_end_idx == INT32_MAX || block_end_idx > end_idx) {
+    int32_t block_end_idx = getITFBlockEnd(itf_token_list, block_start_idx);
+    if (block_end_idx == -1 || block_end_idx > end_idx) {
       token_idx++;
       continue;
     }
@@ -407,25 +415,25 @@ void DataManager::buildProcessVia(CornerData& corner_data, std::vector<std::stri
     std::vector<double> column_list;
     std::vector<double> value_list;
     if (property_name == "RPV_VS_AREA") {
-      getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
+      getITFNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
       for (int32_t value_idx = 0; value_idx + 1 < static_cast<int32_t>(value_list.size()); value_idx += 2) {
-        via.get_res_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
+        via.get_resistance_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
       }
     } else if (property_name == "CRT_VS_AREA") {
-      getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
+      getITFNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
       for (int32_t value_idx = 0; value_idx + 2 < static_cast<int32_t>(value_list.size()); value_idx += 3) {
-        via.get_temperature_coefficient1_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
-        via.get_temperature_coefficient2_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 2]);
+        via.get_tmpr_coefficient1_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 1]);
+        via.get_tmpr_coefficient2_by_area_table().add_entry(value_list[value_idx], value_list[value_idx + 2]);
       }
     } else if (property_name == "ETCH_VS_WIDTH_AND_LENGTH") {
-      getItfTableValueList(itf_token_list, block_start_idx + 1, block_end_idx, "WIDTHS", "LENGTHS", "VALUES", row_list, column_list,
+      getITFTableValueList(itf_token_list, block_start_idx + 1, block_end_idx, "WIDTHS", "LENGTHS", "VALUES", row_list, column_list,
                            value_list);
       int32_t table_value_num = static_cast<int32_t>(row_list.size()) * static_cast<int32_t>(column_list.size());
       if (table_value_num > 0 && static_cast<int32_t>(value_list.size()) >= 2 * table_value_num) {
         std::vector<double> length_etch_list;
         std::vector<double> width_etch_list;
-        length_etch_list.reserve(static_cast<size_t>(table_value_num));
-        width_etch_list.reserve(static_cast<size_t>(table_value_num));
+        length_etch_list.reserve(table_value_num);
+        width_etch_list.reserve(table_value_num);
         for (int32_t value_idx = 0; value_idx < table_value_num; ++value_idx) {
           length_etch_list.push_back(value_list[2 * value_idx]);
           width_etch_list.push_back(value_list[2 * value_idx + 1]);
@@ -439,7 +447,7 @@ void DataManager::buildProcessVia(CornerData& corner_data, std::vector<std::stri
         width_table.set_column_list(column_list);
         width_table.set_value_list(width_etch_list);
         ProcessViaEtchTable etch_table;
-        etch_table.set_effect_type(getItfEffectType(itf_token_list, token_idx + 1, block_start_idx));
+        etch_table.set_effect_type(getITFEffectType(itf_token_list, token_idx + 1, block_start_idx));
         etch_table.set_length_table(length_table);
         etch_table.set_width_table(width_table);
         via.get_etch_table_list().push_back(std::move(etch_table));
@@ -455,14 +463,14 @@ void DataManager::buildProcessVia(CornerData& corner_data, std::vector<std::stri
 void DataManager::registerProcessLayer(std::string& process_layer_name)
 {
   LayerTable& layer_table = _database.get_layer_table();
-  if (layer_table.get_process_name_to_id_map().count(process_layer_name) != 0) {
+  if (layer_table.get_process_name_to_idx_map().count(process_layer_name) != 0) {
     return;
   }
-  int32_t process_layer_id = static_cast<int32_t>(layer_table.get_process_name_to_id_map().size());
-  layer_table.register_process_layer(process_layer_id, process_layer_name);
+  int32_t process_layer_idx = static_cast<int32_t>(layer_table.get_process_name_to_idx_map().size());
+  layer_table.register_process_layer(process_layer_idx, process_layer_name);
 }
 
-void DataManager::getItfTokenList(std::string& itf_text, std::vector<std::string>& itf_token_list)
+void DataManager::getITFTokenList(std::string& itf_text, std::vector<std::string>& itf_token_list)
 {
   itf_token_list.clear();
   std::string token;
@@ -470,14 +478,14 @@ void DataManager::getItfTokenList(std::string& itf_text, std::vector<std::string
   for (int32_t char_idx = 0; char_idx < static_cast<int32_t>(itf_text.size());) {
     char current_char = itf_text[char_idx];
     if (current_char == '#') {
-      appendItfToken(token, itf_token_list);
+      appendITFToken(token, itf_token_list);
       while (char_idx < static_cast<int32_t>(itf_text.size()) && itf_text[char_idx] != '\n') {
         char_idx++;
       }
       continue;
     }
     if (current_char == '/' && char_idx + 1 < static_cast<int32_t>(itf_text.size()) && itf_text[char_idx + 1] == '/') {
-      appendItfToken(token, itf_token_list);
+      appendITFToken(token, itf_token_list);
       char_idx += 2;
       while (char_idx < static_cast<int32_t>(itf_text.size()) && itf_text[char_idx] != '\n') {
         char_idx++;
@@ -485,25 +493,25 @@ void DataManager::getItfTokenList(std::string& itf_text, std::vector<std::string
       continue;
     }
     if (std::isspace(static_cast<unsigned char>(current_char))) {
-      appendItfToken(token, itf_token_list);
+      appendITFToken(token, itf_token_list);
       char_idx++;
       continue;
     }
     if (current_char == '{' || current_char == '}' || current_char == '=' || current_char == '(' || current_char == ')'
         || current_char == ',') {
-      appendItfToken(token, itf_token_list);
+      appendITFToken(token, itf_token_list);
       itf_token_list.emplace_back(1, current_char);
       char_idx++;
       continue;
     }
     if (current_char == '\"') {
-      appendItfToken(token, itf_token_list);
+      appendITFToken(token, itf_token_list);
       char_idx++;
       while (char_idx < static_cast<int32_t>(itf_text.size()) && itf_text[char_idx] != '\"') {
         token.push_back(itf_text[char_idx]);
         char_idx++;
       }
-      appendItfToken(token, itf_token_list);
+      appendITFToken(token, itf_token_list);
       if (char_idx < static_cast<int32_t>(itf_text.size())) {
         char_idx++;
       }
@@ -512,10 +520,10 @@ void DataManager::getItfTokenList(std::string& itf_text, std::vector<std::string
     token.push_back(current_char);
     char_idx++;
   }
-  appendItfToken(token, itf_token_list);
+  appendITFToken(token, itf_token_list);
 }
 
-void DataManager::appendItfToken(std::string& token, std::vector<std::string>& itf_token_list)
+void DataManager::appendITFToken(std::string& token, std::vector<std::string>& itf_token_list)
 {
   if (!token.empty()) {
     itf_token_list.push_back(token);
@@ -523,23 +531,23 @@ void DataManager::appendItfToken(std::string& token, std::vector<std::string>& i
   }
 }
 
-int32_t DataManager::getItfBlockStart(std::vector<std::string>& itf_token_list, int32_t start_idx)
+int32_t DataManager::getITFBlockStart(std::vector<std::string>& itf_token_list, int32_t start_idx)
 {
   for (int32_t token_idx = start_idx; token_idx < static_cast<int32_t>(itf_token_list.size()); ++token_idx) {
     if (itf_token_list[token_idx] == "{") {
       return token_idx;
     }
     if (itf_token_list[token_idx] == "}") {
-      return INT32_MAX;
+      return -1;
     }
   }
-  return INT32_MAX;
+  return -1;
 }
 
-int32_t DataManager::getItfBlockEnd(std::vector<std::string>& itf_token_list, int32_t block_start_idx)
+int32_t DataManager::getITFBlockEnd(std::vector<std::string>& itf_token_list, int32_t block_start_idx)
 {
   if (block_start_idx >= static_cast<int32_t>(itf_token_list.size()) || itf_token_list[block_start_idx] != "{") {
-    return INT32_MAX;
+    return -1;
   }
   int32_t depth = 0;
   for (int32_t token_idx = block_start_idx; token_idx < static_cast<int32_t>(itf_token_list.size()); ++token_idx) {
@@ -552,18 +560,18 @@ int32_t DataManager::getItfBlockEnd(std::vector<std::string>& itf_token_list, in
       }
     }
   }
-  return INT32_MAX;
+  return -1;
 }
 
-bool DataManager::getItfAssignmentNumber(std::vector<std::string>& itf_token_list, int32_t property_idx, double& property_value)
+bool DataManager::getITFAssignmentNumber(std::vector<std::string>& itf_token_list, int32_t property_idx, double& property_value)
 {
   if (property_idx + 2 >= static_cast<int32_t>(itf_token_list.size()) || itf_token_list[property_idx + 1] != "=") {
     return false;
   }
-  return getItfNumber(itf_token_list[property_idx + 2], property_value);
+  return RCXUTIL.getDouble(itf_token_list[property_idx + 2], property_value);
 }
 
-bool DataManager::getItfAssignmentString(std::vector<std::string>& itf_token_list, int32_t property_idx, std::string& property_value)
+bool DataManager::getITFAssignmentString(std::vector<std::string>& itf_token_list, int32_t property_idx, std::string& property_value)
 {
   if (property_idx + 2 >= static_cast<int32_t>(itf_token_list.size()) || itf_token_list[property_idx + 1] != "=") {
     return false;
@@ -572,77 +580,58 @@ bool DataManager::getItfAssignmentString(std::vector<std::string>& itf_token_lis
   return true;
 }
 
-bool DataManager::getItfNumber(std::string& token, double& number)
-{
-  char* end_ptr = nullptr;
-  const char* start_ptr = token.c_str();
-  number = std::strtod(start_ptr, &end_ptr);
-  return start_ptr != end_ptr && *end_ptr == '\0';
-}
-
-void DataManager::getItfNumberList(std::vector<std::string>& itf_token_list, int32_t start_idx, int32_t end_idx,
+void DataManager::getITFNumberList(std::vector<std::string>& itf_token_list, int32_t start_idx, int32_t end_idx,
                                    std::vector<double>& number_list)
 {
   number_list.clear();
   for (int32_t token_idx = start_idx; token_idx < end_idx; ++token_idx) {
     double number = 0.0;
-    if (getItfNumber(itf_token_list[token_idx], number)) {
+    if (RCXUTIL.getDouble(itf_token_list[token_idx], number)) {
       number_list.push_back(number);
     }
   }
 }
 
-std::string DataManager::getItfUpperString(std::string text)
-{
-  for (char& character : text) {
-    character = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
-  }
-  return text;
-}
-
-ProcessEffectType DataManager::getItfEffectType(std::vector<std::string>& itf_token_list, int32_t start_idx, int32_t end_idx)
+ProcessEffectType DataManager::getITFEffectType(std::vector<std::string>& itf_token_list, int32_t start_idx, int32_t end_idx)
 {
   for (int32_t token_idx = start_idx; token_idx < end_idx; ++token_idx) {
-    std::string effect_name = getItfUpperString(itf_token_list[token_idx]);
-    if (effect_name == "RESISTIVE_ONLY") {
-      return ProcessEffectType::kRes;
-    }
-    if (effect_name == "CAPACITIVE_ONLY") {
-      return ProcessEffectType::kCap;
+    ProcessEffectType effect_type = GetProcessEffectType()(RCXUTIL.getUpperString(itf_token_list[token_idx]));
+    if (effect_type != ProcessEffectType::kNone) {
+      return effect_type;
     }
   }
   return ProcessEffectType::kBoth;
 }
 
-void DataManager::getItfTableValueList(std::vector<std::string>& itf_token_list, int32_t start_idx, int32_t end_idx, std::string row_name,
+void DataManager::getITFTableValueList(std::vector<std::string>& itf_token_list, int32_t start_idx, int32_t end_idx, std::string row_name,
                                        std::string column_name, std::string value_name, std::vector<double>& row_list,
                                        std::vector<double>& column_list, std::vector<double>& value_list)
 {
   row_list.clear();
   column_list.clear();
   value_list.clear();
-  row_name = getItfUpperString(row_name);
-  column_name = getItfUpperString(column_name);
-  value_name = getItfUpperString(value_name);
+  row_name = RCXUTIL.getUpperString(row_name);
+  column_name = RCXUTIL.getUpperString(column_name);
+  value_name = RCXUTIL.getUpperString(value_name);
 
   for (int32_t token_idx = start_idx; token_idx < end_idx;) {
-    std::string property_name = getItfUpperString(itf_token_list[token_idx]);
-    int32_t block_start_idx = getItfBlockStart(itf_token_list, token_idx + 1);
-    if (block_start_idx == INT32_MAX || block_start_idx >= end_idx) {
+    std::string property_name = RCXUTIL.getUpperString(itf_token_list[token_idx]);
+    int32_t block_start_idx = getITFBlockStart(itf_token_list, token_idx + 1);
+    if (block_start_idx == -1 || block_start_idx >= end_idx) {
       token_idx++;
       continue;
     }
-    int32_t block_end_idx = getItfBlockEnd(itf_token_list, block_start_idx);
-    if (block_end_idx == INT32_MAX || block_end_idx > end_idx) {
+    int32_t block_end_idx = getITFBlockEnd(itf_token_list, block_start_idx);
+    if (block_end_idx == -1 || block_end_idx > end_idx) {
       token_idx++;
       continue;
     }
     if (property_name == row_name) {
-      getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, row_list);
+      getITFNumberList(itf_token_list, block_start_idx + 1, block_end_idx, row_list);
     } else if (property_name == column_name) {
-      getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, column_list);
+      getITFNumberList(itf_token_list, block_start_idx + 1, block_end_idx, column_list);
     } else if (property_name == value_name) {
-      getItfNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
+      getITFNumberList(itf_token_list, block_start_idx + 1, block_end_idx, value_list);
     }
     token_idx = block_end_idx + 1;
   }
@@ -660,7 +649,7 @@ void DataManager::buildCapTable(CornerData& corner_data, std::string captab_file
   std::vector<std::string> data_line_list;
   std::string line;
   while (std::getline(*captab_file_stream, line)) {
-    line = getTrimmedString(line);
+    line = RCXUTIL.getTrimmedString(line);
     if (line.empty() || line[0] == '#') {
       continue;
     }
@@ -682,29 +671,19 @@ void DataManager::buildCapTable(CornerData& corner_data, std::string captab_file
   RCXUTIL.closeFileStream(captab_file_stream);
 }
 
-std::string DataManager::getTrimmedString(std::string text)
-{
-  size_t first_pos = text.find_first_not_of(" \t\r\n");
-  if (first_pos == std::string::npos) {
-    return "";
-  }
-  size_t last_pos = text.find_last_not_of(" \t\r\n");
-  return text.substr(first_pos, last_pos - first_pos + 1);
-}
-
 void DataManager::buildCapTableConfig(CornerData& corner_data, const std::string& header, const std::vector<std::string>& data_line_list)
 {
   std::istringstream header_stream(header);
-  std::string type;
+  std::string type_name;
   std::string layer_name;
   std::string over_keyword;
   std::string over_layer_name;
-  if (!(header_stream >> type >> layer_name >> over_keyword >> over_layer_name)) {
+  if (!(header_stream >> type_name >> layer_name >> over_keyword >> over_layer_name)) {
     return;
   }
 
   CapTableConfig cap_table_config;
-  cap_table_config.set_type(type);
+  cap_table_config.set_type(GetCapTableType()(type_name));
   cap_table_config.set_layer_name(layer_name);
   cap_table_config.set_over_layer_name(over_layer_name);
 
@@ -716,17 +695,17 @@ void DataManager::buildCapTableConfig(CornerData& corner_data, const std::string
 
   for (const std::string& data_line : data_line_list) {
     std::istringstream data_stream(data_line);
-    double distance = 0.0;
-    double coupling_cap = 0.0;
-    double ground_cap = 0.0;
-    if (!(data_stream >> distance >> coupling_cap >> ground_cap)) {
+    double spacing = 0.0;
+    double coupling_capacitance = 0.0;
+    double ground_capacitance = 0.0;
+    if (!(data_stream >> spacing >> coupling_capacitance >> ground_capacitance)) {
       continue;
     }
 
     CapTableEntry cap_table_entry;
-    cap_table_entry.set_distance(distance);
-    cap_table_entry.set_coupling_cap(coupling_cap);
-    cap_table_entry.set_ground_cap(ground_cap);
+    cap_table_entry.set_spacing(spacing);
+    cap_table_entry.set_coupling_capacitance(coupling_capacitance);
+    cap_table_entry.set_ground_capacitance(ground_capacitance);
     cap_table_config.get_entry_list().push_back(std::move(cap_table_entry));
   }
   if (!cap_table_config.get_entry_list().empty()) {
@@ -772,9 +751,9 @@ void DataManager::printConfig()
   for (Corner& corner : _config.corner_list) {
     RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "corner_name");
     RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), corner.get_corner_name());
-    RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "temperature_list");
-    for (double temperature : corner.get_temperature_list()) {
-      RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), temperature);
+    RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "tmpr_list");
+    for (double tmpr : corner.get_tmpr_list()) {
+      RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), tmpr);
     }
     RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(2), "itf_file_path");
     RCXLOG.info(Loc::current(), RCXUTIL.getSpaceByTabNum(3), corner.get_itf_file_path());

@@ -10,33 +10,32 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
 #include "RCXHeader.hpp"
-#include "TopoEdge.hpp"
-#include "TopoNode.hpp"
 
 namespace ircx {
 
-class TBNetTopo
+class OffsetRange
 {
  public:
-  TBNetTopo() = default;
-  ~TBNetTopo() = default;
+  OffsetRange() = default;
+  OffsetRange(int32_t offset, int32_t count) : _offset(offset), _count(count) {}
+  ~OffsetRange() = default;
   // getter
-  std::vector<TopoNode>& get_node_list() { return _node_list; }
-  std::vector<TopoEdge>& get_edge_list() { return _edge_list; }
+  int32_t get_offset() const { return _offset; }
+  int32_t get_count() const { return _count; }
   // setter
-  void set_node_list(const std::vector<TopoNode>& node_list) { _node_list = node_list; }
-  void set_edge_list(const std::vector<TopoEdge>& edge_list) { _edge_list = edge_list; }
+  void set_offset(int32_t offset) { _offset = offset; }
+  void set_count(int32_t count) { _count = count; }
   // function
 
  private:
-  std::vector<TopoNode> _node_list;
-  std::vector<TopoEdge> _edge_list;
+  int32_t _offset = -1;
+  int32_t _count = 0;
 };
 
 }  // namespace ircx

@@ -16,33 +16,39 @@
 // ***************************************************************************************
 #pragma once
 
-#include "EnvPixelOverlap.hpp"
 #include "RCXHeader.hpp"
+#include "TopoEdge.hpp"
 
 namespace ircx {
 
-class EnvLayerPixelOverlaps
+class CmpEnvTopoEdgeByCoordASC
 {
  public:
-  EnvLayerPixelOverlaps() = default;
-  EnvLayerPixelOverlaps(int32_t layer_id, const std::vector<EnvPixelOverlap>& pixel_overlap_list)
-      : _layer_id(layer_id), _pixel_overlap_list(pixel_overlap_list)
-  {
-  }
-  ~EnvLayerPixelOverlaps() = default;
+  CmpEnvTopoEdgeByCoordASC() = default;
+  ~CmpEnvTopoEdgeByCoordASC() = default;
   // getter
-  int32_t get_layer_id() const { return _layer_id; }
-  std::vector<EnvPixelOverlap>& get_pixel_overlap_list() { return _pixel_overlap_list; }
-  const std::vector<EnvPixelOverlap>& get_pixel_overlap_list() const { return _pixel_overlap_list; }
   // setter
-  void set_layer_id(int32_t layer_id) { _layer_id = layer_id; }
-  void set_pixel_overlap_list(const std::vector<EnvPixelOverlap>& pixel_overlap_list) { _pixel_overlap_list = pixel_overlap_list; }
-  void set_pixel_overlap_list(std::vector<EnvPixelOverlap>&& pixel_overlap_list) { _pixel_overlap_list = std::move(pixel_overlap_list); }
   // function
+  bool operator()(TopoEdge* lhs, TopoEdge* rhs) const
+  {
+    if (lhs == rhs) {
+      return false;
+    }
+    if (lhs == nullptr || rhs == nullptr) {
+      return lhs == nullptr;
+    }
+    if (lhs->get_line_segment().get_coord() != rhs->get_line_segment().get_coord()) {
+      return lhs->get_line_segment().get_coord() < rhs->get_line_segment().get_coord();
+    }
+    if (lhs->get_is_special_net() != rhs->get_is_special_net()) {
+      return lhs->get_is_special_net() < rhs->get_is_special_net();
+    }
+    if (lhs->get_net_idx() != rhs->get_net_idx()) {
+      return lhs->get_net_idx() < rhs->get_net_idx();
+    }
+    return lhs->get_edge_idx() < rhs->get_edge_idx();
+  }
 
- private:
-  int32_t _layer_id = INT32_MAX;
-  std::vector<EnvPixelOverlap> _pixel_overlap_list;
 };
 
 }  // namespace ircx

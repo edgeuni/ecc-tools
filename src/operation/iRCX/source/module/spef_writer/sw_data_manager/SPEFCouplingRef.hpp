@@ -24,27 +24,27 @@ class SPEFCouplingRef
 {
  public:
   SPEFCouplingRef() = default;
-  SPEFCouplingRef(int32_t self_edge_idx, int32_t other_edge_idx, double cap)
+  SPEFCouplingRef(int32_t self_edge_idx, int32_t other_edge_idx, double coupling_capacitance)
   {
     _self_edge_idx = self_edge_idx;
     _other_edge_idx = other_edge_idx;
-    _cap = cap;
+    _coupling_capacitance = coupling_capacitance;
   }
   ~SPEFCouplingRef() = default;
   // getter
   int32_t get_self_edge_idx() const { return _self_edge_idx; }
   int32_t get_other_edge_idx() const { return _other_edge_idx; }
-  double get_cap() const { return _cap; }
+  double get_coupling_capacitance() const { return _coupling_capacitance; }
   // setter
   void set_self_edge_idx(int32_t self_edge_idx) { _self_edge_idx = self_edge_idx; }
   void set_other_edge_idx(int32_t other_edge_idx) { _other_edge_idx = other_edge_idx; }
-  void set_cap(double cap) { _cap = cap; }
+  void set_coupling_capacitance(double coupling_capacitance) { _coupling_capacitance = coupling_capacitance; }
   // function
 
  private:
-  int32_t _self_edge_idx = INT32_MAX;
-  int32_t _other_edge_idx = INT32_MAX;
-  double _cap = DBL_MAX;
+  int32_t _self_edge_idx = -1;
+  int32_t _other_edge_idx = -1;
+  double _coupling_capacitance = -1.0;
 };
 
 }  // namespace ircx

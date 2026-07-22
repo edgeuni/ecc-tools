@@ -26,19 +26,19 @@ class Segment
   Segment() = default;
   ~Segment() = default;
   // getter
-  int32_t get_layer_id() const { return _layer_id; }
+  int32_t get_layer_idx() const { return _layer_idx; }
   GTLRectInt& get_shape() { return _shape; }
   GTLPointInt& get_start_point() { return _start_point; }
   GTLPointInt& get_end_point() { return _end_point; }
   // setter
-  void set_layer_id(int32_t layer_id) { _layer_id = layer_id; }
+  void set_layer_idx(int32_t layer_idx) { _layer_idx = layer_idx; }
   void set_shape(const GTLRectInt& shape) { _shape = shape; }
   void set_start_point(const GTLPointInt& start_point) { _start_point = start_point; }
   void set_end_point(const GTLPointInt& end_point) { _end_point = end_point; }
   // function
 
  private:
-  int32_t _layer_id = INT32_MAX;
+  int32_t _layer_idx = -1;
   GTLRectInt _shape;
   GTLPointInt _start_point;
   GTLPointInt _end_point;

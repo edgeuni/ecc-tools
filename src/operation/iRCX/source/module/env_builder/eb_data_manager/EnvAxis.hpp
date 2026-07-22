@@ -37,9 +37,9 @@ class EnvAxis
   // function
 
  private:
-  int32_t _origin = INT32_MAX;
-  int32_t _count = 0;
-  int32_t _step = 0;
+  int32_t _origin = -1;
+  int32_t _count = -1;
+  int32_t _step = -1;
 };
 
 }  // namespace ircx

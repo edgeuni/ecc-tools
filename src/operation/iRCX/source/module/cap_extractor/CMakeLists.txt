@@ -19,5 +19,6 @@ target_link_libraries(ircx_cap_extractor
 
 target_include_directories(ircx_cap_extractor
     PUBLIC
+    ${IRCX_MODULE}/cap_extractor/ce_data_manager
     ${IRCX_MODULE}/cap_extractor
 )

@@ -43,8 +43,8 @@ class CouplingKey
   // function
 
  private:
-  int32_t _first_edge_idx = INT32_MAX;
-  int32_t _second_edge_idx = INT32_MAX;
+  int32_t _first_edge_idx = -1;
+  int32_t _second_edge_idx = -1;
 };
 
 }  // namespace ircx

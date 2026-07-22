@@ -25,15 +25,15 @@ class TopoEdge
 {
  public:
   TopoEdge() = default;
-  explicit TopoEdge(int32_t net_id) : _net_id(net_id) {}
+  explicit TopoEdge(int32_t net_idx) : _net_idx(net_idx) {}
   ~TopoEdge() = default;
   // getter
-  int32_t get_edge_id() const { return _edge_id; }
-  int32_t get_net_id() const { return _net_id; }
+  int32_t get_edge_idx() const { return _edge_idx; }
+  int32_t get_net_idx() const { return _net_idx; }
   std::string& get_via_name() { return _via_name; }
   int32_t get_start_node_idx() const { return _start_node_idx; }
   int32_t get_end_node_idx() const { return _end_node_idx; }
-  int32_t get_layer_id() const { return _layer_id; }
+  int32_t get_layer_idx() const { return _layer_idx; }
   GTLRectInt& get_shape() { return _shape; }
   int32_t get_width() const { return _width; }
   int32_t get_half_width() const { return _half_width; }
@@ -44,7 +44,7 @@ class TopoEdge
   void set_via_name(const std::string& via_name) { _via_name = via_name; }
   void set_start_node_idx(int32_t start_node_idx) { _start_node_idx = start_node_idx; }
   void set_end_node_idx(int32_t end_node_idx) { _end_node_idx = end_node_idx; }
-  void set_layer_id(int32_t layer_id) { _layer_id = layer_id; }
+  void set_layer_idx(int32_t layer_idx) { _layer_idx = layer_idx; }
   void set_shape(const GTLRectInt& shape)
   {
     _shape = shape;
@@ -63,7 +63,7 @@ class TopoEdge
     _center = GTLPointInt(lower_x + x_span / 2, lower_y + y_span / 2);
 
     _line_segment.set_is_horizontal(is_horizontal);
-    _line_segment.set_coordinate(is_horizontal ? lower_y + y_span / 2 : lower_x + x_span / 2);
+    _line_segment.set_coord(is_horizontal ? lower_y + y_span / 2 : lower_x + x_span / 2);
     _line_segment.set_lower(is_horizontal ? lower_x : lower_y);
     _line_segment.set_upper(is_horizontal ? upper_x : upper_y);
   }
@@ -74,20 +74,20 @@ class TopoEdge
  private:
   friend class TopoPool;
 
-  void set_edge_id(int32_t edge_id) { _edge_id = edge_id; }
+  void set_edge_idx(int32_t edge_idx) { _edge_idx = edge_idx; }
   void set_is_special_net(bool is_special_net) { _is_special_net = is_special_net; }
 
-  int32_t _edge_id = INT32_MAX;
-  int32_t _net_id = INT32_MAX;
+  int32_t _edge_idx = -1;
+  int32_t _net_idx = -1;
   bool _is_special_net = false;
   std::string _via_name;
-  int32_t _start_node_idx = INT32_MAX;
-  int32_t _end_node_idx = INT32_MAX;
-  int32_t _layer_id = INT32_MAX;
+  int32_t _start_node_idx = -1;
+  int32_t _end_node_idx = -1;
+  int32_t _layer_idx = -1;
   GTLRectInt _shape;
-  int32_t _width = INT32_MAX;
-  int32_t _half_width = INT32_MAX;
-  int32_t _length = INT32_MAX;
+  int32_t _width = -1;
+  int32_t _half_width = -1;
+  int32_t _length = -1;
   GTLPointInt _center;
   LineSegment _line_segment;
 };

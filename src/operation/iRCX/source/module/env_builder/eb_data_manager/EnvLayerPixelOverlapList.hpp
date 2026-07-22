@@ -16,39 +16,33 @@
 // ***************************************************************************************
 #pragma once
 
+#include "EnvPixelOverlap.hpp"
 #include "RCXHeader.hpp"
 
 namespace ircx {
 
-class CcapEntry
+class EnvLayerPixelOverlapList
 {
  public:
-  CcapEntry() = default;
-  CcapEntry(int32_t first_edge_idx, int32_t second_edge_idx, int32_t corner_idx, double cap)
+  EnvLayerPixelOverlapList() = default;
+  EnvLayerPixelOverlapList(int32_t layer_idx, const std::vector<EnvPixelOverlap>& pixel_overlap_list)
+      : _layer_idx(layer_idx), _pixel_overlap_list(pixel_overlap_list)
   {
-    _first_edge_idx = first_edge_idx;
-    _second_edge_idx = second_edge_idx;
-    _corner_idx = corner_idx;
-    _cap = cap;
   }
-  ~CcapEntry() = default;
+  ~EnvLayerPixelOverlapList() = default;
   // getter
-  int32_t get_first_edge_idx() const { return _first_edge_idx; }
-  int32_t get_second_edge_idx() const { return _second_edge_idx; }
-  int32_t get_corner_idx() const { return _corner_idx; }
-  double get_cap() const { return _cap; }
+  int32_t get_layer_idx() const { return _layer_idx; }
+  std::vector<EnvPixelOverlap>& get_pixel_overlap_list() { return _pixel_overlap_list; }
+  const std::vector<EnvPixelOverlap>& get_pixel_overlap_list() const { return _pixel_overlap_list; }
   // setter
-  void set_first_edge_idx(int32_t first_edge_idx) { _first_edge_idx = first_edge_idx; }
-  void set_second_edge_idx(int32_t second_edge_idx) { _second_edge_idx = second_edge_idx; }
-  void set_corner_idx(int32_t corner_idx) { _corner_idx = corner_idx; }
-  void set_cap(double cap) { _cap = cap; }
+  void set_layer_idx(int32_t layer_idx) { _layer_idx = layer_idx; }
+  void set_pixel_overlap_list(const std::vector<EnvPixelOverlap>& pixel_overlap_list) { _pixel_overlap_list = pixel_overlap_list; }
+  void set_pixel_overlap_list(std::vector<EnvPixelOverlap>&& pixel_overlap_list) { _pixel_overlap_list = std::move(pixel_overlap_list); }
   // function
 
  private:
-  int32_t _first_edge_idx = INT32_MAX;
-  int32_t _second_edge_idx = INT32_MAX;
-  int32_t _corner_idx = INT32_MAX;
-  double _cap = DBL_MAX;
+  int32_t _layer_idx = -1;
+  std::vector<EnvPixelOverlap> _pixel_overlap_list;
 };
 
 }  // namespace ircx

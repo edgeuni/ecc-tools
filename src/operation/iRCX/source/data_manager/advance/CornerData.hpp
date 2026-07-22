@@ -28,8 +28,8 @@ class CornerData
   ~CornerData() = default;
   // getter
   std::string& get_corner_name() { return _corner_name; }
-  double get_temperature() const { return _temperature; }
-  double get_global_temperature() const { return _global_temperature; }
+  double get_tmpr() const { return _tmpr; }
+  double get_global_tmpr() const { return _global_tmpr; }
   double get_half_node_scale_factor() const { return _half_node_scale_factor; }
   std::vector<ProcessConductor>& get_process_conductor_list() { return _process_conductor_list; }
   std::vector<ProcessVia>& get_process_via_list() { return _process_via_list; }
@@ -40,8 +40,8 @@ class CornerData
   const std::vector<CapTableConfig>& get_cap_table_config_list() const { return _cap_table_config_list; }
   // setter
   void set_corner_name(const std::string& corner_name) { _corner_name = corner_name; }
-  void set_temperature(double temperature) { _temperature = temperature; }
-  void set_global_temperature(double global_temperature) { _global_temperature = global_temperature; }
+  void set_tmpr(double tmpr) { _tmpr = tmpr; }
+  void set_global_tmpr(double global_tmpr) { _global_tmpr = global_tmpr; }
   void set_half_node_scale_factor(double half_node_scale_factor) { _half_node_scale_factor = half_node_scale_factor; }
   void set_process_conductor_list(const std::vector<ProcessConductor>& process_conductor_list)
   {
@@ -56,9 +56,9 @@ class CornerData
 
  private:
   std::string _corner_name;
-  double _temperature = 25.0;
-  double _global_temperature = 25.0;
-  double _half_node_scale_factor = 1.0;
+  double _tmpr = -1.0;
+  double _global_tmpr = -1.0;
+  double _half_node_scale_factor = -1.0;
   std::vector<ProcessConductor> _process_conductor_list;
   std::vector<ProcessVia> _process_via_list;
   std::vector<CapTableConfig> _cap_table_config_list;

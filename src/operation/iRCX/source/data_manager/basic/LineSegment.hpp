@@ -27,21 +27,21 @@ class LineSegment
   ~LineSegment() = default;
   // getter
   bool get_is_horizontal() const { return _is_horizontal; }
-  int32_t get_coordinate() const { return _coordinate; }
+  int32_t get_coord() const { return _coord; }
   int32_t get_lower() const { return _lower; }
   int32_t get_upper() const { return _upper; }
   // setter
   void set_is_horizontal(bool is_horizontal) { _is_horizontal = is_horizontal; }
-  void set_coordinate(int32_t coordinate) { _coordinate = coordinate; }
+  void set_coord(int32_t coord) { _coord = coord; }
   void set_lower(int32_t lower) { _lower = lower; }
   void set_upper(int32_t upper) { _upper = upper; }
   // function
 
  private:
   bool _is_horizontal = false;
-  int32_t _coordinate = INT32_MAX;
-  int32_t _lower = INT32_MAX;
-  int32_t _upper = INT32_MAX;
+  int32_t _coord = -1;
+  int32_t _lower = -1;
+  int32_t _upper = -1;
 };
 
 }  // namespace ircx

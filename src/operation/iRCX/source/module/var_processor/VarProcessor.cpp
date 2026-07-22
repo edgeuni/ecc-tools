@@ -66,7 +66,7 @@ void VarProcessor::buildCornerNetEtchProfilePool()
 {
   Database& database = RCXDM.getDatabase();
   int32_t corner_num = static_cast<int32_t>(database.get_corner_data_list().size());
-  int32_t net_num = database.get_layout_data().get_regular_net_count();
+  int32_t net_num = database.get_layout_data().get_regular_net_num();
   CornerNetPool<NetEtchProfile>& corner_net_etch_profile_pool = database.get_corner_net_etch_profile_pool();
   corner_net_etch_profile_pool.init(corner_num, net_num);
 
@@ -82,24 +82,24 @@ void VarProcessor::buildCornerNetEtchProfilePool()
 void VarProcessor::buildNetEtchProfile(int32_t corner_idx, int32_t net_idx)
 {
   Database& database = RCXDM.getDatabase();
-  CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
-  NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
-  NetEnv& net_env = database.get_net_env_list().at(net_idx);
+  CornerData& corner_data = database.get_corner_data_list()[corner_idx];
+  NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetIdx(corner_idx, net_idx));
+  NetEnv& net_env = database.get_net_env_list()[net_idx];
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
   double micron_per_dbu = 1 / 1.0 / database.get_layout_data().get_dbu_per_micron();
 
   for (int32_t edge_idx = 0; edge_idx < static_cast<int32_t>(edge_list.size()); ++edge_idx) {
-    TopoEdge& edge = edge_list[static_cast<size_t>(edge_idx)];
+    TopoEdge& edge = edge_list[edge_idx];
     std::vector<EdgeEtchInterval> edge_interval_list;
     if (!edge.get_is_via()) {
-      ProcessConductor* conductor = getProcessConductor(corner_data, edge.get_layer_id());
+      ProcessConductor* conductor = getProcessConductor(corner_data, edge.get_layer_idx());
       if (conductor != nullptr) {
         std::span<EdgeEnvInterval> env_interval_list = net_env.get_edge_interval_list(edge_idx);
         for (EdgeEnvInterval& env_interval : env_interval_list) {
           EdgeEtchInterval edge_interval;
-          edge_interval.set_start_coordinate(env_interval.get_start_coordinate() * micron_per_dbu);
-          edge_interval.set_end_coordinate(env_interval.get_end_coordinate() * micron_per_dbu);
-          edge_interval.set_center(edge.get_line_segment().get_coordinate() * micron_per_dbu);
+          edge_interval.set_start_coord(env_interval.get_start_coord() * micron_per_dbu);
+          edge_interval.set_end_coord(env_interval.get_end_coord() * micron_per_dbu);
+          edge_interval.set_center(edge.get_line_segment().get_coord() * micron_per_dbu);
           edge_interval.set_width(edge.get_width() * micron_per_dbu);
           if (env_interval.get_lower_adjacent_edge() != nullptr) {
             edge_interval.set_lower_spacing(
@@ -124,7 +124,7 @@ void VarProcessor::applyCornerNetEffectiveGeometryList()
 {
   Database& database = RCXDM.getDatabase();
   int32_t corner_num = static_cast<int32_t>(database.get_corner_data_list().size());
-  int32_t net_num = database.get_layout_data().get_regular_net_count();
+  int32_t net_num = database.get_layout_data().get_regular_net_num();
   int32_t thread_num = RCXUTIL.getThreadNum(net_num, RCXDM.getConfig().thread_number);
 
   for (int32_t corner_idx = 0; corner_idx < corner_num; ++corner_idx) {
@@ -138,16 +138,16 @@ void VarProcessor::applyCornerNetEffectiveGeometryList()
 void VarProcessor::applyNetEffectiveGeometry(int32_t corner_idx, int32_t net_idx)
 {
   Database& database = RCXDM.getDatabase();
-  CornerData& corner_data = database.get_corner_data_list().at(corner_idx);
-  NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetId(corner_idx, net_idx));
+  CornerData& corner_data = database.get_corner_data_list()[corner_idx];
+  NetEtchProfile& net_etch_profile = database.get_corner_net_etch_profile_pool().get_item(CornerNetIdx(corner_idx, net_idx));
   std::span<TopoEdge> edge_list = database.get_topo_pool().get_net_edge_list(net_idx);
 
   for (int32_t edge_idx = 0; edge_idx < static_cast<int32_t>(edge_list.size()); ++edge_idx) {
-    TopoEdge& edge = edge_list[static_cast<size_t>(edge_idx)];
+    TopoEdge& edge = edge_list[edge_idx];
     if (edge.get_is_via()) {
       continue;
     }
-    ProcessConductor* conductor = getProcessConductor(corner_data, edge.get_layer_id());
+    ProcessConductor* conductor = getProcessConductor(corner_data, edge.get_layer_idx());
     if (conductor == nullptr) {
       continue;
     }
@@ -180,21 +180,21 @@ void VarProcessor::applyEdgeEffectiveGeometry(ProcessConductor& conductor, EdgeE
   edge_interval.set_thickness(conductor.get_thickness());
 }
 
-ProcessConductor* VarProcessor::getProcessConductor(CornerData& corner_data, int32_t design_layer_id)
+ProcessConductor* VarProcessor::getProcessConductor(CornerData& corner_data, int32_t design_layer_idx)
 {
   LayerTable& layer_table = RCXDM.getDatabase().get_layer_table();
-  std::unordered_map<int32_t, std::string>& design_id_to_name_map = layer_table.get_design_id_to_name_map();
-  if (design_id_to_name_map.count(design_layer_id) == 0) {
+  std::unordered_map<int32_t, std::string>& design_idx_to_name_map = layer_table.get_design_idx_to_name_map();
+  if (design_idx_to_name_map.count(design_layer_idx) == 0) {
     return nullptr;
   }
 
-  std::string& design_layer_name = design_id_to_name_map.at(design_layer_id);
+  std::string& design_layer_name = design_idx_to_name_map[design_layer_idx];
   std::unordered_map<std::string, std::string>& design_name_to_process_name_map = layer_table.get_design_name_to_process_name_map();
   if (design_name_to_process_name_map.count(design_layer_name) == 0) {
     return nullptr;
   }
 
-  std::string& process_layer_name = design_name_to_process_name_map.at(design_layer_name);
+  std::string& process_layer_name = design_name_to_process_name_map[design_layer_name];
   for (ProcessConductor& conductor : corner_data.get_process_conductor_list()) {
     if (conductor.get_layer_name() == process_layer_name) {
       return &conductor;

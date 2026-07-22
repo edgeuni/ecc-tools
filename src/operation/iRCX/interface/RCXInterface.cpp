@@ -188,6 +188,10 @@ void RCXInterface::wrapConfig(std::map<std::string, std::any>& config_map)
 {
   Config& config = RCXDM.getConfig();
 
+  config.temp_directory_path = "./rcx_temp_directory";
+  config.output_directory_path = ".";
+  config.report_geometry = false;
+
   // 配置文件
   std::filesystem::path config_file_path = std::filesystem::absolute(RCXUTIL.getConfigValue<std::string>(config_map, "-config", ""));
   config.config_file_path = config_file_path.string();
@@ -203,32 +207,33 @@ void RCXInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   std::filesystem::path config_directory_path = config_file_path.parent_path();
 
   // 通用配置
-  config.thread_number = std::max(config_json.at("thread_num").get<int32_t>(), 1);
+  config.thread_number = std::max(config_json["thread_num"].get<int32_t>(), 1);
   if (config_json.contains("output")) {
-    std::string output_directory_path = config_json.at("output").get<std::string>();
+    std::string output_directory_path = config_json["output"].get<std::string>();
     if (!output_directory_path.empty()) {
       config.output_directory_path = RCXUTIL.getAbsolutePath(config_directory_path, output_directory_path);
       config.temp_directory_path = config.output_directory_path;
     }
   }
   if (config_json.contains("report_geometry")) {
-    config.report_geometry = config_json.at("report_geometry").get<bool>();
+    config.report_geometry = config_json["report_geometry"].get<bool>();
   }
-  config.mapping_file_path = RCXUTIL.getAbsolutePath(config_directory_path, config_json.at("mapping_file").get<std::string>());
+  config.mapping_file_path = RCXUTIL.getAbsolutePath(config_directory_path, config_json["mapping_file"].get<std::string>());
 
   // 工艺角配置
-  for (nlohmann::json& corner_json : config_json.at("corners")) {
+  for (nlohmann::json& corner_json : config_json["corners"]) {
     Corner corner;
-    corner.set_corner_name(corner_json.at("name").get<std::string>());
+    corner.set_tmpr_list(std::vector<double>{25.0});
+    corner.set_corner_name(corner_json["name"].get<std::string>());
     if (corner_json.contains("temperature")) {
-      std::vector<double> temperature_list;
-      for (nlohmann::json& temperature_json : corner_json.at("temperature")) {
-        temperature_list.push_back(temperature_json.get<double>());
+      std::vector<double> tmpr_list;
+      for (nlohmann::json& tmpr_json : corner_json["temperature"]) {
+        tmpr_list.push_back(tmpr_json.get<double>());
       }
-      corner.set_temperature_list(temperature_list);
+      corner.set_tmpr_list(tmpr_list);
     }
-    corner.set_itf_file_path(RCXUTIL.getAbsolutePath(config_directory_path, corner_json.at("itf_file").get<std::string>()));
-    corner.set_captab_file_path(RCXUTIL.getAbsolutePath(config_directory_path, corner_json.at("captab_file").get<std::string>()));
+    corner.set_itf_file_path(RCXUTIL.getAbsolutePath(config_directory_path, corner_json["itf_file"].get<std::string>()));
+    corner.set_captab_file_path(RCXUTIL.getAbsolutePath(config_directory_path, corner_json["captab_file"].get<std::string>()));
     config.corner_list.push_back(std::move(corner));
   }
 
@@ -245,7 +250,7 @@ void RCXInterface::wrapDatabase()
 
   wrapDBInfo();
   wrapLayerList();
-  wrapSpefContext();
+  wrapSPEFNameData();
   wrapNetList();
   wrapSpecialNet();
 }
@@ -284,14 +289,14 @@ void RCXInterface::wrapLayerList()
   LayerTable& layer_table = RCXDM.getDatabase().get_layer_table();
   layer_table.register_design_layer(0, "SUBSTRATE");
 
-  int32_t layer_id = 1;
+  int32_t layer_idx = 1;
   for (idb::IdbLayer* idb_layer : idb_layers->get_routing_layers()) {
-    layer_table.register_design_layer(layer_id, idb_layer->get_name());
-    layer_id++;
+    layer_table.register_design_layer(layer_idx, idb_layer->get_name());
+    layer_idx++;
   }
   for (idb::IdbLayer* idb_layer : idb_layers->get_cut_layers()) {
-    layer_table.register_design_layer(layer_id, idb_layer->get_name());
-    layer_id++;
+    layer_table.register_design_layer(layer_idx, idb_layer->get_name());
+    layer_idx++;
   }
 
   for (idb::IdbLayer* idb_layer : idb_layers->get_routing_layers()) {
@@ -306,7 +311,7 @@ void RCXInterface::wrapLayerList()
 void RCXInterface::wrapRoutingLayer(idb::IdbLayerRouting* idb_routing_layer)
 {
   RoutingLayer routing_layer;
-  routing_layer.set_layer_id(RCXDM.getDatabase().get_layer_table().get_design_id(idb_routing_layer->get_name()));
+  routing_layer.set_layer_idx(RCXDM.getDatabase().get_layer_table().get_design_idx(idb_routing_layer->get_name()));
   routing_layer.set_layer_name(idb_routing_layer->get_name());
   routing_layer.set_layer_width(idb_routing_layer->get_width());
   if (idb_routing_layer->is_horizontal()) {
@@ -317,32 +322,32 @@ void RCXInterface::wrapRoutingLayer(idb::IdbLayerRouting* idb_routing_layer)
   for (idb::IdbTrackGrid* idb_track_grid : idb_routing_layer->get_track_grid_list()) {
     idb::IdbTrack* idb_track = idb_track_grid->get_track();
     if (idb_track->get_direction() == idb::IdbTrackDirection::kDirectionX) {
-      track_info.set_x_start(idb_track->get_start());
+      track_info.set_x_origin(idb_track->get_start());
       track_info.set_x_step(idb_track->get_pitch());
       track_info.set_x_count(idb_track_grid->get_track_num());
     } else if (idb_track->get_direction() == idb::IdbTrackDirection::kDirectionY) {
-      track_info.set_y_start(idb_track->get_start());
+      track_info.set_y_origin(idb_track->get_start());
       track_info.set_y_step(idb_track->get_pitch());
       track_info.set_y_count(idb_track_grid->get_track_num());
     }
   }
   routing_layer.set_track_info(track_info);
-  RCXDM.getDatabase().get_layout_data().get_routing_layer_map()[routing_layer.get_layer_id()] = std::move(routing_layer);
+  RCXDM.getDatabase().get_layout_data().get_routing_layer_map()[routing_layer.get_layer_idx()] = std::move(routing_layer);
 }
 
-void RCXInterface::wrapSpefContext()
+void RCXInterface::wrapSPEFNameData()
 {
   idb::IdbDesign* idb_design = dmInst->get_idb_def_service()->get_design();
   if (idb_design == nullptr) {
     return;
   }
 
-  SpefContext& spef_context = RCXDM.getDatabase().get_spef_context();
+  SPEFNameData& spef_name_data = RCXDM.getDatabase().get_spef_name_data();
   for (idb::IdbNet* idb_net : idb_design->get_net_list()->get_net_list()) {
     if (idb_net->is_pdn()) {
       continue;
     }
-    spef_context.get_net_name_list().push_back(getSpefName(idb_net->get_net_name()));
+    spef_name_data.get_net_name_list().push_back(getSPEFName(idb_net->get_net_name()));
   }
 
   for (idb::IdbPin* idb_pin : idb_design->get_io_pin_list()->get_pin_list()) {
@@ -350,20 +355,20 @@ void RCXInterface::wrapSpefContext()
       continue;
     }
 
-    spef_context.get_port_name_list().push_back(getSpefName(idb_pin->get_pin_name()));
+    spef_name_data.get_port_name_list().push_back(getSPEFName(idb_pin->get_pin_name()));
     if (idb_pin->is_primary_input()) {
-      spef_context.get_port_io_list().push_back('I');
+      spef_name_data.get_port_direction_list().push_back(Direction::kInput);
     } else if (idb_pin->is_primary_output()) {
-      spef_context.get_port_io_list().push_back('O');
+      spef_name_data.get_port_direction_list().push_back(Direction::kOutput);
     } else {
-      spef_context.get_port_io_list().push_back('B');
+      spef_name_data.get_port_direction_list().push_back(Direction::kInOut);
     }
   }
 
   for (idb::IdbInstance* idb_instance : idb_design->get_instance_list()->get_instance_list()) {
-    std::string instance_name = getSpefName(idb_instance->get_name());
-    spef_context.get_instance_name_list().push_back(instance_name);
-    spef_context.get_instance_name_to_cell_name_map()[instance_name] = getSpefName(idb_instance->get_cell_master()->get_name());
+    std::string instance_name = getSPEFName(idb_instance->get_name());
+    spef_name_data.get_instance_name_list().push_back(instance_name);
+    spef_name_data.get_instance_name_to_cell_name_map()[instance_name] = getSPEFName(idb_instance->get_cell_master()->get_name());
   }
 }
 
@@ -378,14 +383,14 @@ void RCXInterface::wrapNetList()
   std::vector<Net>& net_list = RCXDM.getDatabase().get_layout_data().get_net_list();
   net_list.resize(idb_net_list_ref.size());
   for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(idb_net_list_ref.size()); ++net_idx) {
-    wrapNet(net_list[static_cast<size_t>(net_idx)], idb_net_list_ref[static_cast<size_t>(net_idx)], net_idx);
+    wrapNet(net_list[net_idx], idb_net_list_ref[net_idx], net_idx);
   }
 }
 
 void RCXInterface::wrapNet(Net& net, idb::IdbNet* idb_net, int32_t net_idx)
 {
-  net.set_net_id(net_idx);
-  net.set_net_name(getSpefName(idb_net->get_net_name()));
+  net.set_net_idx(net_idx);
+  net.set_net_name(getSPEFName(idb_net->get_net_name()));
   wrapPinList(net, idb_net);
   wrapSegmentList(net, idb_net);
 }
@@ -409,9 +414,9 @@ void RCXInterface::wrapPin(Net& net, idb::IdbPin* idb_pin, bool is_driver)
 {
   Pin pin;
   if (idb_pin->is_io_pin()) {
-    pin.set_pin_name(getSpefName(idb_pin->get_pin_name()));
+    pin.set_pin_name(getSPEFName(idb_pin->get_pin_name()));
   } else {
-    pin.set_pin_name(RCXUTIL.getString(getSpefName(idb_pin->get_instance()->get_name()), ":", getSpefName(idb_pin->get_pin_name())));
+    pin.set_pin_name(RCXUTIL.getString(getSPEFName(idb_pin->get_instance()->get_name()), ":", getSPEFName(idb_pin->get_pin_name())));
   }
   pin.set_is_driver(is_driver);
 
@@ -419,12 +424,11 @@ void RCXInterface::wrapPin(Net& net, idb::IdbPin* idb_pin, bool is_driver)
   if (idb_term != nullptr) {
     idb::IdbConnectDirection direction = idb_term->get_direction();
     if (direction == idb::IdbConnectDirection::kInput) {
-      pin.set_is_input(true);
+      pin.set_direction(Direction::kInput);
     } else if (direction == idb::IdbConnectDirection::kOutput || direction == idb::IdbConnectDirection::kOutputTriState) {
-      pin.set_is_output(true);
+      pin.set_direction(Direction::kOutput);
     } else if (direction == idb::IdbConnectDirection::kInOut || direction == idb::IdbConnectDirection::kFeedThru) {
-      pin.set_is_input(true);
-      pin.set_is_output(true);
+      pin.set_direction(Direction::kInOut);
     }
   }
 
@@ -433,19 +437,19 @@ void RCXInterface::wrapPin(Net& net, idb::IdbPin* idb_pin, bool is_driver)
       continue;
     }
 
-    int32_t layer_id = RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer_shape->get_layer()->get_name());
+    int32_t layer_idx = RCXDM.getDatabase().get_layer_table().get_design_idx(idb_layer_shape->get_layer()->get_name());
     for (idb::IdbRect* idb_rect : idb_layer_shape->get_rect_list()) {
       if (idb_rect == nullptr) {
         continue;
       }
       pin.get_layer_shape_list().emplace_back(
-          layer_id, GTLRectInt(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y()));
+          layer_idx, GTLRectInt(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y()));
     }
   }
   net.get_pin_list().push_back(std::move(pin));
 }
 
-std::string RCXInterface::getSpefName(std::string name)
+std::string RCXInterface::getSPEFName(std::string name)
 {
   if (name.find('.') == std::string::npos) {
     return name;
@@ -454,9 +458,9 @@ std::string RCXInterface::getSpefName(std::string name)
   std::string spef_name;
   spef_name.reserve(name.size());
   for (int32_t name_idx = 0; name_idx < static_cast<int32_t>(name.size()); ++name_idx) {
-    char name_char = name[static_cast<size_t>(name_idx)];
+    char name_char = name[name_idx];
     if ((name_char == '.' || name_char == '[' || name_char == ']')
-        && (name_idx == 0 || name[static_cast<size_t>(name_idx - 1)] != '\\')) {
+        && (name_idx == 0 || name[name_idx - 1] != '\\')) {
       spef_name.push_back('\\');
     }
     spef_name.push_back(name_char);
@@ -495,7 +499,7 @@ void RCXInterface::wrapSegment(Net& net, idb::IdbRegularWireSegment* idb_segment
 
   idb::IdbRect idb_shape = idb_segment->get_segment_rect();
   Segment segment;
-  segment.set_layer_id(RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer->get_name()));
+  segment.set_layer_idx(RCXDM.getDatabase().get_layer_table().get_design_idx(idb_layer->get_name()));
   segment.set_start_point(GTLPointInt(idb_start_point->get_x(), idb_start_point->get_y()));
   segment.set_end_point(GTLPointInt(idb_end_point->get_x(), idb_end_point->get_y()));
   segment.set_shape(GTLRectInt(idb_shape.get_low_x(), idb_shape.get_low_y(), idb_shape.get_high_x(), idb_shape.get_high_y()));
@@ -512,7 +516,7 @@ void RCXInterface::wrapPatch(Net& net, idb::IdbRegularWireSegment* idb_segment)
   }
 
   Patch patch;
-  patch.set_layer_id(RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer->get_name()));
+  patch.set_layer_idx(RCXDM.getDatabase().get_layer_table().get_design_idx(idb_layer->get_name()));
   patch.set_shape(
       GTLRectInt(idb_anchor_point->get_x() + idb_delta_shape->get_low_x(), idb_anchor_point->get_y() + idb_delta_shape->get_low_y(),
                  idb_anchor_point->get_x() + idb_delta_shape->get_high_x(), idb_anchor_point->get_y() + idb_delta_shape->get_high_y()));
@@ -542,19 +546,19 @@ void RCXInterface::wrapVia(Net& net, idb::IdbVia* idb_via)
   }
 
   Via via;
-  via.set_via_name(getSpefName(idb_via->get_name()));
+  via.set_via_name(getSPEFName(idb_via->get_name()));
   via.set_point(GTLPointInt(idb_via->get_coordinate()->get_x(), idb_via->get_coordinate()->get_y()));
 
   idb::IdbRect* idb_top_shape = idb_top_layer_shape.get_rect_list().front();
   idb::IdbRect* idb_cut_shape = idb_cut_layer_shape.get_rect_list().front();
   idb::IdbRect* idb_bottom_shape = idb_bottom_layer_shape.get_rect_list().front();
   via.set_top_layer_shape(LayerShape(
-      RCXDM.getDatabase().get_layer_table().get_design_id(idb_top_layer_shape.get_layer()->get_name()),
+      RCXDM.getDatabase().get_layer_table().get_design_idx(idb_top_layer_shape.get_layer()->get_name()),
       GTLRectInt(idb_top_shape->get_low_x(), idb_top_shape->get_low_y(), idb_top_shape->get_high_x(), idb_top_shape->get_high_y())));
   via.set_cut_layer_shape(LayerShape(
-      RCXDM.getDatabase().get_layer_table().get_design_id(idb_cut_layer_shape.get_layer()->get_name()),
+      RCXDM.getDatabase().get_layer_table().get_design_idx(idb_cut_layer_shape.get_layer()->get_name()),
       GTLRectInt(idb_cut_shape->get_low_x(), idb_cut_shape->get_low_y(), idb_cut_shape->get_high_x(), idb_cut_shape->get_high_y())));
-  via.set_bottom_layer_shape(LayerShape(RCXDM.getDatabase().get_layer_table().get_design_id(idb_bottom_layer_shape.get_layer()->get_name()),
+  via.set_bottom_layer_shape(LayerShape(RCXDM.getDatabase().get_layer_table().get_design_idx(idb_bottom_layer_shape.get_layer()->get_name()),
                                         GTLRectInt(idb_bottom_shape->get_low_x(), idb_bottom_shape->get_low_y(),
                                                    idb_bottom_shape->get_high_x(), idb_bottom_shape->get_high_y())));
   net.get_via_list().push_back(std::move(via));
@@ -584,7 +588,7 @@ void RCXInterface::wrapSpecialNet()
         }
 
         Segment segment;
-        segment.set_layer_id(RCXDM.getDatabase().get_layer_table().get_design_id(idb_layer->get_name()));
+        segment.set_layer_idx(RCXDM.getDatabase().get_layer_table().get_design_idx(idb_layer->get_name()));
         segment.set_start_point(GTLPointInt(idb_start_point->get_x(), idb_start_point->get_y()));
         segment.set_end_point(GTLPointInt(idb_end_point->get_x(), idb_end_point->get_y()));
         segment.set_shape(GTLRectInt(idb_shape->get_low_x(), idb_shape->get_low_y(), idb_shape->get_high_x(), idb_shape->get_high_y()));

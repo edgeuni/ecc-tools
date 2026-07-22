@@ -10,8 +10,7 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
@@ -20,28 +19,23 @@
 
 namespace ircx {
 
-class CrossOverlapSub
+class ViaEtch
 {
  public:
-  CrossOverlapSub() = default;
-  ~CrossOverlapSub() = default;
+  ViaEtch() = default;
+  ViaEtch(double length, double width) : _length(length), _width(width) {}
+  ~ViaEtch() = default;
   // getter
-  int32_t get_start_coordinate() const { return _start_coordinate; }
-  int32_t get_end_coordinate() const { return _end_coordinate; }
-  int32_t get_above_layer_id() const { return _above_layer_id; }
-  int32_t get_below_layer_id() const { return _below_layer_id; }
+  double get_length() const { return _length; }
+  double get_width() const { return _width; }
   // setter
-  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
-  void set_above_layer_id(int32_t above_layer_id) { _above_layer_id = above_layer_id; }
-  void set_below_layer_id(int32_t below_layer_id) { _below_layer_id = below_layer_id; }
+  void set_length(double length) { _length = length; }
+  void set_width(double width) { _width = width; }
   // function
 
  private:
-  int32_t _start_coordinate = INT32_MAX;
-  int32_t _end_coordinate = INT32_MAX;
-  int32_t _above_layer_id = INT32_MAX;
-  int32_t _below_layer_id = INT32_MAX;
+  double _length = 0.0;
+  double _width = 0.0;
 };
 
 }  // namespace ircx

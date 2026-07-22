@@ -37,11 +37,11 @@ class NetEtchProfile
   }
   std::span<EdgeEtchInterval> get_edge_interval_list(int32_t edge_idx)
   {
-    return _edge_interval_pool.get_group_item_list(static_cast<size_t>(edge_idx));
+    return _edge_interval_pool.get_group_item_list(edge_idx);
   }
   std::span<const EdgeEtchInterval> get_edge_interval_list(int32_t edge_idx) const
   {
-    return _edge_interval_pool.get_group_item_list(static_cast<size_t>(edge_idx));
+    return _edge_interval_pool.get_group_item_list(edge_idx);
   }
 
  private:

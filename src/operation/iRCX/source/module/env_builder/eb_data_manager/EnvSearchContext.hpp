@@ -24,34 +24,34 @@ namespace ircx {
 class EnvSearchContext
 {
  public:
-  EnvSearchContext(int32_t coordinate, int32_t base_track_index, int32_t query_start_coordinate, int32_t query_end_coordinate, int32_t step,
-                   const EnvOverlapWidenFunc& widen_func)
-      : _coordinate(coordinate),
-        _base_track_index(base_track_index),
-        _query_start_coordinate(query_start_coordinate),
-        _query_end_coordinate(query_end_coordinate),
-        _step(step),
+  EnvSearchContext(int32_t track_coord, int32_t base_track_idx, int32_t query_start_coord, int32_t query_end_coord,
+                   int32_t track_direction_step, const std::function<int32_t(const EnvOverlapWidenContext&)>& widen_func)
+      : _track_coord(track_coord),
+        _base_track_idx(base_track_idx),
+        _query_start_coord(query_start_coord),
+        _query_end_coord(query_end_coord),
+        _track_direction_step(track_direction_step),
         _widen_func(widen_func)
   {
   }
   ~EnvSearchContext() = default;
   // getter
-  int32_t get_coordinate() const { return _coordinate; }
-  int32_t get_base_track_index() const { return _base_track_index; }
-  int32_t get_query_start_coordinate() const { return _query_start_coordinate; }
-  int32_t get_query_end_coordinate() const { return _query_end_coordinate; }
-  int32_t get_step() const { return _step; }
-  const EnvOverlapWidenFunc& get_widen_func() const { return _widen_func; }
+  int32_t get_track_coord() const { return _track_coord; }
+  int32_t get_base_track_idx() const { return _base_track_idx; }
+  int32_t get_query_start_coord() const { return _query_start_coord; }
+  int32_t get_query_end_coord() const { return _query_end_coord; }
+  int32_t get_track_direction_step() const { return _track_direction_step; }
+  const std::function<int32_t(const EnvOverlapWidenContext&)>& get_widen_func() const { return _widen_func; }
   // setter
   // function
 
  private:
-  int32_t _coordinate = 0;
-  int32_t _base_track_index = 0;
-  int32_t _query_start_coordinate = 0;
-  int32_t _query_end_coordinate = 0;
-  int32_t _step = 0;
-  const EnvOverlapWidenFunc& _widen_func;
+  int32_t _track_coord = -1;
+  int32_t _base_track_idx = -1;
+  int32_t _query_start_coord = -1;
+  int32_t _query_end_coord = -1;
+  int32_t _track_direction_step = -1;
+  const std::function<int32_t(const EnvOverlapWidenContext&)>& _widen_func;
 };
 
 }  // namespace ircx

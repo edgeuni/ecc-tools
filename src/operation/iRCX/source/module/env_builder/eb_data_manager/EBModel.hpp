@@ -14,34 +14,32 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-/**
- * @file EBModel.hh
- * @brief iRCX module implementation detail.
- */
 #pragma once
 
-#include "EnvPixel.hpp"
-#include "EnvTrack.hpp"
+#include "EnvPixelGrid.hpp"
+#include "EnvTrackIdx.hpp"
 #include "NetEnv.hpp"
 #include "RCXHeader.hpp"
 
 namespace ircx {
 
-class EBModel final
+class EBModel
 {
  public:
   EBModel() = default;
   ~EBModel() = default;
 
   // getter
-  double get_bucket_size_um() const { return bucket_size_um_; }
-  int32_t get_cross_layer() const { return cross_layer_; }
-  std::map<int32_t, EnvPixel>& get_layer_to_pixel_prefer_dir() { return layer_to_pixel_prefer_dir_; }
-  std::map<int32_t, EnvPixel>& get_layer_to_pixel_nonprefer_dir() { return layer_to_pixel_nonprefer_dir_; }
-  std::map<int32_t, EnvTrack>& get_layer_to_track_prefer_dir() { return layer_to_track_prefer_dir_; }
-  std::map<int32_t, EnvTrack>& get_layer_to_track_nonprefer_dir() { return layer_to_track_nonprefer_dir_; }
-  std::map<int32_t, int32_t>& get_layer_to_search_track_num() { return layer_to_search_track_num_; }
+  double get_bucket_size_um() const { return _bucket_size_um; }
+  int32_t get_cross_layer_num() const { return _cross_layer_num; }
+  std::map<int32_t, EnvPixelGrid>& get_layer_to_prefer_pixel_grid_map() { return _layer_to_prefer_pixel_grid_map; }
+  std::map<int32_t, EnvPixelGrid>& get_layer_to_nonprefer_pixel_grid_map() { return _layer_to_nonprefer_pixel_grid_map; }
+  std::map<int32_t, EnvTrackIdx>& get_layer_to_prefer_track_idx_map() { return _layer_to_prefer_track_idx_map; }
+  std::map<int32_t, EnvTrackIdx>& get_layer_to_nonprefer_track_idx_map() { return _layer_to_nonprefer_track_idx_map; }
+  std::map<int32_t, int32_t>& get_layer_to_search_track_num_map() { return _layer_to_search_track_num_map; }
   // setter
+  void set_bucket_size_um(double bucket_size_um) { _bucket_size_um = bucket_size_um; }
+  void set_cross_layer_num(int32_t cross_layer_num) { _cross_layer_num = cross_layer_num; }
   // function
 
   EBModel(const EBModel&) = delete;
@@ -50,16 +48,14 @@ class EBModel final
   EBModel& operator=(EBModel&&) = default;
 
  private:
-  double bucket_size_um_ = 5.0;
-  double window_size_um_ = 5.0;
+  double _bucket_size_um = -1.0;
+  int32_t _cross_layer_num = -1;
 
-  int32_t cross_layer_ = 3;
-
-  std::map<int32_t, EnvPixel> layer_to_pixel_prefer_dir_;
-  std::map<int32_t, EnvPixel> layer_to_pixel_nonprefer_dir_;
-  std::map<int32_t, EnvTrack> layer_to_track_prefer_dir_;
-  std::map<int32_t, EnvTrack> layer_to_track_nonprefer_dir_;
-  std::map<int32_t, int32_t> layer_to_search_track_num_;
+  std::map<int32_t, EnvPixelGrid> _layer_to_prefer_pixel_grid_map;
+  std::map<int32_t, EnvPixelGrid> _layer_to_nonprefer_pixel_grid_map;
+  std::map<int32_t, EnvTrackIdx> _layer_to_prefer_track_idx_map;
+  std::map<int32_t, EnvTrackIdx> _layer_to_nonprefer_track_idx_map;
+  std::map<int32_t, int32_t> _layer_to_search_track_num_map;
 };
 
 }  // namespace ircx

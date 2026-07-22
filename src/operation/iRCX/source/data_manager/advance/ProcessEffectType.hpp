@@ -15,14 +15,30 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Logger.hpp"
+
 namespace ircx {
 
 enum class ProcessEffectType
 {
   kNone,
   kBoth,
-  kRes,
-  kCap
+  kResistance,
+  kCapacitance
+};
+
+struct GetProcessEffectType
+{
+  ProcessEffectType operator()(const std::string& process_effect_type_name) const
+  {
+    if (process_effect_type_name == "RESISTIVE_ONLY") {
+      return ProcessEffectType::kResistance;
+    }
+    if (process_effect_type_name == "CAPACITIVE_ONLY") {
+      return ProcessEffectType::kCapacitance;
+    }
+    return ProcessEffectType::kNone;
+  }
 };
 
 }  // namespace ircx

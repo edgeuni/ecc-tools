@@ -24,6 +24,7 @@
 #include "ProcessConductor.hpp"
 #include "ProcessVia.hpp"
 #include "RCXHeader.hpp"
+#include "REModel.hpp"
 #include "TopoEdge.hpp"
 
 namespace ircx {
@@ -50,16 +51,15 @@ class ResExtractor
   ResExtractor& operator=(const ResExtractor& other) = delete;
   ResExtractor& operator=(ResExtractor&& other) = delete;
   // function
-  void extractRes();
-  void extractCornerRes(int32_t corner_idx);
-  void extractNetRes(int32_t corner_idx, int32_t net_idx);
-  double extractWireRes(CornerData& corner_data, ProcessConductor& conductor, TopoEdge& edge,
-                        std::span<EdgeEtchInterval> edge_interval_list);
-  double extractViaRes(CornerData& corner_data, ProcessVia& via, TopoEdge& edge);
-  double getTemperatureFactor(double temperature, double nominal_temperature, double temperature_coefficient1,
-                              double temperature_coefficient2);
-  ProcessVia* getProcessVia(CornerData& corner_data, int32_t design_layer_id);
-  ProcessConductor* getProcessConductor(CornerData& corner_data, int32_t design_layer_id);
+  void extractResistance();
+  void extractCornerResistance(int32_t corner_idx);
+  void extractNetResistance(int32_t corner_idx, int32_t net_idx);
+  double extractWireResistance(CornerData& corner_data, ProcessConductor& conductor, TopoEdge& edge,
+                                std::span<EdgeEtchInterval> edge_interval_list);
+  double extractViaResistance(CornerData& corner_data, ProcessVia& via, TopoEdge& edge);
+  double getTmprFactor(double tmpr, double nominal_tmpr, double tmpr_coefficient1, double tmpr_coefficient2);
+  ProcessVia* getProcessVia(CornerData& corner_data, int32_t design_layer_idx);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, int32_t design_layer_idx);
 };
 
 }  // namespace ircx

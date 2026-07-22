@@ -16,25 +16,26 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Direction.hpp"
 #include "RCXHeader.hpp"
 
 namespace ircx {
 
-class SpefContext
+class SPEFNameData
 {
  public:
-  SpefContext() = default;
-  ~SpefContext() = default;
+  SPEFNameData() = default;
+  ~SPEFNameData() = default;
   // getter
   std::vector<std::string>& get_net_name_list() { return _net_name_list; }
   std::vector<std::string>& get_port_name_list() { return _port_name_list; }
-  std::vector<char>& get_port_io_list() { return _port_io_list; }
+  std::vector<Direction>& get_port_direction_list() { return _port_direction_list; }
   std::vector<std::string>& get_instance_name_list() { return _instance_name_list; }
   std::map<std::string, std::string>& get_instance_name_to_cell_name_map() { return _instance_name_to_cell_name_map; }
   // setter
   void set_net_name_list(const std::vector<std::string>& net_name_list) { _net_name_list = net_name_list; }
   void set_port_name_list(const std::vector<std::string>& port_name_list) { _port_name_list = port_name_list; }
-  void set_port_io_list(const std::vector<char>& port_io_list) { _port_io_list = port_io_list; }
+  void set_port_direction_list(const std::vector<Direction>& port_direction_list) { _port_direction_list = port_direction_list; }
   void set_instance_name_list(const std::vector<std::string>& instance_name_list) { _instance_name_list = instance_name_list; }
   void set_instance_name_to_cell_name_map(const std::map<std::string, std::string>& instance_name_to_cell_name_map)
   {
@@ -45,7 +46,7 @@ class SpefContext
  private:
   std::vector<std::string> _net_name_list;
   std::vector<std::string> _port_name_list;
-  std::vector<char> _port_io_list;
+  std::vector<Direction> _port_direction_list;
   std::vector<std::string> _instance_name_list;
   std::map<std::string, std::string> _instance_name_to_cell_name_map;
 };

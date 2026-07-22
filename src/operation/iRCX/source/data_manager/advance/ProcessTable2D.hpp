@@ -15,7 +15,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXHeader.hpp"
+#include "TableIdxRange.hpp"
 
 namespace ircx {
 
@@ -43,49 +43,50 @@ class ProcessTable2D
       return std::nullopt;
     }
 
-    std::pair<size_t, size_t> row_index_pair = get_bounding_index_pair(_row_list, row);
-    std::pair<size_t, size_t> column_index_pair = get_bounding_index_pair(_column_list, column);
-    std::optional<double> low_low_value = get_value(row_index_pair.first, column_index_pair.first);
+    TableIdxRange row_idx_range = get_bounding_idx_range(_row_list, row);
+    TableIdxRange column_idx_range = get_bounding_idx_range(_column_list, column);
+    std::optional<double> low_low_value = get_value(row_idx_range.get_lower_idx(), column_idx_range.get_lower_idx());
     if (!low_low_value.has_value()) {
       return std::nullopt;
     }
-    if (row_index_pair.first == row_index_pair.second && column_index_pair.first == column_index_pair.second) {
+    if (row_idx_range.get_lower_idx() == row_idx_range.get_upper_idx()
+        && column_idx_range.get_lower_idx() == column_idx_range.get_upper_idx()) {
       return low_low_value;
     }
 
     double row_ratio = 0.0;
-    if (row_index_pair.first != row_index_pair.second) {
-      double row_delta = _row_list[row_index_pair.second] - _row_list[row_index_pair.first];
+    if (row_idx_range.get_lower_idx() != row_idx_range.get_upper_idx()) {
+      double row_delta = _row_list[row_idx_range.get_upper_idx()] - _row_list[row_idx_range.get_lower_idx()];
       if (row_delta != 0.0) {
-        row_ratio = (row - _row_list[row_index_pair.first]) / row_delta;
+        row_ratio = (row - _row_list[row_idx_range.get_lower_idx()]) / row_delta;
       }
     }
     double column_ratio = 0.0;
-    if (column_index_pair.first != column_index_pair.second) {
-      double column_delta = _column_list[column_index_pair.second] - _column_list[column_index_pair.first];
+    if (column_idx_range.get_lower_idx() != column_idx_range.get_upper_idx()) {
+      double column_delta = _column_list[column_idx_range.get_upper_idx()] - _column_list[column_idx_range.get_lower_idx()];
       if (column_delta != 0.0) {
-        column_ratio = (column - _column_list[column_index_pair.first]) / column_delta;
+        column_ratio = (column - _column_list[column_idx_range.get_lower_idx()]) / column_delta;
       }
     }
 
-    if (row_index_pair.first == row_index_pair.second) {
-      std::optional<double> low_high_value = get_value(row_index_pair.first, column_index_pair.second);
+    if (row_idx_range.get_lower_idx() == row_idx_range.get_upper_idx()) {
+      std::optional<double> low_high_value = get_value(row_idx_range.get_lower_idx(), column_idx_range.get_upper_idx());
       if (!low_high_value.has_value()) {
         return std::nullopt;
       }
       return std::lerp(low_low_value.value(), low_high_value.value(), column_ratio);
     }
-    if (column_index_pair.first == column_index_pair.second) {
-      std::optional<double> high_low_value = get_value(row_index_pair.second, column_index_pair.first);
+    if (column_idx_range.get_lower_idx() == column_idx_range.get_upper_idx()) {
+      std::optional<double> high_low_value = get_value(row_idx_range.get_upper_idx(), column_idx_range.get_lower_idx());
       if (!high_low_value.has_value()) {
         return std::nullopt;
       }
       return std::lerp(low_low_value.value(), high_low_value.value(), row_ratio);
     }
 
-    std::optional<double> low_high_value = get_value(row_index_pair.first, column_index_pair.second);
-    std::optional<double> high_low_value = get_value(row_index_pair.second, column_index_pair.first);
-    std::optional<double> high_high_value = get_value(row_index_pair.second, column_index_pair.second);
+    std::optional<double> low_high_value = get_value(row_idx_range.get_lower_idx(), column_idx_range.get_upper_idx());
+    std::optional<double> high_low_value = get_value(row_idx_range.get_upper_idx(), column_idx_range.get_lower_idx());
+    std::optional<double> high_high_value = get_value(row_idx_range.get_upper_idx(), column_idx_range.get_upper_idx());
     if (!low_high_value.has_value() || !high_low_value.has_value() || !high_high_value.has_value()) {
       return std::nullopt;
     }
@@ -95,30 +96,31 @@ class ProcessTable2D
   }
 
  private:
-  std::pair<size_t, size_t> get_bounding_index_pair(const std::vector<double>& axis, double value) const
+  TableIdxRange get_bounding_idx_range(const std::vector<double>& axis, double value) const
   {
     if (value <= axis.front()) {
-      return std::make_pair(0, 0);
+      return TableIdxRange(0, 0);
     }
     if (value >= axis.back()) {
-      size_t last_idx = axis.size() - 1;
-      return std::make_pair(last_idx, last_idx);
+      int32_t last_idx = static_cast<int32_t>(axis.size()) - 1;
+      return TableIdxRange(last_idx, last_idx);
     }
 
     std::vector<double>::const_iterator high_iter = std::lower_bound(axis.begin(), axis.end(), value);
-    size_t high_idx = static_cast<size_t>(std::distance(axis.begin(), high_iter));
+    int32_t high_idx = static_cast<int32_t>(std::distance(axis.begin(), high_iter));
     if (*high_iter == value) {
-      return std::make_pair(high_idx, high_idx);
+      return TableIdxRange(high_idx, high_idx);
     }
-    return std::make_pair(high_idx - 1, high_idx);
+    return TableIdxRange(high_idx - 1, high_idx);
   }
-  std::optional<double> get_value(size_t row_idx, size_t column_idx) const
+  std::optional<double> get_value(int32_t row_idx, int32_t column_idx) const
   {
-    if (row_idx >= _row_list.size() || column_idx >= _column_list.size()) {
+    if (row_idx < 0 || row_idx >= static_cast<int32_t>(_row_list.size()) || column_idx < 0
+        || column_idx >= static_cast<int32_t>(_column_list.size())) {
       return std::nullopt;
     }
-    size_t value_idx = row_idx * _column_list.size() + column_idx;
-    if (value_idx >= _value_list.size()) {
+    int32_t value_idx = row_idx * static_cast<int32_t>(_column_list.size()) + column_idx;
+    if (value_idx >= static_cast<int32_t>(_value_list.size())) {
       return std::nullopt;
     }
     return _value_list[value_idx];

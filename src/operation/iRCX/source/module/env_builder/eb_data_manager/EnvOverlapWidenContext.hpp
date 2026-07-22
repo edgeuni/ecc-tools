@@ -37,11 +37,9 @@ class EnvOverlapWidenContext
   // function
 
  private:
-  int32_t _track_distance = 0;
-  int32_t _overlap_length = 0;
+  int32_t _track_distance;
+  int32_t _overlap_length;
   TopoEdge& _edge;
 };
-
-using EnvOverlapWidenFunc = std::function<int32_t(const EnvOverlapWidenContext&)>;
 
 }  // namespace ircx

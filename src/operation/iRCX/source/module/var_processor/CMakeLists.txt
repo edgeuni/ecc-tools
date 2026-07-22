@@ -19,5 +19,6 @@ target_link_libraries(ircx_var_processor
 
 target_include_directories(ircx_var_processor
     PUBLIC
+    ${IRCX_MODULE}/var_processor/vp_data_manager
     ${IRCX_MODULE}/var_processor
 )

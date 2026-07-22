@@ -71,12 +71,12 @@ class RCXInterface
   void wrapDBInfo();
   void wrapLayerList();
   void wrapRoutingLayer(idb::IdbLayerRouting* idb_routing_layer);
-  void wrapSpefContext();
+  void wrapSPEFNameData();
   void wrapNetList();
   void wrapNet(Net& net, idb::IdbNet* idb_net, int32_t net_idx);
   void wrapPinList(Net& net, idb::IdbNet* idb_net);
   void wrapPin(Net& net, idb::IdbPin* idb_pin, bool is_driver);
-  std::string getSpefName(std::string name);
+  std::string getSPEFName(std::string name);
   void wrapSegmentList(Net& net, idb::IdbNet* idb_net);
   void wrapSegment(Net& net, idb::IdbRegularWireSegment* idb_segment);
   void wrapPatch(Net& net, idb::IdbRegularWireSegment* idb_segment);

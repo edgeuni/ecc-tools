@@ -22,7 +22,9 @@
 #include "Net.hpp"
 #include "RCXHeader.hpp"
 #include "Segment.hpp"
-#include "TBNetTopo.hpp"
+#include "TBNodeKey.hpp"
+#include "TBModel.hpp"
+#include "TBTopo.hpp"
 #include "TopoNode.hpp"
 
 namespace ircx {
@@ -49,16 +51,14 @@ class TopoBuilder
   TopoBuilder& operator=(const TopoBuilder& other) = delete;
   TopoBuilder& operator=(TopoBuilder&& other) = delete;
   // function
-  void buildAll();
-  TBNetTopo buildNet(Net& net);
-  void appendNodeIfAbsent(Net& net, std::vector<TopoNode>& node_list, std::vector<bool>& node_shape_valid_list,
-                          std::map<std::tuple<int32_t, int32_t, int32_t>, int32_t>& node_key_to_idx_map,
-                          std::map<std::string, bool>& pin_consumed_map, int32_t layer_id, const GTLPointInt& point);
-  int32_t appendNode(std::vector<TopoNode>& node_list, std::vector<bool>& node_shape_valid_list, TopoNode node, bool is_shape_valid);
-  void mergeNodeShape(std::vector<TopoNode>& node_list, std::vector<bool>& node_shape_valid_list, int32_t node_idx,
-                      const GTLRectInt& shape);
-  GTLRectInt getEndpointShape(Segment& segment, const GTLPointInt& point);
-  void buildSpecial();
+  void buildRegularNetTopoList();
+  TBTopo buildNetTopo(Net& net);
+  void appendNodeIfAbsent(Net& net, std::vector<TopoNode>& node_list, std::map<TBNodeKey, int32_t>& node_key_to_idx_map,
+                          std::set<std::string>& consumed_pin_name_set, int32_t layer_idx, const GTLPointInt& point);
+  int32_t appendNode(std::vector<TopoNode>& node_list, TopoNode node);
+  void mergeNodeShape(std::vector<TopoNode>& node_list, int32_t node_idx, const GTLRectInt& shape);
+  GTLRectInt getSegmentEndpointShape(Segment& segment, const GTLPointInt& point);
+  void buildSpecialEdgeList();
 };
 
 }  // namespace ircx

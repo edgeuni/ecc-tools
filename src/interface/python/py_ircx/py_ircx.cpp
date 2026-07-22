@@ -16,6 +16,7 @@
 // ***************************************************************************************
 #include "py_ircx.h"
 
+#include "RCXBackendType.hpp"
 #include "RCXAPI.hh"
 #include "ircx_ics55.h"
 #include "idm.h"
@@ -24,14 +25,7 @@ namespace python_interface {
 
 namespace {
 
-enum class RcxBackend
-{
-  kUninitialized,
-  kNative,
-  kIcs55,
-};
-
-RcxBackend active_backend = RcxBackend::kUninitialized;
+RCXBackendType active_backend = RCXBackendType::kNone;
 
 bool is_native_pdk(const std::optional<std::string>& pdk)
 {
@@ -52,7 +46,7 @@ bool validate_pdk(const std::optional<std::string>& pdk)
 
 bool init_rcx(const std::string& config, const std::optional<std::string>& pdk)
 {
-  active_backend = RcxBackend::kUninitialized;
+  active_backend = RCXBackendType::kNone;
 
   if (!validate_pdk(pdk)) {
     return false;
@@ -60,7 +54,7 @@ bool init_rcx(const std::string& config, const std::optional<std::string>& pdk)
 
   if (is_ics55_pdk(pdk)) {
     if (ircx_ics55_init(config.c_str()) != 0) {
-      active_backend = RcxBackend::kIcs55;
+      active_backend = RCXBackendType::kIcs55;
       return true;
     }
 
@@ -68,7 +62,7 @@ bool init_rcx(const std::string& config, const std::optional<std::string>& pdk)
   }
 
   if (RCX_API_INST.init(config)) {
-    active_backend = RcxBackend::kNative;
+    active_backend = RCXBackendType::kNative;
     return true;
   }
 
@@ -77,11 +71,11 @@ bool init_rcx(const std::string& config, const std::optional<std::string>& pdk)
 
 bool run_rcx()
 {
-  if (active_backend == RcxBackend::kIcs55) {
+  if (active_backend == RCXBackendType::kIcs55) {
     return ircx_ics55_run_with_idb_design(dmInst->get_idb_design()) != 0;
   }
 
-  if (active_backend != RcxBackend::kNative) {
+  if (active_backend != RCXBackendType::kNative) {
     return false;
   }
 

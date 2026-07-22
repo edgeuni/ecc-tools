@@ -23,6 +23,7 @@
 #include "Monitor.hpp"
 #include "ProcessConductor.hpp"
 #include "RCXHeader.hpp"
+#include "VPModel.hpp"
 
 namespace ircx {
 
@@ -53,7 +54,7 @@ class VarProcessor
   void applyCornerNetEffectiveGeometryList();
   void applyNetEffectiveGeometry(int32_t corner_idx, int32_t net_idx);
   void applyEdgeEffectiveGeometry(ProcessConductor& conductor, EdgeEtchInterval& edge_interval);
-  ProcessConductor* getProcessConductor(CornerData& corner_data, int32_t design_layer_id);
+  ProcessConductor* getProcessConductor(CornerData& corner_data, int32_t design_layer_idx);
 };
 
 }  // namespace ircx

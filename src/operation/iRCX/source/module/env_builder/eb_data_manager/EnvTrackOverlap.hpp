@@ -25,27 +25,27 @@ class EnvTrackOverlap
 {
  public:
   EnvTrackOverlap() = default;
-  EnvTrackOverlap(int32_t start_coordinate, int32_t end_coordinate, int32_t spacing, TopoEdge* edge)
-      : _start_coordinate(start_coordinate), _end_coordinate(end_coordinate), _spacing(spacing), _edge(edge)
+  EnvTrackOverlap(int32_t start_coord, int32_t end_coord, int32_t spacing, TopoEdge* edge)
+      : _start_coord(start_coord), _end_coord(end_coord), _spacing(spacing), _edge(edge)
   {
   }
   ~EnvTrackOverlap() = default;
   // getter
-  int32_t get_start_coordinate() const { return _start_coordinate; }
-  int32_t get_end_coordinate() const { return _end_coordinate; }
+  int32_t get_start_coord() const { return _start_coord; }
+  int32_t get_end_coord() const { return _end_coord; }
   int32_t get_spacing() const { return _spacing; }
   TopoEdge* get_edge() const { return _edge; }
   // setter
-  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
+  void set_start_coord(int32_t start_coord) { _start_coord = start_coord; }
+  void set_end_coord(int32_t end_coord) { _end_coord = end_coord; }
   void set_spacing(int32_t spacing) { _spacing = spacing; }
   void set_edge(TopoEdge* edge) { _edge = edge; }
   // function
 
  private:
-  int32_t _start_coordinate = INT32_MAX;
-  int32_t _end_coordinate = INT32_MAX;
-  int32_t _spacing = INT32_MAX;
+  int32_t _start_coord = -1;
+  int32_t _end_coord = -1;
+  int32_t _spacing = -1;
   TopoEdge* _edge = nullptr;
 };
 

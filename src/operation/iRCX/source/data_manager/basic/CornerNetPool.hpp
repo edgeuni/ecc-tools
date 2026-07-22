@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "CornerNetId.hpp"
+#include "CornerNetIdx.hpp"
 
 namespace ircx {
 
@@ -40,15 +40,14 @@ class CornerNetPool
     _corner_num = corner_num;
     _net_num = net_num;
     _item_list.clear();
-    _item_list.resize(static_cast<size_t>(_corner_num) * static_cast<size_t>(_net_num));
+    _item_list.resize(_corner_num * _net_num);
   }
-  T& get_item(CornerNetId corner_net_id) { return _item_list.at(get_item_idx(corner_net_id)); }
+  T& get_item(CornerNetIdx corner_net_idx) { return _item_list[get_item_idx(corner_net_idx)]; }
 
  private:
-  size_t get_item_idx(CornerNetId corner_net_id) const
+  int32_t get_item_idx(CornerNetIdx corner_net_idx) const
   {
-    return static_cast<size_t>(corner_net_id.get_corner_idx()) * static_cast<size_t>(_net_num)
-           + static_cast<size_t>(corner_net_id.get_net_idx());
+    return corner_net_idx.get_corner_idx() * _net_num + corner_net_idx.get_net_idx();
   }
 
   int32_t _corner_num = 0;

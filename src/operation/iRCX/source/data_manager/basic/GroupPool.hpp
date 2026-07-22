@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXHeader.hpp"
+#include "OffsetRange.hpp"
 
 namespace ircx {
 
@@ -28,34 +28,34 @@ class GroupPool
   ~GroupPool() = default;
   // getter
   std::vector<Item>& get_item_list() { return _item_list; }
-  std::vector<std::pair<size_t, size_t>>& get_item_range_list() { return _item_range_list; }
+  std::vector<OffsetRange>& get_item_range_list() { return _item_range_list; }
   // setter
   void set_item_list(const std::vector<Item>& item_list) { _item_list = item_list; }
-  void set_item_range_list(const std::vector<std::pair<size_t, size_t>>& item_range_list) { _item_range_list = item_range_list; }
+  void set_item_range_list(const std::vector<OffsetRange>& item_range_list) { _item_range_list = item_range_list; }
   // function
   void append(std::vector<Item> item_list)
   {
-    _item_range_list.emplace_back(_item_list.size(), item_list.size());
+    _item_range_list.emplace_back(static_cast<int32_t>(_item_list.size()), static_cast<int32_t>(item_list.size()));
     _item_list.insert(_item_list.end(), std::make_move_iterator(item_list.begin()), std::make_move_iterator(item_list.end()));
   }
-  std::span<Item> get_group_item_list(size_t group_idx)
+  std::span<Item> get_group_item_list(int32_t group_idx)
   {
-    std::pair<size_t, size_t> item_range = _item_range_list.at(group_idx);
-    return std::span<Item>(_item_list.data() + item_range.first, item_range.second);
+    OffsetRange item_range = _item_range_list[group_idx];
+    return std::span<Item>(_item_list.data() + item_range.get_offset(), item_range.get_count());
   }
-  std::span<const Item> get_group_item_list(size_t group_idx) const
+  std::span<const Item> get_group_item_list(int32_t group_idx) const
   {
-    std::pair<size_t, size_t> item_range = _item_range_list.at(group_idx);
-    return std::span<const Item>(_item_list.data() + item_range.first, item_range.second);
+    OffsetRange item_range = _item_range_list[group_idx];
+    return std::span<const Item>(_item_list.data() + item_range.get_offset(), item_range.get_count());
   }
-  size_t get_group_num() const { return _item_range_list.size(); }
-  size_t get_item_num() const { return _item_list.size(); }
-  void reserve_group(size_t group_num) { _item_range_list.reserve(group_num); }
-  void reserve_item(size_t item_num) { _item_list.reserve(item_num); }
+  int32_t get_group_num() const { return static_cast<int32_t>(_item_range_list.size()); }
+  int32_t get_item_num() const { return static_cast<int32_t>(_item_list.size()); }
+  void reserve_group(int32_t group_num) { _item_range_list.reserve(group_num); }
+  void reserve_item(int32_t item_num) { _item_list.reserve(item_num); }
 
  private:
   std::vector<Item> _item_list;
-  std::vector<std::pair<size_t, size_t>> _item_range_list;
+  std::vector<OffsetRange> _item_range_list;
 };
 
 }  // namespace ircx

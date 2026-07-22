@@ -15,7 +15,7 @@
 // ***************************************************************************************
 #pragma once
 
-#include "RCXHeader.hpp"
+#include "ProcessTable1DEntry.hpp"
 
 namespace ircx {
 
@@ -25,10 +25,10 @@ class ProcessTable1D
   ProcessTable1D() = default;
   ~ProcessTable1D() = default;
   // getter
-  std::vector<std::pair<double, double>>& get_entry_list() { return _entry_list; }
-  const std::vector<std::pair<double, double>>& get_entry_list() const { return _entry_list; }
+  std::vector<ProcessTable1DEntry>& get_entry_list() { return _entry_list; }
+  const std::vector<ProcessTable1DEntry>& get_entry_list() const { return _entry_list; }
   // setter
-  void set_entry_list(const std::vector<std::pair<double, double>>& entry_list)
+  void set_entry_list(const std::vector<ProcessTable1DEntry>& entry_list)
   {
     _entry_list = entry_list;
     sort_entry_list();
@@ -45,40 +45,47 @@ class ProcessTable1D
     if (_entry_list.empty()) {
       return std::nullopt;
     }
-    if (_entry_list.size() == 1 || key <= _entry_list.front().first) {
-      return _entry_list.front().second;
+    if (_entry_list.size() == 1 || key <= _entry_list.front().get_key()) {
+      return _entry_list.front().get_value();
     }
-    if (key >= _entry_list.back().first) {
-      return _entry_list.back().second;
+    if (key >= _entry_list.back().get_key()) {
+      return _entry_list.back().get_value();
     }
 
-    std::vector<std::pair<double, double>>::const_iterator high_iter
-        = std::lower_bound(_entry_list.begin(), _entry_list.end(), key, isEntryLessThanKey);
+    std::vector<ProcessTable1DEntry>::const_iterator high_iter = std::lower_bound(
+        _entry_list.begin(), _entry_list.end(), key,
+        [this](const ProcessTable1DEntry& entry, double table_key) { return is_entry_less_than_key(entry, table_key); });
     if (high_iter == _entry_list.end()) {
-      return _entry_list.back().second;
+      return _entry_list.back().get_value();
     }
-    if (high_iter->first == key) {
-      return high_iter->second;
+    if (high_iter->get_key() == key) {
+      return high_iter->get_value();
     }
 
-    std::vector<std::pair<double, double>>::const_iterator low_iter = std::prev(high_iter);
-    double key_delta = high_iter->first - low_iter->first;
+    std::vector<ProcessTable1DEntry>::const_iterator low_iter = std::prev(high_iter);
+    double key_delta = high_iter->get_key() - low_iter->get_key();
     if (key_delta == 0.0) {
-      return high_iter->second;
+      return high_iter->get_value();
     }
-    double ratio = (key - low_iter->first) / key_delta;
-    return std::lerp(low_iter->second, high_iter->second, ratio);
+    double ratio = (key - low_iter->get_key()) / key_delta;
+    return std::lerp(low_iter->get_value(), high_iter->get_value(), ratio);
   }
 
  private:
-  static bool isEntryLessThanKey(const std::pair<double, double>& entry, double key) { return entry.first < key; }
-  static bool isEntryLess(const std::pair<double, double>& first_entry, const std::pair<double, double>& second_entry)
+  bool is_entry_less_than_key(const ProcessTable1DEntry& entry, double key) const { return entry.get_key() < key; }
+  bool is_entry_less(const ProcessTable1DEntry& first_entry, const ProcessTable1DEntry& second_entry) const
   {
-    return first_entry.first < second_entry.first;
+    return first_entry.get_key() < second_entry.get_key();
   }
-  void sort_entry_list() { std::sort(_entry_list.begin(), _entry_list.end(), isEntryLess); }
+  void sort_entry_list()
+  {
+    std::sort(_entry_list.begin(), _entry_list.end(),
+              [this](const ProcessTable1DEntry& first_entry, const ProcessTable1DEntry& second_entry) {
+                return is_entry_less(first_entry, second_entry);
+              });
+  }
 
-  std::vector<std::pair<double, double>> _entry_list;
+  std::vector<ProcessTable1DEntry> _entry_list;
 };
 
 }  // namespace ircx

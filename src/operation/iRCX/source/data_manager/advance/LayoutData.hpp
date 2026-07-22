@@ -42,7 +42,7 @@ class LayoutData
   void set_net_list(const std::vector<Net>& net_list) { _net_list = net_list; }
   void set_special_net(const Net& special_net) { _special_net = special_net; }
   // function
-  int32_t get_regular_net_count() const { return static_cast<int32_t>(_net_list.size()); }
+  int32_t get_regular_net_num() const { return static_cast<int32_t>(_net_list.size()); }
   bool get_is_empty() const
   {
     return _net_list.empty() && _special_net.get_segment_list().empty() && _special_net.get_patch_list().empty()
@@ -52,7 +52,7 @@ class LayoutData
  private:
   std::string _design_name;
   GTLRectInt _die_shape;
-  int32_t _dbu_per_micron = INT32_MAX;
+  int32_t _dbu_per_micron = -1;
   std::map<int32_t, RoutingLayer> _routing_layer_map;
   std::vector<Net> _net_list;
   Net _special_net;

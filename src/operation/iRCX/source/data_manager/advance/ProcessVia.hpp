@@ -18,6 +18,7 @@
 #include "ProcessEffectType.hpp"
 #include "ProcessTable1D.hpp"
 #include "ProcessViaEtchTable.hpp"
+#include "ViaEtch.hpp"
 
 namespace ircx {
 
@@ -32,15 +33,15 @@ class ProcessVia
   std::string& get_to_layer_name() { return _to_layer_name; }
   const std::string& get_layer_name() const { return _layer_name; }
   double get_area() const { return _area; }
-  double get_res() const { return _res; }
+  double get_resistance() const { return _resistance; }
   double get_resistivity() const { return _resistivity; }
-  bool get_has_nominal_temperature() const { return _has_nominal_temperature; }
-  double get_nominal_temperature() const { return _nominal_temperature; }
-  double get_temperature_coefficient1() const { return _temperature_coefficient1; }
-  double get_temperature_coefficient2() const { return _temperature_coefficient2; }
-  ProcessTable1D& get_res_by_area_table() { return _res_by_area_table; }
-  ProcessTable1D& get_temperature_coefficient1_by_area_table() { return _temperature_coefficient1_by_area_table; }
-  ProcessTable1D& get_temperature_coefficient2_by_area_table() { return _temperature_coefficient2_by_area_table; }
+  bool get_has_nominal_tmpr() const { return _has_nominal_tmpr; }
+  double get_nominal_tmpr() const { return _nominal_tmpr; }
+  double get_tmpr_coefficient1() const { return _tmpr_coefficient1; }
+  double get_tmpr_coefficient2() const { return _tmpr_coefficient2; }
+  ProcessTable1D& get_resistance_by_area_table() { return _resistance_by_area_table; }
+  ProcessTable1D& get_tmpr_coefficient1_by_area_table() { return _tmpr_coefficient1_by_area_table; }
+  ProcessTable1D& get_tmpr_coefficient2_by_area_table() { return _tmpr_coefficient2_by_area_table; }
   std::vector<ProcessViaEtchTable>& get_etch_table_list() { return _etch_table_list; }
   const std::vector<ProcessViaEtchTable>& get_etch_table_list() const { return _etch_table_list; }
   // setter
@@ -48,39 +49,39 @@ class ProcessVia
   void set_from_layer_name(const std::string& from_layer_name) { _from_layer_name = from_layer_name; }
   void set_to_layer_name(const std::string& to_layer_name) { _to_layer_name = to_layer_name; }
   void set_area(double area) { _area = area; }
-  void set_res(double res) { _res = res; }
+  void set_resistance(double resistance) { _resistance = resistance; }
   void set_resistivity(double resistivity) { _resistivity = resistivity; }
-  void set_nominal_temperature(double nominal_temperature)
+  void set_nominal_tmpr(double nominal_tmpr)
   {
-    _nominal_temperature = nominal_temperature;
-    _has_nominal_temperature = true;
+    _nominal_tmpr = nominal_tmpr;
+    _has_nominal_tmpr = true;
   }
-  void set_temperature_coefficient1(double temperature_coefficient1) { _temperature_coefficient1 = temperature_coefficient1; }
-  void set_temperature_coefficient2(double temperature_coefficient2) { _temperature_coefficient2 = temperature_coefficient2; }
+  void set_tmpr_coefficient1(double tmpr_coefficient1) { _tmpr_coefficient1 = tmpr_coefficient1; }
+  void set_tmpr_coefficient2(double tmpr_coefficient2) { _tmpr_coefficient2 = tmpr_coefficient2; }
   // function
-  std::optional<double> query_res(double area) const
+  std::optional<double> query_resistance(double area) const
   {
-    if (_res > 0.0) {
-      return _res;
+    if (_resistance > 0.0) {
+      return _resistance;
     }
-    return _res_by_area_table.query(area);
+    return _resistance_by_area_table.query(area);
   }
 
-  void query_temperature_coefficient(double area, double& temperature_coefficient1, double& temperature_coefficient2) const
+  void query_tmpr_coefficient(double area, double& tmpr_coefficient1, double& tmpr_coefficient2) const
   {
-    temperature_coefficient1 = _temperature_coefficient1;
-    temperature_coefficient2 = _temperature_coefficient2;
-    std::optional<double> coefficient1 = _temperature_coefficient1_by_area_table.query(area);
-    std::optional<double> coefficient2 = _temperature_coefficient2_by_area_table.query(area);
+    tmpr_coefficient1 = _tmpr_coefficient1;
+    tmpr_coefficient2 = _tmpr_coefficient2;
+    std::optional<double> coefficient1 = _tmpr_coefficient1_by_area_table.query(area);
+    std::optional<double> coefficient2 = _tmpr_coefficient2_by_area_table.query(area);
     if (coefficient1.has_value()) {
-      temperature_coefficient1 = coefficient1.value();
+      tmpr_coefficient1 = coefficient1.value();
     }
     if (coefficient2.has_value()) {
-      temperature_coefficient2 = coefficient2.value();
+      tmpr_coefficient2 = coefficient2.value();
     }
   }
 
-  std::pair<double, double> query_etch(ProcessEffectType effect_type, double width, double length) const
+  ViaEtch query_etch(ProcessEffectType effect_type, double width, double length) const
   {
     double length_etch = 0.0;
     double width_etch = 0.0;
@@ -97,7 +98,7 @@ class ProcessVia
         width_etch += table_width_etch.value();
       }
     }
-    return std::make_pair(length_etch, width_etch);
+    return ViaEtch(length_etch, width_etch);
   }
 
  private:
@@ -109,16 +110,16 @@ class ProcessVia
   std::string _layer_name;
   std::string _from_layer_name;
   std::string _to_layer_name;
-  double _area = 0.0;
-  double _res = 0.0;
-  double _resistivity = 0.0;
-  bool _has_nominal_temperature = false;
-  double _nominal_temperature = 25.0;
-  double _temperature_coefficient1 = 0.0;
-  double _temperature_coefficient2 = 0.0;
-  ProcessTable1D _res_by_area_table;
-  ProcessTable1D _temperature_coefficient1_by_area_table;
-  ProcessTable1D _temperature_coefficient2_by_area_table;
+  double _area = -1.0;
+  double _resistance = -1.0;
+  double _resistivity = -1.0;
+  bool _has_nominal_tmpr = false;
+  double _nominal_tmpr = -1.0;
+  double _tmpr_coefficient1 = 0.0;
+  double _tmpr_coefficient2 = 0.0;
+  ProcessTable1D _resistance_by_area_table;
+  ProcessTable1D _tmpr_coefficient1_by_area_table;
+  ProcessTable1D _tmpr_coefficient2_by_area_table;
   std::vector<ProcessViaEtchTable> _etch_table_list;
 };
 

@@ -16,6 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Direction.hpp"
 #include "LayerShape.hpp"
 #include "RCXHeader.hpp"
 
@@ -29,14 +30,12 @@ class Pin
   // getter
   std::string& get_pin_name() { return _pin_name; }
   bool get_is_driver() const { return _is_driver; }
-  bool get_is_input() const { return _is_input; }
-  bool get_is_output() const { return _is_output; }
+  Direction get_direction() const { return _direction; }
   std::vector<LayerShape>& get_layer_shape_list() { return _layer_shape_list; }
   // setter
   void set_pin_name(const std::string& pin_name) { _pin_name = pin_name; }
   void set_is_driver(bool is_driver) { _is_driver = is_driver; }
-  void set_is_input(bool is_input) { _is_input = is_input; }
-  void set_is_output(bool is_output) { _is_output = is_output; }
+  void set_direction(Direction direction) { _direction = direction; }
   void set_layer_shape_list(const std::vector<LayerShape>& layer_shape_list) { _layer_shape_list = layer_shape_list; }
   // function
   bool get_is_port() const { return _pin_name.find(':') == std::string::npos; }
@@ -55,8 +54,7 @@ class Pin
  private:
   std::string _pin_name;
   bool _is_driver = false;
-  bool _is_input = false;
-  bool _is_output = false;
+  Direction _direction = Direction::kNone;
   std::vector<LayerShape> _layer_shape_list;
 };
 

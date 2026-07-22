@@ -219,15 +219,11 @@ class Utility
     }
   }
 
-  // ============================================================
-  //  Point utilities (generic)
-  // ============================================================
-
   template <class P>
   static PointDistanceT<P> manhattanDistance(const P& a, const P& b)
   {
-    const PointDistanceT<P> dx = std::abs(x(a) - x(b));
-    const PointDistanceT<P> dy = std::abs(y(a) - y(b));
+    PointDistanceT<P> dx = std::abs(x(a) - x(b));
+    PointDistanceT<P> dy = std::abs(y(a) - y(b));
     return dx + dy;
   }
 
@@ -255,10 +251,6 @@ class Utility
     return x(a) >= x(b) && y(a) >= y(b);
   }
 
-  // ============================================================
-  //  Rect utilities (generic)
-  // ============================================================
-
   template <class R>
   static RectCoordT<R> deltaX(const R& r)
   {
@@ -271,7 +263,6 @@ class Utility
     return maxY(r) - minY(r);
   }
 
-  // Use Min + (Max - Min) / 2 to reduce overflow risk for integral coordinates.
   template <class R>
   static RectCoordT<R> centerX(const R& r)
   {
@@ -286,8 +277,6 @@ class Utility
     return minY(r) + (maxY(r) - minY(r)) / T{2};
   }
 
-  // center always returns boost::polygon::point_data<coord_t>.
-  // Floating-point rect keeps precision; integral rect keeps integral midpoint semantics.
   template <class R>
   static boost::polygon::point_data<RectCoordT<R>> center(const R& r)
   {
@@ -321,10 +310,6 @@ class Utility
                           std::max(maxX(first_rect), maxX(second_rect)), std::max(maxY(first_rect), maxY(second_rect)));
   }
 
-  // ============================================================
-  //  area / intersects
-  // ============================================================
-
   template <class Shape>
   static double area(const Shape& s)
   {
@@ -343,9 +328,6 @@ class Utility
     }
   }
 
-  // Note:
-  // - This function delegates to the underlying library semantics.
-  // - If you need strict positive-area overlap, use has_area_overlap().
   template <class A, class B>
   static bool intersects(const A& a, const B& b)
   {
@@ -364,7 +346,6 @@ class Utility
     }
   }
 
-  // Strict positive-area overlap for any two rect-like objects.
   template <class A, class B>
   static bool hasAreaOverlap(const A& a, const B& b)
   {
@@ -372,29 +353,24 @@ class Utility
     using TB = RectCoordT<B>;
     using CommonT = std::common_type_t<TA, TB>;
 
-    const CommonT lx = std::max<CommonT>(static_cast<CommonT>(minX(a)), static_cast<CommonT>(minX(b)));
-    const CommonT ly = std::max<CommonT>(static_cast<CommonT>(minY(a)), static_cast<CommonT>(minY(b)));
-    const CommonT hx = std::min<CommonT>(static_cast<CommonT>(maxX(a)), static_cast<CommonT>(maxX(b)));
-    const CommonT hy = std::min<CommonT>(static_cast<CommonT>(maxY(a)), static_cast<CommonT>(maxY(b)));
+    CommonT lx = std::max<CommonT>(static_cast<CommonT>(minX(a)), static_cast<CommonT>(minX(b)));
+    CommonT ly = std::max<CommonT>(static_cast<CommonT>(minY(a)), static_cast<CommonT>(minY(b)));
+    CommonT hx = std::min<CommonT>(static_cast<CommonT>(maxX(a)), static_cast<CommonT>(maxX(b)));
+    CommonT hy = std::min<CommonT>(static_cast<CommonT>(maxY(a)), static_cast<CommonT>(maxY(b)));
 
     return (lx < hx) && (ly < hy);
   }
 
-  // ============================================================
-  //  Generic intersection / clipping for rect-like objects
-  // ============================================================
-
-  // Same-type intersection: returns std::nullopt for zero-area intersection.
   template <class R>
   static std::optional<remove_cvref_t<R>> intersection(const R& a, const R& b)
   {
     using RR = remove_cvref_t<R>;
     using T = RectCoordT<RR>;
 
-    const T lx = std::max(minX(a), minX(b));
-    const T ly = std::max(minY(a), minY(b));
-    const T hx = std::min(maxX(a), maxX(b));
-    const T hy = std::min(maxY(a), maxY(b));
+    T lx = std::max(minX(a), minX(b));
+    T ly = std::max(minY(a), minY(b));
+    T hx = std::min(maxX(a), maxX(b));
+    T hy = std::min(maxY(a), maxY(b));
 
     if (lx < hx && ly < hy) {
       return makeRect<RR>(lx, ly, hx, hy);
@@ -402,8 +378,6 @@ class Utility
     return std::nullopt;
   }
 
-  // Cross-type intersection with explicit output rect type.
-  // Returns std::nullopt for zero-area intersection.
   template <class OutRect, class A, class B>
   static std::optional<remove_cvref_t<OutRect>> intersectionAs(const A& a, const B& b)
   {
@@ -411,10 +385,10 @@ class Utility
     using T = RectCoordT<RR>;
     using CommonCoordT = std::common_type_t<RectCoordT<A>, RectCoordT<B>>;
 
-    const CommonCoordT lx_raw = std::max(static_cast<CommonCoordT>(minX(a)), static_cast<CommonCoordT>(minX(b)));
-    const CommonCoordT ly_raw = std::max(static_cast<CommonCoordT>(minY(a)), static_cast<CommonCoordT>(minY(b)));
-    const CommonCoordT hx_raw = std::min(static_cast<CommonCoordT>(maxX(a)), static_cast<CommonCoordT>(maxX(b)));
-    const CommonCoordT hy_raw = std::min(static_cast<CommonCoordT>(maxY(a)), static_cast<CommonCoordT>(maxY(b)));
+    CommonCoordT lx_raw = std::max(static_cast<CommonCoordT>(minX(a)), static_cast<CommonCoordT>(minX(b)));
+    CommonCoordT ly_raw = std::max(static_cast<CommonCoordT>(minY(a)), static_cast<CommonCoordT>(minY(b)));
+    CommonCoordT hx_raw = std::min(static_cast<CommonCoordT>(maxX(a)), static_cast<CommonCoordT>(maxX(b)));
+    CommonCoordT hy_raw = std::min(static_cast<CommonCoordT>(maxY(a)), static_cast<CommonCoordT>(maxY(b)));
 
     if (lx_raw < hx_raw && ly_raw < hy_raw) {
       return makeRect<RR>(static_cast<T>(lx_raw), static_cast<T>(ly_raw), static_cast<T>(hx_raw), static_cast<T>(hy_raw));
@@ -422,25 +396,18 @@ class Utility
     return std::nullopt;
   }
 
-  // clip r by win, preserving r's output type.
   template <class R, class W>
   static std::optional<remove_cvref_t<R>> clip(const R& r, const W& win)
   {
     return intersectionAs<remove_cvref_t<R>>(r, win);
   }
 
-  // clip r by win, with explicit output type.
   template <class OutRect, class R, class W>
   static std::optional<remove_cvref_t<OutRect>> clipAs(const R& r, const W& win)
   {
     return intersectionAs<remove_cvref_t<OutRect>>(r, win);
   }
 
-  // ============================================================
-  //  Convert
-  // ============================================================
-
-  // to_box: any rect-like -> boost::geometry::box< boost::geometry::point<T,2,cartesian> >
   template <class R>
   static boost::geometry::model::box<boost::geometry::model::point<RectCoordT<R>, 2, boost::geometry::cs::cartesian>> toBox(const R& r)
   {
@@ -450,17 +417,12 @@ class Utility
     return B(P(minX(r), minY(r)), P(maxX(r), maxY(r)));
   }
 
-  // to_rect: any rect-like -> boost::polygon::rectangle_data<T>
   template <class R>
   static boost::polygon::rectangle_data<RectCoordT<R>> toRect(const R& r)
   {
     using T = RectCoordT<R>;
     return boost::polygon::rectangle_data<T>(minX(r), minY(r), maxX(r), maxY(r));
   }
-
-  // ------------------------------------------------------------
-  // divide_rect_as: integral rect -> floating-point rect with scaling
-  // ------------------------------------------------------------
 
   template <class OutRect, class InRect, class Div>
   static OutRect divideRectAs(const InRect& r, Div divisor)
@@ -471,17 +433,15 @@ class Utility
     static_assert(std::is_integral_v<InCoord>, "divide_rect_as: InRect must use integral coordinates");
     static_assert(std::is_floating_point_v<OutCoord>, "divide_rect_as: OutRect must use floating-point coordinates");
 
-    assert(divisor != 0 && "divide_rect_as: divisor must not be zero");
+    if (divisor == 0) {
+      RCXLOG.error(Loc::current(), "The divisor must not be zero!");
+    }
 
-    const OutCoord d = static_cast<OutCoord>(divisor);
+    OutCoord d = static_cast<OutCoord>(divisor);
 
     return makeRect<OutRect>(static_cast<OutCoord>(minX(r)) / d, static_cast<OutCoord>(minY(r)) / d, static_cast<OutCoord>(maxX(r)) / d,
                              static_cast<OutCoord>(maxY(r)) / d);
   }
-
-  // ============================================================
-  //  Point transforms
-  // ============================================================
 
   template <class P>
   static remove_cvref_t<P> translatePoint(const P& p, PointCoordT<P> dx, PointCoordT<P> dy)
@@ -490,7 +450,6 @@ class Utility
     return makePoint<PP>(x(p) + dx, y(p) + dy);
   }
 
-  // Returns a GTL rectangle centered at p with half-size d in both axes.
   template <class P>
   static boost::polygon::rectangle_data<PointCoordT<P>> rectAround(const P& p, PointCoordT<P> d)
   {
@@ -498,16 +457,11 @@ class Utility
     return boost::polygon::rectangle_data<T>{x(p) - d, y(p) - d, x(p) + d, y(p) + d};
   }
 
-  // Backward-compatible alias for old API name.
   template <class P>
   static boost::polygon::rectangle_data<PointCoordT<P>> boxAround(const P& p, PointCoordT<P> d)
   {
     return rectAround(p, d);
   }
-
-  // ============================================================
-  //  Rect transforms
-  // ============================================================
 
   template <class R>
   static remove_cvref_t<R> translateRect(const R& r, RectCoordT<R> dx, RectCoordT<R> dy)
@@ -536,10 +490,6 @@ class Utility
     using RR = remove_cvref_t<R>;
     return makeRect<RR>(minX(r) - d, minY(r) - d, maxX(r) + d, maxY(r) + d);
   }
-
-  // ============================================================
-  //  Polyset conversion helpers
-  // ============================================================
 
   static std::vector<GTLRectInt> polysetToRects(const GTLPolySetInt& ps)
   {
@@ -573,7 +523,6 @@ class Utility
     return ps;
   }
 
-  // Returns the bounding box of all rects, or std::nullopt when rects is empty.
   template <class Rect>
   static std::optional<Rect> rectsToBbox(const std::vector<Rect>& rects)
   {
@@ -589,10 +538,10 @@ class Utility
     T maxy = maxY(rects[0]);
 
     for (int32_t rect_idx = 1; rect_idx < static_cast<int32_t>(rects.size()); ++rect_idx) {
-      minx = std::min(minx, minX(rects[static_cast<size_t>(rect_idx)]));
-      maxx = std::max(maxx, maxX(rects[static_cast<size_t>(rect_idx)]));
-      miny = std::min(miny, minY(rects[static_cast<size_t>(rect_idx)]));
-      maxy = std::max(maxy, maxY(rects[static_cast<size_t>(rect_idx)]));
+      minx = std::min(minx, minX(rects[rect_idx]));
+      maxx = std::max(maxx, maxX(rects[rect_idx]));
+      miny = std::min(miny, minY(rects[rect_idx]));
+      maxy = std::max(maxy, maxY(rects[rect_idx]));
     }
 
     return makeRect<Rect>(minx, miny, maxx, maxy);
@@ -612,12 +561,12 @@ class Utility
   template <typename PointT, typename RectT>
   static double pointToRectDistance2(PointT px, PointT py, RectT llx, RectT lly, RectT urx, RectT ury)
   {
-    const double clamped_x
+    double clamped_x
         = std::clamp(static_cast<double>(px), static_cast<double>(std::min(llx, urx)), static_cast<double>(std::max(llx, urx)));
-    const double clamped_y
+    double clamped_y
         = std::clamp(static_cast<double>(py), static_cast<double>(std::min(lly, ury)), static_cast<double>(std::max(lly, ury)));
-    const double dx = static_cast<double>(px) - clamped_x;
-    const double dy = static_cast<double>(py) - clamped_y;
+    double dx = static_cast<double>(px) - clamped_x;
+    double dy = static_cast<double>(py) - clamped_y;
     return dx * dx + dy * dy;
   }
 
@@ -687,19 +636,19 @@ class Utility
   }
 
   template <typename T>
-  static T getIntervalMidpoint(T first_coordinate, T second_coordinate)
+  static T getIntervalMidpoint(T first_coord, T second_coord)
   {
-    return first_coordinate + (second_coordinate - first_coordinate) / 2;
+    return first_coord + (second_coord - first_coord) / 2;
   }
 
   template <typename IntervalT>
-  using IntervalCoordinateT = remove_cvref_t<decltype(std::declval<const IntervalT&>().get_start())>;
+  using IntervalCoordT = remove_cvref_t<decltype(std::declval<const IntervalT&>().get_start())>;
 
   template <typename IntervalT>
-  static std::vector<IntervalT> subtractInterval(const std::vector<IntervalT>& interval_list, IntervalCoordinateT<IntervalT> cut_start,
-                                                 IntervalCoordinateT<IntervalT> cut_end)
+  static std::vector<IntervalT> subtractInterval(const std::vector<IntervalT>& interval_list, IntervalCoordT<IntervalT> cut_start,
+                                                 IntervalCoordT<IntervalT> cut_end)
   {
-    using Coordinate = IntervalCoordinateT<IntervalT>;
+    using Coordinate = IntervalCoordT<IntervalT>;
 
     std::vector<IntervalT> next_interval_list;
     normalizeInterval(cut_start, cut_end);
@@ -729,8 +678,8 @@ class Utility
   }
 
   template <typename IntervalT, typename Mergeable>
-  static std::vector<IntervalT> clipInterval(const std::vector<IntervalT>& interval_list, IntervalCoordinateT<IntervalT> clip_start,
-                                             IntervalCoordinateT<IntervalT> clip_end, Mergeable mergeable)
+  static std::vector<IntervalT> clipInterval(const std::vector<IntervalT>& interval_list, IntervalCoordT<IntervalT> clip_start,
+                                             IntervalCoordT<IntervalT> clip_end, Mergeable mergeable)
   {
     std::vector<IntervalT> clipped_interval_list;
     if (!isIntervalValid(clip_start, clip_end)) {
@@ -738,8 +687,8 @@ class Utility
     }
 
     for (const IntervalT& interval : interval_list) {
-      const IntervalCoordinateT<IntervalT> start = std::max(clip_start, interval.get_start());
-      const IntervalCoordinateT<IntervalT> end = std::min(clip_end, interval.get_end());
+      IntervalCoordT<IntervalT> start = std::max(clip_start, interval.get_start());
+      IntervalCoordT<IntervalT> end = std::min(clip_end, interval.get_end());
       if (!isIntervalValid(start, end)) {
         continue;
       }
@@ -776,6 +725,32 @@ class Utility
     std::string string = oss.str();
     oss.clear();
     return string;
+  }
+
+  static std::string getUpperString(std::string text)
+  {
+    for (char& character : text) {
+      character = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
+    }
+    return text;
+  }
+
+  static std::string getTrimmedString(std::string text)
+  {
+    size_t first_pos = text.find_first_not_of(" \t\r\n");
+    if (first_pos == std::string::npos) {
+      return "";
+    }
+    size_t last_pos = text.find_last_not_of(" \t\r\n");
+    return text.substr(first_pos, last_pos - first_pos + 1);
+  }
+
+  static bool getDouble(std::string& text, double& number)
+  {
+    char* end_ptr = nullptr;
+    const char* start_ptr = text.c_str();
+    number = std::strtod(start_ptr, &end_ptr);
+    return start_ptr != end_ptr && *end_ptr == '\0';
   }
 
   template <typename Stream, typename T, typename... Args>
@@ -844,7 +819,7 @@ class Utility
   static bool exist(const std::vector<Key>& vector, const Key& key)
   {
     for (int32_t value_idx = 0; value_idx < static_cast<int32_t>(vector.size()); ++value_idx) {
-      if (vector[static_cast<size_t>(value_idx)] == key) {
+      if (vector[value_idx] == key) {
         return true;
       }
     }

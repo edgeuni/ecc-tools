@@ -10,8 +10,7 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
@@ -20,27 +19,23 @@
 
 namespace ircx {
 
-class CornerNetId
+class ProcessTable1DEntry
 {
  public:
-  CornerNetId() = default;
-  CornerNetId(int32_t corner_idx, int32_t net_idx)
-  {
-    _corner_idx = corner_idx;
-    _net_idx = net_idx;
-  }
-  ~CornerNetId() = default;
+  ProcessTable1DEntry() = default;
+  ProcessTable1DEntry(double key, double value) : _key(key), _value(value) {}
+  ~ProcessTable1DEntry() = default;
   // getter
-  int32_t get_corner_idx() const { return _corner_idx; }
-  int32_t get_net_idx() const { return _net_idx; }
+  double get_key() const { return _key; }
+  double get_value() const { return _value; }
   // setter
-  void set_corner_idx(int32_t corner_idx) { _corner_idx = corner_idx; }
-  void set_net_idx(int32_t net_idx) { _net_idx = net_idx; }
+  void set_key(double key) { _key = key; }
+  void set_value(double value) { _value = value; }
   // function
 
  private:
-  int32_t _corner_idx = INT32_MAX;
-  int32_t _net_idx = INT32_MAX;
+  double _key = -1.0;
+  double _value = -1.0;
 };
 
 }  // namespace ircx

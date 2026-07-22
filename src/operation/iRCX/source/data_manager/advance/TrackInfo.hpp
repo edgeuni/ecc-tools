@@ -26,15 +26,15 @@ class TrackInfo
   TrackInfo() = default;
   ~TrackInfo() = default;
   // getter
-  int32_t get_x_start() const { return _x_start; }
-  int32_t get_y_start() const { return _y_start; }
+  int32_t get_x_origin() const { return _x_origin; }
+  int32_t get_y_origin() const { return _y_origin; }
   int32_t get_x_step() const { return _x_step; }
   int32_t get_y_step() const { return _y_step; }
   int32_t get_x_count() const { return _x_count; }
   int32_t get_y_count() const { return _y_count; }
   // setter
-  void set_x_start(int32_t x_start) { _x_start = x_start; }
-  void set_y_start(int32_t y_start) { _y_start = y_start; }
+  void set_x_origin(int32_t x_origin) { _x_origin = x_origin; }
+  void set_y_origin(int32_t y_origin) { _y_origin = y_origin; }
   void set_x_step(int32_t x_step) { _x_step = x_step; }
   void set_y_step(int32_t y_step) { _y_step = y_step; }
   void set_x_count(int32_t x_count) { _x_count = x_count; }
@@ -42,12 +42,12 @@ class TrackInfo
   // function
 
  private:
-  int32_t _x_start = 0;
-  int32_t _y_start = 0;
-  int32_t _x_step = 0;
-  int32_t _y_step = 0;
-  int32_t _x_count = 0;
-  int32_t _y_count = 0;
+  int32_t _x_origin = -1;
+  int32_t _y_origin = -1;
+  int32_t _x_step = -1;
+  int32_t _y_step = -1;
+  int32_t _x_count = -1;
+  int32_t _y_count = -1;
 };
 
 }  // namespace ircx

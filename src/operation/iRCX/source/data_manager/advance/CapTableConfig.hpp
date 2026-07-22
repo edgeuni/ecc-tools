@@ -16,6 +16,7 @@
 #pragma once
 
 #include "CapTableEntry.hpp"
+#include "CapTableType.hpp"
 
 namespace ircx {
 
@@ -25,7 +26,7 @@ class CapTableConfig
   CapTableConfig() = default;
   ~CapTableConfig() = default;
   // getter
-  std::string& get_type() { return _type; }
+  CapTableType get_type() const { return _type; }
   std::string& get_layer_name() { return _layer_name; }
   std::string& get_over_layer_name() { return _over_layer_name; }
   std::string& get_under_layer_name() { return _under_layer_name; }
@@ -33,7 +34,7 @@ class CapTableConfig
   // const getter
   const std::vector<CapTableEntry>& get_entry_list() const { return _entry_list; }
   // setter
-  void set_type(const std::string& type) { _type = type; }
+  void set_type(CapTableType type) { _type = type; }
   void set_layer_name(const std::string& layer_name) { _layer_name = layer_name; }
   void set_over_layer_name(const std::string& over_layer_name) { _over_layer_name = over_layer_name; }
   void set_under_layer_name(const std::string& under_layer_name) { _under_layer_name = under_layer_name; }
@@ -41,7 +42,7 @@ class CapTableConfig
   // function
 
  private:
-  std::string _type;
+  CapTableType _type = CapTableType::kNone;
   std::string _layer_name;
   std::string _over_layer_name;
   std::string _under_layer_name;

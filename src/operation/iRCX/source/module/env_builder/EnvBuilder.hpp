@@ -19,9 +19,9 @@
 #include "DataManager.hpp"
 #include "EBModel.hpp"
 #include "EnvAxis.hpp"
-#include "EnvLayerPixelOverlaps.hpp"
-#include "EnvPixelOverlapMerge.hpp"
-#include "EnvTrack.hpp"
+#include "EnvLayerPixelOverlapList.hpp"
+#include "EnvPixelOverlapMerger.hpp"
+#include "EnvTrackIdx.hpp"
 #include "LineSegment.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
@@ -54,16 +54,17 @@ class EnvBuilder
   EnvBuilder& operator=(EnvBuilder&& other) = delete;
   // function
   void buildEBModel(EBModel& eb_model);
-  bool buildNetEnvs(EBModel& eb_model);
-  std::vector<CrossOverlapSub> clipCrossSegments(const std::vector<CrossOverlapSub>& cross_overlap_sub_list, int32_t a0, int32_t a1);
-  std::vector<EnvLayerPixelOverlaps> collectCrossSide(EBModel& eb_model, const LineSegment& line_segment, int32_t base_lid,
-                                                       bool search_up);
-  bool buildTracks(EBModel& eb_model);
-  void addTrackEdge(EBModel& eb_model, TopoEdge& edge);
-  bool initTrackForDirection(EnvTrack& track, TrackInfo& track_info, GTLRectInt& rect, int32_t bucket_dlt, bool is_horz);
-  EnvAxis coverAxis(int32_t origin, int32_t count, int32_t step, int32_t lo, int32_t hi);
-  bool buildPixels(EBModel& eb_model);
-  void addPixelEdge(EBModel& eb_model, TopoEdge& edge);
+  bool buildNetEnvList(EBModel& eb_model);
+  std::vector<CrossLayerOverlap> getClippedCrossLayerOverlapList(const std::vector<CrossLayerOverlap>& cross_layer_overlap_list,
+                                                                  int32_t start_coord, int32_t end_coord);
+  std::vector<EnvLayerPixelOverlapList> getCrossLayerPixelOverlapList(EBModel& eb_model, const LineSegment& line_segment,
+                                                                       int32_t base_layer_idx, bool is_upper_layer);
+  bool buildTrackIdxMap(EBModel& eb_model);
+  void addTopoEdgeToTrackIdx(EBModel& eb_model, TopoEdge& edge);
+  bool initTrackIdx(EnvTrackIdx& track_idx, TrackInfo& track_info, GTLRectInt& die_shape, int32_t bucket_step, bool is_horizontal);
+  EnvAxis getCoveredAxis(int32_t origin, int32_t count, int32_t step, int32_t lower_coord, int32_t upper_coord);
+  bool buildPixelGridMap(EBModel& eb_model);
+  void addTopoEdgeToPixelGrid(EBModel& eb_model, TopoEdge& edge);
   void buildSearchTrackNumMap(EBModel& eb_model);
 };
 

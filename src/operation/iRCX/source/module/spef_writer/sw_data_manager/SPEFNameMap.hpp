@@ -25,25 +25,25 @@ class SPEFNameMap
   SPEFNameMap() = default;
   ~SPEFNameMap() = default;
   // getter
-  std::unordered_map<std::string, int32_t>& get_net_name_to_id_map() { return _net_name_to_id_map; }
-  std::unordered_map<std::string, int32_t>& get_port_name_to_id_map() { return _port_name_to_id_map; }
-  std::unordered_map<std::string, int32_t>& get_instance_name_to_id_map() { return _instance_name_to_id_map; }
-  std::map<int32_t, std::string>& get_id_to_net_name_map() { return _id_to_net_name_map; }
-  std::map<int32_t, std::string>& get_id_to_port_name_map() { return _id_to_port_name_map; }
-  std::map<int32_t, std::string>& get_id_to_instance_name_map() { return _id_to_instance_name_map; }
-  int32_t get_next_id() const { return _next_id; }
+  std::unordered_map<std::string, int32_t>& get_net_name_to_idx_map() { return _net_name_to_idx_map; }
+  std::unordered_map<std::string, int32_t>& get_port_name_to_idx_map() { return _port_name_to_idx_map; }
+  std::unordered_map<std::string, int32_t>& get_instance_name_to_idx_map() { return _instance_name_to_idx_map; }
+  std::map<int32_t, std::string>& get_idx_to_net_name_map() { return _idx_to_net_name_map; }
+  std::map<int32_t, std::string>& get_idx_to_port_name_map() { return _idx_to_port_name_map; }
+  std::map<int32_t, std::string>& get_idx_to_instance_name_map() { return _idx_to_instance_name_map; }
+  int32_t get_next_idx() const { return _next_idx; }
   // setter
-  void set_next_id(int32_t next_id) { _next_id = next_id; }
+  void set_next_idx(int32_t next_idx) { _next_idx = next_idx; }
   // function
 
  private:
-  std::unordered_map<std::string, int32_t> _net_name_to_id_map;
-  std::unordered_map<std::string, int32_t> _port_name_to_id_map;
-  std::unordered_map<std::string, int32_t> _instance_name_to_id_map;
-  std::map<int32_t, std::string> _id_to_net_name_map;
-  std::map<int32_t, std::string> _id_to_port_name_map;
-  std::map<int32_t, std::string> _id_to_instance_name_map;
-  int32_t _next_id = 1;
+  std::unordered_map<std::string, int32_t> _net_name_to_idx_map;
+  std::unordered_map<std::string, int32_t> _port_name_to_idx_map;
+  std::unordered_map<std::string, int32_t> _instance_name_to_idx_map;
+  std::map<int32_t, std::string> _idx_to_net_name_map;
+  std::map<int32_t, std::string> _idx_to_port_name_map;
+  std::map<int32_t, std::string> _idx_to_instance_name_map;
+  int32_t _next_idx = 1;
 };
 
 }  // namespace ircx

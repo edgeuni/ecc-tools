@@ -24,19 +24,19 @@ class LayerShape
 {
  public:
   LayerShape() = default;
-  LayerShape(int32_t layer_id, const GTLRectInt& shape) : _layer_id(layer_id), _shape(shape) {}
+  LayerShape(int32_t layer_idx, const GTLRectInt& shape) : _layer_idx(layer_idx), _shape(shape) {}
   ~LayerShape() = default;
   // getter
-  int32_t get_layer_id() const { return _layer_id; }
+  int32_t get_layer_idx() const { return _layer_idx; }
   GTLRectInt& get_shape() { return _shape; }
   const GTLRectInt& get_shape() const { return _shape; }
   // setter
-  void set_layer_id(int32_t layer_id) { _layer_id = layer_id; }
+  void set_layer_idx(int32_t layer_idx) { _layer_idx = layer_idx; }
   void set_shape(const GTLRectInt& shape) { _shape = shape; }
   // function
 
  private:
-  int32_t _layer_id = INT32_MAX;
+  int32_t _layer_idx = -1;
   GTLRectInt _shape = GTLRectInt();
 };
 

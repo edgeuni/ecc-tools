@@ -19,5 +19,6 @@ target_link_libraries(ircx_res_extractor
 
 target_include_directories(ircx_res_extractor
     PUBLIC
+    ${IRCX_MODULE}/res_extractor/re_data_manager
     ${IRCX_MODULE}/res_extractor
 )

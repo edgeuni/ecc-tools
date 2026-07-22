@@ -11,41 +11,32 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
 #include "RCXHeader.hpp"
 #include "TopoEdge.hpp"
+#include "TopoNode.hpp"
 
 namespace ircx {
 
-class DiagCoupSub
+class TBTopo
 {
  public:
-  DiagCoupSub() = default;
-  ~DiagCoupSub() = default;
+  TBTopo() = default;
+  ~TBTopo() = default;
   // getter
-  int32_t get_start_coordinate() const { return _start_coordinate; }
-  int32_t get_end_coordinate() const { return _end_coordinate; }
-  TopoEdge* get_neighbor_edge() const { return _neighbor_edge; }
-  int32_t get_distance() const { return _distance; }
-  int32_t get_layer_delta() const { return _layer_delta; }
+  std::vector<TopoNode>& get_node_list() { return _node_list; }
+  std::vector<TopoEdge>& get_edge_list() { return _edge_list; }
   // setter
-  void set_start_coordinate(int32_t start_coordinate) { _start_coordinate = start_coordinate; }
-  void set_end_coordinate(int32_t end_coordinate) { _end_coordinate = end_coordinate; }
-  void set_neighbor_edge(TopoEdge* neighbor_edge) { _neighbor_edge = neighbor_edge; }
-  void set_distance(int32_t distance) { _distance = distance; }
-  void set_layer_delta(int32_t layer_delta) { _layer_delta = layer_delta; }
+  void set_node_list(const std::vector<TopoNode>& node_list) { _node_list = node_list; }
+  void set_edge_list(const std::vector<TopoEdge>& edge_list) { _edge_list = edge_list; }
   // function
 
  private:
-  int32_t _start_coordinate = INT32_MAX;
-  int32_t _end_coordinate = INT32_MAX;
-  TopoEdge* _neighbor_edge = nullptr;
-  int32_t _distance = INT32_MAX;
-  int32_t _layer_delta = INT32_MAX;
+  std::vector<TopoNode> _node_list;
+  std::vector<TopoEdge> _edge_list;
 };
 
 }  // namespace ircx
