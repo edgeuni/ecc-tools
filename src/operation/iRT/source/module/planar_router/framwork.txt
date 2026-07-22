@@ -1,9 +1,52 @@
-initPRModel:初始化model
-setPRComParam:设置pr_model的参数
-initPRTaskList:构建PRTask,数据结构是PRNet
-buildPRNodeMap:构建Graph,只有节点,其他信息后续构建
-buildPRNodeNeighbor:将所有节点连接
-buildOrientSupply:构建Graph的supply
-buildPRBlockage:构建统一的macro blockage数据,无macro时为空数据
-runRouteFlow:生成线网的拓扑
-    routePRNet:通过topo逐个生成布线结果
+generate
+    initPRModel: 将 Net 转为 PRNet，保存 pin access point、最终 routing segment 和已使用的 planar routing edge
+    setPRComParam: 设置 topo split、pattern 扩展参数、A* search margin、cost 参数
+    initPRTaskList: 按 PRNet 优先级排序
+    buildPlanarRoutingEdgeMap: 聚合各 routing layer 的 supply、ignore net 和初始 congestion cost 到平面 H/V edge
+    runRouteFlow
+    updateSummary / output: 在最终 global result 上统计和输出
+
+runRouteFlow
+    1. 所有 net 做 initial pattern route
+    2. updateCongestion
+    3. 所有 net 做 congestion pattern route
+    4. updateCongestion
+    5. overflow net 做 A* repair
+    6. updateCongestion
+    7. 高 usage net 做 A* repair
+    8. updateCongestion
+    9. 所有迭代结束后，将各 PRNet 的最终 planar segment 一次性写入 NetGlobalResultMap
+
+routePRNet
+    删除该 net 的旧 segment demand
+    routeSingleTask
+        getPlanarTopoList: TopoBuilder 以 macro body 周围一格作为 obstacle 生成 topo edge
+        routePlanarTopoList: 逐条 topo edge 选择 route candidate，并立即更新该 net 的 planar edge demand
+            kPattern: 生成 straight/L/Z candidate，全部参与比较
+            kAStar: 只生成 A* candidate，用于 repair
+            candidate 优先级: 无 fixed-shape blocked > 无 overflow > 更低 score
+        getCoordTree: 将临时 segment 合并为无环树
+        删除临时 demand，加入最终 tree segment demand，并保存到 PRNet
+    失败时恢复旧 segment demand
+
+planar edge demand
+    每条 segment 展开为 unit edge 和对应 orient
+    同一 net 对同一 planar edge 仅计一次 demand
+    ignore net 不计 demand
+    supply 为 0 且非 ignore net 的 edge 仅标记 candidate path blocked
+    overflow 由加入 candidate orient demand 后的 usage > supply 判断
+
+congestion
+    对每个平面 edge 统计同方向、半径 2 邻域的平均 usage ratio
+    history congestion cost = old cost * 0.8 + new local cost
+
+A* repair
+    搜索范围为 topo bounding box 外扩 astar_search_margin
+    workspace 复用 node state 和 open heap；search stamp 惰性重置访问过的 node
+    supply 为 0 且非 ignore net 的 edge 不可走
+    step cost = wire cost + planar edge cost + corner cost
+
+output
+    summary: planar edge usage/overflow + 最终 global result wire length
+    guide / net json: 最终 NetGlobalResultMap
+    net csv / overflow csv: planar routing edge map
