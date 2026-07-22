@@ -131,9 +131,9 @@ void RTInterface::runRT()
   RTLA.assign();
   LayerAssigner::destroyInst();
 
-  SpaceRouter::initInst();
-  RTSR.route();
-  SpaceRouter::destroyInst();
+  // SpaceRouter::initInst();
+  // RTSR.route();
+  // SpaceRouter::destroyInst();
 
   TrackAssigner::initInst();
   RTTA.assign();
