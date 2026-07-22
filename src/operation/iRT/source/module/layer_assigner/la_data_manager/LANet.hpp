@@ -43,7 +43,6 @@ class LANet
   void set_origin_net(Net* origin_net) { _origin_net = origin_net; }
   void set_net_idx(const int32_t net_idx) { _net_idx = net_idx; }
   void set_connect_type(const ConnectType& connect_type) { _connect_type = connect_type; }
-  void set_la_pin_list(const std::vector<LAPin>& la_pin_list) { _la_pin_list = la_pin_list; }
   void set_bounding_box(const BoundingBox& bounding_box) { _bounding_box = bounding_box; }
   void set_planar_tree(const MTree<LayerCoord>& planar_tree) { _planar_tree = planar_tree; }
   void set_pillar_tree(const MTree<LAPillar>& pillar_tree) { _pillar_tree = pillar_tree; }
