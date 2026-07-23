@@ -575,7 +575,7 @@ std::vector<PRNet*> PlanarRouter::getHighUsagePRNetList(PRModel& pr_model)
       }
       max_usage_ratio = std::max(max_usage_ratio, routing_edge->get_usage() / 1.0 / routing_edge->get_supply());
     }
-    if (max_usage_ratio > 0.8) {
+    if (max_usage_ratio > 0.9) {
       usage_pr_net_list.emplace_back(max_usage_ratio, &pr_net);
     }
   }

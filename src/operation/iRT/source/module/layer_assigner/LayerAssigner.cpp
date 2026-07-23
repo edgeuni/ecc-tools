@@ -163,13 +163,34 @@ RoutingEdge& LayerAssigner::getRoutingEdge(const LayerCoord& first_coord, const 
   return RTDM.getDatabase().get_routing_v_edge_map()[layer_idx][first_coord.get_x()][y];
 }
 
-double LayerAssigner::getOverflowCost(RoutingEdge& routing_edge, double overflow_unit)
+double LayerAssigner::getOverflowCost(RoutingEdge& routing_edge, double overflow_unit, int32_t net_idx, Direction direction)
 {
-  int32_t demand = routing_edge.get_usage();
+  constexpr double blocked_edge_cost = 1e12;
+
+  if (routing_edge.get_ignore_net_set().count(net_idx)) {
+    return 0;
+  }
+  if (routing_edge.get_supply() <= 0) {
+    return blocked_edge_cost;
+  }
+
+  RoutingEdge candidate_edge = routing_edge;
+  std::map<Orientation, int32_t>& orient_demand_map = candidate_edge.get_orient_demand_map();
+  if (direction == Direction::kHorizontal) {
+    orient_demand_map[Orientation::kEast]++;
+    orient_demand_map[Orientation::kWest]++;
+  } else if (direction == Direction::kVertical) {
+    orient_demand_map[Orientation::kNorth]++;
+    orient_demand_map[Orientation::kSouth]++;
+  } else {
+    RTLOG.error(Loc::current(), "The direction is error!");
+  }
+
+  int32_t demand = candidate_edge.get_usage();
   if (demand == 0) {
     return 0;
   }
-  int32_t supply = routing_edge.get_supply();
+  int32_t supply = candidate_edge.get_supply();
   if (demand == supply) {
     return overflow_unit;
   }
@@ -272,7 +293,7 @@ bool LayerAssigner::needRouting(LAModel& la_model)
 
 std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentList(LAModel& la_model)
 {
-  constexpr int32_t refine_level = 0;  // 0: off, 1: conservative, 2: aggressive, 3: unrestricted
+  constexpr int32_t refine_level = 2;  // 0: off, 1: conservative, 2: aggressive, 3: unrestricted
   if (refine_level == 0) {
     return {};
   }
@@ -590,6 +611,7 @@ double LayerAssigner::getPillarViaCost(LAModel& la_model, const std::set<int32_t
 double LayerAssigner::getSegmentCost(LAModel& la_model, LAPackage& la_package, int32_t candidate_layer_idx)
 {
   double overflow_unit = la_model.get_la_com_param().get_overflow_unit();
+  int32_t net_idx = la_model.get_curr_la_task()->get_net_idx();
 
   PlanarCoord first_coord = la_package.getParentPillar().get_planar_coord();
   PlanarCoord second_coord = la_package.getChildPillar().get_planar_coord();
@@ -599,6 +621,7 @@ double LayerAssigner::getSegmentCost(LAModel& la_model, LAPackage& la_package, i
   if (!RTUTIL.isRightAngled(first_coord, second_coord)) {
     RTLOG.error(Loc::current(), "The segment is oblique!");
   }
+  Direction direction = RTUTIL.getDirection(first_coord, second_coord);
   int32_t first_x = first_coord.get_x();
   int32_t first_y = first_coord.get_y();
   int32_t second_x = second_coord.get_x();
@@ -611,13 +634,13 @@ double LayerAssigner::getSegmentCost(LAModel& la_model, LAPackage& la_package, i
     for (int32_t x = first_x; x < second_x; x++) {
       LayerCoord first_layer_coord(x, first_y, candidate_layer_idx);
       LayerCoord second_layer_coord(x + 1, first_y, candidate_layer_idx);
-      edge_cost += getOverflowCost(getRoutingEdge(first_layer_coord, second_layer_coord), overflow_unit);
+      edge_cost += getOverflowCost(getRoutingEdge(first_layer_coord, second_layer_coord), overflow_unit, net_idx, direction);
     }
   } else {
     for (int32_t y = first_y; y < second_y; y++) {
       LayerCoord first_layer_coord(first_x, y, candidate_layer_idx);
       LayerCoord second_layer_coord(first_x, y + 1, candidate_layer_idx);
-      edge_cost += getOverflowCost(getRoutingEdge(first_layer_coord, second_layer_coord), overflow_unit);
+      edge_cost += getOverflowCost(getRoutingEdge(first_layer_coord, second_layer_coord), overflow_unit, net_idx, direction);
     }
   }
   return edge_cost;
