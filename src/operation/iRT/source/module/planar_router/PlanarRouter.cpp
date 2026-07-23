@@ -444,7 +444,9 @@ void PlanarRouter::runRouteFlow(PRModel& pr_model)
 
   routePRNetList(pr_model, pr_task_list, "initial LZ pattern", PRRouteMode::kLZPattern);
   updateCongestion(pr_model);
-  routePRNetList(pr_model, pr_task_list, "congestion all pattern", PRRouteMode::kLZPattern);
+  routePRNetList(pr_model, pr_task_list, "congestion LZ pattern", PRRouteMode::kLZPattern);
+  updateCongestion(pr_model);
+  routePRNetList(pr_model, getOverflowPRNetList(pr_model), "repair All pattern", PRRouteMode::kAllPattern);
   updateCongestion(pr_model);
   routePRNetList(pr_model, getOverflowPRNetList(pr_model), "overflow A*", PRRouteMode::kAStar);
   updateCongestion(pr_model);
@@ -519,8 +521,8 @@ void PlanarRouter::resetSingleTask(PRModel& pr_model)
 
 void PlanarRouter::updateCongestion(PRModel& pr_model)
 {
-  constexpr int32_t congestion_radius = 2;
-  constexpr double congestion_decay = 0.8;
+  constexpr int32_t congestion_radius = 3;
+  constexpr double congestion_decay = 0.5;
   double congestion_unit = pr_model.get_pr_com_param().get_overflow_unit();
   for (GridMap<RoutingEdge>* routing_edge_map : {&RTDM.getDatabase().get_planar_routing_h_edge_map(),
                                                   &RTDM.getDatabase().get_planar_routing_v_edge_map()}) {
@@ -724,15 +726,25 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getRoutingSegmentListByAStar(PRM
   if (start_coord == end_coord) {
     return {};
   }
-  PlanarRect search_rect = getAStarSearchRect(pr_model, planar_topo);
-  if (!prepareAStarWorkspace(search_rect, _astar_workspace)) {
-    return {};
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  int32_t max_search_margin = std::max(gcell_map.get_x_size(), gcell_map.get_y_size());
+  int32_t search_margin_step = std::max(1, pr_model.get_pr_com_param().get_astar_search_margin());
+  int32_t search_margin = search_margin_step;
+  while (true) {
+    PlanarRect search_rect = getAStarSearchRect(planar_topo, search_margin);
+    if (!prepareAStarWorkspace(search_rect, _astar_workspace)) {
+      return {};
+    }
+    std::vector<Segment<PlanarCoord>> routing_segment_list;
+    if (searchRoutingSegmentByAStar(pr_model, start_coord, end_coord, _astar_workspace, routing_segment_list)) {
+      return routing_segment_list;
+    }
+    if (search_rect.get_ll_x() == 0 && search_rect.get_ll_y() == 0 && search_rect.get_ur_x() == gcell_map.get_x_size() - 1
+        && search_rect.get_ur_y() == gcell_map.get_y_size() - 1) {
+      return {};
+    }
+    search_margin = std::min(max_search_margin, search_margin + search_margin_step);
   }
-  std::vector<Segment<PlanarCoord>> routing_segment_list;
-  if (!searchRoutingSegmentByAStar(pr_model, start_coord, end_coord, _astar_workspace, routing_segment_list)) {
-    return {};
-  }
-  return routing_segment_list;
 }
 
 bool PlanarRouter::prepareAStarWorkspace(const PlanarRect& workspace_rect, PRAStarWorkspace& workspace)
@@ -887,17 +899,29 @@ bool PlanarRouter::searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCo
   return !routing_segment_list.empty();
 }
 
-PlanarRect PlanarRouter::getAStarSearchRect(PRModel& pr_model, Segment<PlanarCoord>& planar_topo)
+PlanarRect PlanarRouter::getAStarSearchRect(Segment<PlanarCoord>& planar_topo, int32_t search_margin)
 {
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  std::vector<Macro>& macro_list = RTDM.getDatabase().get_macro_list();
   PlanarCoord first_coord = planar_topo.get_first();
   PlanarCoord second_coord = planar_topo.get_second();
 
   PlanarRect topo_rect(std::min(first_coord.get_x(), second_coord.get_x()), std::min(first_coord.get_y(), second_coord.get_y()),
                        std::max(first_coord.get_x(), second_coord.get_x()), std::max(first_coord.get_y(), second_coord.get_y()));
   PlanarRect search_rect = topo_rect;
+  for (Macro& macro : macro_list) {
+    PlanarRect body_grid_rect = RTUTIL.getClosedGCellGridRect(macro.get_body_rect(), gcell_axis);
+    if (!RTUTIL.isClosedOverlap(topo_rect, body_grid_rect) && !RTUTIL.isInside(body_grid_rect, first_coord)
+        && !RTUTIL.isInside(body_grid_rect, second_coord)) {
+      continue;
+    }
+    search_rect.set_ll_x(std::min(search_rect.get_ll_x(), body_grid_rect.get_ll_x()));
+    search_rect.set_ll_y(std::min(search_rect.get_ll_y(), body_grid_rect.get_ll_y()));
+    search_rect.set_ur_x(std::max(search_rect.get_ur_x(), body_grid_rect.get_ur_x()));
+    search_rect.set_ur_y(std::max(search_rect.get_ur_y(), body_grid_rect.get_ur_y()));
+  }
 
-  int32_t search_margin = pr_model.get_pr_com_param().get_astar_search_margin();
   search_rect.set_ll_x(std::max(0, search_rect.get_ll_x() - search_margin));
   search_rect.set_ll_y(std::max(0, search_rect.get_ll_y() - search_margin));
   search_rect.set_ur_x(std::min(gcell_map.get_x_size() - 1, search_rect.get_ur_x() + search_margin));

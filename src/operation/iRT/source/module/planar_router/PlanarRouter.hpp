@@ -134,7 +134,7 @@ class PlanarRouter
   PRAStarNodeState& getAStarNodeState(PRAStarWorkspace& workspace, int32_t node_idx);
   bool searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord, PRAStarWorkspace& workspace,
                                    std::vector<Segment<PlanarCoord>>& routing_segment_list);
-  PlanarRect getAStarSearchRect(PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
+  PlanarRect getAStarSearchRect(Segment<PlanarCoord>& planar_topo, int32_t search_margin);
   double getAStarStepCost(PRModel& pr_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord,
                           const PlanarCoord& parent_coord);
   std::vector<Segment<PlanarCoord>> getRoutingSegmentListByCoordList(std::vector<PlanarCoord>& coord_list);
