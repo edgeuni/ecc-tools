@@ -9,6 +9,7 @@ add_subdirectory(tcl_instance)
 add_subdirectory(tcl_irt)
 add_subdirectory(tcl_ilvs)
 add_subdirectory(tcl_ista)
+add_subdirectory(tcl_iemir)
 add_subdirectory(tcl_izh)
 add_subdirectory(tcl_ircx)
 add_subdirectory(tcl_ifp)
@@ -40,6 +41,7 @@ target_link_libraries(ieda_tcl
         tcl_irt
         tcl_ilvs
         tcl_ista
+        tcl_iemir
         tcl_izh
         tcl_ircx 
         tcl_ifp 

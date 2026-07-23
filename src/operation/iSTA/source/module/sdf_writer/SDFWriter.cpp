@@ -71,7 +71,6 @@ void SDFWriter::outputSDF()
   outputSDFCellList(sdf_file);
   (*sdf_file) << ")\n";
   STAUTIL.closeFileStream(sdf_file);
-  STALOG.info(Loc::current(), "Output iSTA SDF: ", sdf_file_path);
 }
 
 std::string SDFWriter::getSDFFilePath()
