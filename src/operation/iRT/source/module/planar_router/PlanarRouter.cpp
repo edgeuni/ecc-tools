@@ -64,6 +64,7 @@ void PlanarRouter::generate()
   initPRTaskList(pr_model);
 
   buildPlanarRoutingEdgeMap();
+  updateBlockageEdgeList();
 
   runRouteFlow(pr_model);
 
@@ -91,6 +92,7 @@ bool PlanarRouter::repair()
     RTLOG.info(Loc::current(), "No layer overflow net");
     return false;
   }
+  updateBlockageEdgeList();
   routePRNetList(pr_model, overflow_pr_net_list, "layer overflow A*", PRRouteMode::kAStar);
 
   Die& die = RTDM.getDatabase().get_die();
@@ -148,11 +150,11 @@ void PlanarRouter::setPRComParam(PRModel& pr_model)
   int32_t topo_spilt_length = 30;
   int32_t expand_step_num = 30;
   int32_t expand_step_length = 1;
-  int32_t astar_search_margin = 50;
+  int32_t astar_search_margin = 200;
   double prefer_wire_unit = 1;
   double non_prefer_wire_unit = 2.5 * prefer_wire_unit;
   double corner_weight = non_prefer_wire_unit;
-  double overflow_unit = 4 * non_prefer_wire_unit;
+  double overflow_unit = 40 * non_prefer_wire_unit;
   /**
    * topo_spilt_length, expand_step_num, expand_step_length, astar_search_margin, overflow_unit
    */
@@ -549,6 +551,41 @@ void PlanarRouter::updateCongestion(PRModel& pr_model)
       }
     }
   }
+  updateBlockageEdgeList();
+}
+
+void PlanarRouter::updateBlockageEdgeList()
+{
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  int32_t blockage_block_x_size = (gcell_map.get_x_size() + kBlockageBlockSize - 1) / kBlockageBlockSize;
+  _blockage_block_y_size = (gcell_map.get_y_size() + kBlockageBlockSize - 1) / kBlockageBlockSize;
+  if (static_cast<int32_t>(_blockage_edge_list_list.size()) != blockage_block_x_size * _blockage_block_y_size) {
+    _blockage_edge_list_list.resize(blockage_block_x_size * _blockage_block_y_size);
+  }
+  for (std::vector<BlockageEdge>& blockage_edge_list : _blockage_edge_list_list) {
+    blockage_edge_list.clear();
+  }
+
+  GridMap<RoutingEdge>& routing_h_edge_map = RTDM.getDatabase().get_planar_routing_h_edge_map();
+  for (int32_t x = 0; x < routing_h_edge_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < routing_h_edge_map.get_y_size(); y++) {
+      RoutingEdge& routing_edge = routing_h_edge_map[x][y];
+      if (routing_edge.get_supply() > 0 && routing_edge.get_usage() >= routing_edge.get_supply()) {
+        _blockage_edge_list_list[(x / kBlockageBlockSize) * _blockage_block_y_size + y / kBlockageBlockSize].push_back(
+            {&routing_edge, x, y, true});
+      }
+    }
+  }
+  GridMap<RoutingEdge>& routing_v_edge_map = RTDM.getDatabase().get_planar_routing_v_edge_map();
+  for (int32_t x = 0; x < routing_v_edge_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < routing_v_edge_map.get_y_size(); y++) {
+      RoutingEdge& routing_edge = routing_v_edge_map[x][y];
+      if (routing_edge.get_supply() > 0 && routing_edge.get_usage() >= routing_edge.get_supply()) {
+        _blockage_edge_list_list[(x / kBlockageBlockSize) * _blockage_block_y_size + y / kBlockageBlockSize].push_back(
+            {&routing_edge, x, y, false});
+      }
+    }
+  }
 }
 
 std::vector<PRNet*> PlanarRouter::getOverflowPRNetList(PRModel& pr_model)
@@ -712,6 +749,65 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_mo
     planar_obs_list.emplace_back(std::max(0, body_grid_rect.get_ll_x() - 1), std::max(0, body_grid_rect.get_ll_y() - 1),
                                  std::min(gcell_map.get_x_size() - 1, body_grid_rect.get_ur_x() + 1),
                                  std::min(gcell_map.get_y_size() - 1, body_grid_rect.get_ur_y() + 1));
+  }
+  if (_blockage_block_y_size > 0 && !_blockage_edge_list_list.empty()) {
+    const PlanarRect& net_grid_rect = pr_model.get_curr_pr_task()->get_bounding_box().get_grid_rect();
+    int32_t blockage_block_ll_x = std::max(0, net_grid_rect.get_ll_x() - 1) / kBlockageBlockSize;
+    int32_t blockage_block_ll_y = std::max(0, net_grid_rect.get_ll_y() - 1) / kBlockageBlockSize;
+    int32_t blockage_block_ur_x = std::min(gcell_map.get_x_size() - 1, net_grid_rect.get_ur_x() + 1) / kBlockageBlockSize;
+    int32_t blockage_block_ur_y = std::min(gcell_map.get_y_size() - 1, net_grid_rect.get_ur_y() + 1) / kBlockageBlockSize;
+    int32_t curr_net_idx = pr_model.get_curr_pr_task()->get_net_idx();
+    std::vector<PlanarCoord> planar_forbidden_coord_list;
+    for (int32_t block_x = blockage_block_ll_x; block_x <= blockage_block_ur_x; block_x++) {
+      for (int32_t block_y = blockage_block_ll_y; block_y <= blockage_block_ur_y; block_y++) {
+        for (BlockageEdge& blockage_edge : _blockage_edge_list_list[block_x * _blockage_block_y_size + block_y]) {
+          RoutingEdge* routing_edge = blockage_edge.routing_edge;
+          int32_t second_x = blockage_edge.x + (blockage_edge.is_horizontal ? 1 : 0);
+          int32_t second_y = blockage_edge.y + (blockage_edge.is_horizontal ? 0 : 1);
+          if (routing_edge->get_supply() <= 0 || routing_edge->get_usage() < routing_edge->get_supply()
+              || routing_edge->get_ignore_net_set().count(curr_net_idx) || second_x < net_grid_rect.get_ll_x()
+              || net_grid_rect.get_ur_x() < blockage_edge.x || second_y < net_grid_rect.get_ll_y()
+              || net_grid_rect.get_ur_y() < blockage_edge.y) {
+            continue;
+          }
+          planar_forbidden_coord_list.emplace_back(blockage_edge.x, blockage_edge.y);
+          planar_forbidden_coord_list.emplace_back(second_x, second_y);
+        }
+      }
+    }
+    std::sort(planar_forbidden_coord_list.begin(), planar_forbidden_coord_list.end(), CmpPlanarCoordByYASC());
+    planar_forbidden_coord_list.erase(std::unique(planar_forbidden_coord_list.begin(), planar_forbidden_coord_list.end()),
+                                      planar_forbidden_coord_list.end());
+    std::vector<PlanarRect> blockage_obs_list;
+    for (size_t i = 0; i < planar_forbidden_coord_list.size();) {
+      int32_t y = planar_forbidden_coord_list[i].get_y();
+      int32_t ll_x = planar_forbidden_coord_list[i].get_x();
+      int32_t ur_x = ll_x;
+      i++;
+      while (i < planar_forbidden_coord_list.size() && planar_forbidden_coord_list[i].get_y() == y
+             && planar_forbidden_coord_list[i].get_x() == ur_x + 1) {
+        ur_x = planar_forbidden_coord_list[i].get_x();
+        i++;
+      }
+      blockage_obs_list.emplace_back(ll_x, y, ur_x, y);
+    }
+    std::sort(blockage_obs_list.begin(), blockage_obs_list.end(), [](const PlanarRect& a, const PlanarRect& b) {
+      if (a.get_ll_x() != b.get_ll_x()) {
+        return a.get_ll_x() < b.get_ll_x();
+      }
+      if (a.get_ur_x() != b.get_ur_x()) {
+        return a.get_ur_x() < b.get_ur_x();
+      }
+      return a.get_ll_y() < b.get_ll_y();
+    });
+    for (PlanarRect& blockage_obs : blockage_obs_list) {
+      if (!planar_obs_list.empty() && planar_obs_list.back().get_ll_x() == blockage_obs.get_ll_x()
+          && planar_obs_list.back().get_ur_x() == blockage_obs.get_ur_x() && planar_obs_list.back().get_ur_y() + 1 == blockage_obs.get_ll_y()) {
+        planar_obs_list.back().set_ur_y(blockage_obs.get_ur_y());
+      } else {
+        planar_obs_list.push_back(blockage_obs);
+      }
+    }
   }
   tb_task.set_planar_obs_list(std::move(planar_obs_list));
   tb_task.set_planar_search_region(PlanarRect(0, 0, gcell_map.get_x_size() - 1, gcell_map.get_y_size() - 1));

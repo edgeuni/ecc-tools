@@ -47,6 +47,17 @@ class PlanarRouter
   ~PlanarRouter() = default;
   PlanarRouter& operator=(const PlanarRouter& other) = delete;
   PlanarRouter& operator=(PlanarRouter&& other) = delete;
+  struct BlockageEdge
+  {
+    RoutingEdge* routing_edge = nullptr;
+    int32_t x = -1;
+    int32_t y = -1;
+    bool is_horizontal = false;
+  };
+
+  static constexpr int32_t kBlockageBlockSize = 32;
+  int32_t _blockage_block_y_size = 0;
+  std::vector<std::vector<BlockageEdge>> _blockage_edge_list_list;
   // model
   PRModel initPRModel();
   std::vector<PRNet> convertToPRNetList(std::vector<Net>& net_list);
@@ -95,6 +106,7 @@ class PlanarRouter
   void resetSingleTask(PRModel& pr_model);
   bool routePlanarTopoList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list, PRRouteMode pr_route_mode);
   void updateCongestion(PRModel& pr_model);
+  void updateBlockageEdgeList();
   std::vector<PRNet*> getOverflowPRNetList(PRModel& pr_model);
   std::vector<PRNet*> getHighUsagePRNetList(PRModel& pr_model);
   bool isBetterCandidate(PRModel& pr_model, PRCandidate& candidate, PRCandidate& current_best);
