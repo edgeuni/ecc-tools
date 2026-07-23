@@ -97,7 +97,7 @@ void DataManager::buildConfig()
 
 void DataManager::buildDatabase()
 {
-  LVSI.wrapDatabase();
+  _database.reset();
 }
 
 void DataManager::printConfig()

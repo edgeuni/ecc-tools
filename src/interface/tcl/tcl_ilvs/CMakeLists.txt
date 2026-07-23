@@ -1,7 +1,10 @@
 add_library(tcl_ilvs
     ${HOME_INTERFACE}/tcl/tcl_ilvs/src/tcl_destroy_lvs.cpp
     ${HOME_INTERFACE}/tcl/tcl_ilvs/src/tcl_init_lvs.cpp
+    ${HOME_INTERFACE}/tcl/tcl_ilvs/src/tcl_read_lvs.cpp
     ${HOME_INTERFACE}/tcl/tcl_ilvs/src/tcl_run_lvs.cpp
+    ${HOME_INTERFACE}/tcl/tcl_ilvs/src/tcl_write_lvs_def.cpp
+    ${HOME_INTERFACE}/tcl/tcl_ilvs/src/tcl_write_lvs_netlist.cpp
 )
 
 target_link_libraries(tcl_ilvs

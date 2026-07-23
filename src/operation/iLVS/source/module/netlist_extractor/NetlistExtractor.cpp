@@ -8,6 +8,7 @@
 #include "NetlistExtractor.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <numeric>
 #include <unordered_set>
 
@@ -31,6 +32,7 @@ struct GraphNode
   bool is_io_terminal = false;
   bool is_power_terminal = false;
   bool is_ground_terminal = false;
+  uint64_t routing_shape_idx = std::numeric_limits<uint64_t>::max();
 };
 
 class DisjointSet
@@ -67,74 +69,144 @@ class DisjointSet
   std::vector<uint8_t> _rank;
 };
 
+idb::IdbRect getPhysicalSegmentRect(idb::IdbRegularWireSegment* segment)
+{
+  idb::IdbRect rect = segment->get_segment_rect();
+  if (!segment->is_rect()) {
+    return rect;
+  }
+  // DEF path RECT coordinates are offsets from the preceding path point.
+  if (idb::IdbCoordinate<int32_t>* point = segment->get_point_start(); point != nullptr) {
+    rect.moveByStep(point->get_x(), point->get_y());
+  }
+  return rect;
+}
+
 }  // namespace
 
-LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
+LVSNetlist NetlistExtractor::extractNetlist(idb::IdbDesign* design, bool build_logical_graph, bool build_physical_graph)
 {
   LVSNetlist netlist;
-  if (design == nullptr || design->get_net_list() == nullptr) {
+  if (design == nullptr) {
     return netlist;
   }
 
   netlist.design_name = design->get_design_name();
-  for (idb::IdbNet* idb_net : design->get_net_list()->get_net_list()) {
-    if (idb_net == nullptr) {
-      continue;
+  const auto normalize_name_list = [](std::vector<std::string>& name_list) {
+    std::sort(name_list.begin(), name_list.end());
+    name_list.erase(std::unique(name_list.begin(), name_list.end()), name_list.end());
+  };
+  const auto add_io_pin_list = [&normalize_name_list](idb::IdbPins* pin_list, std::vector<std::string>& io_pin_list) {
+    if (pin_list == nullptr) {
+      return;
     }
-    LVSNet net;
-    net.name = idb_net->get_net_name();
-    net.wire_segment_num = idb_net->get_segment_wire_num();
-    net.via_num = idb_net->get_via_num();
-
-    auto add_terminal_list = [&net, &netlist](idb::IdbPins* pin_list) {
-      if (pin_list == nullptr) {
-        return;
+    for (idb::IdbPin* pin : pin_list->get_pin_list()) {
+      if (pin != nullptr) {
+        io_pin_list.push_back("PIN/" + pin->get_pin_name());
       }
-      for (idb::IdbPin* pin : pin_list->get_pin_list()) {
-        if (pin != nullptr) {
-          net.terminal_list.push_back(getTerminalName(pin));
-          if (pin->is_io_pin()) {
-            netlist.logical_graph.io_pin_list.push_back(getTerminalName(pin));
-          } else if (idb::IdbInstance* instance = pin->get_instance(); instance != nullptr) {
-            LVSInstanceNode& instance_node = netlist.logical_graph.instance_map[instance->get_name()];
-            instance_node.name = instance->get_name();
-            instance_node.pin_list.push_back(pin->get_pin_name());
+    }
+    normalize_name_list(io_pin_list);
+  };
+  const auto add_instance_map = [design](std::unordered_map<std::string, LVSInstanceNode>& instance_map) {
+    idb::IdbInstanceList* instance_list = design->get_instance_list();
+    if (instance_list == nullptr) {
+      return;
+    }
+    for (idb::IdbInstance* instance : instance_list->get_instance_list()) {
+      if (instance == nullptr) {
+        continue;
+      }
+      LVSInstanceNode& instance_node = instance_map[instance->get_name()];
+      instance_node.name = instance->get_name();
+      if (idb::IdbCellMaster* master = instance->get_cell_master(); master != nullptr) {
+        instance_node.master_name = master->get_name();
+      }
+    }
+  };
+  if (build_logical_graph) {
+    add_io_pin_list(design->get_io_pin_list(), netlist.logical_graph.io_pin_list);
+    add_instance_map(netlist.logical_graph.instance_map);
+  }
+  if (build_physical_graph) {
+    add_io_pin_list(design->get_io_pin_list(), netlist.physical_graph.io_pin_list);
+    add_instance_map(netlist.physical_graph.instance_map);
+  }
+
+  if (design->get_net_list() != nullptr) {
+    for (idb::IdbNet* idb_net : design->get_net_list()->get_net_list()) {
+      if (idb_net == nullptr) {
+        continue;
+      }
+      LVSNet net;
+      net.name = idb_net->get_net_name();
+      net.wire_segment_num = idb_net->get_segment_wire_num();
+      net.via_num = idb_net->get_via_num();
+
+      auto add_terminal_list = [&net, &netlist, build_logical_graph](idb::IdbPins* pin_list) {
+        if (pin_list == nullptr) {
+          return;
+        }
+        for (idb::IdbPin* pin : pin_list->get_pin_list()) {
+          if (pin != nullptr) {
+            net.terminal_list.push_back(getTerminalName(pin));
+            if (build_logical_graph) {
+              if (idb::IdbInstance* instance = pin->get_instance(); instance != nullptr) {
+                LVSInstanceNode& instance_node = netlist.logical_graph.instance_map[instance->get_name()];
+                instance_node.name = instance->get_name();
+                if (idb::IdbCellMaster* master = instance->get_cell_master(); master != nullptr) {
+                  instance_node.master_name = master->get_name();
+                }
+                instance_node.pin_list.push_back(pin->get_pin_name());
+              }
+            }
           }
         }
-      }
-    };
-    add_terminal_list(idb_net->get_io_pins());
-    add_terminal_list(idb_net->get_instance_pin_list());
-    std::sort(net.terminal_list.begin(), net.terminal_list.end());
-    net.terminal_list.erase(std::unique(net.terminal_list.begin(), net.terminal_list.end()), net.terminal_list.end());
-    netlist.net_map.emplace(net.name, std::move(net));
+      };
+      add_terminal_list(idb_net->get_io_pins());
+      add_terminal_list(idb_net->get_instance_pin_list());
+      normalize_name_list(net.terminal_list);
+      netlist.net_map.emplace(net.name, std::move(net));
+    }
   }
-  std::sort(netlist.logical_graph.io_pin_list.begin(), netlist.logical_graph.io_pin_list.end());
-  netlist.logical_graph.io_pin_list.erase(std::unique(netlist.logical_graph.io_pin_list.begin(), netlist.logical_graph.io_pin_list.end()),
-                                          netlist.logical_graph.io_pin_list.end());
-  for (auto& [instance_name, instance_node] : netlist.logical_graph.instance_map) {
-    (void) instance_name;
-    std::sort(instance_node.pin_list.begin(), instance_node.pin_list.end());
-    instance_node.pin_list.erase(std::unique(instance_node.pin_list.begin(), instance_node.pin_list.end()), instance_node.pin_list.end());
+  if (build_logical_graph) {
+    for (auto& [instance_name, instance_node] : netlist.logical_graph.instance_map) {
+      (void) instance_name;
+      normalize_name_list(instance_node.pin_list);
+    }
+    for (const auto& [net_name, net] : netlist.net_map) {
+      (void) net_name;
+      netlist.logical_graph.net_edge_num += net.terminal_list.size();
+    }
   }
-  for (const auto& [net_name, net] : netlist.net_map) {
-    (void) net_name;
-    netlist.logical_graph.net_edge_num += net.terminal_list.size();
+  if (!build_physical_graph || design->get_net_list() == nullptr) {
+    return netlist;
   }
   std::vector<GraphNode> graph_node_list;
   std::vector<std::pair<size_t, size_t>> via_node_pair_list;
   std::unordered_map<std::string, std::vector<std::vector<size_t>>> terminal_node_map;
   std::unordered_map<std::string, std::vector<std::string>> terminal_name_map;
-  const auto add_shape = [&graph_node_list](const std::string& net_name, idb::IdbLayer* layer, const idb::IdbRect& rect, bool is_terminal = false,
-                                            bool is_io_terminal = false, bool is_power_terminal = false, bool is_ground_terminal = false) {
+  const auto add_shape = [&graph_node_list, &netlist](const std::string& net_name, idb::IdbLayer* layer, const idb::IdbRect& rect,
+                                                       bool is_terminal = false, bool is_io_terminal = false, bool is_power_terminal = false,
+                                                       bool is_ground_terminal = false) {
     if (layer == nullptr || !layer->is_routing()) {
       return static_cast<size_t>(-1);
     }
-    graph_node_list.push_back({net_name, rect, layer->get_id(), is_terminal, is_io_terminal, is_power_terminal, is_ground_terminal});
+    uint64_t routing_shape_idx = std::numeric_limits<uint64_t>::max();
+    auto routing_graph_iter = netlist.physical_graph.net_routing_graph_map.find(net_name);
+    if (routing_graph_iter != netlist.physical_graph.net_routing_graph_map.end()) {
+      idb::IdbRect shape_rect = rect;
+      LVSNetRoutingGraph& routing_graph = routing_graph_iter->second;
+      routing_shape_idx = routing_graph.shape_list.size();
+      routing_graph.shape_list.push_back(
+          {layer->get_id(), shape_rect.get_low_x(), shape_rect.get_low_y(), shape_rect.get_high_x(), shape_rect.get_high_y()});
+    }
+    graph_node_list.push_back(
+        {net_name, rect, layer->get_id(), is_terminal, is_io_terminal, is_power_terminal, is_ground_terminal, routing_shape_idx});
     return graph_node_list.size() - 1;
   };
-  const auto add_pin = [&add_shape, &terminal_node_map, &terminal_name_map](const std::string& net_name, idb::IdbPin* pin, bool is_power_port,
-                                                                             bool is_ground_port) {
+  const auto add_pin = [&add_shape, &graph_node_list, &netlist, &terminal_node_map, &terminal_name_map](const std::string& net_name,
+                                                                                                            idb::IdbPin* pin, bool is_power_port,
+                                                                                                            bool is_ground_port) {
     std::vector<size_t> pin_node_list;
     for (idb::IdbLayerShape* layer_shape : pin->get_port_box_list()) {
       if (layer_shape == nullptr) {
@@ -150,11 +222,22 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
       }
     }
     if (!pin_node_list.empty()) {
+      const std::string terminal_name = getTerminalName(pin);
       terminal_node_map[net_name].push_back(std::move(pin_node_list));
-      terminal_name_map[net_name].push_back(getTerminalName(pin));
+      terminal_name_map[net_name].push_back(terminal_name);
+      auto routing_graph_iter = netlist.physical_graph.net_routing_graph_map.find(net_name);
+      if (routing_graph_iter != netlist.physical_graph.net_routing_graph_map.end()) {
+        std::vector<uint64_t>& shape_index_list = routing_graph_iter->second.terminal_shape_map[terminal_name];
+        for (size_t node_idx : terminal_node_map[net_name].back()) {
+          const uint64_t routing_shape_idx = graph_node_list[node_idx].routing_shape_idx;
+          if (routing_shape_idx != std::numeric_limits<uint64_t>::max()) {
+            shape_index_list.push_back(routing_shape_idx);
+          }
+        }
+      }
     }
   };
-  const auto add_via = [&add_shape, &via_node_pair_list](const std::string& net_name, idb::IdbVia* via) {
+  const auto add_via = [&add_shape, &graph_node_list, &netlist, &via_node_pair_list](const std::string& net_name, idb::IdbVia* via) {
     if (via == nullptr) {
       return;
     }
@@ -164,6 +247,14 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
     size_t top_node = add_shape(net_name, top_shape.get_layer(), top_shape.get_bounding_box());
     if (bottom_node != static_cast<size_t>(-1) && top_node != static_cast<size_t>(-1)) {
       via_node_pair_list.emplace_back(bottom_node, top_node);
+      auto routing_graph_iter = netlist.physical_graph.net_routing_graph_map.find(net_name);
+      if (routing_graph_iter != netlist.physical_graph.net_routing_graph_map.end()) {
+        const uint64_t bottom_shape_idx = graph_node_list[bottom_node].routing_shape_idx;
+        const uint64_t top_shape_idx = graph_node_list[top_node].routing_shape_idx;
+        if (bottom_shape_idx != std::numeric_limits<uint64_t>::max() && top_shape_idx != std::numeric_limits<uint64_t>::max()) {
+          routing_graph_iter->second.via_shape_pair_list.emplace_back(bottom_shape_idx, top_shape_idx);
+        }
+      }
     }
   };
 
@@ -172,6 +263,12 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
       continue;
     }
     const std::string net_name = idb_net->get_net_name();
+    LVSNetRoutingGraph& routing_graph = netlist.physical_graph.net_routing_graph_map[net_name];
+    if (idb_net->get_pin_number() > 0) {
+      if (idb::IdbPin* driving_pin = idb_net->get_driving_pin(); driving_pin != nullptr) {
+        routing_graph.driver_terminal_name = getTerminalName(driving_pin);
+      }
+    }
     for (idb::IdbPin* pin : idb_net->get_io_pins()->get_pin_list()) {
       if (pin != nullptr) {
         add_pin(net_name, pin, false, false);
@@ -192,7 +289,7 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
             add_via(net_name, via);
           }
         } else if (segment->get_layer() != nullptr && (segment->is_wire() || segment->is_rect())) {
-          add_shape(net_name, segment->get_layer(), segment->get_segment_rect());
+          add_shape(net_name, segment->get_layer(), getPhysicalSegmentRect(segment));
         }
       }
     }
@@ -348,6 +445,21 @@ LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
     }
   }
   return netlist;
+}
+
+LVSNetlist NetlistExtractor::extract(idb::IdbDesign* design)
+{
+  return extractNetlist(design, true, true);
+}
+
+LVSNetlist NetlistExtractor::extractLogical(idb::IdbDesign* design)
+{
+  return extractNetlist(design, true, false);
+}
+
+LVSNetlist NetlistExtractor::extractPhysical(idb::IdbDesign* design)
+{
+  return extractNetlist(design, false, true);
 }
 
 std::string NetlistExtractor::getTerminalName(idb::IdbPin* pin)

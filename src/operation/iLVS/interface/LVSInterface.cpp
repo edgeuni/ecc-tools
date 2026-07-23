@@ -3,6 +3,7 @@
 #include "DataManager.hpp"
 #include "LVSChecker.hpp"
 #include "LVSReporter.hpp"
+#include "LVSSnapshotIO.hpp"
 #include "NetlistExtractor.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
@@ -62,65 +63,91 @@ void LVSInterface::runLVS()
   LVSLOG.info(Loc::current(), "Starting...");
 
   LVSDatabase& database = LVSDM.getDatabase();
+  if (!database.hasExpectedNetlist() || !database.hasPhysicalNetlist()) {
+    LVSLOG.error(Loc::current(), "run_lvs requires read_lvs to load both the netlist and DEF snapshots first!");
+  }
   LVSCheckResult& check_result = database.getCheckResult();
   const LVSNetlist& expected_netlist = database.getExpectedNetlist();
   const LVSNetlist& physical_netlist = database.getPhysicalNetlist();
   check_result = LVSChecker::check(expected_netlist, physical_netlist);
   LVSReporter::report(check_result, expected_netlist, physical_netlist, database.getReportDirectoryPath());
+  LVSUTIL.printTableList(LVSReporter::getSummaryTableList(check_result, expected_netlist, physical_netlist));
 
-  uint64_t expected_terminal_num = 0;
-  for (const auto& [net_name, net] : expected_netlist.net_map) {
-    (void) net_name;
-    expected_terminal_num += net.terminal_list.size();
+  LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void LVSInterface::writeLVSNetlist(const std::string& file_path)
+{
+  Monitor monitor;
+  LVSLOG.info(Loc::current(), "Starting...");
+
+  idb::IdbDesign* idb_design = dmInst->get_idb_design();
+  if (idb_design == nullptr) {
+    LVSLOG.error(Loc::current(), "write_lvs_netlist requires a Verilog-backed IDB design!");
   }
-  uint64_t physical_terminal_num = 0;
-  uint64_t physical_wire_segment_num = 0;
-  uint64_t physical_via_num = 0;
-  for (const auto& [net_name, net] : physical_netlist.net_map) {
-    (void) net_name;
-    physical_terminal_num += net.terminal_list.size();
-    physical_wire_segment_num += net.wire_segment_num;
-    physical_via_num += net.via_num;
+  if (dmInst->get_config().get_verilog_path().empty()) {
+    LVSLOG.error(Loc::current(), "write_lvs_netlist requires verilog_init before iLVS snapshot extraction!");
+  }
+  LVSNetlist netlist = NetlistExtractor::extractLogical(idb_design);
+  std::string error_message;
+  if (!LVSSnapshotIO::write(netlist, LVSSnapshotType::kLogical, file_path, error_message)) {
+    LVSLOG.error(Loc::current(), "Failed to write logical iLVS snapshot '", file_path, "': ", error_message);
+  }
+  LVSLOG.info(Loc::current(), "Wrote logical iLVS snapshot '", file_path, "' with ", netlist.net_map.size(), " nets.");
+
+  LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void LVSInterface::writeLVSDef(const std::string& file_path)
+{
+  Monitor monitor;
+  LVSLOG.info(Loc::current(), "Starting...");
+
+  idb::IdbDesign* idb_design = dmInst->get_idb_design();
+  if (idb_design == nullptr) {
+    LVSLOG.error(Loc::current(), "write_lvs_def requires a DEF-backed IDB design!");
+  }
+  if (dmInst->get_config().get_def_path().empty()) {
+    LVSLOG.error(Loc::current(), "write_lvs_def requires def_init before iLVS snapshot extraction!");
+  }
+  LVSNetlist netlist = NetlistExtractor::extractPhysical(idb_design);
+  std::string error_message;
+  if (!LVSSnapshotIO::write(netlist, LVSSnapshotType::kPhysical, file_path, error_message)) {
+    LVSLOG.error(Loc::current(), "Failed to write physical iLVS snapshot '", file_path, "': ", error_message);
+  }
+  LVSLOG.info(Loc::current(), "Wrote physical iLVS snapshot '", file_path, "' with ", netlist.net_map.size(), " nets and ",
+              netlist.physical_graph.node_num, " graph nodes.");
+
+  LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void LVSInterface::readLVS(const std::string& netlist_file_path, const std::string& def_file_path)
+{
+  Monitor monitor;
+  LVSLOG.info(Loc::current(), "Starting...");
+
+  LVSNetlist expected_netlist;
+  LVSNetlist physical_netlist;
+  std::string error_message;
+  if (!LVSSnapshotIO::read(netlist_file_path, LVSSnapshotType::kLogical, expected_netlist, error_message)) {
+    LVSLOG.error(Loc::current(), "Failed to read logical iLVS snapshot '", netlist_file_path, "': ", error_message);
+  }
+  if (!LVSSnapshotIO::read(def_file_path, LVSSnapshotType::kPhysical, physical_netlist, error_message)) {
+    LVSLOG.error(Loc::current(), "Failed to read physical iLVS snapshot '", def_file_path, "': ", error_message);
+  }
+  if (expected_netlist.design_name.empty() || physical_netlist.design_name.empty()) {
+    LVSLOG.error(Loc::current(), "iLVS snapshots must both contain a design name!");
+  }
+  if (expected_netlist.design_name != physical_netlist.design_name) {
+    LVSLOG.error(Loc::current(), "iLVS snapshot design names differ: logical='", expected_netlist.design_name, "' physical='",
+                 physical_netlist.design_name, "'!");
   }
 
-  fort::char_table netlist_summary_table;
-  {
-    netlist_summary_table.set_cell_text_align(fort::text_align::right);
-    netlist_summary_table << fort::header << "Netlist Summary"
-                          << "Expected"
-                          << "Physical" << fort::endr;
-    netlist_summary_table << "Net" << check_result.expected_net_num << check_result.physical_net_num << fort::endr;
-    netlist_summary_table << "Instance" << expected_netlist.logical_graph.instance_map.size() << "-" << fort::endr;
-    netlist_summary_table << "Net Edge" << expected_netlist.logical_graph.net_edge_num << "-" << fort::endr;
-    netlist_summary_table << "Terminal" << expected_terminal_num << physical_terminal_num << fort::endr;
-    netlist_summary_table << "Wire Segment" << "-" << physical_wire_segment_num << fort::endr;
-    netlist_summary_table << "Via" << "-" << physical_via_num << fort::endr;
-    netlist_summary_table << "Graph Node" << "-" << physical_netlist.physical_graph.node_num << fort::endr;
-    netlist_summary_table << "Graph Edge" << "-" << physical_netlist.physical_graph.edge_num << fort::endr;
-    netlist_summary_table << "Graph Component" << "-" << physical_netlist.physical_graph.component_num << fort::endr;
-    netlist_summary_table << "Graph Candidate Pair" << "-" << physical_netlist.physical_graph.candidate_pair_num << fort::endr;
-    netlist_summary_table << "Graph Max Active" << "-" << physical_netlist.physical_graph.max_active_shape_num << fort::endr;
-  }
-
-  fort::char_table check_summary_table;
-  {
-    check_summary_table.set_cell_text_align(fort::text_align::right);
-    check_summary_table << fort::header << "Check Summary"
-                        << "Count" << fort::endr;
-    check_summary_table << "Missing Net" << check_result.missing_net_num << fort::endr;
-    check_summary_table << "Unexpected Net" << check_result.unexpected_net_num << fort::endr;
-    check_summary_table << "Open Net" << check_result.open_net_num << fort::endr;
-    check_summary_table << "Missing Terminal" << check_result.missing_terminal_num << fort::endr;
-    check_summary_table << "Unrouted Net" << check_result.unrouted_net_num << fort::endr;
-    check_summary_table << "Short Component" << check_result.short_component_num << fort::endr;
-    check_summary_table << "Power/Ground Short" << check_result.power_ground_short_num << fort::endr;
-    check_summary_table << "Floating Power Port" << check_result.floating_power_port_num << fort::endr;
-    check_summary_table << "Floating Ground Port" << check_result.floating_ground_port_num << fort::endr;
-    check_summary_table << "Floating Power Pin" << check_result.floating_power_pin_num << fort::endr;
-    check_summary_table << "Floating Ground Pin" << check_result.floating_ground_pin_num << fort::endr;
-    check_summary_table << fort::header << "Total" << check_result.violation_list.size() << fort::endr;
-  }
-  LVSUTIL.printTableList({netlist_summary_table, check_summary_table});
+  LVSDatabase& database = LVSDM.getDatabase();
+  database.setExpectedNetlist(std::move(expected_netlist));
+  database.setPhysicalNetlist(std::move(physical_netlist));
+  LVSLOG.info(Loc::current(), "Loaded iLVS snapshots: logical_nets=", database.getExpectedNetlist().net_map.size(), " physical_nets=",
+              database.getPhysicalNetlist().net_map.size(), " physical_graph_nodes=", database.getPhysicalNetlist().physical_graph.node_num, ".");
 
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -168,31 +195,6 @@ void LVSInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   LVSDM.getConfig().temp_directory_path = LVSUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./lvs_temp_directory");
   LVSDM.getConfig().thread_number = LVSUTIL.getConfigValue<int32_t>(config_map, "-thread_number", 128);
   omp_set_num_threads(std::max(LVSDM.getConfig().thread_number, 1));
-}
-
-void LVSInterface::wrapDatabase()
-{
-  const std::string& verilog_path = dmInst->get_config().get_verilog_path();
-  if (verilog_path.empty()) {
-    LVSLOG.error(Loc::current(), "The Verilog path is not initialized before init_lvs!");
-  }
-
-  // IDB keeps one current design view; preserve the Verilog view before reloading DEF.
-  LVSNetlist expected_netlist = NetlistExtractor::extract(dmInst->get_idb_design());
-  LVSDM.getDatabase().getExpectedNetlist() = std::move(expected_netlist);
-  LVSDM.getDatabase().getExpectedNetlist().physical_graph = {};
-
-  const std::string& def_path = dmInst->get_config().get_def_path();
-  if (def_path.empty()) {
-    LVSLOG.error(Loc::current(), "The DEF path is not initialized before init_lvs!");
-  }
-  if (!dmInst->readDef(def_path)) {
-    LVSLOG.error(Loc::current(), "Failed to reload DEF '", def_path, "' through IDB!");
-  }
-
-  LVSNetlist physical_netlist = NetlistExtractor::extract(dmInst->get_idb_design());
-  LVSDM.getDatabase().getPhysicalNetlist() = std::move(physical_netlist);
-  LVSDM.getDatabase().getPhysicalNetlist().logical_graph = {};
 }
 
 #endif

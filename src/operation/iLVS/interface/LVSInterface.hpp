@@ -18,6 +18,9 @@ class LVSInterface
 
 #if 1  // iLVS
   void initLVS(std::map<std::string, std::any> config_map);
+  void writeLVSNetlist(const std::string& file_path);
+  void writeLVSDef(const std::string& file_path);
+  void readLVS(const std::string& netlist_file_path, const std::string& def_file_path);
   void runLVS();
   void destroyLVS();
 #endif
@@ -31,7 +34,6 @@ class LVSInterface
 #if 1  // input
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
-  void wrapDatabase();
 #endif
 
 #if 1  // output

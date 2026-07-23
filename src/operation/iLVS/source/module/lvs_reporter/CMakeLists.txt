@@ -8,6 +8,11 @@ target_include_directories(ilvs_lvs_reporter
     ${ILVS_DATA_MANAGER}/advance
 )
 
+target_link_libraries(ilvs_lvs_reporter
+    PUBLIC
+    fort
+)
+
 if(BUILD_TESTING)
     add_executable(ilvs_lvs_reporter_test
         ${ILVS_MODULE}/lvs_reporter/test/LVSReporterTest.cpp

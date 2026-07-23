@@ -7,25 +7,24 @@
 // ***************************************************************************************
 #pragma once
 
-#include "LVSDatabase.hpp"
+#include <cstdint>
+#include <string>
 
-namespace idb {
-class IdbDesign;
-class IdbPin;
-}  // namespace idb
+#include "LVSDatabase.hpp"
 
 namespace ilvs {
 
-class NetlistExtractor
+enum class LVSSnapshotType : uint32_t
+{
+  kLogical = 1,
+  kPhysical = 2,
+};
+
+class LVSSnapshotIO
 {
  public:
-  static LVSNetlist extract(idb::IdbDesign* design);
-  static LVSNetlist extractLogical(idb::IdbDesign* design);
-  static LVSNetlist extractPhysical(idb::IdbDesign* design);
-
- private:
-  static LVSNetlist extractNetlist(idb::IdbDesign* design, bool build_logical_graph, bool build_physical_graph);
-  static std::string getTerminalName(idb::IdbPin* pin);
+  static bool write(const LVSNetlist& netlist, LVSSnapshotType snapshot_type, const std::string& file_path, std::string& error_message);
+  static bool read(const std::string& file_path, LVSSnapshotType expected_snapshot_type, LVSNetlist& netlist, std::string& error_message);
 };
 
 }  // namespace ilvs
