@@ -298,6 +298,9 @@ void DataManager::updateNetDetailedPatchToGCellMap(ChangeType change_type, int32
   }
   PlanarRect real_rect = RTUTIL.getEnlargedRect(ext_layer_rect->get_real_rect(), detection_distance);
   if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+    if (change_type == ChangeType::kDel) {
+      delete ext_layer_rect;
+    }
     return;
   }
   real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());

@@ -376,10 +376,16 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
       DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
       buildFixedRect(dr_box);
       buildAccessPoint(dr_box);
-      buildNetResult(dr_box);
-      buildNetPatch(dr_box);
+#pragma omp critical(DRGCellMap)
+      {
+        buildNetResult(dr_box);
+        buildNetPatch(dr_box);
+      }
       initDRTaskList(dr_model, dr_box);
-      buildRouteViolation(dr_box);
+#pragma omp critical(DRGCellMap)
+      {
+        buildRouteViolation(dr_box);
+      }
       if (needRouting(dr_box)) {
         buildBoxTrackAxis(dr_box);
         buildLayerNodeMap(dr_box);
@@ -393,7 +399,10 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
         routeDRBox(dr_box);
         // debugPlotDRBox(dr_box, "after");
       }
-      selectBestResult(dr_box);
+#pragma omp critical(DRGCellMap)
+      {
+        selectBestResult(dr_box);
+      }
       freeDRBox(dr_box);
     }
     routed_box_num += dr_box_id_list.size();
