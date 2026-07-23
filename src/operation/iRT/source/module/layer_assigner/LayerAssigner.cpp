@@ -54,6 +54,8 @@ void LayerAssigner::assign()
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
+  clearRoutingEdgeDemand();
+
   LAModel la_model = initLAModel();
   setLAComParam(la_model);
   initLATaskList(la_model);
@@ -67,6 +69,20 @@ void LayerAssigner::assign()
   outputOverflowCSV(la_model);
   outputJson(la_model);
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void LayerAssigner::clearRoutingEdgeDemand()
+{
+  for (std::vector<GridMap<RoutingEdge>>* routing_edge_map_list :
+       {&RTDM.getDatabase().get_routing_h_edge_map(), &RTDM.getDatabase().get_routing_v_edge_map()}) {
+    for (GridMap<RoutingEdge>& routing_edge_map : *routing_edge_map_list) {
+      for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
+        for (int32_t y = 0; y < routing_edge_map.get_y_size(); y++) {
+          routing_edge_map[x][y].set_orient_demand_map({});
+        }
+      }
+    }
+  }
 }
 
 // private
@@ -256,8 +272,18 @@ bool LayerAssigner::needRouting(LAModel& la_model)
 
 std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentList(LAModel& la_model)
 {
-  constexpr int32_t max_refine_segment_num = 3;
-  constexpr int32_t min_subsegment_length = 4;
+  constexpr int32_t refine_level = 0;  // 0: off, 1: conservative, 2: aggressive, 3: unrestricted
+  if (refine_level == 0) {
+    return {};
+  }
+  int32_t max_refine_segment_num = 3;
+  int32_t min_subsegment_length = 4;
+  if (refine_level == 2) {
+    max_refine_segment_num = 8;
+    min_subsegment_length = 2;
+  } else if (refine_level == 3) {
+    min_subsegment_length = 1;
+  }
 
   std::vector<LAOverflowSegment> overflow_segment_list;
   TNode<LAPillar>* pillar_tree_root = la_model.get_curr_la_task()->get_pillar_tree().get_root();
@@ -279,6 +305,7 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
       int32_t step_x = parent_coord.get_x() < child_coord.get_x() ? 1 : (child_coord.get_x() < parent_coord.get_x() ? -1 : 0);
       int32_t step_y = parent_coord.get_y() < child_coord.get_y() ? 1 : (child_coord.get_y() < parent_coord.get_y() ? -1 : 0);
       int32_t peak_offset = -1;
+      std::vector<int32_t> overflow_list;
       LAOverflowSegment overflow_segment;
       overflow_segment.first_coord = parent_coord;
       overflow_segment.second_coord = child_coord;
@@ -286,6 +313,7 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
         LayerCoord first_coord(parent_coord.get_x() + step_x * offset, parent_coord.get_y() + step_y * offset, layer_idx);
         LayerCoord second_coord(parent_coord.get_x() + step_x * (offset + 1), parent_coord.get_y() + step_y * (offset + 1), layer_idx);
         int32_t overflow = getRoutingEdge(first_coord, second_coord).get_overflow();
+        overflow_list.push_back(overflow);
         overflow_segment.total_overflow += overflow;
         if (overflow > overflow_segment.max_overflow) {
           overflow_segment.max_overflow = overflow;
@@ -296,8 +324,32 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
         continue;
       }
 
-      int32_t split_offset = std::clamp(peak_offset + 1, min_subsegment_length, segment_length - min_subsegment_length);
-      overflow_segment.split_coord = PlanarCoord(parent_coord.get_x() + step_x * split_offset, parent_coord.get_y() + step_y * split_offset);
+      int32_t hotspot_threshold = std::max(1, overflow_segment.max_overflow / 2);
+      int32_t hotspot_first_offset = peak_offset;
+      int32_t hotspot_second_offset = peak_offset;
+      while (hotspot_first_offset > 0 && overflow_list[hotspot_first_offset - 1] >= hotspot_threshold) {
+        hotspot_first_offset--;
+      }
+      while (hotspot_second_offset + 1 < segment_length && overflow_list[hotspot_second_offset + 1] >= hotspot_threshold) {
+        hotspot_second_offset++;
+      }
+
+      if (refine_level == 1 || segment_length < 3 * min_subsegment_length) {
+        int32_t split_offset = std::clamp(peak_offset + 1, min_subsegment_length, segment_length - min_subsegment_length);
+        overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * split_offset, parent_coord.get_y() + step_y * split_offset);
+      } else if (refine_level == 2) {
+        int32_t first_split_offset = std::clamp(hotspot_first_offset, min_subsegment_length, segment_length - 2 * min_subsegment_length);
+        int32_t second_split_offset
+            = std::clamp(hotspot_second_offset + 1, first_split_offset + min_subsegment_length, segment_length - min_subsegment_length);
+        overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * first_split_offset,
+                                                       parent_coord.get_y() + step_y * first_split_offset);
+        overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * second_split_offset,
+                                                       parent_coord.get_y() + step_y * second_split_offset);
+      } else {
+        for (int32_t offset = 1; offset < segment_length; offset++) {
+          overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * offset, parent_coord.get_y() + step_y * offset);
+        }
+      }
       overflow_segment_list.push_back(overflow_segment);
     }
     RTUTIL.addListToQueue(pillar_node_queue, parent_pillar_node->get_child_list());
@@ -309,7 +361,7 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
     }
     return a.max_overflow > b.max_overflow;
   });
-  if (static_cast<int32_t>(overflow_segment_list.size()) > max_refine_segment_num) {
+  if (refine_level != 3 && static_cast<int32_t>(overflow_segment_list.size()) > max_refine_segment_num) {
     overflow_segment_list.resize(max_refine_segment_num);
   }
   return overflow_segment_list;
@@ -330,9 +382,13 @@ void LayerAssigner::splitPlaneTreeByOverflow(LAModel& la_model, std::vector<LAOv
           continue;
         }
         planar_node->delChild(child_node);
-        TNode<LayerCoord>* split_node = new TNode<LayerCoord>(LayerCoord(overflow_segment.split_coord, 0));
-        planar_node->addChild(split_node);
-        split_node->addChild(child_node);
+        TNode<LayerCoord>* curr_node = planar_node;
+        for (PlanarCoord& split_coord : overflow_segment.split_coord_list) {
+          TNode<LayerCoord>* split_node = new TNode<LayerCoord>(LayerCoord(split_coord, 0));
+          curr_node->addChild(split_node);
+          curr_node = split_node;
+        }
+        curr_node->addChild(child_node);
         overflow_segment.is_split = true;
         break;
       }

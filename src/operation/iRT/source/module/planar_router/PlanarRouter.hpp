@@ -35,6 +35,7 @@ class PlanarRouter
   static void destroyInst();
   // function
   void generate();
+  bool repair();
 
  private:
   // self
@@ -53,6 +54,8 @@ class PlanarRouter
   void setPRComParam(PRModel& pr_model);
   void initPRTaskList(PRModel& pr_model);
   void buildPlanarRoutingEdgeMap();
+  void updateLayerCongestion(PRModel& pr_model);
+  std::vector<PRNet*> buildPRResult(PRModel& pr_model);
 
   struct PREdgeCost
   {
@@ -79,7 +82,8 @@ class PlanarRouter
   // route
   enum class PRRouteMode
   {
-    kPattern,
+    kLZPattern,
+    kAllPattern,
     kAStar
   };
 
@@ -94,7 +98,7 @@ class PlanarRouter
   std::vector<PRNet*> getOverflowPRNetList(PRModel& pr_model);
   std::vector<PRNet*> getHighUsagePRNetList(PRModel& pr_model);
   bool isBetterCandidate(PRModel& pr_model, PRCandidate& candidate, PRCandidate& current_best);
-  std::vector<PRCandidate> getPRCandidateListByTopo(PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
+  std::vector<PRCandidate> getPRCandidateListByTopo(PRModel& pr_model, Segment<PlanarCoord>& planar_topo, PRRouteMode pr_route_mode);
   std::vector<Segment<PlanarCoord>> getPlanarTopoList(PRModel& pr_model);
 
   struct PRAStarNodeState

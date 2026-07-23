@@ -15,6 +15,8 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #include "SupplyAnalyzer.hpp"
+#include <algorithm>
+#include <cstdint>
 
 #include "GDSPlotter.hpp"
 #include "GPGDS.hpp"
@@ -194,6 +196,9 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
                 continue;
               }
               obs_rect_list.push_back(net_shape);
+              if (!RTUTIL.isOpenOverlap(search_rect.get_real_rect(), net_shape.get_rect())) {
+                continue;
+              }
               ignore_net_set.insert(net_idx);
               gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
                   first_orientation);
@@ -208,6 +213,9 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
               continue;
             }
             obs_rect_list.push_back(patch->get_real_rect());
+            if (!RTUTIL.isOpenOverlap(search_rect.get_real_rect(), patch->get_real_rect())) {
+              continue;
+            }
             ignore_net_set.insert(net_idx);
             gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
                 first_orientation);
@@ -223,6 +231,8 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
           supply++;
         }
       }
+      // supply = std::max(0, supply - (int32_t)ignore_net_set.size());
+      supply *= 0.9;
       routing_edge.set_supply(supply);
       if (supply > 0) {
         first_orient_supply_map[first_orientation] = routing_edge.get_supply();

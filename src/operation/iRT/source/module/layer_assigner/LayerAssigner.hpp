@@ -42,7 +42,7 @@ class LayerAssigner
   {
     PlanarCoord first_coord;
     PlanarCoord second_coord;
-    PlanarCoord split_coord;
+    std::vector<PlanarCoord> split_coord_list;
     int32_t total_overflow = 0;
     int32_t max_overflow = 0;
     bool is_split = false;
@@ -62,6 +62,7 @@ class LayerAssigner
   LANet convertToLANet(Net& net);
   void initLATaskList(LAModel& la_model);
   void setLAComParam(LAModel& la_model);
+  void clearRoutingEdgeDemand();
   // routing edge
   RoutingEdge& getRoutingEdge(const LayerCoord& first_coord, const LayerCoord& second_coord);
   double getOverflowCost(RoutingEdge& routing_edge, double overflow_unit);

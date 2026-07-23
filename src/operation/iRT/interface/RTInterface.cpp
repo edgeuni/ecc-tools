@@ -131,6 +131,16 @@ void RTInterface::runRT()
   RTLA.assign();
   LayerAssigner::destroyInst();
 
+  // PlanarRouter::initInst();
+  // bool repaired = RTPR.repair();
+  // PlanarRouter::destroyInst();
+
+  // if (repaired) {
+  //   LayerAssigner::initInst();
+  //   RTLA.assign();
+  //   LayerAssigner::destroyInst();
+  // }
+
   // SpaceRouter::initInst();
   // RTSR.route();
   // SpaceRouter::destroyInst();
