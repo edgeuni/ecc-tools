@@ -1,8 +1,8 @@
 if(DEBUG_ILVS_UTILITY)
-    message(STATUS "iLVS: DEBUG_ILVS_UTILITY")
+    message(STATUS "LVS: DEBUG_ILVS_UTILITY")
     set(CMAKE_BUILD_TYPE "Debug")
 else()
-    message(STATUS "iLVS: RELEASE_ILVS_UTILITY")
+    message(STATUS "LVS: RELEASE_ILVS_UTILITY")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 

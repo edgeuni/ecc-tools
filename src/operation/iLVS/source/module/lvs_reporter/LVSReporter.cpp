@@ -1,3 +1,19 @@
+// ***************************************************************************************
+// Copyright (c) 2023-2025 Peng Cheng Laboratory
+// Copyright (c) 2023-2025 Institute of Computing Technology, Chinese Academy of Sciences
+// Copyright (c) 2023-2025 Beijing Institute of Open Source Chip
+//
+// iEDA is licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+// http://license.coscl.org.cn/MulanPSL2
+//
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
+// See the Mulan PSL v2 for more details.
+// ***************************************************************************************
 #include "LVSReporter.hpp"
 
 #include <filesystem>
@@ -9,6 +25,35 @@
 #include "LVSHeader.hpp"
 
 namespace ilvs {
+
+// public
+
+void LVSReporter::initInst()
+{
+  if (_lr_instance == nullptr) {
+    _lr_instance = new LVSReporter();
+  }
+}
+
+LVSReporter& LVSReporter::getInst()
+{
+  if (_lr_instance == nullptr) {
+    LVSLOG.error(Loc::current(), "The instance not initialized!");
+  }
+  return *_lr_instance;
+}
+
+void LVSReporter::destroyInst()
+{
+  if (_lr_instance != nullptr) {
+    delete _lr_instance;
+    _lr_instance = nullptr;
+  }
+}
+
+// private
+
+LVSReporter* LVSReporter::_lr_instance = nullptr;
 
 namespace {
 
@@ -28,60 +73,89 @@ std::string getJoinedString(const std::vector<T>& value_list)
   return stream.str();
 }
 
+struct LVSEntitySummaryRow
+{
+  std::string entity;
+  uint64_t netlist_num = 0;
+  uint64_t def_num = 0;
+  uint64_t difference_num = 0;
+};
+
+std::vector<LVSEntitySummaryRow> getEntitySummaryRowList(const CheckResult& check_result)
+{
+  return {{"IO(without pg)", check_result.netlist_io_num, check_result.def_io_num,
+           check_result.missing_io_num + check_result.unexpected_io_num},
+          {"Instance", check_result.netlist_instance_num, check_result.def_instance_num,
+           check_result.missing_instance_num + check_result.unexpected_instance_num},
+          {"Net", check_result.netlist_net_num, check_result.def_net_num,
+           check_result.missing_net_num + check_result.unexpected_net_num + check_result.net_pin_mismatch_num}};
+}
+
+struct LVSConnectivitySummaryRow
+{
+  std::string connectivity;
+  std::string type;
+  uint64_t count = 0;
+};
+
+std::vector<LVSConnectivitySummaryRow> getConnectivitySummaryRowList(const CheckResult& check_result)
+{
+  return {{"Routing", "Open Net", check_result.routing_open_net_num + check_result.routing_missing_driver_num},
+          {"Routing", "Short Net", check_result.routing_short_component_num},
+          {"Power", "Open VDD", check_result.disconnected_power_instance_pin_num},
+          {"Power", "Open VSS", check_result.disconnected_ground_instance_pin_num}};
+}
+
 }  // namespace
 
-std::vector<fort::char_table> LVSReporter::getSummaryTableList(const LVSCheckResult& check_result, const LVSNetlist& /* expected_netlist */,
-                                                                const LVSNetlist& /* physical_netlist */)
+#if 1  // report
+
+std::vector<fort::char_table> LVSReporter::getSummaryTableList(const CheckResult& check_result, const Netlist& /* netlist */,
+                                                                const Netlist& /* def */)
 {
   fort::char_table netlist_summary_table;
   {
     netlist_summary_table.set_cell_text_align(fort::text_align::right);
-    netlist_summary_table << fort::header << "Entity Comparison"
+    netlist_summary_table << fort::header << "Entity"
                           << "NETLIST"
                           << "DEF"
                           << "Difference" << fort::endr;
-    auto append_summary_row = [&netlist_summary_table](const std::string& name, uint64_t expected_num, uint64_t physical_num,
-                                                        uint64_t difference_num) {
-      netlist_summary_table << name << expected_num << physical_num << difference_num << fort::endr;
-    };
-    append_summary_row("IO", check_result.expected_io_num, check_result.physical_io_num,
-                       check_result.missing_io_num + check_result.unexpected_io_num);
-    append_summary_row("Instance", check_result.expected_instance_num, check_result.physical_instance_num,
-                       check_result.missing_instance_num + check_result.unexpected_instance_num);
-    append_summary_row("Net", check_result.expected_net_num, check_result.physical_net_num,
-                       check_result.missing_net_num + check_result.unexpected_net_num + check_result.net_pin_mismatch_num);
+    for (const LVSEntitySummaryRow& row : getEntitySummaryRowList(check_result)) {
+      netlist_summary_table << row.entity << row.netlist_num << row.def_num << row.difference_num << fort::endr;
+    }
   }
 
-  fort::char_table routing_connectivity_table;
+  fort::char_table connectivity_table;
   {
-    routing_connectivity_table.set_cell_text_align(fort::text_align::right);
-    routing_connectivity_table << fort::header << "Routing Connectivity"
-                               << "Count" << fort::endr;
-    routing_connectivity_table << "Checked Net" << check_result.routing_checked_net_num << fort::endr;
-    routing_connectivity_table << "Connected Net" << check_result.routing_connected_net_num << fort::endr;
-    routing_connectivity_table << "Open Net" << check_result.routing_open_net_num << fort::endr;
-    routing_connectivity_table << "Open Load Pin" << check_result.routing_open_load_pin_num << fort::endr;
-    routing_connectivity_table << "Missing Driver Pin" << check_result.routing_missing_driver_num << fort::endr;
-    routing_connectivity_table << "Short Component" << check_result.routing_short_component_num << fort::endr;
+    connectivity_table.set_cell_text_align(fort::text_align::right);
+    connectivity_table << fort::header << "Connectivity"
+                       << "Type"
+                       << "Count" << fort::endr;
+    std::string previous_connectivity;
+    for (const LVSConnectivitySummaryRow& row : getConnectivitySummaryRowList(check_result)) {
+      connectivity_table << (row.connectivity == previous_connectivity ? "" : row.connectivity) << row.type << row.count
+                         << fort::endr;
+      previous_connectivity = row.connectivity;
+    }
   }
 
   std::vector<fort::char_table> summary_table_list;
   summary_table_list.push_back(std::move(netlist_summary_table));
-  summary_table_list.push_back(std::move(routing_connectivity_table));
+  summary_table_list.push_back(std::move(connectivity_table));
   return summary_table_list;
 }
 
-void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& expected_netlist, const LVSNetlist& physical_netlist,
+void LVSReporter::report(const CheckResult& check_result, const Netlist& netlist, const Netlist& def,
                          const std::string& report_directory_path)
 {
+  Monitor monitor;
+  LVSLOG.info(Loc::current(), "Starting...");
+
   std::filesystem::create_directories(report_directory_path);
   std::ofstream rpt_file(std::filesystem::path(report_directory_path) / "ilvs.rpt");
 
   rpt_file << "iLVS Report\n\n";
-  rpt_file << "[Statistics]\n\n";
-  rpt_file << "IO comparison excludes power/ground ports (NETLIST=" << check_result.expected_power_ground_io_num
-           << ", DEF=" << check_result.physical_power_ground_io_num << ").\n\n";
-  for (const fort::char_table& summary_table : getSummaryTableList(check_result, expected_netlist, physical_netlist)) {
+  for (const fort::char_table& summary_table : getSummaryTableList(check_result, netlist, def)) {
     rpt_file << summary_table.to_string() << "\n";
   }
 
@@ -90,7 +164,7 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
     rpt_file << "None\n";
   }
   for (size_t violation_idx = 0; violation_idx < check_result.violation_list.size(); violation_idx++) {
-    const LVSViolation& violation = check_result.violation_list[violation_idx];
+    const Violation& violation = check_result.violation_list[violation_idx];
     fort::char_table violation_table;
     {
       violation_table.set_cell_text_align(fort::text_align::right);
@@ -120,14 +194,14 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
                      << "URX"
                      << "URY" << fort::endr;
     bool has_coordinate = false;
-    for (const LVSShapeLocation& shape : violation.shape_list) {
+    for (const ShapeLocation& shape : violation.shape_list) {
       coordinate_table << "-" << shape.layer_id << shape.ll_x << shape.ll_y << shape.ur_x << shape.ur_y << fort::endr;
       has_coordinate = true;
     }
     for (uint64_t component_id : violation.component_id_list) {
-      auto shape_iter = physical_netlist.physical_graph.component_shape_map.find(component_id);
-      if (shape_iter == physical_netlist.physical_graph.component_shape_map.end()) continue;
-      for (const LVSPhysicalGraph::ShapeLocation& shape : shape_iter->second) {
+      auto shape_iter = def.physical_graph.component_shape_map.find(component_id);
+      if (shape_iter == def.physical_graph.component_shape_map.end()) continue;
+      for (const ShapeLocation& shape : shape_iter->second) {
         coordinate_table << component_id << shape.layer_id << shape.ll_x << shape.ll_y << shape.ur_x << shape.ur_y << fort::endr;
         has_coordinate = true;
       }
@@ -149,27 +223,22 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
   }
 
   nlohmann::json json;
-  json["summary"] = {{"expected_ios", check_result.expected_io_num}, {"physical_ios", check_result.physical_io_num},
-                     {"expected_power_ground_ios", check_result.expected_power_ground_io_num},
-                     {"physical_power_ground_ios", check_result.physical_power_ground_io_num},
-                     {"missing_ios", check_result.missing_io_num}, {"unexpected_ios", check_result.unexpected_io_num},
-                     {"expected_instances", check_result.expected_instance_num}, {"physical_instances", check_result.physical_instance_num},
-                     {"missing_instances", check_result.missing_instance_num}, {"unexpected_instances", check_result.unexpected_instance_num},
-                     {"expected_nets", check_result.expected_net_num}, {"physical_nets", check_result.physical_net_num},
-                     {"missing_nets", check_result.missing_net_num}, {"unexpected_nets", check_result.unexpected_net_num},
-                     {"net_pin_mismatches", check_result.net_pin_mismatch_num},
-                     {"routing_checked_nets", check_result.routing_checked_net_num},
-                     {"routing_connected_nets", check_result.routing_connected_net_num},
-                     {"routing_open_nets", check_result.routing_open_net_num},
-                     {"routing_open_load_pins", check_result.routing_open_load_pin_num},
-                     {"routing_missing_driver_pins", check_result.routing_missing_driver_num},
-                     {"routing_short_components", check_result.routing_short_component_num},
-                     {"total", check_result.violation_list.size()}};
-  json["physical_graph"] = {{"nodes", physical_netlist.physical_graph.node_num}, {"edges", physical_netlist.physical_graph.edge_num},
-                            {"components", physical_netlist.physical_graph.component_num},
-                            {"candidate_pairs", physical_netlist.physical_graph.candidate_pair_num},
-                            {"max_active_shapes", physical_netlist.physical_graph.max_active_shape_num}};
-  for (const LVSViolation& violation : check_result.violation_list) {
+  json["entity"] = nlohmann::json::array();
+  for (const LVSEntitySummaryRow& row : getEntitySummaryRowList(check_result)) {
+    json["entity"].push_back({{"entity", row.entity},
+                               {"netlist", row.netlist_num},
+                               {"def", row.def_num},
+                               {"difference", row.difference_num}});
+  }
+
+  json["connectivity"] = nlohmann::json::array();
+  for (const LVSConnectivitySummaryRow& row : getConnectivitySummaryRowList(check_result)) {
+    json["connectivity"].push_back(
+        {{"connectivity", row.connectivity}, {"type", row.type}, {"count", row.count}});
+  }
+
+  json["violations"] = nlohmann::json::array();
+  for (const Violation& violation : check_result.violation_list) {
     nlohmann::json violation_json = {{"type", violation.type}, {"net", violation.net_name}, {"terminals", violation.terminal_list},
                                      {"components", violation.component_id_list}};
     if (!violation.instance_name.empty()) {
@@ -181,13 +250,13 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
     if (!violation.related_net_name_list.empty()) {
       violation_json["nets"] = violation.related_net_name_list;
     }
-    for (const LVSShapeLocation& shape : violation.shape_list) {
+    for (const ShapeLocation& shape : violation.shape_list) {
       violation_json["shapes"].push_back({{"layer", shape.layer_id}, {"rect", {shape.ll_x, shape.ll_y, shape.ur_x, shape.ur_y}}});
     }
     for (uint64_t component_id : violation.component_id_list) {
-      auto shape_iter = physical_netlist.physical_graph.component_shape_map.find(component_id);
-      if (shape_iter == physical_netlist.physical_graph.component_shape_map.end()) continue;
-      for (const LVSPhysicalGraph::ShapeLocation& shape : shape_iter->second) {
+      auto shape_iter = def.physical_graph.component_shape_map.find(component_id);
+      if (shape_iter == def.physical_graph.component_shape_map.end()) continue;
+      for (const ShapeLocation& shape : shape_iter->second) {
         violation_json["shapes"].push_back({{"component", component_id}, {"layer", shape.layer_id},
                                              {"rect", {shape.ll_x, shape.ll_y, shape.ur_x, shape.ur_y}}});
       }
@@ -196,6 +265,9 @@ void LVSReporter::report(const LVSCheckResult& check_result, const LVSNetlist& e
   }
   std::ofstream json_file(std::filesystem::path(report_directory_path) / "ilvs.json");
   json_file << json.dump(2) << "\n";
+  LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
+
+#endif
 
 }  // namespace ilvs

@@ -4,6 +4,15 @@
 // Copyright (c) 2023-2025 Beijing Institute of Open Source Chip
 //
 // iEDA is licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+// http://license.coscl.org.cn/MulanPSL2
+//
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
+// See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #include "LVSSnapshotIO.hpp"
 
@@ -16,10 +25,39 @@
 
 namespace ilvs {
 
+// public
+
+void LVSSnapshotIO::initInst()
+{
+  if (_sio_instance == nullptr) {
+    _sio_instance = new LVSSnapshotIO();
+  }
+}
+
+LVSSnapshotIO& LVSSnapshotIO::getInst()
+{
+  if (_sio_instance == nullptr) {
+    LVSLOG.error(Loc::current(), "The instance not initialized!");
+  }
+  return *_sio_instance;
+}
+
+void LVSSnapshotIO::destroyInst()
+{
+  if (_sio_instance != nullptr) {
+    delete _sio_instance;
+    _sio_instance = nullptr;
+  }
+}
+
+// private
+
+LVSSnapshotIO* LVSSnapshotIO::_sio_instance = nullptr;
+
 namespace {
 
 constexpr std::array<char, 8> kSnapshotMagic = {'I', 'L', 'V', 'S', 'B', 'I', 'N', '\0'};
-constexpr uint32_t kSnapshotVersion = 3;
+constexpr uint32_t kSnapshotVersion = 4;
 constexpr uint64_t kMaxContainerSize = 100000000;
 constexpr uint64_t kMaxStringSize = 16 * 1024 * 1024;
 constexpr uint64_t kChecksumOffsetBasis = 14695981039346656037ULL;
@@ -266,19 +304,19 @@ bool readStringList(BinaryReader& reader, std::vector<std::string>& value_list)
   return true;
 }
 
-bool writeNet(BinaryWriter& writer, const LVSNet& net)
+bool writeNet(BinaryWriter& writer, const Net& net)
 {
   return writer.writeString(net.name) && writeStringList(writer, net.terminal_list) && writer.write(net.wire_segment_num) && writer.write(net.via_num)
          && writer.write(net.terminal_component_num) && writer.write(net.floating_terminal_num);
 }
 
-bool readNet(BinaryReader& reader, LVSNet& net)
+bool readNet(BinaryReader& reader, Net& net)
 {
   return reader.readString(net.name) && readStringList(reader, net.terminal_list) && reader.read(net.wire_segment_num) && reader.read(net.via_num)
          && reader.read(net.terminal_component_num) && reader.read(net.floating_terminal_num);
 }
 
-bool writeNetMap(BinaryWriter& writer, const std::unordered_map<std::string, LVSNet>& net_map)
+bool writeNetMap(BinaryWriter& writer, const std::unordered_map<std::string, Net>& net_map)
 {
   if (!writeCount(writer, net_map.size())) {
     return false;
@@ -298,7 +336,7 @@ bool writeNetMap(BinaryWriter& writer, const std::unordered_map<std::string, LVS
   return true;
 }
 
-bool readNetMap(BinaryReader& reader, std::unordered_map<std::string, LVSNet>& net_map)
+bool readNetMap(BinaryReader& reader, std::unordered_map<std::string, Net>& net_map)
 {
   uint64_t size = 0;
   if (!readCount(reader, size)) {
@@ -308,7 +346,7 @@ bool readNetMap(BinaryReader& reader, std::unordered_map<std::string, LVSNet>& n
   net_map.reserve(static_cast<size_t>(size));
   for (uint64_t idx = 0; idx < size; idx++) {
     std::string net_name;
-    LVSNet net;
+    Net net;
     if (!reader.readString(net_name) || !readNet(reader, net) || net.name != net_name || !net_map.emplace(net_name, std::move(net)).second) {
       return false;
     }
@@ -316,7 +354,7 @@ bool readNetMap(BinaryReader& reader, std::unordered_map<std::string, LVSNet>& n
   return true;
 }
 
-bool writeInstanceMap(BinaryWriter& writer, const std::unordered_map<std::string, LVSInstanceNode>& instance_map)
+bool writeInstanceMap(BinaryWriter& writer, const std::unordered_map<std::string, Instance>& instance_map)
 {
   if (!writeCount(writer, instance_map.size())) {
     return false;
@@ -329,7 +367,7 @@ bool writeInstanceMap(BinaryWriter& writer, const std::unordered_map<std::string
   }
   std::sort(instance_name_list.begin(), instance_name_list.end());
   for (const std::string& instance_name : instance_name_list) {
-    const LVSInstanceNode& instance = instance_map.at(instance_name);
+    const Instance& instance = instance_map.at(instance_name);
     if (!writer.writeString(instance_name) || !writer.writeString(instance.name) || !writer.writeString(instance.master_name)
         || !writeStringList(writer, instance.pin_list)) {
       return false;
@@ -338,7 +376,7 @@ bool writeInstanceMap(BinaryWriter& writer, const std::unordered_map<std::string
   return true;
 }
 
-bool readInstanceMap(BinaryReader& reader, std::unordered_map<std::string, LVSInstanceNode>& instance_map)
+bool readInstanceMap(BinaryReader& reader, std::unordered_map<std::string, Instance>& instance_map)
 {
   uint64_t size = 0;
   if (!readCount(reader, size)) {
@@ -348,7 +386,7 @@ bool readInstanceMap(BinaryReader& reader, std::unordered_map<std::string, LVSIn
   instance_map.reserve(static_cast<size_t>(size));
   for (uint64_t idx = 0; idx < size; idx++) {
     std::string instance_name;
-    LVSInstanceNode instance;
+    Instance instance;
     if (!reader.readString(instance_name) || !reader.readString(instance.name) || !reader.readString(instance.master_name)
         || !readStringList(reader, instance.pin_list) || instance.name != instance_name
         || !instance_map.emplace(instance_name, std::move(instance)).second) {
@@ -358,13 +396,13 @@ bool readInstanceMap(BinaryReader& reader, std::unordered_map<std::string, LVSIn
   return true;
 }
 
-bool writeLogicalGraph(BinaryWriter& writer, const LVSLogicalGraph& logical_graph)
+bool writeLogicalGraph(BinaryWriter& writer, const LogicalGraph& logical_graph)
 {
   return writeInstanceMap(writer, logical_graph.instance_map) && writeStringList(writer, logical_graph.io_pin_list)
          && writer.write(logical_graph.net_edge_num);
 }
 
-bool readLogicalGraph(BinaryReader& reader, LVSLogicalGraph& logical_graph)
+bool readLogicalGraph(BinaryReader& reader, LogicalGraph& logical_graph)
 {
   return readInstanceMap(reader, logical_graph.instance_map) && readStringList(reader, logical_graph.io_pin_list)
          && reader.read(logical_graph.net_edge_num);
@@ -387,6 +425,44 @@ bool readStringSet(BinaryReader& reader, std::unordered_set<std::string>& value_
   value_set.reserve(value_list.size());
   for (std::string& value : value_list) {
     if (!value_set.emplace(std::move(value)).second) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool writeStringMap(BinaryWriter& writer, const std::unordered_map<std::string, std::string>& value_map)
+{
+  if (!writeCount(writer, value_map.size())) {
+    return false;
+  }
+  std::vector<std::string> key_list;
+  key_list.reserve(value_map.size());
+  for (const auto& [key, value] : value_map) {
+    (void) value;
+    key_list.push_back(key);
+  }
+  std::sort(key_list.begin(), key_list.end());
+  for (const std::string& key : key_list) {
+    if (!writer.writeString(key) || !writer.writeString(value_map.at(key))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool readStringMap(BinaryReader& reader, std::unordered_map<std::string, std::string>& value_map)
+{
+  uint64_t size = 0;
+  if (!readCount(reader, size)) {
+    return false;
+  }
+  value_map.clear();
+  value_map.reserve(static_cast<size_t>(size));
+  for (uint64_t idx = 0; idx < size; idx++) {
+    std::string key;
+    std::string value;
+    if (!reader.readString(key) || !reader.readString(value) || !value_map.emplace(std::move(key), std::move(value)).second) {
       return false;
     }
   }
@@ -431,17 +507,50 @@ bool readStringVectorMap(BinaryReader& reader, std::unordered_map<uint64_t, std:
   return true;
 }
 
-bool writeShapeLocation(BinaryWriter& writer, const LVSPhysicalGraph::ShapeLocation& shape)
+bool writeShapeLocation(BinaryWriter& writer, const ShapeLocation& shape)
 {
   return writer.write(shape.layer_id) && writer.write(shape.ll_x) && writer.write(shape.ll_y) && writer.write(shape.ur_x) && writer.write(shape.ur_y);
 }
 
-bool readShapeLocation(BinaryReader& reader, LVSPhysicalGraph::ShapeLocation& shape)
+bool readShapeLocation(BinaryReader& reader, ShapeLocation& shape)
 {
   return reader.read(shape.layer_id) && reader.read(shape.ll_x) && reader.read(shape.ll_y) && reader.read(shape.ur_x) && reader.read(shape.ur_y);
 }
 
-bool writeShapeMap(BinaryWriter& writer, const std::unordered_map<uint64_t, std::vector<LVSPhysicalGraph::ShapeLocation>>& shape_map)
+bool writeSupplyRouteShapeList(BinaryWriter& writer, const std::vector<SupplyRouteShape>& shape_list)
+{
+  if (!writeCount(writer, shape_list.size())) {
+    return false;
+  }
+  for (const SupplyRouteShape& route_shape : shape_list) {
+    if (!writer.writeString(route_shape.net_name) || !writer.write(route_shape.component_id) || !writer.write(route_shape.layer_order)
+        || !writeShapeLocation(writer, route_shape.shape)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool readSupplyRouteShapeList(BinaryReader& reader, std::vector<SupplyRouteShape>& shape_list)
+{
+  uint64_t size = 0;
+  if (!readCount(reader, size)) {
+    return false;
+  }
+  shape_list.clear();
+  shape_list.reserve(static_cast<size_t>(size));
+  for (uint64_t idx = 0; idx < size; idx++) {
+    SupplyRouteShape route_shape;
+    if (!reader.readString(route_shape.net_name) || !reader.read(route_shape.component_id) || !reader.read(route_shape.layer_order)
+        || !readShapeLocation(reader, route_shape.shape)) {
+      return false;
+    }
+    shape_list.push_back(std::move(route_shape));
+  }
+  return true;
+}
+
+bool writeShapeMap(BinaryWriter& writer, const std::unordered_map<uint64_t, std::vector<ShapeLocation>>& shape_map)
 {
   if (!writeCount(writer, shape_map.size())) {
     return false;
@@ -458,7 +567,7 @@ bool writeShapeMap(BinaryWriter& writer, const std::unordered_map<uint64_t, std:
     if (!writer.write(key) || !writeCount(writer, shape_list.size())) {
       return false;
     }
-    for (const LVSPhysicalGraph::ShapeLocation& shape : shape_list) {
+    for (const ShapeLocation& shape : shape_list) {
       if (!writeShapeLocation(writer, shape)) {
         return false;
       }
@@ -467,7 +576,7 @@ bool writeShapeMap(BinaryWriter& writer, const std::unordered_map<uint64_t, std:
   return true;
 }
 
-bool readShapeMap(BinaryReader& reader, std::unordered_map<uint64_t, std::vector<LVSPhysicalGraph::ShapeLocation>>& shape_map)
+bool readShapeMap(BinaryReader& reader, std::unordered_map<uint64_t, std::vector<ShapeLocation>>& shape_map)
 {
   uint64_t size = 0;
   if (!readCount(reader, size)) {
@@ -481,10 +590,10 @@ bool readShapeMap(BinaryReader& reader, std::unordered_map<uint64_t, std::vector
     if (!reader.read(key) || !readCount(reader, shape_size)) {
       return false;
     }
-    std::vector<LVSPhysicalGraph::ShapeLocation> shape_list;
+    std::vector<ShapeLocation> shape_list;
     shape_list.reserve(static_cast<size_t>(shape_size));
     for (uint64_t shape_idx = 0; shape_idx < shape_size; shape_idx++) {
-      LVSPhysicalGraph::ShapeLocation shape;
+      ShapeLocation shape;
       if (!readShapeLocation(reader, shape)) {
         return false;
       }
@@ -497,12 +606,12 @@ bool readShapeMap(BinaryReader& reader, std::unordered_map<uint64_t, std::vector
   return true;
 }
 
-bool writeShapeList(BinaryWriter& writer, const std::vector<LVSShapeLocation>& shape_list)
+bool writeShapeList(BinaryWriter& writer, const std::vector<ShapeLocation>& shape_list)
 {
   if (!writeCount(writer, shape_list.size())) {
     return false;
   }
-  for (const LVSShapeLocation& shape : shape_list) {
+  for (const ShapeLocation& shape : shape_list) {
     if (!writeShapeLocation(writer, shape)) {
       return false;
     }
@@ -510,7 +619,7 @@ bool writeShapeList(BinaryWriter& writer, const std::vector<LVSShapeLocation>& s
   return true;
 }
 
-bool readShapeList(BinaryReader& reader, std::vector<LVSShapeLocation>& shape_list)
+bool readShapeList(BinaryReader& reader, std::vector<ShapeLocation>& shape_list)
 {
   uint64_t size = 0;
   if (!readCount(reader, size)) {
@@ -519,7 +628,7 @@ bool readShapeList(BinaryReader& reader, std::vector<LVSShapeLocation>& shape_li
   shape_list.clear();
   shape_list.reserve(static_cast<size_t>(size));
   for (uint64_t idx = 0; idx < size; idx++) {
-    LVSShapeLocation shape;
+    ShapeLocation shape;
     if (!readShapeLocation(reader, shape)) {
       return false;
     }
@@ -630,7 +739,7 @@ bool readTerminalShapeMap(BinaryReader& reader, std::unordered_map<std::string, 
   return true;
 }
 
-bool writeNetRoutingGraphMap(BinaryWriter& writer, const std::unordered_map<std::string, LVSNetRoutingGraph>& net_routing_graph_map)
+bool writeNetRoutingGraphMap(BinaryWriter& writer, const std::unordered_map<std::string, NetRoutingGraph>& net_routing_graph_map)
 {
   if (!writeCount(writer, net_routing_graph_map.size())) {
     return false;
@@ -643,7 +752,7 @@ bool writeNetRoutingGraphMap(BinaryWriter& writer, const std::unordered_map<std:
   }
   std::sort(net_name_list.begin(), net_name_list.end());
   for (const std::string& net_name : net_name_list) {
-    const LVSNetRoutingGraph& routing_graph = net_routing_graph_map.at(net_name);
+    const NetRoutingGraph& routing_graph = net_routing_graph_map.at(net_name);
     if (!writer.writeString(net_name) || !writer.writeString(routing_graph.driver_terminal_name)
         || !writeShapeList(writer, routing_graph.shape_list) || !writeIndexPairList(writer, routing_graph.via_shape_pair_list)
         || !writeTerminalShapeMap(writer, routing_graph.terminal_shape_map)) {
@@ -653,7 +762,7 @@ bool writeNetRoutingGraphMap(BinaryWriter& writer, const std::unordered_map<std:
   return true;
 }
 
-bool readNetRoutingGraphMap(BinaryReader& reader, std::unordered_map<std::string, LVSNetRoutingGraph>& net_routing_graph_map)
+bool readNetRoutingGraphMap(BinaryReader& reader, std::unordered_map<std::string, NetRoutingGraph>& net_routing_graph_map)
 {
   uint64_t size = 0;
   if (!readCount(reader, size)) {
@@ -663,7 +772,7 @@ bool readNetRoutingGraphMap(BinaryReader& reader, std::unordered_map<std::string
   net_routing_graph_map.reserve(static_cast<size_t>(size));
   for (uint64_t idx = 0; idx < size; idx++) {
     std::string net_name;
-    LVSNetRoutingGraph routing_graph;
+    NetRoutingGraph routing_graph;
     if (!reader.readString(net_name) || !reader.readString(routing_graph.driver_terminal_name)
         || !readShapeList(reader, routing_graph.shape_list) || !readIndexPairList(reader, routing_graph.via_shape_pair_list)
         || !readTerminalShapeMap(reader, routing_graph.terminal_shape_map)
@@ -713,7 +822,7 @@ bool readTerminalComponentMap(BinaryReader& reader, std::unordered_map<std::stri
   return true;
 }
 
-bool writePhysicalGraph(BinaryWriter& writer, const LVSPhysicalGraph& physical_graph)
+bool writePhysicalGraph(BinaryWriter& writer, const PhysicalGraph& physical_graph)
 {
   return writer.write(physical_graph.node_num) && writer.write(physical_graph.edge_num) && writer.write(physical_graph.candidate_pair_num)
          && writer.write(physical_graph.max_active_shape_num) && writer.write(physical_graph.component_num) && writer.write(physical_graph.short_component_num)
@@ -725,11 +834,13 @@ bool writePhysicalGraph(BinaryWriter& writer, const LVSPhysicalGraph& physical_g
          && writeStringList(writer, physical_graph.floating_ground_pin_list) && writeStringVectorMap(writer, physical_graph.component_terminal_map)
          && writeStringVectorMap(writer, physical_graph.component_net_map) && writeShapeMap(writer, physical_graph.component_shape_map)
          && writeTerminalComponentMap(writer, physical_graph.terminal_component_map) && writeStringSet(writer, physical_graph.power_net_set)
-         && writeStringSet(writer, physical_graph.ground_net_set) && writeInstanceMap(writer, physical_graph.instance_map)
+         && writeStringSet(writer, physical_graph.ground_net_set) && writeStringMap(writer, physical_graph.power_instance_pin_net_map)
+         && writeStringMap(writer, physical_graph.ground_instance_pin_net_map) && writeSupplyRouteShapeList(writer, physical_graph.supply_route_shape_list)
+         && writeInstanceMap(writer, physical_graph.instance_map)
          && writeStringList(writer, physical_graph.io_pin_list) && writeNetRoutingGraphMap(writer, physical_graph.net_routing_graph_map);
 }
 
-bool readPhysicalGraph(BinaryReader& reader, LVSPhysicalGraph& physical_graph)
+bool readPhysicalGraph(BinaryReader& reader, PhysicalGraph& physical_graph)
 {
   return reader.read(physical_graph.node_num) && reader.read(physical_graph.edge_num) && reader.read(physical_graph.candidate_pair_num)
          && reader.read(physical_graph.max_active_shape_num) && reader.read(physical_graph.component_num) && reader.read(physical_graph.short_component_num)
@@ -741,11 +852,13 @@ bool readPhysicalGraph(BinaryReader& reader, LVSPhysicalGraph& physical_graph)
          && readStringList(reader, physical_graph.floating_ground_pin_list) && readStringVectorMap(reader, physical_graph.component_terminal_map)
          && readStringVectorMap(reader, physical_graph.component_net_map) && readShapeMap(reader, physical_graph.component_shape_map)
          && readTerminalComponentMap(reader, physical_graph.terminal_component_map) && readStringSet(reader, physical_graph.power_net_set)
-         && readStringSet(reader, physical_graph.ground_net_set) && readInstanceMap(reader, physical_graph.instance_map)
+         && readStringSet(reader, physical_graph.ground_net_set) && readStringMap(reader, physical_graph.power_instance_pin_net_map)
+         && readStringMap(reader, physical_graph.ground_instance_pin_net_map) && readSupplyRouteShapeList(reader, physical_graph.supply_route_shape_list)
+         && readInstanceMap(reader, physical_graph.instance_map)
          && readStringList(reader, physical_graph.io_pin_list) && readNetRoutingGraphMap(reader, physical_graph.net_routing_graph_map);
 }
 
-bool writeNetlist(BinaryWriter& writer, const LVSNetlist& netlist, LVSSnapshotType snapshot_type)
+bool writeNetlist(BinaryWriter& writer, const Netlist& netlist, LVSSnapshotType snapshot_type)
 {
   if (!writer.writeString(netlist.design_name) || !writeNetMap(writer, netlist.net_map)) {
     return false;
@@ -759,7 +872,7 @@ bool writeNetlist(BinaryWriter& writer, const LVSNetlist& netlist, LVSSnapshotTy
   return false;
 }
 
-bool readNetlist(BinaryReader& reader, LVSNetlist& netlist, LVSSnapshotType snapshot_type)
+bool readNetlist(BinaryReader& reader, Netlist& netlist, LVSSnapshotType snapshot_type)
 {
   if (!reader.readString(netlist.design_name) || !readNetMap(reader, netlist.net_map)) {
     return false;
@@ -780,7 +893,9 @@ bool isValidSnapshotType(uint32_t raw_type)
 
 }  // namespace
 
-bool LVSSnapshotIO::write(const LVSNetlist& netlist, LVSSnapshotType snapshot_type, const std::string& file_path, std::string& error_message)
+#if 1  // snapshot
+
+bool LVSSnapshotIO::write(const Netlist& netlist, LVSSnapshotType snapshot_type, const std::string& file_path, std::string& error_message)
 {
   error_message.clear();
   if (!isValidSnapshotType(static_cast<uint32_t>(snapshot_type))) {
@@ -832,7 +947,7 @@ bool LVSSnapshotIO::write(const LVSNetlist& netlist, LVSSnapshotType snapshot_ty
   return true;
 }
 
-bool LVSSnapshotIO::read(const std::string& file_path, LVSSnapshotType expected_snapshot_type, LVSNetlist& netlist, std::string& error_message)
+bool LVSSnapshotIO::read(const std::string& file_path, LVSSnapshotType expected_snapshot_type, Netlist& netlist, std::string& error_message)
 {
   error_message.clear();
   if (!isValidSnapshotType(static_cast<uint32_t>(expected_snapshot_type))) {
@@ -865,7 +980,7 @@ bool LVSSnapshotIO::read(const std::string& file_path, LVSSnapshotType expected_
     return false;
   }
 
-  LVSNetlist loaded_netlist;
+  Netlist loaded_netlist;
   reader.beginPayload();
   if (!readNetlist(reader, loaded_netlist, expected_snapshot_type) || !reader.finishPayload()) {
     error_message = reader.error().empty() ? "Invalid iLVS snapshot payload." : reader.error();
@@ -874,5 +989,7 @@ bool LVSSnapshotIO::read(const std::string& file_path, LVSSnapshotType expected_
   netlist = std::move(loaded_netlist);
   return true;
 }
+
+#endif
 
 }  // namespace ilvs

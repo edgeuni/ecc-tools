@@ -1,9 +1,11 @@
+## set path
 set(ILVS_DATA_MANAGER ${ILVS_SOURCE}/data_manager)
 set(ILVS_MODULE ${ILVS_SOURCE}/module)
 set(ILVS_TOOLKIT ${ILVS_SOURCE}/toolkit)
 
-add_subdirectory(${ILVS_MODULE})
+## build
 add_subdirectory(${ILVS_DATA_MANAGER})
+add_subdirectory(${ILVS_MODULE})
 add_subdirectory(${ILVS_TOOLKIT})
 
 add_library(ilvs_source INTERFACE)

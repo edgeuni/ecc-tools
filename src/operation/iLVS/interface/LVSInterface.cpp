@@ -1,3 +1,19 @@
+// ***************************************************************************************
+// Copyright (c) 2023-2025 Peng Cheng Laboratory
+// Copyright (c) 2023-2025 Institute of Computing Technology, Chinese Academy of Sciences
+// Copyright (c) 2023-2025 Beijing Institute of Open Source Chip
+//
+// iEDA is licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+// http://license.coscl.org.cn/MulanPSL2
+//
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
+// See the Mulan PSL v2 for more details.
+// ***************************************************************************************
 #include "LVSInterface.hpp"
 
 #include "DataManager.hpp"
@@ -11,6 +27,8 @@
 #include "idm.h"
 
 namespace ilvs {
+
+// public
 
 LVSInterface& LVSInterface::getInst()
 {
@@ -53,6 +71,10 @@ void LVSInterface::initLVS(std::map<std::string, std::any> config_map)
 
   DataManager::initInst();
   LVSDM.input(config_map);
+  NetlistExtractor::initInst();
+  LVSSnapshotIO::initInst();
+  LVSChecker::initInst();
+  LVSReporter::initInst();
 
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -62,21 +84,24 @@ void LVSInterface::runLVS()
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
 
-  LVSDatabase& database = LVSDM.getDatabase();
-  if (!database.hasExpectedNetlist() || !database.hasPhysicalNetlist()) {
+  Database& database = LVSDM.getDatabase();
+  if (!database.has_netlist() || !database.has_def()) {
     LVSLOG.error(Loc::current(), "run_lvs requires read_lvs to load both the netlist and DEF snapshots first!");
   }
-  LVSCheckResult& check_result = database.getCheckResult();
-  const LVSNetlist& expected_netlist = database.getExpectedNetlist();
-  const LVSNetlist& physical_netlist = database.getPhysicalNetlist();
-  check_result = LVSChecker::check(expected_netlist, physical_netlist);
-  LVSReporter::report(check_result, expected_netlist, physical_netlist, database.getReportDirectoryPath());
-  LVSUTIL.printTableList(LVSReporter::getSummaryTableList(check_result, expected_netlist, physical_netlist));
+  CheckResult& check_result = database.get_check_result();
+  const Netlist& netlist = database.get_netlist();
+  const Netlist& def = database.get_def();
+  check_result = LVSLC.check(netlist, def);
+  const std::vector<fort::char_table> summary_table_list = LVSLR.getSummaryTableList(check_result, netlist, def);
+  LVSLR.report(check_result, netlist, def, database.get_report_directory_path());
+  for (const fort::char_table& summary_table : summary_table_list) {
+    LVSUTIL.printTableList({summary_table});
+  }
 
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void LVSInterface::writeLVSNetlist(const std::string& file_path)
+void LVSInterface::writeNetlist(const std::string& file_path)
 {
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
@@ -88,9 +113,9 @@ void LVSInterface::writeLVSNetlist(const std::string& file_path)
   if (dmInst->get_config().get_verilog_path().empty()) {
     LVSLOG.error(Loc::current(), "write_lvs_netlist requires verilog_init before iLVS snapshot extraction!");
   }
-  LVSNetlist netlist = NetlistExtractor::extractLogical(idb_design);
+  Netlist netlist = LVSNE.extractLogical(idb_design);
   std::string error_message;
-  if (!LVSSnapshotIO::write(netlist, LVSSnapshotType::kLogical, file_path, error_message)) {
+  if (!LVSSIO.write(netlist, LVSSnapshotType::kLogical, file_path, error_message)) {
     LVSLOG.error(Loc::current(), "Failed to write logical iLVS snapshot '", file_path, "': ", error_message);
   }
   LVSLOG.info(Loc::current(), "Wrote logical iLVS snapshot '", file_path, "' with ", netlist.net_map.size(), " nets.");
@@ -98,7 +123,7 @@ void LVSInterface::writeLVSNetlist(const std::string& file_path)
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void LVSInterface::writeLVSDef(const std::string& file_path)
+void LVSInterface::writeDef(const std::string& file_path)
 {
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
@@ -110,9 +135,9 @@ void LVSInterface::writeLVSDef(const std::string& file_path)
   if (dmInst->get_config().get_def_path().empty()) {
     LVSLOG.error(Loc::current(), "write_lvs_def requires def_init before iLVS snapshot extraction!");
   }
-  LVSNetlist netlist = NetlistExtractor::extractPhysical(idb_design);
+  Netlist netlist = LVSNE.extractPhysical(idb_design);
   std::string error_message;
-  if (!LVSSnapshotIO::write(netlist, LVSSnapshotType::kPhysical, file_path, error_message)) {
+  if (!LVSSIO.write(netlist, LVSSnapshotType::kPhysical, file_path, error_message)) {
     LVSLOG.error(Loc::current(), "Failed to write physical iLVS snapshot '", file_path, "': ", error_message);
   }
   LVSLOG.info(Loc::current(), "Wrote physical iLVS snapshot '", file_path, "' with ", netlist.net_map.size(), " nets and ",
@@ -121,33 +146,32 @@ void LVSInterface::writeLVSDef(const std::string& file_path)
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void LVSInterface::readLVS(const std::string& netlist_file_path, const std::string& def_file_path)
+void LVSInterface::readSnapshots(const std::string& netlist_file_path, const std::string& def_file_path)
 {
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
 
-  LVSNetlist expected_netlist;
-  LVSNetlist physical_netlist;
+  Netlist netlist;
+  Netlist def;
   std::string error_message;
-  if (!LVSSnapshotIO::read(netlist_file_path, LVSSnapshotType::kLogical, expected_netlist, error_message)) {
+  if (!LVSSIO.read(netlist_file_path, LVSSnapshotType::kLogical, netlist, error_message)) {
     LVSLOG.error(Loc::current(), "Failed to read logical iLVS snapshot '", netlist_file_path, "': ", error_message);
   }
-  if (!LVSSnapshotIO::read(def_file_path, LVSSnapshotType::kPhysical, physical_netlist, error_message)) {
+  if (!LVSSIO.read(def_file_path, LVSSnapshotType::kPhysical, def, error_message)) {
     LVSLOG.error(Loc::current(), "Failed to read physical iLVS snapshot '", def_file_path, "': ", error_message);
   }
-  if (expected_netlist.design_name.empty() || physical_netlist.design_name.empty()) {
+  if (netlist.design_name.empty() || def.design_name.empty()) {
     LVSLOG.error(Loc::current(), "iLVS snapshots must both contain a design name!");
   }
-  if (expected_netlist.design_name != physical_netlist.design_name) {
-    LVSLOG.error(Loc::current(), "iLVS snapshot design names differ: logical='", expected_netlist.design_name, "' physical='",
-                 physical_netlist.design_name, "'!");
+  if (netlist.design_name != def.design_name) {
+    LVSLOG.error(Loc::current(), "iLVS snapshot design names differ: netlist='", netlist.design_name, "' def='", def.design_name, "'!");
   }
 
-  LVSDatabase& database = LVSDM.getDatabase();
-  database.setExpectedNetlist(std::move(expected_netlist));
-  database.setPhysicalNetlist(std::move(physical_netlist));
-  LVSLOG.info(Loc::current(), "Loaded iLVS snapshots: logical_nets=", database.getExpectedNetlist().net_map.size(), " physical_nets=",
-              database.getPhysicalNetlist().net_map.size(), " physical_graph_nodes=", database.getPhysicalNetlist().physical_graph.node_num, ".");
+  Database& database = LVSDM.getDatabase();
+  database.set_netlist(std::move(netlist));
+  database.set_def(std::move(def));
+  LVSLOG.info(Loc::current(), "Loaded iLVS snapshots: netlist_nets=", database.get_netlist().net_map.size(), " def_nets=",
+              database.get_def().net_map.size(), " def_graph_nodes=", database.get_def().physical_graph.node_num, ".");
 
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -157,6 +181,10 @@ void LVSInterface::destroyLVS()
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
 
+  LVSReporter::destroyInst();
+  LVSChecker::destroyInst();
+  LVSSnapshotIO::destroyInst();
+  NetlistExtractor::destroyInst();
   LVSDM.output();
   DataManager::destroyInst();
 

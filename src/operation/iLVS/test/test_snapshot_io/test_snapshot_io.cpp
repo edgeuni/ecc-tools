@@ -4,6 +4,15 @@
 // Copyright (c) 2023-2025 Beijing Institute of Open Source Chip
 //
 // iEDA is licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+// http://license.coscl.org.cn/MulanPSL2
+//
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
+// See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #include <cassert>
 #include <cstdint>
@@ -15,9 +24,9 @@
 
 namespace {
 
-ilvs::LVSNetlist makeLogicalNetlist()
+ilvs::Netlist makeLogicalNetlist()
 {
-  ilvs::LVSNetlist netlist;
+  ilvs::Netlist netlist;
   netlist.design_name = "top";
   netlist.net_map["n1"] = {"n1", {"PIN/in", "u1/A"}, 0, 0, 0, 0};
   netlist.net_map["n2"] = {"n2", {"u1/Z", "u2/A"}, 0, 0, 0, 0};
@@ -30,12 +39,12 @@ ilvs::LVSNetlist makeLogicalNetlist()
   return netlist;
 }
 
-ilvs::LVSNetlist makePhysicalNetlist()
+ilvs::Netlist makeDefNetlist()
 {
-  ilvs::LVSNetlist netlist;
+  ilvs::Netlist netlist;
   netlist.design_name = "top";
   netlist.net_map["n1"] = {"n1", {"PIN/in", "u1/A"}, 3, 2, 1, 0};
-  ilvs::LVSPhysicalGraph& graph = netlist.physical_graph;
+  ilvs::PhysicalGraph& graph = netlist.physical_graph;
   graph.node_num = 7;
   graph.edge_num = 6;
   graph.candidate_pair_num = 8;
@@ -58,13 +67,16 @@ ilvs::LVSNetlist makePhysicalNetlist()
   graph.component_net_map = {{0, {"n1"}}, {1, {"VDD", "VSS"}}};
   graph.component_shape_map = {{0, {{2, 0, 0, 10, 10}}}, {1, {{3, 20, 20, 30, 30}}}};
   graph.terminal_component_map = {{"PIN/in", 0}, {"u1/A", 0}, {"PIN/VDD", 1}, {"u1/VDD", 1}};
-  ilvs::LVSNetRoutingGraph& n1_routing_graph = graph.net_routing_graph_map["n1"];
+  ilvs::NetRoutingGraph& n1_routing_graph = graph.net_routing_graph_map["n1"];
   n1_routing_graph.driver_terminal_name = "PIN/in";
   n1_routing_graph.shape_list = {{2, 0, 0, 10, 10}, {2, 10, 0, 20, 10}, {3, 10, 0, 20, 10}, {3, 20, 0, 30, 10}};
   n1_routing_graph.via_shape_pair_list = {{1, 2}};
   n1_routing_graph.terminal_shape_map = {{"PIN/in", {0}}, {"u1/A", {3}}};
   graph.power_net_set = {"VDD"};
   graph.ground_net_set = {"VSS"};
+  graph.power_instance_pin_net_map = {{"u1/VDD", "VDD"}};
+  graph.ground_instance_pin_net_map = {{"u2/VSS", "VSS"}};
+  graph.supply_route_shape_list = {{"VDD", 1, 5, {5, 0, 0, 100, 10}}, {"VSS", 0, 5, {5, 0, 100, 100, 110}}};
   graph.instance_map["u1"] = {"u1", {}, "NAND2_X1"};
   graph.instance_map["u2"] = {"u2", {}, "INV_X1"};
   graph.io_pin_list = {"PIN/in"};
@@ -74,8 +86,8 @@ ilvs::LVSNetlist makePhysicalNetlist()
   return netlist;
 }
 
-void assertShapeMapEqual(const std::unordered_map<uint64_t, std::vector<ilvs::LVSPhysicalGraph::ShapeLocation>>& expected,
-                         const std::unordered_map<uint64_t, std::vector<ilvs::LVSPhysicalGraph::ShapeLocation>>& actual)
+void assertShapeMapEqual(const std::unordered_map<uint64_t, std::vector<ilvs::ShapeLocation>>& expected,
+                         const std::unordered_map<uint64_t, std::vector<ilvs::ShapeLocation>>& actual)
 {
   assert(expected.size() == actual.size());
   for (const auto& [component_id, expected_shape_list] : expected) {
@@ -83,8 +95,8 @@ void assertShapeMapEqual(const std::unordered_map<uint64_t, std::vector<ilvs::LV
     assert(actual_iter != actual.end());
     assert(expected_shape_list.size() == actual_iter->second.size());
     for (size_t idx = 0; idx < expected_shape_list.size(); idx++) {
-      const ilvs::LVSPhysicalGraph::ShapeLocation& expected_shape = expected_shape_list[idx];
-      const ilvs::LVSPhysicalGraph::ShapeLocation& actual_shape = actual_iter->second[idx];
+      const ilvs::ShapeLocation& expected_shape = expected_shape_list[idx];
+      const ilvs::ShapeLocation& actual_shape = actual_iter->second[idx];
       assert(expected_shape.layer_id == actual_shape.layer_id);
       assert(expected_shape.ll_x == actual_shape.ll_x);
       assert(expected_shape.ll_y == actual_shape.ll_y);
@@ -94,7 +106,7 @@ void assertShapeMapEqual(const std::unordered_map<uint64_t, std::vector<ilvs::LV
   }
 }
 
-void assertShapeListEqual(const std::vector<ilvs::LVSShapeLocation>& expected, const std::vector<ilvs::LVSShapeLocation>& actual)
+void assertShapeListEqual(const std::vector<ilvs::ShapeLocation>& expected, const std::vector<ilvs::ShapeLocation>& actual)
 {
   assert(expected.size() == actual.size());
   for (size_t idx = 0; idx < expected.size(); idx++) {
@@ -106,14 +118,26 @@ void assertShapeListEqual(const std::vector<ilvs::LVSShapeLocation>& expected, c
   }
 }
 
-void assertNetRoutingGraphMapEqual(const std::unordered_map<std::string, ilvs::LVSNetRoutingGraph>& expected,
-                                   const std::unordered_map<std::string, ilvs::LVSNetRoutingGraph>& actual)
+void assertSupplyRouteShapeListEqual(const std::vector<ilvs::SupplyRouteShape>& expected,
+                                     const std::vector<ilvs::SupplyRouteShape>& actual)
+{
+  assert(expected.size() == actual.size());
+  for (size_t idx = 0; idx < expected.size(); idx++) {
+    assert(expected[idx].net_name == actual[idx].net_name);
+    assert(expected[idx].component_id == actual[idx].component_id);
+    assert(expected[idx].layer_order == actual[idx].layer_order);
+    assertShapeListEqual({expected[idx].shape}, {actual[idx].shape});
+  }
+}
+
+void assertNetRoutingGraphMapEqual(const std::unordered_map<std::string, ilvs::NetRoutingGraph>& expected,
+                                   const std::unordered_map<std::string, ilvs::NetRoutingGraph>& actual)
 {
   assert(expected.size() == actual.size());
   for (const auto& [net_name, expected_routing_graph] : expected) {
     const auto actual_iter = actual.find(net_name);
     assert(actual_iter != actual.end());
-    const ilvs::LVSNetRoutingGraph& actual_routing_graph = actual_iter->second;
+    const ilvs::NetRoutingGraph& actual_routing_graph = actual_iter->second;
     assert(expected_routing_graph.driver_terminal_name == actual_routing_graph.driver_terminal_name);
     assertShapeListEqual(expected_routing_graph.shape_list, actual_routing_graph.shape_list);
     assert(expected_routing_graph.via_shape_pair_list == actual_routing_graph.via_shape_pair_list);
@@ -121,7 +145,7 @@ void assertNetRoutingGraphMapEqual(const std::unordered_map<std::string, ilvs::L
   }
 }
 
-void assertLogicalEqual(const ilvs::LVSNetlist& expected, const ilvs::LVSNetlist& actual)
+void assertLogicalEqual(const ilvs::Netlist& expected, const ilvs::Netlist& actual)
 {
   assert(expected.design_name == actual.design_name);
   assert(expected.net_map.size() == actual.net_map.size());
@@ -135,7 +159,7 @@ void assertLogicalEqual(const ilvs::LVSNetlist& expected, const ilvs::LVSNetlist
   assert(actual.physical_graph.net_routing_graph_map.empty());
 }
 
-void assertPhysicalEqual(const ilvs::LVSNetlist& expected, const ilvs::LVSNetlist& actual)
+void assertDefEqual(const ilvs::Netlist& expected, const ilvs::Netlist& actual)
 {
   assert(expected.design_name == actual.design_name);
   assert(actual.net_map.size() == expected.net_map.size());
@@ -169,6 +193,9 @@ void assertPhysicalEqual(const ilvs::LVSNetlist& expected, const ilvs::LVSNetlis
   assertNetRoutingGraphMapEqual(expected.physical_graph.net_routing_graph_map, actual.physical_graph.net_routing_graph_map);
   assert(actual.physical_graph.power_net_set == expected.physical_graph.power_net_set);
   assert(actual.physical_graph.ground_net_set == expected.physical_graph.ground_net_set);
+  assert(actual.physical_graph.power_instance_pin_net_map == expected.physical_graph.power_instance_pin_net_map);
+  assert(actual.physical_graph.ground_instance_pin_net_map == expected.physical_graph.ground_instance_pin_net_map);
+  assertSupplyRouteShapeListEqual(expected.physical_graph.supply_route_shape_list, actual.physical_graph.supply_route_shape_list);
   assert(actual.physical_graph.instance_map.size() == expected.physical_graph.instance_map.size());
   assert(actual.physical_graph.instance_map.at("u1").master_name == expected.physical_graph.instance_map.at("u1").master_name);
   assert(actual.physical_graph.instance_map.at("u2").master_name == expected.physical_graph.instance_map.at("u2").master_name);
@@ -182,48 +209,50 @@ void assertPhysicalEqual(const ilvs::LVSNetlist& expected, const ilvs::LVSNetlis
 
 int main()
 {
+  ilvs::LVSSnapshotIO::initInst();
+
   const std::filesystem::path output_dir = std::filesystem::temp_directory_path() / "ilvs_snapshot_io_test";
   std::filesystem::remove_all(output_dir);
   const std::filesystem::path logical_path = output_dir / "netlist.bin";
-  const std::filesystem::path physical_path = output_dir / "def.bin";
+  const std::filesystem::path def_path = output_dir / "def.bin";
   std::string error_message;
 
-  const ilvs::LVSNetlist logical = makeLogicalNetlist();
-  assert(ilvs::LVSSnapshotIO::write(logical, ilvs::LVSSnapshotType::kLogical, logical_path.string(), error_message));
-  ilvs::LVSNetlist loaded_logical;
-  assert(ilvs::LVSSnapshotIO::read(logical_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
+  const ilvs::Netlist logical = makeLogicalNetlist();
+  assert(LVSSIO.write(logical, ilvs::LVSSnapshotType::kLogical, logical_path.string(), error_message));
+  ilvs::Netlist loaded_logical;
+  assert(LVSSIO.read(logical_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
   assertLogicalEqual(logical, loaded_logical);
 
-  const ilvs::LVSNetlist physical = makePhysicalNetlist();
-  assert(ilvs::LVSSnapshotIO::write(physical, ilvs::LVSSnapshotType::kPhysical, physical_path.string(), error_message));
-  ilvs::LVSNetlist loaded_physical;
-  assert(ilvs::LVSSnapshotIO::read(physical_path.string(), ilvs::LVSSnapshotType::kPhysical, loaded_physical, error_message));
-  assertPhysicalEqual(physical, loaded_physical);
+  const ilvs::Netlist def = makeDefNetlist();
+  assert(LVSSIO.write(def, ilvs::LVSSnapshotType::kPhysical, def_path.string(), error_message));
+  ilvs::Netlist loaded_def;
+  assert(LVSSIO.read(def_path.string(), ilvs::LVSSnapshotType::kPhysical, loaded_def, error_message));
+  assertDefEqual(def, loaded_def);
 
-  assert(!ilvs::LVSSnapshotIO::read(logical_path.string(), ilvs::LVSSnapshotType::kPhysical, loaded_physical, error_message));
+  assert(!LVSSIO.read(logical_path.string(), ilvs::LVSSnapshotType::kPhysical, loaded_def, error_message));
   assert(!error_message.empty());
-  assertPhysicalEqual(physical, loaded_physical);
+  assertDefEqual(def, loaded_def);
 
   const std::filesystem::path missing_path = output_dir / "missing.bin";
-  assert(!ilvs::LVSSnapshotIO::read(missing_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
+  assert(!LVSSIO.read(missing_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
   assert(!error_message.empty());
   assertLogicalEqual(logical, loaded_logical);
 
   const std::filesystem::path truncated_path = output_dir / "truncated.bin";
-  std::filesystem::copy_file(physical_path, truncated_path);
+  std::filesystem::copy_file(def_path, truncated_path);
   std::filesystem::resize_file(truncated_path, std::filesystem::file_size(truncated_path) - 1);
-  assert(!ilvs::LVSSnapshotIO::read(truncated_path.string(), ilvs::LVSSnapshotType::kPhysical, loaded_physical, error_message));
+  assert(!LVSSIO.read(truncated_path.string(), ilvs::LVSSnapshotType::kPhysical, loaded_def, error_message));
   assert(!error_message.empty());
-  assertPhysicalEqual(physical, loaded_physical);
+  assertDefEqual(def, loaded_def);
 
   const std::filesystem::path version_path = output_dir / "unsupported_version.bin";
   std::filesystem::copy_file(logical_path, version_path);
   std::fstream version_file(version_path, std::ios::binary | std::ios::in | std::ios::out);
-  const uint32_t unsupported_version = 4;
+  const uint32_t unsupported_version = 3;
   version_file.seekp(8);
   version_file.write(reinterpret_cast<const char*>(&unsupported_version), sizeof(unsupported_version));
   version_file.close();
-  assert(!ilvs::LVSSnapshotIO::read(version_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
+  assert(!LVSSIO.read(version_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
   assert(!error_message.empty());
   assertLogicalEqual(logical, loaded_logical);
 
@@ -233,7 +262,7 @@ int main()
   corrupted_file.seekp(0);
   corrupted_file.put('X');
   corrupted_file.close();
-  assert(!ilvs::LVSSnapshotIO::read(corrupted_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
+  assert(!LVSSIO.read(corrupted_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
   assert(!error_message.empty());
   assertLogicalEqual(logical, loaded_logical);
 
@@ -243,10 +272,11 @@ int main()
   checksum_file.seekp(24);
   checksum_file.put('X');
   checksum_file.close();
-  assert(!ilvs::LVSSnapshotIO::read(checksum_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
+  assert(!LVSSIO.read(checksum_path.string(), ilvs::LVSSnapshotType::kLogical, loaded_logical, error_message));
   assert(error_message.find("checksum") != std::string::npos);
   assertLogicalEqual(logical, loaded_logical);
 
   std::filesystem::remove_all(output_dir);
+  ilvs::LVSSnapshotIO::destroyInst();
   return 0;
 }

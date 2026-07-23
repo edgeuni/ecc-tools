@@ -5,6 +5,10 @@ message(STATUS "############## LVS: START CMAKE ##############")
 
 set(CMAKE_CXX_STANDARD 20)
 
+# add_compile_options("-Wconversion")
+# add_compile_options("-fsanitize=address")
+# link_libraries("-fsanitize=address")
+
 ############################ debug interface ############################
 
 # set(DEBUG_ILVS_INTERFACE ON)
@@ -12,6 +16,13 @@ set(CMAKE_CXX_STANDARD 20)
 ############################ debug source data_manager ############################
 
 # set(DEBUG_ILVS_DATA_MANAGER ON)
+
+############################ debug source module ############################
+
+# set(DEBUG_ILVS_NETLIST_EXTRACTOR ON)
+# set(DEBUG_ILVS_SNAPSHOT_IO ON)
+# set(DEBUG_ILVS_LVS_CHECKER ON)
+# set(DEBUG_ILVS_LVS_REPORTER ON)
 
 ############################ debug source utility ############################
 
@@ -25,10 +36,14 @@ set(HOME_ILVS ${HOME_OPERATION}/iLVS)
 
 set(ILVS_INTERFACE ${HOME_ILVS}/interface)
 set(ILVS_SOURCE ${HOME_ILVS}/source)
+set(ILVS_TEST ${HOME_ILVS}/test)
 
 ############################ cmake subdirectory ############################
 
 add_subdirectory(${ILVS_INTERFACE})
 add_subdirectory(${ILVS_SOURCE})
+add_subdirectory(${ILVS_TEST})
+
+########################################################
 
 message(STATUS "############## LVS: END CMAKE ##############\n")

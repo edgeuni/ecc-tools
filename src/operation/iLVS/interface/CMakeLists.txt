@@ -13,7 +13,7 @@ add_library(ilvs_interface
 target_link_libraries(ilvs_interface
     PRIVATE
     ilvs_source
-    ilvs_lvs_reporter
+    idm
 )
 
 target_include_directories(ilvs_interface

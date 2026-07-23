@@ -1,3 +1,19 @@
+// ***************************************************************************************
+// Copyright (c) 2023-2025 Peng Cheng Laboratory
+// Copyright (c) 2023-2025 Institute of Computing Technology, Chinese Academy of Sciences
+// Copyright (c) 2023-2025 Beijing Institute of Open Source Chip
+//
+// iEDA is licensed under Mulan PSL v2.
+// You can use this software according to the terms and conditions of the Mulan PSL v2.
+// You may obtain a copy of Mulan PSL v2 at:
+// http://license.coscl.org.cn/MulanPSL2
+//
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
+// See the Mulan PSL v2 for more details.
+// ***************************************************************************************
 #include "DataManager.hpp"
 
 #include "LVSInterface.hpp"
@@ -52,7 +68,7 @@ void DataManager::output()
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
   LVSI.output();
-  _database.reset();
+  destroyDatabase();
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -73,6 +89,8 @@ void DataManager::buildConfig()
   _config.dm_temp_directory_path = _config.temp_directory_path + "data_manager/";
   // ******** NetlistExtractor   ********** //
   _config.ne_temp_directory_path = _config.temp_directory_path + "netlist_extractor/";
+  // *********  SnapshotIO       ********** //
+  _config.sio_temp_directory_path = _config.temp_directory_path + "snapshot_io/";
   // **********   LVSChecker     ********** //
   _config.lc_temp_directory_path = _config.temp_directory_path + "lvs_checker/";
   // **********   LVSReporter    ********** //
@@ -86,12 +104,14 @@ void DataManager::buildConfig()
   LVSUTIL.createDir(_config.dm_temp_directory_path);
   // ******** NetlistExtractor   ********** //
   LVSUTIL.createDir(_config.ne_temp_directory_path);
+  // *********  SnapshotIO       ********** //
+  LVSUTIL.createDir(_config.sio_temp_directory_path);
   // **********   LVSChecker     ********** //
   LVSUTIL.createDir(_config.lc_temp_directory_path);
   // **********   LVSReporter    ********** //
   LVSUTIL.createDir(_config.lr_temp_directory_path);
   /////////////////////////////////////////////
-  _database.setReportDirectoryPath(_config.lr_temp_directory_path);
+  _database.set_report_directory_path(_config.lr_temp_directory_path);
   LVSLOG.openLogFileStream(_config.log_file_path);
 }
 
@@ -114,6 +134,8 @@ void DataManager::printConfig()
   LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(2), _config.dm_temp_directory_path);
   LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(1), "NetlistExtractor");
   LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(2), _config.ne_temp_directory_path);
+  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(1), "SnapshotIO");
+  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(2), _config.sio_temp_directory_path);
   LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(1), "LVSChecker");
   LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(2), _config.lc_temp_directory_path);
   LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(1), "LVSReporter");
@@ -123,10 +145,19 @@ void DataManager::printConfig()
 void DataManager::printDatabase()
 {
   LVSLOG.info(Loc::current(), "LVS_DATABASE");
-  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(1), "expected_net_num");
-  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(2), _database.getExpectedNetlist().net_map.size());
-  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(1), "physical_net_num");
-  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(2), _database.getPhysicalNetlist().net_map.size());
+  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(1), "netlist_net_num");
+  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(2), _database.get_netlist().net_map.size());
+  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(1), "def_net_num");
+  LVSLOG.info(Loc::current(), LVSUTIL.getSpaceByTabNum(2), _database.get_def().net_map.size());
+}
+
+#endif
+
+#if 1  // destroy
+
+void DataManager::destroyDatabase()
+{
+  _database.reset();
 }
 
 #endif

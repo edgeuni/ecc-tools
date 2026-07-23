@@ -1,5 +1,22 @@
+if(DEBUG_ILVS_LVS_REPORTER)
+    message(STATUS "LVS: DEBUG_ILVS_LVS_REPORTER")
+    set(CMAKE_BUILD_TYPE "Debug")
+else()
+    message(STATUS "LVS: RELEASE_ILVS_LVS_REPORTER")
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+
 add_library(ilvs_lvs_reporter
+    ## module lvs_reporter
     ${ILVS_MODULE}/lvs_reporter/LVSReporter.cpp
+)
+
+target_link_libraries(ilvs_lvs_reporter
+    PUBLIC
+    ilvs_data_manager
+    ilvs_module
+    ilvs_toolkit
+    fort
 )
 
 target_include_directories(ilvs_lvs_reporter
@@ -7,16 +24,3 @@ target_include_directories(ilvs_lvs_reporter
     ${ILVS_MODULE}/lvs_reporter
     ${ILVS_DATA_MANAGER}/advance
 )
-
-target_link_libraries(ilvs_lvs_reporter
-    PUBLIC
-    fort
-)
-
-if(BUILD_TESTING)
-    add_executable(ilvs_lvs_reporter_test
-        ${ILVS_MODULE}/lvs_reporter/test/LVSReporterTest.cpp
-    )
-    target_link_libraries(ilvs_lvs_reporter_test PRIVATE ilvs_lvs_reporter)
-    add_test(NAME ilvs_lvs_reporter_test COMMAND ilvs_lvs_reporter_test)
-endif()

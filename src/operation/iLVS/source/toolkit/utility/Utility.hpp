@@ -31,7 +31,7 @@ class Utility
   static void destroyInst();
   // function
 
-#if 1  // std数据结构工具函数
+#if 1  // 字符串和配置工具函数
 
   template <typename T, typename... Args>
   static std::string getString(T value, Args... args)
@@ -103,6 +103,10 @@ class Utility
     return value;
   }
 
+#endif
+
+#if 1  // std数据结构工具函数
+
   template <typename Key>
   static bool exist(const std::vector<Key>& vector, const Key& key)
   {
@@ -137,6 +141,10 @@ class Utility
   {
     return (map.find(key) != map.end());
   }
+
+#endif
+
+#if 1  // 文件工具函数
 
   static void createDirByFile(std::string file_path) { createDir(dirname((char*) file_path.c_str())); }
 
@@ -193,6 +201,10 @@ class Utility
       delete t;
     }
   }
+
+#endif
+
+#if 1  // 表格工具函数
 
   static void printTableList(const std::vector<fort::char_table>& table_list)
   {
