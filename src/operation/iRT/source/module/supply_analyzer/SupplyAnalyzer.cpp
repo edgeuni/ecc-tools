@@ -231,7 +231,8 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
           supply++;
         }
       }
-      // supply = std::max(0, supply - (int32_t)ignore_net_set.size());
+      supply = std::min(supply, (int32_t)wire_list.size() - (int32_t)ignore_net_set.size());
+      supply = std::max(0, supply);
       supply *= 0.9;
       routing_edge.set_supply(supply);
       if (supply > 0) {

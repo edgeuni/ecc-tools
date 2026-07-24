@@ -72,7 +72,8 @@ void PlanarRouter::generate()
   printSummary(pr_model);
   outputGuide(pr_model);
   outputNetCSV(pr_model);
-  outputOverflowCSV(pr_model);
+  // outputUsageCSV(pr_model);
+  // outputCongestionCostCSV(pr_model);
   outputJson(pr_model);
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -148,11 +149,11 @@ void PlanarRouter::setPRComParam(PRModel& pr_model)
   int32_t topo_spilt_length = 30;
   int32_t expand_step_num = 30;
   int32_t expand_step_length = 1;
-  int32_t astar_search_margin = 200;
+  int32_t astar_search_margin = 50;
   double prefer_wire_unit = 1;
   double non_prefer_wire_unit = 2.5 * prefer_wire_unit;
   double corner_weight = non_prefer_wire_unit;
-  double overflow_unit = 40 * non_prefer_wire_unit;
+  double overflow_unit = 8 * non_prefer_wire_unit;
   /**
    * topo_spilt_length, expand_step_num, expand_step_length, astar_search_margin, overflow_unit
    */
@@ -440,6 +441,7 @@ void PlanarRouter::runRouteFlow(PRModel& pr_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
+  constexpr int MAX_ITER =3;
   std::vector<PRNet*>& pr_task_list = pr_model.get_pr_task_list();
 
   routePRNetList(pr_model, pr_task_list, "initial LZ pattern", PRRouteMode::kLZPattern);
@@ -448,10 +450,23 @@ void PlanarRouter::runRouteFlow(PRModel& pr_model)
   updateCongestion(pr_model);
   routePRNetList(pr_model, getOverflowPRNetList(pr_model), "repair All pattern", PRRouteMode::kAllPattern);
   updateCongestion(pr_model);
-  routePRNetList(pr_model, getOverflowPRNetList(pr_model), "overflow A*", PRRouteMode::kAStar);
-  updateCongestion(pr_model);
-  routePRNetList(pr_model, getHighUsagePRNetList(pr_model), "high usage A*", PRRouteMode::kAStar);
-  updateCongestion(pr_model);
+
+  for (int iter = 0; iter < MAX_ITER; iter++) {
+    auto rerouteNets = getOverflowPRNetList(pr_model);
+    if (rerouteNets.size() == 0) {
+      break;
+    }
+    auto& param = pr_model.get_pr_com_param();
+    param.set_astar_search_margin(param.get_astar_search_margin() * 2);
+    param.set_overflow_unit(param.get_overflow_unit() * 2);
+
+    routePRNetList(pr_model, rerouteNets, "overflow A*", PRRouteMode::kAStar);
+    updateCongestion(pr_model);
+
+  }
+
+  // routePRNetList(pr_model, getHighUsagePRNetList(pr_model), "high usage A*", PRRouteMode::kAStar);
+  // updateCongestion(pr_model);
   for (PRNet* pr_net : pr_task_list) {
     uploadNetResult(*pr_net);
   }
@@ -521,7 +536,7 @@ void PlanarRouter::resetSingleTask(PRModel& pr_model)
 
 void PlanarRouter::updateCongestion(PRModel& pr_model)
 {
-  constexpr int32_t congestion_radius = 3;
+  constexpr int32_t congestion_radius = 1;
   constexpr double congestion_decay = 0.5;
   double congestion_unit = pr_model.get_pr_com_param().get_overflow_unit();
   for (GridMap<RoutingEdge>* routing_edge_map : {&RTDM.getDatabase().get_planar_routing_h_edge_map(),
@@ -543,8 +558,10 @@ void PlanarRouter::updateCongestion(PRModel& pr_model)
           }
         }
         RoutingEdge& routing_edge = (*routing_edge_map)[x][y];
+        double usage_ratio = routing_edge.get_supply() == 0 ? 0 : routing_edge.get_usage() / 1.0 / routing_edge.get_supply();
+        usage_ratio = std::max(0.0, usage_ratio - 0.8);
         double average_usage_ratio = edge_num == 0 ? 0 : total_usage_ratio / edge_num;
-        double new_congestion_cost = congestion_unit * std::pow(average_usage_ratio, 4);
+        double new_congestion_cost = congestion_unit * std::pow(average_usage_ratio + usage_ratio, 2);
         routing_edge.set_congestion_cost(routing_edge.get_congestion_cost() * congestion_decay + new_congestion_cost);
       }
     }
@@ -1649,28 +1666,54 @@ void PlanarRouter::outputNetCSV(PRModel& pr_model)
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void PlanarRouter::outputOverflowCSV(PRModel& pr_model)
+void PlanarRouter::outputUsageCSV(PRModel& pr_model)
 {
   std::string& pr_temp_directory_path = RTDM.getConfig().pr_temp_directory_path;
-  int32_t output_inter_result = RTDM.getConfig().output_inter_result;
-  if (!output_inter_result) {
-    return;
-  }
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
   for (std::pair<std::string, GridMap<RoutingEdge>*> edge_map_pair : {
-           std::make_pair("h_overflow_map.csv", &RTDM.getDatabase().get_planar_routing_h_edge_map()),
-           std::make_pair("v_overflow_map.csv", &RTDM.getDatabase().get_planar_routing_v_edge_map())}) {
-    std::ofstream* overflow_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(pr_temp_directory_path, edge_map_pair.first));
+           std::make_pair("h_usage_map.csv", &RTDM.getDatabase().get_planar_routing_h_edge_map()),
+           std::make_pair("v_usage_map.csv", &RTDM.getDatabase().get_planar_routing_v_edge_map())}) {
+    std::ofstream csv_file(pr_temp_directory_path + edge_map_pair.first);
+    if (!csv_file.is_open()) {
+      RTLOG.error(Loc::current(), "Failed to open file '", pr_temp_directory_path + edge_map_pair.first, "'!");
+      continue;
+    }
     GridMap<RoutingEdge>& routing_edge_map = *edge_map_pair.second;
     for (int32_t y = routing_edge_map.get_y_size() - 1; y >= 0; y--) {
       for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-        RTUTIL.pushStream(overflow_csv_file, routing_edge_map[x][y].get_overflow(), ",");
+        csv_file << routing_edge_map[x][y].get_usage() << ",";
       }
-      RTUTIL.pushStream(overflow_csv_file, "\n");
+      csv_file << "\n";
     }
-    RTUTIL.closeFileStream(overflow_csv_file);
+    csv_file.close();
+  }
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void PlanarRouter::outputCongestionCostCSV(PRModel& pr_model)
+{
+  std::string& pr_temp_directory_path = RTDM.getConfig().pr_temp_directory_path;
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
+  for (std::pair<std::string, GridMap<RoutingEdge>*> edge_map_pair : {
+           std::make_pair("h_congestion_cost_map.csv", &RTDM.getDatabase().get_planar_routing_h_edge_map()),
+           std::make_pair("v_congestion_cost_map.csv", &RTDM.getDatabase().get_planar_routing_v_edge_map())}) {
+    std::ofstream csv_file(pr_temp_directory_path + edge_map_pair.first);
+    if (!csv_file.is_open()) {
+      RTLOG.error(Loc::current(), "Failed to open file '", pr_temp_directory_path + edge_map_pair.first, "'!");
+      continue;
+    }
+    GridMap<RoutingEdge>& routing_edge_map = *edge_map_pair.second;
+    for (int32_t y = routing_edge_map.get_y_size() - 1; y >= 0; y--) {
+      for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
+        csv_file << routing_edge_map[x][y].get_congestion_cost() << ",";
+      }
+      csv_file << "\n";
+    }
+    csv_file.close();
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
