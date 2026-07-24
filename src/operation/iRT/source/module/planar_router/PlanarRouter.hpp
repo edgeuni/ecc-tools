@@ -147,8 +147,6 @@ class PlanarRouter
   bool searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord, PRAStarWorkspace& workspace,
                                    std::vector<Segment<PlanarCoord>>& routing_segment_list);
   PlanarRect getAStarSearchRect(Segment<PlanarCoord>& planar_topo, int32_t search_margin);
-  double getAStarStepCost(PRModel& pr_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord,
-                          const PlanarCoord& parent_coord);
   std::vector<Segment<PlanarCoord>> getRoutingSegmentListByCoordList(std::vector<PlanarCoord>& coord_list);
 
   // pattern route
