@@ -22,10 +22,8 @@
 #include "py_register_icts.h"
 #include "py_register_idb.h"
 #include "py_register_idrc.h"
-#include "py_register_ifp.h"
 #include "py_register_imp.h"
 #include "py_register_inst.h"
-#include "py_register_ipdn.h"
 #include "py_register_irt.h"
 #include "py_register_ircx.h"
 #include "py_register_ista.h"
@@ -44,10 +42,8 @@ PYBIND11_MODULE(ecc_py, m)
   register_idb(m);
   register_idb_op(m);
   register_idrc(m);
-  register_ifp(m);
   register_imp(m);
   register_inst(m);
-  register_ipdn(m);
   register_irt(m);
   register_ircx(m);
   register_ista(m);

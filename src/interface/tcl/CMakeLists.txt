@@ -12,8 +12,6 @@ add_subdirectory(tcl_ista)
 add_subdirectory(tcl_iemir)
 add_subdirectory(tcl_izh)
 add_subdirectory(tcl_ircx)
-add_subdirectory(tcl_ifp)
-add_subdirectory(tcl_ipdn)
 add_subdirectory(tcl_report)
 add_subdirectory(tcl_feature)
 add_subdirectory(tcl_eval)
@@ -44,8 +42,6 @@ target_link_libraries(ieda_tcl
         tcl_iemir
         tcl_izh
         tcl_ircx 
-        tcl_ifp 
-        tcl_ipdn
         tcl_inst 
         tcl_report
         tcl_feature

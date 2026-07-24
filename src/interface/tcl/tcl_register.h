@@ -33,7 +33,6 @@
 #include "tcl_register_eval.h"
 #include "tcl_register_feature.h"
 #include "tcl_register_flow.h"
-#include "tcl_register_fp.h"
 #include "tcl_register_idb.h"
 #include "tcl_register_idrc.h"
 #include "tcl_register_inst.h"
@@ -43,7 +42,6 @@
 #include "tcl_register_iemir.h"
 #include "tcl_register_izh.h"
 #include "tcl_register_ircx.h"
-#include "tcl_register_pdn.h"
 #include "tcl_register_report.h"
 #include "tcl_register_notification.h"
 #include "tcl_register_workspace.h"
@@ -71,12 +69,6 @@ int registerCommands()
 
   /// instance operation
   registerCmdInstance();
-
-  /// FP
-  registerCmdFP();
-
-  /// PDN
-  registerCmdPDN();
 
   /// CTS
   registerCmdCTS();
