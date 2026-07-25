@@ -63,6 +63,8 @@ void TrackAssigner::assign()
   buildPanelSchedule(ta_model);
   assignTAPanelMap(ta_model);
   // debugPlotTAModel(ta_model, "after");
+  std::vector<std::vector<TAPanel>>().swap(ta_model.get_layer_panel_list());
+  std::vector<std::vector<TAPanelId>>().swap(ta_model.get_ta_panel_id_list_list());
   updateSummary(ta_model);
   printSummary(ta_model);
   outputNetCSV(ta_model);
@@ -1110,12 +1112,31 @@ void TrackAssigner::uploadViolation(TAPanel& ta_panel)
 
 void TrackAssigner::freeTAPanel(TAPanel& ta_panel)
 {
+  ta_panel.get_open_queue().clear();
   for (TATask* ta_task : ta_panel.get_ta_task_list()) {
     delete ta_task;
     ta_task = nullptr;
   }
-  ta_panel.get_ta_task_list().clear();
+  std::vector<TATask*>().swap(ta_panel.get_ta_task_list());
+
+  ta_panel.get_net_fixed_rect_map().clear();
+  ta_panel.get_net_detailed_result_map().clear();
+  ta_panel.get_net_detailed_patch_map().clear();
+  ta_panel.get_net_task_detailed_result_map().clear();
+  std::vector<Violation>().swap(ta_panel.get_violation_list());
+  std::vector<ScaleGrid>().swap(ta_panel.get_panel_track_axis().get_x_grid_list());
+  std::vector<ScaleGrid>().swap(ta_panel.get_panel_track_axis().get_y_grid_list());
   ta_panel.get_ta_node_map().free();
+
+  ta_panel.set_curr_ta_task(nullptr);
+  ta_panel.get_start_node_list_list().clear();
+  ta_panel.get_end_node_list_list().clear();
+  std::vector<TANode*>().swap(ta_panel.get_path_node_list());
+  std::vector<TANode*>().swap(ta_panel.get_single_task_visited_node_list());
+  std::vector<Segment<LayerCoord>>().swap(ta_panel.get_routing_segment_list());
+  std::vector<TANode*>().swap(ta_panel.get_single_path_visited_node_list());
+  ta_panel.set_path_head_node(nullptr);
+  ta_panel.set_end_node_list_idx(-1);
 }
 
 int32_t TrackAssigner::getViolationNum(TAModel& ta_model)

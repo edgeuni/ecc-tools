@@ -122,10 +122,22 @@ void RTInterface::runRT()
   SupplyAnalyzer::initInst();
   RTSA.analyze();
   SupplyAnalyzer::destroyInst();
+  {
+    GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+#pragma omp parallel for
+    for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
+      for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
+        gcell_map[x][y].get_routing_orient_supply_map().clear();
+        gcell_map[x][y].get_routing_ignore_net_orient_map().clear();
+      }
+    }
+  }
 
   PlanarRouter::initInst();
   RTPR.generate();
   PlanarRouter::destroyInst();
+  RTDM.getDatabase().get_planar_routing_h_edge_map().free();
+  RTDM.getDatabase().get_planar_routing_v_edge_map().free();
 
   LayerAssigner::initInst();
   RTLA.assign();
@@ -145,9 +157,20 @@ void RTInterface::runRT()
   // RTSR.route();
   // SpaceRouter::destroyInst();
 
+  std::vector<GridMap<RoutingEdge>>().swap(RTDM.getDatabase().get_routing_h_edge_map());
+  std::vector<GridMap<RoutingEdge>>().swap(RTDM.getDatabase().get_routing_v_edge_map());
+
   TrackAssigner::initInst();
   RTTA.assign();
   TrackAssigner::destroyInst();
+  {
+    Die& die = RTDM.getDatabase().get_die();
+    for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+      for (Segment<LayerCoord>* segment : segment_set) {
+        RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
+      }
+    }
+  }
 
   DetailedRouter::initInst();
   RTDR.route();

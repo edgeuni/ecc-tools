@@ -139,6 +139,8 @@ void DetailedRouter::routeDRModel(DRModel& dr_model)
     splitNetResult(dr_model);
     // debugPlotDRModel(dr_model, "middle");
     routeDRBoxMap(dr_model);
+    dr_model.get_dr_box_map().free();
+    std::vector<std::vector<DRBoxId>>().swap(dr_model.get_dr_box_id_list_list());
     uploadNetResult(dr_model);
     uploadNetPatch(dr_model);
     uploadViolation(dr_model);
@@ -2036,12 +2038,43 @@ void DetailedRouter::uploadBestResult(DRBox& dr_box)
 
 void DetailedRouter::freeDRBox(DRBox& dr_box)
 {
+  dr_box.get_open_queue().clear();
   for (DRTask* dr_task : dr_box.get_dr_task_list()) {
     delete dr_task;
     dr_task = nullptr;
   }
-  dr_box.get_dr_task_list().clear();
+  std::vector<DRTask*>().swap(dr_box.get_dr_task_list());
+
+  dr_box.get_type_layer_net_fixed_rect_map().clear();
+  dr_box.get_net_access_point_map().clear();
+  dr_box.get_net_detailed_result_map().clear();
+  dr_box.get_net_task_detailed_result_map().clear();
+  dr_box.get_net_detailed_patch_map().clear();
+  dr_box.get_net_task_detailed_patch_map().clear();
+  std::vector<Violation>().swap(dr_box.get_route_violation_list());
+  std::vector<ScaleGrid>().swap(dr_box.get_box_track_axis().get_x_grid_list());
+  std::vector<ScaleGrid>().swap(dr_box.get_box_track_axis().get_y_grid_list());
   dr_box.get_layer_node_map().clear();
+  dr_box.get_layer_shadow_map().clear();
+  dr_box.get_layer_axis_map().clear();
+  dr_box.get_best_net_task_detailed_result_map().clear();
+  dr_box.get_best_net_task_detailed_patch_map().clear();
+  std::vector<Violation>().swap(dr_box.get_best_route_violation_list());
+
+  dr_box.set_curr_route_task(nullptr);
+  dr_box.get_start_node_list_list().clear();
+  dr_box.get_end_node_list_list().clear();
+  std::vector<DRNode*>().swap(dr_box.get_path_node_list());
+  std::vector<DRNode*>().swap(dr_box.get_single_task_visited_node_list());
+  std::vector<Segment<LayerCoord>>().swap(dr_box.get_routing_segment_list());
+  std::vector<DRNode*>().swap(dr_box.get_single_path_visited_node_list());
+  dr_box.set_path_head_node(nullptr);
+  dr_box.set_end_node_list_idx(-1);
+
+  dr_box.set_curr_patch_task(nullptr);
+  std::vector<EXTLayerRect>().swap(dr_box.get_routing_patch_list());
+  std::vector<Violation>().swap(dr_box.get_patch_violation_list());
+  dr_box.get_tried_fix_violation_set().clear();
 }
 
 int32_t DetailedRouter::getRouteViolationNum(DRModel& dr_model)

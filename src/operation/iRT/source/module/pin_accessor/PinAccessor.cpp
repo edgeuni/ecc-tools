@@ -568,6 +568,8 @@ void PinAccessor::routePAModel(PAModel& pa_model)
     buildBoxSchedule(pa_model);
     // debugPlotPAModel(pa_model, "middle");
     routePABoxMap(pa_model);
+    pa_model.get_pa_box_map().free();
+    std::vector<std::vector<PABoxId>>().swap(pa_model.get_pa_box_id_list_list());
     uploadViolation(pa_model);
     updateBestResult(pa_model);
     // debugPlotPAModel(pa_model, "after");
@@ -2470,12 +2472,45 @@ void PinAccessor::uploadBestResult(PABox& pa_box)
 
 void PinAccessor::freePABox(PABox& pa_box)
 {
+  pa_box.get_open_queue().clear();
   for (PATask* pa_task : pa_box.get_pa_task_list()) {
     delete pa_task;
     pa_task = nullptr;
   }
-  pa_box.get_pa_task_list().clear();
+  std::vector<PATask*>().swap(pa_box.get_pa_task_list());
+
+  pa_box.get_type_layer_net_fixed_rect_map().clear();
+  pa_box.get_net_access_point_map().clear();
+  pa_box.get_net_pin_access_result_map().clear();
+  pa_box.get_net_task_access_result_map().clear();
+  pa_box.get_net_pin_access_patch_map().clear();
+  pa_box.get_net_task_access_patch_map().clear();
+  std::vector<Violation>().swap(pa_box.get_route_violation_list());
+  std::vector<ScaleGrid>().swap(pa_box.get_box_track_axis().get_x_grid_list());
+  std::vector<ScaleGrid>().swap(pa_box.get_box_track_axis().get_y_grid_list());
   pa_box.get_layer_node_map().clear();
+  pa_box.get_layer_shadow_map().clear();
+  pa_box.get_layer_axis_map().clear();
+  pa_box.get_pin_access_point_map().clear();
+  pa_box.get_best_net_task_access_result_map().clear();
+  pa_box.get_best_net_task_access_patch_map().clear();
+  pa_box.get_best_pin_access_point_map().clear();
+  std::vector<Violation>().swap(pa_box.get_best_route_violation_list());
+
+  pa_box.set_curr_route_task(nullptr);
+  pa_box.get_start_node_list_list().clear();
+  pa_box.get_end_node_list_list().clear();
+  std::vector<PANode*>().swap(pa_box.get_path_node_list());
+  std::vector<PANode*>().swap(pa_box.get_single_task_visited_node_list());
+  std::vector<Segment<LayerCoord>>().swap(pa_box.get_routing_segment_list());
+  std::vector<PANode*>().swap(pa_box.get_single_path_visited_node_list());
+  pa_box.set_path_head_node(nullptr);
+  pa_box.set_end_node_list_idx(-1);
+
+  pa_box.set_curr_patch_task(nullptr);
+  std::vector<EXTLayerRect>().swap(pa_box.get_routing_patch_list());
+  std::vector<Violation>().swap(pa_box.get_patch_violation_list());
+  pa_box.get_tried_fix_violation_set().clear();
 }
 
 int32_t PinAccessor::getRouteViolationNum(PAModel& pa_model)
