@@ -273,13 +273,15 @@ std::vector<PRNet*> PlanarRouter::buildPRResult(PRModel& pr_model)
         int32_t first_x = std::min(first_coord.get_x(), second_coord.get_x());
         int32_t second_x = std::max(first_coord.get_x(), second_coord.get_x());
         for (int32_t x = first_x; x < second_x; x++) {
-          has_overflow |= routing_h_edge_map[layer_idx][x][first_coord.get_y()].get_overflow() > 0;
+          RoutingEdge& routing_edge = routing_h_edge_map[layer_idx][x][first_coord.get_y()];
+          has_overflow |= !routing_edge.get_ignore_net_set().count(net_idx) && routing_edge.get_overflow() > 0;
         }
       } else if (RTUTIL.isVertical(first_coord, second_coord)) {
         int32_t first_y = std::min(first_coord.get_y(), second_coord.get_y());
         int32_t second_y = std::max(first_coord.get_y(), second_coord.get_y());
         for (int32_t y = first_y; y < second_y; y++) {
-          has_overflow |= routing_v_edge_map[layer_idx][first_coord.get_x()][y].get_overflow() > 0;
+          RoutingEdge& routing_edge = routing_v_edge_map[layer_idx][first_coord.get_x()][y];
+          has_overflow |= !routing_edge.get_ignore_net_set().count(net_idx) && routing_edge.get_overflow() > 0;
         }
       }
     }
@@ -846,15 +848,16 @@ bool PlanarRouter::searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCo
   };
   int32_t start_idx = getAStarNodeIndex(workspace, start_coord);
   int32_t end_idx = getAStarNodeIndex(workspace, end_coord);
+  const std::set<RoutingEdge*>& routing_edge_set = pr_model.get_curr_pr_task()->get_routing_edge_set();
+  double heuristic_weight = routing_edge_set.empty() ? 1.0 : 0.0;
   PRAStarNodeState& start_state = getAStarNodeState(workspace, start_idx);
   start_state.known_cost = 0;
-  workspace.open_heap.push_back({start_idx, 0, static_cast<double>(RTUTIL.getManhattanDistance(start_coord, end_coord))});
+  workspace.open_heap.push_back({start_idx, 0, heuristic_weight * RTUTIL.getManhattanDistance(start_coord, end_coord)});
   std::push_heap(workspace.open_heap.begin(), workspace.open_heap.end(), cmpQueueNode);
 
   GridMap<RoutingEdge>& routing_h_edge_map = RTDM.getDatabase().get_planar_routing_h_edge_map();
   GridMap<RoutingEdge>& routing_v_edge_map = RTDM.getDatabase().get_planar_routing_v_edge_map();
   int32_t curr_net_idx = pr_model.get_curr_pr_task()->get_net_idx();
-  const std::set<RoutingEdge*>& routing_edge_set = pr_model.get_curr_pr_task()->get_routing_edge_set();
   double overflow_unit = pr_model.get_pr_com_param().get_overflow_unit();
   double corner_weight = pr_model.get_pr_com_param().get_corner_weight();
   int32_t workspace_ll_x = workspace.workspace_rect.get_ll_x();
@@ -902,18 +905,17 @@ bool PlanarRouter::searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCo
       bool is_horizontal = step_x != 0;
       RoutingEdge& routing_edge = is_horizontal ? routing_h_edge_map[std::min(curr_x, neighbor_x)][curr_y]
                                                 : routing_v_edge_map[curr_x][std::min(curr_y, neighbor_y)];
+      bool is_owned = routing_edge_set.count(&routing_edge);
       bool is_ignored = routing_edge.get_ignore_net_set().count(curr_net_idx);
-      if (routing_edge.get_supply() == 0 && !is_ignored) {
+      if (!is_owned && routing_edge.get_supply() == 0 && !is_ignored) {
         continue;
       }
-      double step_cost = 1.0;
-      if (!is_ignored) {
+      double step_cost = is_owned ? 0 : 1.0;
+      if (!is_owned && !is_ignored) {
         RoutingEdge candidate_edge = routing_edge;
-        if (!routing_edge_set.count(&routing_edge)) {
-          std::map<Orientation, int32_t>& orient_demand_map = candidate_edge.get_orient_demand_map();
-          orient_demand_map[is_horizontal ? Orientation::kEast : Orientation::kSouth]++;
-          orient_demand_map[is_horizontal ? Orientation::kWest : Orientation::kNorth]++;
-        }
+        std::map<Orientation, int32_t>& orient_demand_map = candidate_edge.get_orient_demand_map();
+        orient_demand_map[is_horizontal ? Orientation::kEast : Orientation::kSouth]++;
+        orient_demand_map[is_horizontal ? Orientation::kWest : Orientation::kNorth]++;
         step_cost += getRoutingEdgeCost(candidate_edge, overflow_unit).getTotalCost();
       }
       if (has_parent && parent_is_horizontal != is_horizontal) {
@@ -923,7 +925,7 @@ bool PlanarRouter::searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCo
       if (next_known_cost < neighbor_node_state.known_cost) {
         neighbor_node_state.parent_idx = queue_node.node_idx;
         neighbor_node_state.known_cost = next_known_cost;
-        double estimated_cost = std::abs(neighbor_x - end_coord.get_x()) + std::abs(neighbor_y - end_coord.get_y());
+        double estimated_cost = heuristic_weight * (std::abs(neighbor_x - end_coord.get_x()) + std::abs(neighbor_y - end_coord.get_y()));
         workspace.open_heap.push_back({neighbor_idx, next_known_cost, estimated_cost});
         std::push_heap(workspace.open_heap.begin(), workspace.open_heap.end(), cmpQueueNode);
       }

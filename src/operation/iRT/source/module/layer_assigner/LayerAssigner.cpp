@@ -210,12 +210,11 @@ void LayerAssigner::buildPlaneTree(LAModel& la_model)
   Die& die = RTDM.getDatabase().get_die();
 
   std::vector<LANet>& la_net_list = la_model.get_la_net_list();
+  std::map<int32_t, std::set<Segment<LayerCoord>*>> net_global_result_map = RTDM.getNetGlobalResultMap(die);
 
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-    LANet& la_net = la_net_list[net_idx];
-
+  for (LANet& la_net : la_net_list) {
     std::vector<Segment<LayerCoord>> routing_segment_list;
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>* segment : net_global_result_map[la_net.get_net_idx()]) {
       routing_segment_list.push_back(*segment);
     }
     std::vector<LayerCoord> candidate_root_coord_list;
@@ -228,7 +227,7 @@ void LayerAssigner::buildPlaneTree(LAModel& la_model)
     }
     la_net.set_planar_tree(RTUTIL.getTreeByFullFlow(candidate_root_coord_list, routing_segment_list, key_coord_pin_map));
   }
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+  for (auto& [net_idx, segment_set] : net_global_result_map) {
     for (Segment<LayerCoord>* segment : segment_set) {
       RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
     }
@@ -297,6 +296,7 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
   if (refine_level == 0) {
     return {};
   }
+  int32_t curr_net_idx = la_model.get_curr_la_task()->get_net_idx();
   int32_t max_refine_segment_num = 3;
   int32_t min_subsegment_length = 4;
   if (refine_level == 2) {
@@ -333,7 +333,8 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
       for (int32_t offset = 0; offset < segment_length; offset++) {
         LayerCoord first_coord(parent_coord.get_x() + step_x * offset, parent_coord.get_y() + step_y * offset, layer_idx);
         LayerCoord second_coord(parent_coord.get_x() + step_x * (offset + 1), parent_coord.get_y() + step_y * (offset + 1), layer_idx);
-        int32_t overflow = getRoutingEdge(first_coord, second_coord).get_overflow();
+        RoutingEdge& routing_edge = getRoutingEdge(first_coord, second_coord);
+        int32_t overflow = routing_edge.get_ignore_net_set().count(curr_net_idx) ? 0 : routing_edge.get_overflow();
         overflow_list.push_back(overflow);
         overflow_segment.total_overflow += overflow;
         if (overflow > overflow_segment.max_overflow) {
