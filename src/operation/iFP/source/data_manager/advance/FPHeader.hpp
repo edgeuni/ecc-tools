@@ -35,6 +35,8 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <limits>
+#include <random>
 #include <set>
 #include <sstream>
 #include <string>
@@ -42,4 +44,5 @@
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>

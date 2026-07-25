@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include "FPHeader.hpp"
+
 namespace ifp {
 
 class PGModel
@@ -24,12 +26,17 @@ class PGModel
   PGModel() = default;
   ~PGModel() = default;
   // getter
+  std::set<std::string>& get_via_key_set() { return _via_key_set; }
 
   // const getter
+  const std::set<std::string>& get_via_key_set() const { return _via_key_set; }
 
   // setter
 
   // function
+
+ private:
+  std::set<std::string> _via_key_set;
 };
 
 }  // namespace ifp

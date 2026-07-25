@@ -22,9 +22,15 @@
 
 #if 1  // 前向声明
 
+namespace idb {
+class IdbSpecialWire;
+}
+
 #endif
 
 namespace ifp {
+
+class PGSegment;
 
 #define FPI (ifp::FPInterface::getInst())
 
@@ -52,10 +58,44 @@ class FPInterface
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
+  void wrapDBInfo();
+  void wrapMicronDBU();
+  void wrapManufactureGrid();
+  void wrapCellArea();
+  void wrapFloorplan();
+  void wrapSiteMap();
+  void wrapCellMasterMap();
+  void wrapRoutingLayerList();
+  void wrapRowList();
+  void wrapInstanceList();
+  void wrapNetList();
+  void wrapIOPinList();
+  void wrapPGNetList();
+  void wrapPlacementBlockageRectList();
+  void wrapRoutingBlockageList();
 #endif
 
 #if 1  // output
   void output();
+  void writeFloorplan();
+  void writeDie();
+  void writeCore();
+  void writeRowList();
+  void writeTrackList();
+  void writeIO();
+  void writeIOPinList();
+  void writeIOInstancePlacement();
+  void writeNewInstanceList();
+  void writeMacro();
+  void writeMacroPlacement();
+  void writeInstanceHalo();
+  void writeNewBlockageList();
+  void writeNewHaloList();
+  void writePDN();
+  void writePGNetList();
+  void writePGSegmentList();
+  void writePGVia(idb::IdbSpecialWire* idb_special_wire, PGSegment& pg_segment);
+  void writePhy();
 #endif
 
 #endif

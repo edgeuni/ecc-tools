@@ -39,17 +39,20 @@ using ieda::TclIntListOption;
 using ieda::TclIntOption;
 using ieda::TclOption;
 using ieda::TclStringListOption;
+using ieda::TclStringListListOption;
 using ieda::TclStringOption;
 using ieda::TclSwitchOption;
 
 enum class ValueType
 {
+  kNone,
   kInt,
   kIntList,
   kDouble,
   kDoubleList,
   kString,
   kStringList,
+  kStringListList,
   kStringDoubleMap
 };
 
@@ -97,6 +100,9 @@ class TclUtil : public TclCmd
             modified = true;
           }else if (value.type() == typeid(std::vector<std::string>)){
             item.value() = std::any_cast<std::vector<std::string>>(value);
+            modified = true;
+          }else if (value.type() == typeid(std::vector<std::vector<std::string>>)){
+            item.value() = std::any_cast<std::vector<std::vector<std::string>>>(value);
             modified = true;
           }
         } catch (const std::bad_any_cast& e) {

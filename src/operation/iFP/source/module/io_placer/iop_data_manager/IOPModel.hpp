@@ -16,6 +16,9 @@
 // ***************************************************************************************
 #pragma once
 
+#include "FPHeader.hpp"
+#include "IOPadCoord.hpp"
+
 namespace ifp {
 
 class IOPModel
@@ -24,12 +27,21 @@ class IOPModel
   IOPModel() = default;
   ~IOPModel() = default;
   // getter
+  int32_t get_io_filler_idx() const { return _io_filler_idx; }
+  std::vector<IOPadCoord>& get_io_pad_coord_list() { return _io_pad_coord_list; }
 
   // const getter
+  const std::vector<IOPadCoord>& get_io_pad_coord_list() const { return _io_pad_coord_list; }
 
   // setter
+  void set_io_filler_idx(int32_t io_filler_idx) { _io_filler_idx = io_filler_idx; }
+  void set_io_pad_coord_list(const std::vector<IOPadCoord>& io_pad_coord_list) { _io_pad_coord_list = io_pad_coord_list; }
 
   // function
+
+ private:
+  int32_t _io_filler_idx = -1;
+  std::vector<IOPadCoord> _io_pad_coord_list;
 };
 
 }  // namespace ifp

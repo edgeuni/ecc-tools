@@ -52,10 +52,20 @@ class DataManager
   DataManager& operator=(const DataManager& other) = delete;
   DataManager& operator=(DataManager&& other) = delete;
   // function
+
+#if 1  // build
   void buildConfig();
   void buildDatabase();
+  void buildInstanceNameToIdxMap();
+  void buildRoutingLayerNameToIdxMap();
+  void buildIOPinNameToIdxMap();
+  void buildPGNetNameToIdxMap();
+#endif
+
+#if 1  // exhibit
   void printConfig();
   void printDatabase();
+#endif
 };
 
 }  // namespace ifp

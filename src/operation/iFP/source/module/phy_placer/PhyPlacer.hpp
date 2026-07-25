@@ -16,6 +16,10 @@
 // ***************************************************************************************
 #pragma once
 
+#include "CellMaster.hpp"
+#include "PPModel.hpp"
+#include "Row.hpp"
+
 namespace ifp {
 
 #define FPP (ifp::PhyPlacer::getInst())
@@ -28,6 +32,16 @@ class PhyPlacer
   static void destroyInst();
   // function
   void place();
+
+#if 1  // place phy cell
+  void placePhyCell(PPModel& pp_model);
+  void adjustTapDistance(int32_t& inst_space);
+  int32_t buildPPRegionList(PPModel& pp_model);
+  void buildPPRegionInRow(PPModel& pp_model, Row& row, int32_t row_idx);
+  int32_t insertPhyCell(PPModel& pp_model, int32_t inst_space, std::string tapcell_name, std::string endcap_name);
+  void addPhyCell(std::string instance_name, std::string cell_master_name, int32_t x_coord, int32_t y_coord, std::string orient_name);
+  int32_t getCellMasterWidthByOrient(CellMaster& cell_master, std::string orient_name);
+#endif
 
  private:
   // self

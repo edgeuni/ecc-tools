@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include "MPModel.hpp"
+
 namespace ifp {
 
 #define FPMP (ifp::MacroPlacer::getInst())
@@ -40,6 +42,41 @@ class MacroPlacer
   MacroPlacer& operator=(const MacroPlacer& other) = delete;
   MacroPlacer& operator=(MacroPlacer&& other) = delete;
   // function
+
+#if 1  // build
+
+  void buildPlacementBlockage();
+  void buildPlacementHalo();
+  void buildRoutingBlockage();
+  void buildRoutingHalo();
+  void buildModel(MPModel& mp_model);
+  void buildNodeList(MPModel& mp_model);
+  void buildNetList(MPModel& mp_model);
+  void buildBlockageRectList(MPModel& mp_model);
+
+#endif
+
+#if 1  // optimize
+
+  void optimize(MPModel& mp_model);
+  void initializeNodeLocation(MPModel& mp_model);
+  double calculateCost(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
+  double calculateWirelength(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
+  double calculateOverlap(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
+  MPRect getNodeRect(const MPNode& mp_node);
+  double calculateBlockageOverlap(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
+  double calculateOutOfBound(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
+  double calculatePeriphery(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
+  double calculateIODistance(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
+
+#endif
+
+#if 1  // output
+
+  void writeModel(MPModel& mp_model);
+  void writePlacementHalo();
+
+#endif
 };
 
 }  // namespace ifp

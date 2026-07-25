@@ -138,6 +138,20 @@ class Utility
     return (map.find(key) != map.end());
   }
 
+  static std::vector<std::string> splitString(std::string string, char token)
+  {
+    std::vector<std::string> result_list;
+    std::stringstream string_stream(string);
+    std::string result_token;
+    while (std::getline(string_stream, result_token, token)) {
+      if (result_token.empty()) {
+        continue;
+      }
+      result_list.push_back(result_token);
+    }
+    return result_list;
+  }
+
   static void createDirByFile(std::string file_path) { createDir(dirname((char*) file_path.c_str())); }
 
   static void createDir(std::string dir_path)

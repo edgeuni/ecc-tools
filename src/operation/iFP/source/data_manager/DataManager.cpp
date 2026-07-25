@@ -104,6 +104,46 @@ void DataManager::buildConfig()
 
 void DataManager::buildDatabase()
 {
+  buildInstanceNameToIdxMap();
+  buildRoutingLayerNameToIdxMap();
+  buildIOPinNameToIdxMap();
+  buildPGNetNameToIdxMap();
+}
+
+void DataManager::buildInstanceNameToIdxMap()
+{
+  std::map<std::string, int32_t>& instance_name_to_idx_map = _database.get_instance_name_to_idx_map();
+  instance_name_to_idx_map.clear();
+  for (int32_t instance_idx = 0; instance_idx < static_cast<int32_t>(_database.get_instance_list().size()); instance_idx++) {
+    instance_name_to_idx_map[_database.get_instance_list()[instance_idx].get_name()] = instance_idx;
+  }
+}
+
+void DataManager::buildRoutingLayerNameToIdxMap()
+{
+  std::map<std::string, int32_t>& routing_layer_name_to_idx_map = _database.get_routing_layer_name_to_idx_map();
+  routing_layer_name_to_idx_map.clear();
+  for (int32_t routing_layer_idx = 0; routing_layer_idx < static_cast<int32_t>(_database.get_routing_layer_list().size()); routing_layer_idx++) {
+    routing_layer_name_to_idx_map[_database.get_routing_layer_list()[routing_layer_idx].get_name()] = routing_layer_idx;
+  }
+}
+
+void DataManager::buildIOPinNameToIdxMap()
+{
+  std::map<std::string, int32_t>& io_pin_name_to_idx_map = _database.get_io_pin_name_to_idx_map();
+  io_pin_name_to_idx_map.clear();
+  for (int32_t io_pin_idx = 0; io_pin_idx < static_cast<int32_t>(_database.get_io_pin_list().size()); io_pin_idx++) {
+    io_pin_name_to_idx_map[_database.get_io_pin_list()[io_pin_idx].get_name()] = io_pin_idx;
+  }
+}
+
+void DataManager::buildPGNetNameToIdxMap()
+{
+  std::map<std::string, int32_t>& pg_net_name_to_idx_map = _database.get_pg_net_name_to_idx_map();
+  pg_net_name_to_idx_map.clear();
+  for (int32_t pg_net_idx = 0; pg_net_idx < static_cast<int32_t>(_database.get_pg_net_list().size()); pg_net_idx++) {
+    pg_net_name_to_idx_map[_database.get_pg_net_list()[pg_net_idx].get_name()] = pg_net_idx;
+  }
 }
 
 #endif
@@ -133,7 +173,38 @@ void DataManager::printConfig()
 
 void DataManager::printDatabase()
 {
+  Database& database = _database;
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(0), "FP_DATABASE_INPUT");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "design_name");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_design_name());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "micron_dbu");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_micron_dbu());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "manufacture_grid");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_manufacture_grid());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "cell_area");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_cell_area());
+  Die& die = database.get_die();
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "die");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "(", die.get_ll_x(), ",", die.get_ll_y(), ")-(", die.get_ur_x(), ",", die.get_ur_y(), ")");
+  Core& core = database.get_core();
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "core");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "(", core.get_ll_x(), ",", core.get_ll_y(), ")-(", core.get_ur_x(), ",", core.get_ur_y(), ")");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "site_num");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_site_map().size());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "instance_num");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_instance_list().size());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "net_num");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_net_list().size());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "routing_layer_num");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_routing_layer_list().size());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "io_pin_num");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_io_pin_list().size());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pg_net_num");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_pg_net_list().size());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pg_segment_num");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_pg_segment_list().size());
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "placement_blockage_num");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), database.get_placement_blockage_rect_list().size());
 }
 
 #endif

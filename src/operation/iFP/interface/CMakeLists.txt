@@ -13,6 +13,7 @@ add_library(ifp_interface
 target_link_libraries(ifp_interface
     PRIVATE
     ifp_source
+    idm
 )
 
 target_include_directories(ifp_interface

@@ -39,6 +39,7 @@
 #include "tcl_register_irt.h"
 #include "tcl_register_ilvs.h"
 #include "tcl_register_ista.h"
+#include "tcl_register_ifp.h"
 #include "tcl_register_iemir.h"
 #include "tcl_register_izh.h"
 #include "tcl_register_ircx.h"
@@ -81,6 +82,9 @@ int registerCommands()
 
   /// STA
   registerCmdSTA();
+
+  /// FP
+  registerCmdFP();
 
   /// EMIR
   registerCmdEMIR();

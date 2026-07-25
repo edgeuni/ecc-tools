@@ -17,6 +17,7 @@ target_link_libraries(ifp_data_manager
 
 target_include_directories(ifp_data_manager
     PUBLIC
+    ${IFP_DATA_MANAGER}/basic
     ${IFP_DATA_MANAGER}/advance
     ${IFP_DATA_MANAGER}
 )
