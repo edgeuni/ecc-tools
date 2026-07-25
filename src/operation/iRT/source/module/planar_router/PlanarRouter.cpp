@@ -573,6 +573,9 @@ std::vector<PRNet*> PlanarRouter::getOverflowPRNetList(PRModel& pr_model)
   std::vector<PRNet*> pr_net_list;
   for (PRNet& pr_net : pr_model.get_pr_net_list()) {
     for (RoutingEdge* routing_edge : pr_net.get_routing_edge_set()) {
+      if (routing_edge->get_ignore_net_set().count(pr_net.get_net_idx())) {
+        continue;
+      }
       if (routing_edge->get_overflow() > 0) {
         pr_net_list.push_back(&pr_net);
         break;
@@ -851,6 +854,7 @@ bool PlanarRouter::searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCo
   GridMap<RoutingEdge>& routing_h_edge_map = RTDM.getDatabase().get_planar_routing_h_edge_map();
   GridMap<RoutingEdge>& routing_v_edge_map = RTDM.getDatabase().get_planar_routing_v_edge_map();
   int32_t curr_net_idx = pr_model.get_curr_pr_task()->get_net_idx();
+  const std::set<RoutingEdge*>& routing_edge_set = pr_model.get_curr_pr_task()->get_routing_edge_set();
   double overflow_unit = pr_model.get_pr_com_param().get_overflow_unit();
   double corner_weight = pr_model.get_pr_com_param().get_corner_weight();
   int32_t workspace_ll_x = workspace.workspace_rect.get_ll_x();
@@ -904,7 +908,13 @@ bool PlanarRouter::searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCo
       }
       double step_cost = 1.0;
       if (!is_ignored) {
-        step_cost += getRoutingEdgeCost(routing_edge, overflow_unit).getTotalCost();
+        RoutingEdge candidate_edge = routing_edge;
+        if (!routing_edge_set.count(&routing_edge)) {
+          std::map<Orientation, int32_t>& orient_demand_map = candidate_edge.get_orient_demand_map();
+          orient_demand_map[is_horizontal ? Orientation::kEast : Orientation::kSouth]++;
+          orient_demand_map[is_horizontal ? Orientation::kWest : Orientation::kNorth]++;
+        }
+        step_cost += getRoutingEdgeCost(candidate_edge, overflow_unit).getTotalCost();
       }
       if (has_parent && parent_is_horizontal != is_horizontal) {
         step_cost += corner_weight;
@@ -1360,8 +1370,6 @@ void PlanarRouter::updatePRCandidate(PRModel& pr_model, PRCandidate& pr_candidat
     if (!RTUTIL.isRightAngled(first_coord, second_coord)) {
       RTLOG.error(Loc::current(), "The direction is error!");
     }
-    candidate_cost.total_wire_length += RTUTIL.getManhattanDistance(first_coord, second_coord);
-
     Direction direction = RTUTIL.getDirection(first_coord, second_coord);
     if (pre_direction != Direction::kNone && pre_direction != direction) {
       candidate_cost.total_corner_num++;
@@ -1374,7 +1382,6 @@ void PlanarRouter::updatePRCandidate(PRModel& pr_model, PRCandidate& pr_candidat
     bool is_horizontal = false;
   };
   std::vector<CandidateEdge> candidate_edge_list;
-  candidate_edge_list.reserve(candidate_cost.total_wire_length);
   GridMap<RoutingEdge>& routing_h_edge_map = RTDM.getDatabase().get_planar_routing_h_edge_map();
   GridMap<RoutingEdge>& routing_v_edge_map = RTDM.getDatabase().get_planar_routing_v_edge_map();
   for (Segment<PlanarCoord>& routing_segment : pr_candidate.get_routing_segment_list()) {
@@ -1403,6 +1410,10 @@ void PlanarRouter::updatePRCandidate(PRModel& pr_model, PRCandidate& pr_candidat
   candidate_edge_list.erase(unique_end, candidate_edge_list.end());
   for (const CandidateEdge& edge_record : candidate_edge_list) {
     RoutingEdge* routing_edge = edge_record.routing_edge;
+    if (routing_edge_set.count(routing_edge)) {
+      continue;
+    }
+    candidate_cost.total_wire_length++;
     bool is_ignored = routing_edge->get_ignore_net_set().count(curr_net_idx);
     if (routing_edge->get_supply() == 0 && !is_ignored) {
       candidate_cost.is_path_blocked = true;
@@ -1411,11 +1422,9 @@ void PlanarRouter::updatePRCandidate(PRModel& pr_model, PRCandidate& pr_candidat
       continue;
     }
     RoutingEdge candidate_edge = *routing_edge;
-    if (!routing_edge_set.count(routing_edge)) {
-      std::map<Orientation, int32_t>& orient_demand_map = candidate_edge.get_orient_demand_map();
-      orient_demand_map[edge_record.is_horizontal ? Orientation::kEast : Orientation::kSouth]++;
-      orient_demand_map[edge_record.is_horizontal ? Orientation::kWest : Orientation::kNorth]++;
-    }
+    std::map<Orientation, int32_t>& orient_demand_map = candidate_edge.get_orient_demand_map();
+    orient_demand_map[edge_record.is_horizontal ? Orientation::kEast : Orientation::kSouth]++;
+    orient_demand_map[edge_record.is_horizontal ? Orientation::kWest : Orientation::kNorth]++;
     PREdgeCost edge_cost = getRoutingEdgeCost(candidate_edge, overflow_unit);
     if (edge_cost.is_overflow) {
       candidate_cost.is_overflow = true;
