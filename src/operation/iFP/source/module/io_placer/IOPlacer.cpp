@@ -183,7 +183,7 @@ void IOPlacer::placeIOPinsOnEdge(IOEdgeType edge_type, std::vector<IOPin>& io_pi
 }
 
 int32_t IOPlacer::getAlongCoord(int32_t range_low, int32_t range_high, int32_t die_low, int32_t die_high, int32_t pin_span,
-                                 int32_t access_pitch, int32_t side_pin_num, int32_t pin_idx, int32_t manufacture_grid)
+                                int32_t access_pitch, int32_t side_pin_num, int32_t pin_idx, int32_t manufacture_grid)
 {
   int32_t legal_low = std::max(range_low, die_low + access_pitch);
   int32_t legal_high = std::min(range_high, die_high - access_pitch);
@@ -202,14 +202,13 @@ int32_t IOPlacer::getAlongCoord(int32_t range_low, int32_t range_high, int32_t d
   }
 
   int64_t span = static_cast<int64_t>(end - start);
-  int32_t coord
-      = start + static_cast<int32_t>((span * pin_idx + (side_pin_num - 1) / 2) / static_cast<int64_t>(side_pin_num - 1));
+  int32_t coord = start + static_cast<int32_t>((span * pin_idx + (side_pin_num - 1) / 2) / static_cast<int64_t>(side_pin_num - 1));
   coord = FPUTIL.alignNearest(coord, manufacture_grid);
   return std::max(start, std::min(end, coord));
 }
 
 void IOPlacer::addIOPinPort(IOPin& io_pin, int32_t x, int32_t y, int32_t rect_width, int32_t rect_height, int32_t manufacture_grid,
-                             std::string layer_name)
+                            std::string layer_name)
 {
   io_pin.set_placed(true);
   io_pin.set_fixed(false);

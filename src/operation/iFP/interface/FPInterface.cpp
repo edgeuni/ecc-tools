@@ -18,7 +18,6 @@
 
 #include "DataManager.hpp"
 #include "DieBuilder.hpp"
-#include "idm.h"
 #include "IOPlacer.hpp"
 #include "Logger.hpp"
 #include "MacroPlacer.hpp"
@@ -26,6 +25,7 @@
 #include "PDNGenerator.hpp"
 #include "PhyPlacer.hpp"
 #include "Utility.hpp"
+#include "idm.h"
 
 namespace ifp {
 
@@ -180,8 +180,7 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
     FPDM.getConfig().io_pin_depth_micron = std::stod(io_pin_list[2][0]);
   }
 
-  FPDM.getConfig().pg_io_pin_list.clear();
-  FPDM.getConfig().pg_global_connect_list.clear();
+  FPDM.getConfig().pg_connect_list.clear();
   std::vector<std::vector<std::vector<std::string>>> pg_connect_list
       = FPUTIL.getConfigValue<std::vector<std::vector<std::vector<std::string>>>>(config_map, "-pg_connect", {});
   for (std::vector<std::vector<std::string>>& pg_connect : pg_connect_list) {
@@ -190,25 +189,18 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
     }
 
     PGNetType net_type = std::stoi(pg_connect.back()[0]) != 0 ? PGNetType::kPower : PGNetType::kGround;
-    for (int32_t io_pin_idx = 0; io_pin_idx < static_cast<int32_t>(pg_connect.size()) - 1; io_pin_idx++) {
-      std::vector<std::string>& pin_name_list = pg_connect[io_pin_idx];
-      if (pin_name_list.empty()) {
+    for (int32_t pg_net_idx = 0; pg_net_idx < static_cast<int32_t>(pg_connect.size()) - 1; pg_net_idx++) {
+      std::vector<std::string>& pg_net_pin_name_list = pg_connect[pg_net_idx];
+      if (pg_net_pin_name_list.empty()) {
         continue;
       }
 
-      PGIOPin pg_io_pin;
-      pg_io_pin.set_pin_name(pin_name_list[0]);
-      pg_io_pin.set_net_name(pin_name_list[0]);
-      pg_io_pin.set_direction(IOPinDirection::kInOut);
-      pg_io_pin.set_net_type(net_type);
-      FPDM.getConfig().pg_io_pin_list.push_back(pg_io_pin);
-
-      for (int32_t pin_idx = 1; pin_idx < static_cast<int32_t>(pin_name_list.size()); pin_idx++) {
-        PGGlobalConnect pg_global_connect;
-        pg_global_connect.set_net_name(pin_name_list[0]);
-        pg_global_connect.set_instance_pin_name(pin_name_list[pin_idx]);
-        pg_global_connect.set_net_type(net_type);
-        FPDM.getConfig().pg_global_connect_list.push_back(pg_global_connect);
+      for (int32_t pin_idx = 1; pin_idx < static_cast<int32_t>(pg_net_pin_name_list.size()); pin_idx++) {
+        PGGlobalConnect pg_connect_item;
+        pg_connect_item.set_net_name(pg_net_pin_name_list[0]);
+        pg_connect_item.set_pin_name(pg_net_pin_name_list[pin_idx]);
+        pg_connect_item.set_net_type(net_type);
+        FPDM.getConfig().pg_connect_list.push_back(pg_connect_item);
       }
     }
   }
@@ -216,46 +208,33 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   FPDM.getConfig().pg_grid_list.clear();
   FPDM.getConfig().pg_stripe_list.clear();
   FPDM.getConfig().pg_layer_pair_list.clear();
-  std::vector<std::vector<std::vector<std::vector<std::string>>>> pdn_mesh_list
-      = FPUTIL.getConfigValue<std::vector<std::vector<std::vector<std::vector<std::string>>>>>(config_map, "-pdn_mesh", {});
-  for (std::vector<std::vector<std::vector<std::string>>>& pdn_mesh : pdn_mesh_list) {
-    if (pdn_mesh.size() != 2 || pdn_mesh[0].size() != 2 || pdn_mesh[0][0].size() != 1 || pdn_mesh[0][1].size() != 1) {
+  std::vector<std::vector<std::string>> pdn_mesh_list
+      = FPUTIL.getConfigValue<std::vector<std::vector<std::string>>>(config_map, "-pdn_mesh", {});
+  std::string previous_layer_name;
+  for (std::vector<std::string>& layer_setting : pdn_mesh_list) {
+    if (layer_setting.size() == 2) {
+      PGGrid pg_grid;
+      pg_grid.set_layer_name(layer_setting[0]);
+      pg_grid.set_width_micron(std::stod(layer_setting[1]));
+      FPDM.getConfig().pg_grid_list.push_back(pg_grid);
+    } else if (layer_setting.size() == 4) {
+      PGStripe pg_stripe;
+      pg_stripe.set_layer_name(layer_setting[0]);
+      pg_stripe.set_width_micron(std::stod(layer_setting[1]));
+      pg_stripe.set_pitch_micron(std::stod(layer_setting[2]));
+      pg_stripe.set_offset_micron(std::stod(layer_setting[3]));
+      FPDM.getConfig().pg_stripe_list.push_back(pg_stripe);
+    } else {
       continue;
     }
 
-    std::string power_net_name = pdn_mesh[0][0][0];
-    std::string ground_net_name = pdn_mesh[0][1][0];
-    std::string previous_layer_name;
-    for (std::vector<std::string>& layer_setting : pdn_mesh[1]) {
-      if (layer_setting.size() == 2) {
-        PGGrid pg_grid;
-        pg_grid.set_power_net_name(power_net_name);
-        pg_grid.set_ground_net_name(ground_net_name);
-        pg_grid.set_layer_name(layer_setting[0]);
-        pg_grid.set_width_micron(std::stod(layer_setting[1]));
-        pg_grid.set_offset_micron(0.0);
-        FPDM.getConfig().pg_grid_list.push_back(pg_grid);
-      } else if (layer_setting.size() == 4) {
-        PGStripe pg_stripe;
-        pg_stripe.set_power_net_name(power_net_name);
-        pg_stripe.set_ground_net_name(ground_net_name);
-        pg_stripe.set_layer_name(layer_setting[0]);
-        pg_stripe.set_width_micron(std::stod(layer_setting[1]));
-        pg_stripe.set_pitch_micron(std::stod(layer_setting[2]));
-        pg_stripe.set_offset_micron(std::stod(layer_setting[3]));
-        FPDM.getConfig().pg_stripe_list.push_back(pg_stripe);
-      } else {
-        continue;
-      }
-
-      if (!previous_layer_name.empty()) {
-        PGLayerPair pg_layer_pair;
-        pg_layer_pair.set_first_layer_name(previous_layer_name);
-        pg_layer_pair.set_second_layer_name(layer_setting[0]);
-        FPDM.getConfig().pg_layer_pair_list.push_back(pg_layer_pair);
-      }
-      previous_layer_name = layer_setting[0];
+    if (!previous_layer_name.empty()) {
+      PGLayerPair pg_layer_pair;
+      pg_layer_pair.set_first_layer_name(previous_layer_name);
+      pg_layer_pair.set_second_layer_name(layer_setting[0]);
+      FPDM.getConfig().pg_layer_pair_list.push_back(pg_layer_pair);
     }
+    previous_layer_name = layer_setting[0];
   }
 
   FPDM.getConfig().tapcell_name = "";
@@ -755,8 +734,8 @@ void FPInterface::outputNewInstanceList()
     if (orient == idb::IdbOrient::kNone) {
       orient = idb::IdbOrient::kN_R0;
     }
-    dmInst->createInstance(instance.get_name(), instance.get_master_name(), instance.get_x(), instance.get_y(), orient, idb::IdbInstanceType::kDist,
-                           idb::IdbPlacementStatus::kFixed);
+    dmInst->createInstance(instance.get_name(), instance.get_master_name(), instance.get_x(), instance.get_y(), orient,
+                           idb::IdbInstanceType::kDist, idb::IdbPlacementStatus::kFixed);
     instance.set_new_instance(false);
   }
 }
@@ -796,7 +775,7 @@ void FPInterface::outputPGSegmentList()
     idb_segment->set_layer(idb_layer);
     idb_segment->set_route_width(pg_segment.get_width());
     idb_segment->set_shape_type(pg_segment.get_type() == PGSegmentType::kFollowPin ? idb::IdbWireShapeType::kFollowPin
-                                                                                     : idb::IdbWireShapeType::kStripe);
+                                                                                   : idb::IdbWireShapeType::kStripe);
     idb_segment->add_point(pg_segment.get_start_x(), pg_segment.get_start_y());
     idb_segment->add_point(pg_segment.get_end_x(), pg_segment.get_end_y());
     idb_segment->set_bounding_box();
@@ -818,12 +797,12 @@ void FPInterface::outputPGVia(idb::IdbSpecialWire* idb_special_wire, PGSegment& 
     idb_cut_layer_list = idb_layout->get_layers()->find_cut_layer_list(pg_segment.get_bottom_layer_name(), pg_segment.get_top_layer_name());
   }
   for (idb::IdbLayerCut* idb_cut_layer : idb_cut_layer_list) {
-    std::string via_name = idb_cut_layer->get_name() + "_" + std::to_string(pg_segment.get_via_width()) + "x"
-                           + std::to_string(pg_segment.get_via_height());
+    std::string via_name
+        = idb_cut_layer->get_name() + "_" + std::to_string(pg_segment.get_via_width()) + "x" + std::to_string(pg_segment.get_via_height());
     idb::IdbVia* idb_via = dmInst->get_idb_design()->get_via_list()->find_via(via_name);
     if (idb_via == nullptr) {
       idb_via = dmInst->get_idb_design()->get_via_list()->createVia(via_name, idb_cut_layer, pg_segment.get_via_width(),
-                                                                      pg_segment.get_via_height());
+                                                                    pg_segment.get_via_height());
     }
     idb::IdbSpecialWireSegment* idb_segment = idb_special_wire->add_segment();
     idb_segment->set_is_via(true);

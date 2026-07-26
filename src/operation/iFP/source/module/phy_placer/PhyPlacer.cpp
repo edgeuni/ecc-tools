@@ -140,8 +140,8 @@ int32_t PhyPlacer::insertPhyCell(PPModel& pp_model, int32_t inst_space, std::str
                  pp_region.get_orient());
     }
     if (pp_region.get_end_coord() - pp_region.get_start_coord() >= 2 * endcap_width) {
-      addPhyCell("ENDCAP_" + std::to_string(endcap_idx++), endcap_name, pp_region.get_end_coord() - endcap_width,
-                 pp_region.get_y_coord(), pp_region.get_orient());
+      addPhyCell("ENDCAP_" + std::to_string(endcap_idx++), endcap_name, pp_region.get_end_coord() - endcap_width, pp_region.get_y_coord(),
+                 pp_region.get_orient());
     }
 
     int32_t core_start_x = database.get_core().get_ll_x();
@@ -161,8 +161,7 @@ int32_t PhyPlacer::insertPhyCell(PPModel& pp_model, int32_t inst_space, std::str
       }
 
       addPhyCell("PHY_" + std::to_string(tapcell_idx++), tapcell_name, x_coord, pp_region.get_y_coord(), pp_region.get_orient());
-      if (x_coord + 2 * inst_space >= region_end && region_end - x_coord > tapcell_width * 2
-          && pp_region.get_row_idx() % 2 == 0) {
+      if (x_coord + 2 * inst_space >= region_end && region_end - x_coord > tapcell_width * 2 && pp_region.get_row_idx() % 2 == 0) {
         addPhyCell("PHY_" + std::to_string(tapcell_idx++), tapcell_name, region_end - tapcell_width, pp_region.get_y_coord(),
                    pp_region.get_orient());
       }

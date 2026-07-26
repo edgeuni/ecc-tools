@@ -57,14 +57,8 @@ class PlanarRect
   void set_ll_y(int32_t ll_y) { _ll.set_y(ll_y); }
   void set_ur_x(int32_t ur_x) { _ur.set_x(ur_x); }
   void set_ur_y(int32_t ur_y) { _ur.set_y(ur_y); }
-  void set_ll(int32_t ll_x, int32_t ll_y)
-  {
-    _ll.set_coord(ll_x, ll_y);
-  }
-  void set_ur(int32_t ur_x, int32_t ur_y)
-  {
-    _ur.set_coord(ur_x, ur_y);
-  }
+  void set_ll(int32_t ll_x, int32_t ll_y) { _ll.set_coord(ll_x, ll_y); }
+  void set_ur(int32_t ur_x, int32_t ur_y) { _ur.set_coord(ur_x, ur_y); }
   void set_rect(int32_t ll_x, int32_t ll_y, int32_t ur_x, int32_t ur_y)
   {
     set_ll(ll_x, ll_y);

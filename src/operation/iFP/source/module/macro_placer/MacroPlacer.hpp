@@ -65,7 +65,6 @@ class MacroPlacer
   void setMPIterParam(MPModel& mp_model, int32_t iter, MPIterParam& mp_iter_param);
 
   void uploadPlacementResult(MPModel& mp_model);
-
 };
 
 }  // namespace ifp

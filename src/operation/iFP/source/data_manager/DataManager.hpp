@@ -59,7 +59,7 @@ class DataManager
   void buildInstanceNameToIdxMap();
   void buildRoutingLayerNameToIdxMap();
   void buildIOPinNameToIdxMap();
-  void buildPGIOPinList();
+  void buildIOPinSpecialNet();
 #endif
 
 #if 1  // exhibit

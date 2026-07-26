@@ -19,7 +19,6 @@
 #include "FPHeader.hpp"
 #include "PGGlobalConnect.hpp"
 #include "PGGrid.hpp"
-#include "PGIOPin.hpp"
 #include "PGLayerPair.hpp"
 #include "PGStripe.hpp"
 
@@ -32,41 +31,40 @@ class Config
   ~Config() = default;
   /////////////////////////////////////////////
   // **********        FP         ********** //
-  std::string temp_directory_path;                              // required
-  int32_t thread_number;                                        // optional
-  std::string layout_site_name;                                 // optional
-  double layout_xy_ratio;                                       // optional
-  double layout_core_util;                                      // optional
-  double layout_margin_left_micron;                             // optional
-  double layout_margin_right_micron;                            // optional
-  double layout_margin_top_micron;                              // optional
-  double layout_margin_bottom_micron;                           // optional
-  std::vector<std::string> io_pin_layer_name_list;              // optional
-  double io_pin_width_micron;                                   // optional
-  double io_pin_depth_micron;                                   // optional
-  std::vector<PGIOPin> pg_io_pin_list;                          // optional
-  std::vector<PGGlobalConnect> pg_global_connect_list;          // optional
-  std::vector<PGGrid> pg_grid_list;                             // optional
-  std::vector<PGStripe> pg_stripe_list;                         // optional
-  std::vector<PGLayerPair> pg_layer_pair_list;                  // optional
-  std::string tapcell_name;                                     // optional
-  double tap_distance_micron;                                   // optional
-  std::string endcap_name;                                      // optional
+  std::string temp_directory_path;                  // required
+  int32_t thread_number;                            // optional
+  std::string layout_site_name;                     // optional
+  double layout_xy_ratio;                           // optional
+  double layout_core_util;                          // optional
+  double layout_margin_left_micron;                 // optional
+  double layout_margin_right_micron;                // optional
+  double layout_margin_top_micron;                  // optional
+  double layout_margin_bottom_micron;               // optional
+  std::vector<std::string> io_pin_layer_name_list;  // optional
+  double io_pin_width_micron;                       // optional
+  double io_pin_depth_micron;                       // optional
+  std::vector<PGGlobalConnect> pg_connect_list;     // optional
+  std::vector<PGGrid> pg_grid_list;                 // optional
+  std::vector<PGStripe> pg_stripe_list;             // optional
+  std::vector<PGLayerPair> pg_layer_pair_list;      // optional
+  std::string tapcell_name;                         // optional
+  double tap_distance_micron;                       // optional
+  std::string endcap_name;                          // optional
   /////////////////////////////////////////////
   // **********        FP         ********** //
-  std::string log_file_path;              // building
+  std::string log_file_path;  // building
   // **********    DataManager    ********** //
-  std::string dm_temp_directory_path;     // building
+  std::string dm_temp_directory_path;  // building
   // **********     DieBuilder    ********** //
-  std::string db_temp_directory_path;     // building
+  std::string db_temp_directory_path;  // building
   // **********     IOPlacer      ********** //
-  std::string ip_temp_directory_path;     // building
+  std::string ip_temp_directory_path;  // building
   // **********    MacroPlacer    ********** //
-  std::string mp_temp_directory_path;     // building
+  std::string mp_temp_directory_path;  // building
   // **********   PDNGenerator    ********** //
-  std::string pg_temp_directory_path;     // building
+  std::string pg_temp_directory_path;  // building
   // **********     PhyPlacer     ********** //
-  std::string pp_temp_directory_path;     // building
+  std::string pp_temp_directory_path;  // building
   /////////////////////////////////////////////
 };
 

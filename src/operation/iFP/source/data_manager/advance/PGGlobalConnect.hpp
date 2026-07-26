@@ -27,23 +27,23 @@ class PGGlobalConnect
   ~PGGlobalConnect() = default;
   // getter
   std::string& get_net_name() { return _net_name; }
-  std::string& get_instance_pin_name() { return _instance_pin_name; }
+  std::string& get_pin_name() { return _pin_name; }
   PGNetType get_net_type() const { return _net_type; }
 
   // const getter
   const std::string& get_net_name() const { return _net_name; }
-  const std::string& get_instance_pin_name() const { return _instance_pin_name; }
+  const std::string& get_pin_name() const { return _pin_name; }
 
   // setter
   void set_net_name(std::string net_name) { _net_name = net_name; }
-  void set_instance_pin_name(std::string instance_pin_name) { _instance_pin_name = instance_pin_name; }
+  void set_pin_name(std::string pin_name) { _pin_name = pin_name; }
   void set_net_type(PGNetType net_type) { _net_type = net_type; }
 
   // function
 
  private:
   std::string _net_name;
-  std::string _instance_pin_name;
+  std::string _pin_name;
   PGNetType _net_type = PGNetType::kNone;
 };
 

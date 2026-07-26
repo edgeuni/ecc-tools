@@ -43,15 +43,15 @@ TclInitFP::TclInitFP(const char* cmd_name) : TclCmd(cmd_name)
 
 #if 1  // PG connect
 
-  // -pg_connect {{{io_pin_name connect_pin_name...} ...} is_power}
+  // -pg_connect {{{pg_net_name connect_pin_name...} ...} is_power}
   _config_list.push_back(std::make_pair("-pg_connect", ValueType::kStringListListList));
 
 #endif
 
 #if 1  // PDN mesh
 
-  // -pdn_mesh {{{power_io_pin_name ground_io_pin_name} {{rail_layer rail_width_micron} {stripe_layer stripe_width_micron pitch_micron offset_micron} ...}}
-  _config_list.push_back(std::make_pair("-pdn_mesh", ValueType::kStringListListListList));
+  // -pdn_mesh {{rail_layer rail_width_micron} {stripe_layer stripe_width_micron pitch_micron offset_micron} ...}
+  _config_list.push_back(std::make_pair("-pdn_mesh", ValueType::kStringListList));
 
 #endif
 

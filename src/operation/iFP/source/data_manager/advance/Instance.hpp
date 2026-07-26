@@ -64,10 +64,7 @@ class Instance
   void set_width(int32_t width) { _width = width; }
   void set_height(int32_t height) { _height = height; }
   void set_bounding_rect(const PlanarRect& bounding_rect) { _bounding_rect = bounding_rect; }
-  void set_bounding_rect(int32_t ll_x, int32_t ll_y, int32_t ur_x, int32_t ur_y)
-  {
-    _bounding_rect.set_rect(ll_x, ll_y, ur_x, ur_y);
-  }
+  void set_bounding_rect(int32_t ll_x, int32_t ll_y, int32_t ur_x, int32_t ur_y) { _bounding_rect.set_rect(ll_x, ll_y, ur_x, ur_y); }
   void set_pin_shape_list(const std::vector<InstancePinShape>& pin_shape_list) { _pin_shape_list = pin_shape_list; }
   void set_macro(bool macro) { _macro = macro; }
   void set_fixed(bool fixed) { _fixed = fixed; }

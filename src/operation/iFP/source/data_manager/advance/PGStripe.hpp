@@ -25,21 +25,15 @@ class PGStripe
   PGStripe() = default;
   ~PGStripe() = default;
   // getter
-  std::string& get_power_net_name() { return _power_net_name; }
-  std::string& get_ground_net_name() { return _ground_net_name; }
   std::string& get_layer_name() { return _layer_name; }
   double get_width_micron() const { return _width_micron; }
   double get_pitch_micron() const { return _pitch_micron; }
   double get_offset_micron() const { return _offset_micron; }
 
   // const getter
-  const std::string& get_power_net_name() const { return _power_net_name; }
-  const std::string& get_ground_net_name() const { return _ground_net_name; }
   const std::string& get_layer_name() const { return _layer_name; }
 
   // setter
-  void set_power_net_name(std::string power_net_name) { _power_net_name = power_net_name; }
-  void set_ground_net_name(std::string ground_net_name) { _ground_net_name = ground_net_name; }
   void set_layer_name(std::string layer_name) { _layer_name = layer_name; }
   void set_width_micron(double width_micron) { _width_micron = width_micron; }
   void set_pitch_micron(double pitch_micron) { _pitch_micron = pitch_micron; }
@@ -48,8 +42,6 @@ class PGStripe
   // function
 
  private:
-  std::string _power_net_name;
-  std::string _ground_net_name;
   std::string _layer_name;
   double _width_micron = -1.0;
   double _pitch_micron = -1.0;

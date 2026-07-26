@@ -62,32 +62,37 @@ void PDNGenerator::generate()
 
 void PDNGenerator::generatePDN(PGModel& pg_model)
 {
-  buildIOPin();
-  buildGlobalConnect();
-  buildGrid();
-  buildStripe();
+  buildPGNet(pg_model);
+  buildGrid(pg_model);
+  buildStripe(pg_model);
   buildLayerConnect(pg_model);
 }
 
-void PDNGenerator::buildIOPin()
+void PDNGenerator::buildPGNet(PGModel& pg_model)
 {
   Database& database = FPDM.getDatabase();
-  for (PGIOPin& pg_io_pin : FPDM.getConfig().pg_io_pin_list) {
-    PGNet pg_net;
-    pg_net.set_name(pg_io_pin.get_net_name());
-    pg_net.set_type(pg_io_pin.get_net_type());
-    pg_net.add_io_pin(pg_io_pin.get_pin_name(), pg_io_pin.get_direction());
-    int32_t pg_net_idx = static_cast<int32_t>(database.get_pg_net_list().size());
-    database.get_pg_net_list().push_back(pg_net);
-    database.get_pg_net_name_to_idx_map()[pg_net.get_name()] = pg_net_idx;
-  }
-}
+  for (PGGlobalConnect& pg_connect : FPDM.getConfig().pg_connect_list) {
+    std::map<std::string, int32_t>::iterator pg_net_iter = database.get_pg_net_name_to_idx_map().find(pg_connect.get_net_name());
+    if (pg_net_iter == database.get_pg_net_name_to_idx_map().end()) {
+      PGNet pg_net;
+      pg_net.set_name(pg_connect.get_net_name());
+      pg_net.set_type(pg_connect.get_net_type());
+      int32_t pg_net_idx = static_cast<int32_t>(database.get_pg_net_list().size());
+      database.get_pg_net_list().push_back(pg_net);
+      database.get_pg_net_name_to_idx_map()[pg_connect.get_net_name()] = pg_net_idx;
+      if (pg_connect.get_net_type() == PGNetType::kPower && pg_model.get_default_power_net_name().empty()) {
+        pg_model.set_default_power_net_name(pg_connect.get_net_name());
+      } else if (pg_connect.get_net_type() == PGNetType::kGround && pg_model.get_default_ground_net_name().empty()) {
+        pg_model.set_default_ground_net_name(pg_connect.get_net_name());
+      }
+    }
 
-void PDNGenerator::buildGlobalConnect()
-{
-  for (PGGlobalConnect& pg_global_connect : FPDM.getConfig().pg_global_connect_list) {
-    PGNet& pg_net = getPGNet(pg_global_connect.get_net_name());
-    pg_net.add_instance_pin(pg_global_connect.get_instance_pin_name());
+    PGNet& pg_net = getPGNet(pg_connect.get_net_name());
+    if (database.get_io_pin_name_to_idx_map().find(pg_connect.get_pin_name()) != database.get_io_pin_name_to_idx_map().end()) {
+      pg_net.add_io_pin(pg_connect.get_pin_name(), IOPinDirection::kInOut);
+    } else {
+      pg_net.add_instance_pin(pg_connect.get_pin_name());
+    }
   }
 }
 
@@ -97,7 +102,7 @@ PGNet& PDNGenerator::getPGNet(std::string net_name)
   return database.get_pg_net_list()[database.get_pg_net_name_to_idx_map()[net_name]];
 }
 
-void PDNGenerator::buildGrid()
+void PDNGenerator::buildGrid(PGModel& pg_model)
 {
   Database& database = FPDM.getDatabase();
   Core& core = database.get_core();
@@ -115,14 +120,15 @@ void PDNGenerator::buildGrid()
     int32_t row_idx = 0;
     int32_t top_y = core.get_ll_y();
     for (Row& row : database.get_row_list()) {
-      std::string net_name = row_idx % 2 == 0 ? pg_grid.get_power_net_name() : pg_grid.get_ground_net_name();
-      addLineSegment(net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, core.get_ll_x(), row.get_y(), core.get_ur_x(), row.get_y());
+      std::string net_name = row_idx % 2 == 0 ? pg_model.get_default_power_net_name() : pg_model.get_default_ground_net_name();
+      addLineSegment(net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, core.get_ll_x(), row.get_y(), core.get_ur_x(),
+                     row.get_y());
       top_y = std::max(top_y, row.get_y());
       row_idx++;
     }
     if (!database.get_row_list().empty()) {
       top_y += database.get_row_list()[0].get_height();
-      std::string net_name = row_idx % 2 == 0 ? pg_grid.get_power_net_name() : pg_grid.get_ground_net_name();
+      std::string net_name = row_idx % 2 == 0 ? pg_model.get_default_power_net_name() : pg_model.get_default_ground_net_name();
       addLineSegment(net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, core.get_ll_x(), top_y, core.get_ur_x(), top_y);
     }
   }
@@ -155,7 +161,7 @@ void PDNGenerator::addLineSegment(std::string net_name, std::string layer_name, 
   FPDM.getDatabase().get_pg_segment_list().push_back(pg_segment);
 }
 
-void PDNGenerator::buildStripe()
+void PDNGenerator::buildStripe(PGModel& pg_model)
 {
   Core& core = FPDM.getDatabase().get_core();
   for (PGStripe& pg_stripe : FPDM.getConfig().pg_stripe_list) {
@@ -183,11 +189,11 @@ void PDNGenerator::buildStripe()
         power_coord = (power_coord - track_offset) / track_pitch * track_pitch + track_offset;
       }
       if (routing_layer->get_prefer_direction() == Direction::kHorizontal) {
-        addLineSegment(pg_stripe.get_power_net_name(), routing_layer->get_name(), PGSegmentType::kStripe, width, core.get_ll_x(), power_coord,
-                       core.get_ur_x(), power_coord);
+        addLineSegment(pg_model.get_default_power_net_name(), routing_layer->get_name(), PGSegmentType::kStripe, width, core.get_ll_x(),
+                       power_coord, core.get_ur_x(), power_coord);
       } else {
-        addLineSegment(pg_stripe.get_power_net_name(), routing_layer->get_name(), PGSegmentType::kStripe, width, power_coord, core.get_ll_y(), power_coord,
-                       core.get_ur_y());
+        addLineSegment(pg_model.get_default_power_net_name(), routing_layer->get_name(), PGSegmentType::kStripe, width, power_coord,
+                       core.get_ll_y(), power_coord, core.get_ur_y());
       }
 
       int32_t ground_coord = power_coord + half_pitch;
@@ -195,11 +201,11 @@ void PDNGenerator::buildStripe()
         continue;
       }
       if (routing_layer->get_prefer_direction() == Direction::kHorizontal) {
-        addLineSegment(pg_stripe.get_ground_net_name(), routing_layer->get_name(), PGSegmentType::kStripe, width, core.get_ll_x(), ground_coord,
-                       core.get_ur_x(), ground_coord);
+        addLineSegment(pg_model.get_default_ground_net_name(), routing_layer->get_name(), PGSegmentType::kStripe, width, core.get_ll_x(),
+                       ground_coord, core.get_ur_x(), ground_coord);
       } else {
-        addLineSegment(pg_stripe.get_ground_net_name(), routing_layer->get_name(), PGSegmentType::kStripe, width, ground_coord, core.get_ll_y(), ground_coord,
-                       core.get_ur_y());
+        addLineSegment(pg_model.get_default_ground_net_name(), routing_layer->get_name(), PGSegmentType::kStripe, width, ground_coord,
+                       core.get_ll_y(), ground_coord, core.get_ur_y());
       }
     }
   }
@@ -262,8 +268,8 @@ PlanarRect PDNGenerator::getOverlapRect(PlanarRect first_rect, PlanarRect second
 void PDNGenerator::addViaSegment(PGModel& pg_model, std::string net_name, std::string bottom_layer_name, std::string top_layer_name,
                                  std::string cut_layer_name, int32_t x, int32_t y, int32_t width, int32_t height)
 {
-  std::string via_key
-      = FPUTIL.getString(net_name, "|", bottom_layer_name, "|", top_layer_name, "|", cut_layer_name, "|", x, "|", y, "|", width, "|", height);
+  std::string via_key = FPUTIL.getString(net_name, "|", bottom_layer_name, "|", top_layer_name, "|", cut_layer_name, "|", x, "|", y, "|",
+                                         width, "|", height);
   if (pg_model.get_via_key_set().contains(via_key)) {
     return;
   }

@@ -107,7 +107,7 @@ void DataManager::buildDatabase()
   buildInstanceNameToIdxMap();
   buildRoutingLayerNameToIdxMap();
   buildIOPinNameToIdxMap();
-  buildPGIOPinList();
+  buildIOPinSpecialNet();
 }
 
 void DataManager::buildInstanceNameToIdxMap()
@@ -123,7 +123,8 @@ void DataManager::buildRoutingLayerNameToIdxMap()
 {
   std::map<std::string, int32_t>& routing_layer_name_to_idx_map = _database.get_routing_layer_name_to_idx_map();
   routing_layer_name_to_idx_map.clear();
-  for (int32_t routing_layer_idx = 0; routing_layer_idx < static_cast<int32_t>(_database.get_routing_layer_list().size()); routing_layer_idx++) {
+  for (int32_t routing_layer_idx = 0; routing_layer_idx < static_cast<int32_t>(_database.get_routing_layer_list().size());
+       routing_layer_idx++) {
     routing_layer_name_to_idx_map[_database.get_routing_layer_list()[routing_layer_idx].get_name()] = routing_layer_idx;
   }
 }
@@ -137,22 +138,15 @@ void DataManager::buildIOPinNameToIdxMap()
   }
 }
 
-void DataManager::buildPGIOPinList()
+void DataManager::buildIOPinSpecialNet()
 {
   std::vector<IOPin>& io_pin_list = _database.get_io_pin_list();
   std::map<std::string, int32_t>& io_pin_name_to_idx_map = _database.get_io_pin_name_to_idx_map();
-  for (PGIOPin& pg_io_pin : _config.pg_io_pin_list) {
-    std::string& pin_name = pg_io_pin.get_pin_name();
-    if (io_pin_name_to_idx_map.find(pin_name) != io_pin_name_to_idx_map.end()) {
-      io_pin_list[io_pin_name_to_idx_map[pin_name]].set_special_net(true);
-      continue;
+  for (PGGlobalConnect& pg_connect : _config.pg_connect_list) {
+    std::map<std::string, int32_t>::iterator io_pin_iter = io_pin_name_to_idx_map.find(pg_connect.get_pin_name());
+    if (io_pin_iter != io_pin_name_to_idx_map.end()) {
+      io_pin_list[io_pin_iter->second].set_special_net(true);
     }
-
-    IOPin io_pin;
-    io_pin.set_name(pin_name);
-    io_pin.set_special_net(true);
-    io_pin_list.push_back(io_pin);
-    io_pin_name_to_idx_map[pin_name] = static_cast<int32_t>(io_pin_list.size()) - 1;
   }
 }
 
@@ -168,62 +162,63 @@ void DataManager::printConfig()
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "thread_number");
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.thread_number);
 
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout_site_name");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.layout_site_name);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout_xy_ratio");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.layout_xy_ratio);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout_core_util");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.layout_core_util);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout_margin_left_micron");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.layout_margin_left_micron);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout_margin_right_micron");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.layout_margin_right_micron);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout_margin_top_micron");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.layout_margin_top_micron);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout_margin_bottom_micron");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.layout_margin_bottom_micron);
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "site: ", _config.layout_site_name, ", ratio: ", _config.layout_xy_ratio,
+             ", util: ", _config.layout_core_util, ", margin: {l:", _config.layout_margin_left_micron,
+             ", r:", _config.layout_margin_right_micron, ", t:", _config.layout_margin_top_micron,
+             ", b:", _config.layout_margin_bottom_micron, "}");
 
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "io_pin_layer_name_list");
-  for (std::string& layer_name : _config.io_pin_layer_name_list) {
-    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), layer_name);
+  std::string io_layer_name_string = "{";
+  for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(_config.io_pin_layer_name_list.size()); layer_idx++) {
+    if (layer_idx != 0) {
+      io_layer_name_string += " ";
+    }
+    io_layer_name_string += _config.io_pin_layer_name_list[layer_idx];
   }
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "io_pin_width_micron");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.io_pin_width_micron);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "io_pin_depth_micron");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.io_pin_depth_micron);
+  io_layer_name_string += "}";
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "io_pin");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "layer: ", io_layer_name_string, ", width: ", _config.io_pin_width_micron,
+             ", depth: ", _config.io_pin_depth_micron);
 
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pg_io_pin_list");
-  for (PGIOPin& pg_io_pin : _config.pg_io_pin_list) {
-    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), pg_io_pin.get_pin_name(), " ", pg_io_pin.get_net_name(), " ",
-               pg_io_pin.get_net_type() == PGNetType::kPower ? "power" : "ground");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pg_connect_list");
+  std::vector<std::string> pg_net_name_list;
+  std::map<std::string, std::vector<std::string>> pg_net_to_pin_name_list_map;
+  std::map<std::string, PGNetType> pg_net_to_type_map;
+  for (PGGlobalConnect& pg_connect : _config.pg_connect_list) {
+    std::string& pg_net_name = pg_connect.get_net_name();
+    if (pg_net_to_pin_name_list_map.find(pg_net_name) == pg_net_to_pin_name_list_map.end()) {
+      pg_net_name_list.push_back(pg_net_name);
+    }
+    pg_net_to_pin_name_list_map[pg_net_name].push_back(pg_connect.get_pin_name());
+    pg_net_to_type_map[pg_net_name] = pg_connect.get_net_type();
   }
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pg_global_connect_list");
-  for (PGGlobalConnect& pg_global_connect : _config.pg_global_connect_list) {
-    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), pg_global_connect.get_net_name(), " ", pg_global_connect.get_instance_pin_name(), " ",
-               pg_global_connect.get_net_type() == PGNetType::kPower ? "power" : "ground");
+  for (std::string& pg_net_name : pg_net_name_list) {
+    std::string pin_name_string = "{";
+    std::vector<std::string>& pin_name_list = pg_net_to_pin_name_list_map[pg_net_name];
+    for (int32_t pin_idx = 0; pin_idx < static_cast<int32_t>(pin_name_list.size()); pin_idx++) {
+      if (pin_idx != 0) {
+        pin_name_string += " ";
+      }
+      pin_name_string += pin_name_list[pin_idx];
+    }
+    pin_name_string += "}";
+    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "pg_net: ", pg_net_name, ", connect_pin: ", pin_name_string,
+               ", type: ", pg_net_to_type_map[pg_net_name] == PGNetType::kPower ? "power" : "ground");
   }
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pg_grid_list");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pdn_mesh");
   for (PGGrid& pg_grid : _config.pg_grid_list) {
-    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), pg_grid.get_power_net_name(), " ", pg_grid.get_ground_net_name(), " ",
-               pg_grid.get_layer_name(), " ", pg_grid.get_width_micron(), " ", pg_grid.get_offset_micron());
+    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "rail: ", pg_grid.get_layer_name(),
+               ", rail_width: ", pg_grid.get_width_micron());
   }
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pg_stripe_list");
   for (PGStripe& pg_stripe : _config.pg_stripe_list) {
-    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), pg_stripe.get_power_net_name(), " ", pg_stripe.get_ground_net_name(), " ",
-               pg_stripe.get_layer_name(), " ", pg_stripe.get_width_micron(), " ", pg_stripe.get_pitch_micron(), " ",
-               pg_stripe.get_offset_micron());
-  }
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pg_layer_pair_list");
-  for (PGLayerPair& pg_layer_pair : _config.pg_layer_pair_list) {
-    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), pg_layer_pair.get_first_layer_name(), " ", pg_layer_pair.get_second_layer_name());
+    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "stripe: ", pg_stripe.get_layer_name(),
+               ", width: ", pg_stripe.get_width_micron(), ", pitch: ", pg_stripe.get_pitch_micron(),
+               ", offset: ", pg_stripe.get_offset_micron());
   }
 
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "tapcell_name");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.tapcell_name);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "tap_distance_micron");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.tap_distance_micron);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "endcap_name");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.endcap_name);
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "phy_insert");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "tapcell: ", _config.tapcell_name, ", tap_distance: ", _config.tap_distance_micron,
+             ", endcap: ", _config.endcap_name);
 
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(0), "FP_CONFIG_BUILD");
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "log_file_path");

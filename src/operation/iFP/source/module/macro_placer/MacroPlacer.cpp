@@ -200,7 +200,8 @@ void MacroPlacer::optimize(MPModel& mp_model)
 
   std::mt19937 random_generator(0);
   std::uniform_real_distribution<double> probability_distribution(0.0, 1.0);
-  std::uniform_int_distribution<int32_t> movable_node_distribution(0, static_cast<int32_t>(mp_model.get_movable_node_idx_list().size()) - 1);
+  std::uniform_int_distribution<int32_t> movable_node_distribution(0,
+                                                                   static_cast<int32_t>(mp_model.get_movable_node_idx_list().size()) - 1);
 
   for (int32_t i = 0, iter = 1; i < static_cast<int32_t>(mp_iter_param_list.size()); i++, iter++) {
     Monitor iter_monitor;
@@ -216,7 +217,8 @@ void MacroPlacer::optimize(MPModel& mp_model)
       }
       int32_t first_x = candidate_node_list[first_node_idx].get_x();
       int32_t first_y = candidate_node_list[first_node_idx].get_y();
-      candidate_node_list[first_node_idx].set_coord(candidate_node_list[second_node_idx].get_x(), candidate_node_list[second_node_idx].get_y());
+      candidate_node_list[first_node_idx].set_coord(candidate_node_list[second_node_idx].get_x(),
+                                                    candidate_node_list[second_node_idx].get_y());
       candidate_node_list[second_node_idx].set_coord(first_x, first_y);
     } else {
       MPNode& mp_node = candidate_node_list[first_node_idx];
@@ -243,12 +245,13 @@ void MacroPlacer::optimize(MPModel& mp_model)
     double cost_delta = candidate_cost - current_cost;
     bool better_conflict = candidate_conflict < current_conflict;
     bool same_conflict = std::abs(candidate_conflict - current_conflict) <= std::numeric_limits<double>::epsilon();
-    if (better_conflict || (same_conflict && (cost_delta <= 0.0 || probability_distribution(random_generator) < std::exp(-cost_delta / temperature)))) {
+    if (better_conflict
+        || (same_conflict && (cost_delta <= 0.0 || probability_distribution(random_generator) < std::exp(-cost_delta / temperature)))) {
       current_node_list = candidate_node_list;
       current_cost = candidate_cost;
       current_conflict = candidate_conflict;
-      if (current_conflict < best_conflict || (std::abs(current_conflict - best_conflict) <= std::numeric_limits<double>::epsilon()
-                                               && current_cost < best_cost)) {
+      if (current_conflict < best_conflict
+          || (std::abs(current_conflict - best_conflict) <= std::numeric_limits<double>::epsilon() && current_cost < best_cost)) {
         best_node_list = current_node_list;
         best_cost = current_cost;
         best_conflict = current_conflict;
@@ -323,7 +326,8 @@ double MacroPlacer::calculateWirelength(const MPModel& mp_model, const std::vect
 double MacroPlacer::calculateOverlap(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list)
 {
   double overlap = 0.0;
-  double core_area = std::max<int64_t>(1, static_cast<int64_t>(mp_model.get_core_rect().get_width()) * mp_model.get_core_rect().get_height());
+  double core_area
+      = std::max<int64_t>(1, static_cast<int64_t>(mp_model.get_core_rect().get_width()) * mp_model.get_core_rect().get_height());
   for (int32_t first_node_idx = 0; first_node_idx < static_cast<int32_t>(mp_node_list.size()); first_node_idx++) {
     MPRect first_rect = getNodeRect(mp_node_list[first_node_idx]);
     for (int32_t second_node_idx = first_node_idx + 1; second_node_idx < static_cast<int32_t>(mp_node_list.size()); second_node_idx++) {
@@ -344,7 +348,8 @@ MPRect MacroPlacer::getNodeRect(const MPNode& mp_node)
 double MacroPlacer::calculateOutOfBound(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list)
 {
   double out_of_bound = 0.0;
-  double core_area = std::max<int64_t>(1, static_cast<int64_t>(mp_model.get_core_rect().get_width()) * mp_model.get_core_rect().get_height());
+  double core_area
+      = std::max<int64_t>(1, static_cast<int64_t>(mp_model.get_core_rect().get_width()) * mp_model.get_core_rect().get_height());
   for (const MPNode& mp_node : mp_node_list) {
     if (mp_node.get_fixed()) {
       continue;
@@ -372,8 +377,9 @@ double MacroPlacer::calculatePeriphery(const MPModel& mp_model, const std::vecto
   double scale = std::max(1, std::min(mp_model.get_core_rect().get_width(), mp_model.get_core_rect().get_height()));
   for (int32_t node_idx : mp_model.get_movable_node_idx_list()) {
     MPRect node_rect = getNodeRect(mp_node_list[node_idx]);
-    int32_t distance = std::min({node_rect.get_lx() - mp_model.get_core_rect().get_lx(), node_rect.get_ly() - mp_model.get_core_rect().get_ly(),
-                                 mp_model.get_core_rect().get_ux() - node_rect.get_ux(), mp_model.get_core_rect().get_uy() - node_rect.get_uy()});
+    int32_t distance
+        = std::min({node_rect.get_lx() - mp_model.get_core_rect().get_lx(), node_rect.get_ly() - mp_model.get_core_rect().get_ly(),
+                    mp_model.get_core_rect().get_ux() - node_rect.get_ux(), mp_model.get_core_rect().get_uy() - node_rect.get_uy()});
     periphery += static_cast<double>(distance) * distance;
   }
   return periphery / (scale * scale * mp_model.get_movable_node_idx_list().size());

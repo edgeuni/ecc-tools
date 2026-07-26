@@ -52,22 +52,20 @@ class PDNGenerator
 
   void generatePDN(PGModel& pg_model);
 
-  void buildIOPin();
-  void buildGlobalConnect();
+  void buildPGNet(PGModel& pg_model);
   PGNet& getPGNet(std::string net_name);
 
-  void buildGrid();
+  void buildGrid(PGModel& pg_model);
   RoutingLayer* findRoutingLayer(std::string layer_name);
   void addLineSegment(std::string net_name, std::string layer_name, PGSegmentType segment_type, int32_t width, int32_t start_x,
                       int32_t start_y, int32_t end_x, int32_t end_y);
 
-  void buildStripe();
+  void buildStripe(PGModel& pg_model);
 
   void buildLayerConnect(PGModel& pg_model);
   PlanarRect getOverlapRect(PlanarRect first_rect, PlanarRect second_rect);
   void addViaSegment(PGModel& pg_model, std::string net_name, std::string bottom_layer_name, std::string top_layer_name,
                      std::string cut_layer_name, int32_t x, int32_t y, int32_t width, int32_t height);
-
 };
 
 }  // namespace ifp

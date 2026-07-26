@@ -79,8 +79,8 @@ void DieBuilder::buildAutoFloorplan()
 
   buildDie(0.0, 0.0, core_width + config.layout_margin_left_micron + config.layout_margin_right_micron,
            core_height + config.layout_margin_bottom_micron + config.layout_margin_top_micron);
-  buildCore(config.layout_margin_left_micron, config.layout_margin_bottom_micron,
-            config.layout_margin_left_micron + core_width, config.layout_margin_bottom_micron + core_height, config.layout_site_name);
+  buildCore(config.layout_margin_left_micron, config.layout_margin_bottom_micron, config.layout_margin_left_micron + core_width,
+            config.layout_margin_bottom_micron + core_height, config.layout_site_name);
 }
 
 void DieBuilder::buildDie(double die_lx, double die_ly, double die_ux, double die_uy)

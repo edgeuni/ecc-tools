@@ -26,16 +26,24 @@ class PGModel
   PGModel() = default;
   ~PGModel() = default;
   // getter
+  std::string& get_default_power_net_name() { return _default_power_net_name; }
+  std::string& get_default_ground_net_name() { return _default_ground_net_name; }
   std::set<std::string>& get_via_key_set() { return _via_key_set; }
 
   // const getter
+  const std::string& get_default_power_net_name() const { return _default_power_net_name; }
+  const std::string& get_default_ground_net_name() const { return _default_ground_net_name; }
   const std::set<std::string>& get_via_key_set() const { return _via_key_set; }
 
   // setter
+  void set_default_power_net_name(std::string default_power_net_name) { _default_power_net_name = default_power_net_name; }
+  void set_default_ground_net_name(std::string default_ground_net_name) { _default_ground_net_name = default_ground_net_name; }
 
   // function
 
  private:
+  std::string _default_power_net_name;
+  std::string _default_ground_net_name;
   std::set<std::string> _via_key_set;
 };
 

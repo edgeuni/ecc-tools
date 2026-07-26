@@ -16,8 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include "LogLevel.hpp"
 #include "FPHeader.hpp"
+#include "LogLevel.hpp"
 
 namespace ifp {
 
@@ -121,7 +121,8 @@ class Logger
       std::string::size_type pos = file_name.find_last_of('/') + 1;
       file_name = file_name.substr(pos, file_name.length() - pos);
     }
-    std::string prefix = getString("[FP ", getTimestamp(), " ", getCompressedBase62(std::stoul(getString(std::this_thread::get_id()))), " ", file_name, " ");
+    std::string prefix = getString("[FP ", getTimestamp(), " ", getCompressedBase62(std::stoul(getString(std::this_thread::get_id()))), " ",
+                                   file_name, " ");
     std::string suffix = getString(" ", location.function_name());
     std::string message = getString(value, args...);
 

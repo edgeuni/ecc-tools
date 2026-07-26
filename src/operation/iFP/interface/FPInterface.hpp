@@ -27,7 +27,7 @@ namespace idb {
 class IdbSpecialWire;
 enum class IdbConnectDirection : uint8_t;
 enum class IdbOrient : uint8_t;
-}
+}  // namespace idb
 
 #endif
 

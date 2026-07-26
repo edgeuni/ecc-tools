@@ -16,8 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include "Logger.hpp"
 #include "FPHeader.hpp"
+#include "Logger.hpp"
 
 namespace ifp {
 
@@ -33,10 +33,7 @@ class Utility
 
 #if 1  // 坐标计算
 
-  static int32_t transMicronToDBU(double micron, int32_t micron_dbu)
-  {
-    return static_cast<int32_t>(std::round(micron * micron_dbu));
-  }
+  static int32_t transMicronToDBU(double micron, int32_t micron_dbu) { return static_cast<int32_t>(std::round(micron * micron_dbu)); }
 
   static int32_t alignDown(int32_t value, int32_t step)
   {
