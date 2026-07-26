@@ -22,7 +22,6 @@
 #include "LVSHeader.hpp"
 #include "Monitor.hpp"
 #include "PCModel.hpp"
-#include "PhysicalGraph.hpp"
 #include "SupplyTrack.hpp"
 
 namespace ilvs {
@@ -51,12 +50,12 @@ class PDNChecker
 
   PCModel initPCModel();
   void buildSupplyPoint(PCModel& pc_model);
-  std::vector<SupplyPoint> getSupplyPointList(const PhysicalGraph& physical_graph);
+  std::vector<SupplyPoint> getSupplyPointList();
   bool isPowerGround(ConnectType connect_type);
   int32_t getMidpoint(int32_t first_coordinate, int32_t second_coordinate);
   SupplyPoint makeSupplyPoint(const SupplyTrack& supply_track);
-  void checkSupplyConnectivity(PCModel& pc_model, const std::map<std::string, std::string>& instance_pin_net_map,
-                               ConnectType connect_type);
+  void checkSupplyConnectivity(PCModel& pc_model, ConnectType connect_type);
+  void updateSummary(PCModel& pc_model);
 };
 
 }  // namespace ilvs

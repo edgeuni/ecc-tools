@@ -52,8 +52,8 @@ class LVSReporter
 
   LRModel initLRModel();
   std::vector<fort::char_table> getSummaryTableList();
-  std::vector<LVSEntitySummaryRow> getEntitySummaryRowList(const Summary& summary);
-  std::vector<LVSConnectivitySummaryRow> getConnectivitySummaryRowList(const Summary& summary);
+  std::vector<LVSEntitySummaryRow> getEntitySummaryRowList();
+  std::vector<LVSConnectivitySummaryRow> getConnectivitySummaryRowList();
   std::vector<Violation> getViolationList();
   void outputRPT(const LRModel& lr_model, const std::vector<fort::char_table>& summary_table_list,
                  const std::vector<Violation>& violation_list);

@@ -18,6 +18,8 @@
 
 #include "LVSHeader.hpp"
 #include "Logger.hpp"
+#include "PCSummary.hpp"
+#include "PhysicalGraph.hpp"
 #include "Utility.hpp"
 
 namespace ilvs {
@@ -54,14 +56,11 @@ void PDNChecker::check()
   Monitor monitor;
   LVSLOG.info(Loc::current(), "Starting...");
 
-  Database& database = LVSDM.getDatabase();
-  database.get_summary().pc_summary.reset();
-
   PCModel pc_model = initPCModel();
   buildSupplyPoint(pc_model);
-  PhysicalGraph& physical_graph = database.get_def_data().get_physical_graph();
-  checkSupplyConnectivity(pc_model, physical_graph.get_power_instance_pin_net_map(), ConnectType::kPower);
-  checkSupplyConnectivity(pc_model, physical_graph.get_ground_instance_pin_net_map(), ConnectType::kGround);
+  checkSupplyConnectivity(pc_model, ConnectType::kPower);
+  checkSupplyConnectivity(pc_model, ConnectType::kGround);
+  updateSummary(pc_model);
 
   LVSLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
@@ -74,13 +73,13 @@ PCModel PDNChecker::initPCModel()
 
 void PDNChecker::buildSupplyPoint(PCModel& pc_model)
 {
-  PhysicalGraph& physical_graph = LVSDM.getDatabase().get_def_data().get_physical_graph();
   std::vector<SupplyPoint>& supply_point_list = pc_model.get_supply_point_list();
-  supply_point_list = getSupplyPointList(physical_graph);
+  supply_point_list = getSupplyPointList();
 }
 
-std::vector<SupplyPoint> PDNChecker::getSupplyPointList(const PhysicalGraph& physical_graph)
+std::vector<SupplyPoint> PDNChecker::getSupplyPointList()
 {
+  PhysicalGraph& physical_graph = LVSDM.getDatabase().get_def_data().get_physical_graph();
   int32_t highest_layer_order = -1;
   for (const SupplyRouteShape& route_shape : physical_graph.get_supply_route_shape_list()) {
     bool is_power = LVSUTIL.exist(physical_graph.get_power_net_name_set(), route_shape.get_net_name());
@@ -199,26 +198,29 @@ SupplyPoint PDNChecker::makeSupplyPoint(const SupplyTrack& supply_track)
   return supply_point;
 }
 
-void PDNChecker::checkSupplyConnectivity(PCModel& pc_model, const std::map<std::string, std::string>& instance_pin_net_map,
-                                         const ConnectType connect_type)
+void PDNChecker::checkSupplyConnectivity(PCModel& pc_model, const ConnectType connect_type)
 {
   std::vector<SupplyPoint>& supply_point_list = pc_model.get_supply_point_list();
-  PCSummary& pc_summary = LVSDM.getDatabase().get_summary().pc_summary;
+  std::vector<Violation>& violation_list = pc_model.get_violation_list();
+  if (!isPowerGround(connect_type)) {
+    return;
+  }
   PhysicalGraph& physical_graph = LVSDM.getDatabase().get_def_data().get_physical_graph();
+  std::map<std::string, std::string>& instance_pin_net_map = connect_type == ConnectType::kPower
+                                                                 ? physical_graph.get_power_instance_pin_net_map()
+                                                                 : physical_graph.get_ground_instance_pin_net_map();
   if (instance_pin_net_map.empty()) {
     return;
   }
 
-  auto supply_point_iter = std::find_if(supply_point_list.begin(), supply_point_list.end(),
-                                               [connect_type](const SupplyPoint& supply_point) {
-                                                 return supply_point.get_connect_type() == connect_type;
-                                               });
-  if (supply_point_iter == supply_point_list.end()) {
-    if (connect_type == ConnectType::kPower) {
-      pc_summary.open_vdd_num = instance_pin_net_map.size();
-    } else {
-      pc_summary.open_vss_num = instance_pin_net_map.size();
+  SupplyPoint* target_supply_point = nullptr;
+  for (SupplyPoint& supply_point : supply_point_list) {
+    if (supply_point.get_connect_type() == connect_type) {
+      target_supply_point = &supply_point;
+      break;
     }
+  }
+  if (target_supply_point == nullptr) {
     Violation violation;
     violation.set_violation_type(connect_type == ConnectType::kPower ? ViolationType::kPowerOpenVDD : ViolationType::kPowerOpenVSS);
     violation.set_terminal_name_list(LVSUTIL.getSortedKeyNameList(instance_pin_net_map));
@@ -227,7 +229,7 @@ void PDNChecker::checkSupplyConnectivity(PCModel& pc_model, const std::map<std::
       violation.get_related_net_name_list().push_back(net_name);
     }
     violation.set_related_net_name_list(LVSUTIL.getSortedUniqueList(violation.get_related_net_name_list()));
-    pc_summary.violation_list.push_back(std::move(violation));
+    violation_list.push_back(std::move(violation));
     return;
   }
 
@@ -235,13 +237,8 @@ void PDNChecker::checkSupplyConnectivity(PCModel& pc_model, const std::map<std::
   for (auto& [terminal_name, net_name] : instance_pin_net_map) {
     auto component_iter = physical_graph.get_terminal_component_map().find(terminal_name);
     if (component_iter != physical_graph.get_terminal_component_map().end()
-        && component_iter->second == supply_point_iter->get_component_id()) {
+        && component_iter->second == target_supply_point->get_component_id()) {
       continue;
-    }
-    if (connect_type == ConnectType::kPower) {
-      pc_summary.open_vdd_num++;
-    } else {
-      pc_summary.open_vss_num++;
     }
     int32_t component_id = -1;
     if (component_iter != physical_graph.get_terminal_component_map().end()) {
@@ -258,8 +255,24 @@ void PDNChecker::checkSupplyConnectivity(PCModel& pc_model, const std::map<std::
     if (key.second != -1) {
       violation.get_component_id_list().push_back(key.second);
     }
-    pc_summary.violation_list.push_back(std::move(violation));
+    violation_list.push_back(std::move(violation));
   }
+}
+
+void PDNChecker::updateSummary(PCModel& pc_model)
+{
+  PCSummary& pc_summary = LVSDM.getDatabase().get_summary().pc_summary;
+  pc_summary.reset();
+
+  std::vector<Violation>& violation_list = pc_model.get_violation_list();
+  for (Violation& violation : violation_list) {
+    if (violation.get_violation_type() == ViolationType::kPowerOpenVDD) {
+      pc_summary.open_vdd_num += violation.get_terminal_name_list().size();
+    } else if (violation.get_violation_type() == ViolationType::kPowerOpenVSS) {
+      pc_summary.open_vss_num += violation.get_terminal_name_list().size();
+    }
+  }
+  pc_summary.violation_list = std::move(violation_list);
 }
 
 // private

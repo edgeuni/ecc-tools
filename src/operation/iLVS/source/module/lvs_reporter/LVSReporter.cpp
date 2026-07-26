@@ -78,8 +78,6 @@ LRModel LVSReporter::initLRModel()
 
 std::vector<fort::char_table> LVSReporter::getSummaryTableList()
 {
-  Summary& summary = LVSDM.getDatabase().get_summary();
-
   fort::char_table entity_summary_table;
   {
     entity_summary_table.set_cell_text_align(fort::text_align::right);
@@ -87,7 +85,7 @@ std::vector<fort::char_table> LVSReporter::getSummaryTableList()
                          << "NETLIST"
                          << "DEF"
                          << "Difference" << fort::endr;
-    for (LVSEntitySummaryRow& row : getEntitySummaryRowList(summary)) {
+    for (LVSEntitySummaryRow& row : getEntitySummaryRowList()) {
       entity_summary_table << row.get_entity() << row.get_netlist_num() << row.get_def_num() << row.get_difference_num() << fort::endr;
     }
   }
@@ -99,7 +97,7 @@ std::vector<fort::char_table> LVSReporter::getSummaryTableList()
                                << "Type"
                                << "Count" << fort::endr;
     std::string previous_connectivity;
-    for (LVSConnectivitySummaryRow& row : getConnectivitySummaryRowList(summary)) {
+    for (LVSConnectivitySummaryRow& row : getConnectivitySummaryRowList()) {
       connectivity_summary_table << (row.get_connectivity() == previous_connectivity ? "" : row.get_connectivity()) << row.get_type()
                                  << row.get_count() << fort::endr;
       previous_connectivity = row.get_connectivity();
@@ -112,9 +110,9 @@ std::vector<fort::char_table> LVSReporter::getSummaryTableList()
   return summary_table_list;
 }
 
-std::vector<LVSEntitySummaryRow> LVSReporter::getEntitySummaryRowList(const Summary& summary)
+std::vector<LVSEntitySummaryRow> LVSReporter::getEntitySummaryRowList()
 {
-  const ECSummary& ec_summary = summary.ec_summary;
+  ECSummary& ec_summary = LVSDM.getDatabase().get_summary().ec_summary;
   LVSEntitySummaryRow io_row;
   io_row.set_entity("IO(without pg)");
   io_row.set_netlist_num(ec_summary.netlist_io_num);
@@ -133,10 +131,10 @@ std::vector<LVSEntitySummaryRow> LVSReporter::getEntitySummaryRowList(const Summ
   return {std::move(io_row), std::move(instance_row), std::move(net_row)};
 }
 
-std::vector<LVSConnectivitySummaryRow> LVSReporter::getConnectivitySummaryRowList(const Summary& summary)
+std::vector<LVSConnectivitySummaryRow> LVSReporter::getConnectivitySummaryRowList()
 {
-  const RCSummary& rc_summary = summary.rc_summary;
-  const PCSummary& pc_summary = summary.pc_summary;
+  RCSummary& rc_summary = LVSDM.getDatabase().get_summary().rc_summary;
+  PCSummary& pc_summary = LVSDM.getDatabase().get_summary().pc_summary;
   LVSConnectivitySummaryRow routing_open_row;
   routing_open_row.set_connectivity("Routing");
   routing_open_row.set_type("Open Net");
@@ -281,13 +279,12 @@ std::string LVSReporter::getJoinedString(const std::vector<std::string>& value_l
 
 void LVSReporter::outputJson(const LRModel& lr_model, const std::vector<Violation>& violation_list)
 {
-  Summary& summary = LVSDM.getDatabase().get_summary();
   DefData& def_data = LVSDM.getDatabase().get_def_data();
   std::map<int32_t, std::vector<Shape>>& component_shape_map = def_data.get_physical_graph().get_component_shape_map();
   nlohmann::json json;
 
   json["entity"] = nlohmann::json::array();
-  for (LVSEntitySummaryRow& row : getEntitySummaryRowList(summary)) {
+  for (LVSEntitySummaryRow& row : getEntitySummaryRowList()) {
     json["entity"].push_back({{"entity", row.get_entity()},
                                {"netlist", row.get_netlist_num()},
                                {"def", row.get_def_num()},
@@ -295,7 +292,7 @@ void LVSReporter::outputJson(const LRModel& lr_model, const std::vector<Violatio
   }
 
   json["connectivity"] = nlohmann::json::array();
-  for (LVSConnectivitySummaryRow& row : getConnectivitySummaryRowList(summary)) {
+  for (LVSConnectivitySummaryRow& row : getConnectivitySummaryRowList()) {
     json["connectivity"].push_back(
         {{"connectivity", row.get_connectivity()}, {"type", row.get_type()}, {"count", row.get_count()}});
   }
