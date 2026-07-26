@@ -19,6 +19,6 @@ target_link_libraries(ifp_io_placer
 
 target_include_directories(ifp_io_placer
     PUBLIC
-    ${IFP_MODULE}/io_placer/iop_data_manager
+    ${IFP_MODULE}/io_placer/ip_data_manager
     ${IFP_MODULE}/io_placer
 )

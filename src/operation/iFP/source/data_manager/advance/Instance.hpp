@@ -17,6 +17,7 @@
 
 #include "FPHeader.hpp"
 #include "InstancePinShape.hpp"
+#include "PlacementOrientation.hpp"
 #include "PlanarRect.hpp"
 
 namespace ifp {
@@ -29,7 +30,7 @@ class Instance
   // getter
   std::string& get_name() { return _name; }
   std::string& get_master_name() { return _master_name; }
-  std::string& get_orient_name() { return _orient_name; }
+  PlacementOrientation get_orient() const { return _orient; }
   int32_t get_x() const { return _x; }
   int32_t get_y() const { return _y; }
   int32_t get_width() const { return _width; }
@@ -46,19 +47,17 @@ class Instance
   bool get_placed() const { return _placed; }
   bool is_new_instance() const { return _new_instance; }
   bool is_placement_updated() const { return _placement_updated; }
-  bool is_halo_updated() const { return _halo_updated; }
 
   // const getter
   const std::string& get_name() const { return _name; }
   const std::string& get_master_name() const { return _master_name; }
-  const std::string& get_orient_name() const { return _orient_name; }
   const PlanarRect& get_bounding_rect() const { return _bounding_rect; }
   const std::vector<InstancePinShape>& get_pin_shape_list() const { return _pin_shape_list; }
 
   // setter
   void set_name(std::string name) { _name = name; }
   void set_master_name(std::string master_name) { _master_name = master_name; }
-  void set_orient_name(std::string orient_name) { _orient_name = orient_name; }
+  void set_orient(PlacementOrientation orient) { _orient = orient; }
   void set_x(int32_t x) { _x = x; }
   void set_y(int32_t y) { _y = y; }
   void set_coord(int32_t x, int32_t y)
@@ -84,14 +83,13 @@ class Instance
   void set_placed(bool placed) { _placed = placed; }
   void set_new_instance(bool new_instance) { _new_instance = new_instance; }
   void set_placement_updated(bool placement_updated) { _placement_updated = placement_updated; }
-  void set_halo_updated(bool halo_updated) { _halo_updated = halo_updated; }
 
   // function
 
  private:
   std::string _name;
   std::string _master_name;
-  std::string _orient_name;
+  PlacementOrientation _orient = PlacementOrientation::kNone;
   int32_t _x = -1;
   int32_t _y = -1;
   int32_t _width = -1;
@@ -108,7 +106,6 @@ class Instance
   bool _placed = false;
   bool _new_instance = false;
   bool _placement_updated = false;
-  bool _halo_updated = false;
 };
 
 }  // namespace ifp

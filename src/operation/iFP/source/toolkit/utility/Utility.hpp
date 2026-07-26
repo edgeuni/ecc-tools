@@ -31,6 +31,40 @@ class Utility
   static void destroyInst();
   // function
 
+#if 1  // 坐标计算
+
+  static int32_t transMicronToDBU(double micron, int32_t micron_dbu)
+  {
+    return static_cast<int32_t>(std::round(micron * micron_dbu));
+  }
+
+  static int32_t alignDown(int32_t value, int32_t step)
+  {
+    if (step <= 0) {
+      return value;
+    }
+    int32_t remainder = value % step;
+    return remainder == 0 ? value : (value >= 0 ? value - remainder : value - remainder - step);
+  }
+
+  static int32_t alignUp(int32_t value, int32_t step)
+  {
+    if (step <= 0) {
+      return value;
+    }
+    int32_t remainder = value % step;
+    return remainder == 0 ? value : (value >= 0 ? value + step - remainder : value - remainder);
+  }
+
+  static int32_t alignNearest(int32_t value, int32_t step)
+  {
+    int32_t lower = alignDown(value, step);
+    int32_t upper = alignUp(value, step);
+    return value - lower <= upper - value ? lower : upper;
+  }
+
+#endif
+
 #if 1  // std数据结构工具函数
 
   template <typename T, typename... Args>

@@ -8,43 +8,50 @@
 // You may obtain a copy of Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
-// THIS SOFTWARE IS PROVIDED ON AN \"AS IS\" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
-#include "IOEdgeType.hpp"
+#include "FPHeader.hpp"
 
 namespace ifp {
 
-class IOInterval
+class PlanarCoord
 {
  public:
-  IOInterval() = default;
-  IOInterval(IOEdgeType edge_type, int32_t begin_coord, int32_t end_coord)
-      : _edge_type(edge_type), _begin_coord(begin_coord), _end_coord(end_coord)
+  PlanarCoord() = default;
+  PlanarCoord(int32_t x, int32_t y)
   {
+    _x = x;
+    _y = y;
   }
-  ~IOInterval() = default;
+  ~PlanarCoord() = default;
+  bool operator==(const PlanarCoord& other) const { return (_x == other._x && _y == other._y); }
+  bool operator!=(const PlanarCoord& other) const { return !((*this) == other); }
   // getter
-  IOEdgeType get_edge_type() const { return _edge_type; }
-  int32_t get_begin_coord() const { return _begin_coord; }
-  int32_t get_end_coord() const { return _end_coord; }
-  int32_t get_length() const { return _end_coord - _begin_coord; }
+  int32_t get_x() const { return _x; }
+  int32_t get_y() const { return _y; }
+
   // const getter
 
   // setter
-  void set_edge_type(IOEdgeType edge_type) { _edge_type = edge_type; }
-  void set_begin_coord(int32_t begin_coord) { _begin_coord = begin_coord; }
-  void set_end_coord(int32_t end_coord) { _end_coord = end_coord; }
+  void set_x(int32_t x) { _x = x; }
+  void set_y(int32_t y) { _y = y; }
+  void set_coord(int32_t x, int32_t y)
+  {
+    _x = x;
+    _y = y;
+  }
+  void set_coord(const PlanarCoord& coord) { set_coord(coord.get_x(), coord.get_y()); }
+
   // function
 
  private:
-  IOEdgeType _edge_type = IOEdgeType::kNone;
-  int32_t _begin_coord = -1;
-  int32_t _end_coord = -1;
+  int32_t _x = -1;
+  int32_t _y = -1;
 };
 
 }  // namespace ifp

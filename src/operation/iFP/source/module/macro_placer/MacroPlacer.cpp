@@ -54,96 +54,50 @@ void MacroPlacer::place()
   Monitor monitor;
   FPLOG.info(Loc::current(), "Starting...");
 
-  buildPlacementBlockage();
-  buildPlacementHalo();
-  if (FPDM.getConfig().macro_max_iters > 0) {
-    MPModel mp_model;
-    buildModel(mp_model);
-    if (!mp_model.get_movable_node_idx_list().empty()) {
-      optimize(mp_model);
-      writeModel(mp_model);
-    }
+  MPModel mp_model = initMPModel();
+  setMPComParam(mp_model);
+  if (mp_model.get_mp_com_param().get_max_iter() > 0 && !mp_model.get_movable_node_idx_list().empty()) {
+    optimize(mp_model);
+    uploadPlacementResult(mp_model);
   }
-  buildPlacementHalo();
-  writePlacementHalo();
-  buildRoutingBlockage();
-  buildRoutingHalo();
-
   FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-#if 1  // build
+#if 1  // 初始化
 
-void MacroPlacer::buildPlacementBlockage()
+MPModel MacroPlacer::initMPModel()
 {
-  for (std::vector<std::string>& value_list : FPDM.getConfig().placement_blockage_list) {
-    if (value_list.size() == 4) {
-      Blockage blockage;
-      blockage.set_type(BlockageType::kPlacement);
-      blockage.set_rect(std::stoi(value_list[0]), std::stoi(value_list[1]), std::stoi(value_list[2]), std::stoi(value_list[3]));
-      FPDM.getDatabase().get_new_blockage_list().push_back(blockage);
-    }
-  }
+  MPModel mp_model;
+  buildModel(mp_model);
+  return mp_model;
 }
 
-void MacroPlacer::buildPlacementHalo()
+#endif
+
+#if 1  // 设置参数
+
+void MacroPlacer::setMPComParam(MPModel& mp_model)
 {
-  Database& database = FPDM.getDatabase();
-  for (std::vector<std::string>& value_list : FPDM.getConfig().placement_halo_list) {
-    if (value_list.size() != 5) {
-      continue;
-    }
-    auto instance_iter = database.get_instance_name_to_idx_map().find(value_list[0]);
-    if (instance_iter == database.get_instance_name_to_idx_map().end()) {
-      continue;
-    }
-    Instance& instance = database.get_instance_list()[instance_iter->second];
-    instance.set_halo_left(std::stoi(value_list[1]));
-    instance.set_halo_bottom(std::stoi(value_list[2]));
-    instance.set_halo_right(std::stoi(value_list[3]));
-    instance.set_halo_top(std::stoi(value_list[4]));
-    instance.set_halo_updated(true);
-  }
+  /**
+   * wirelength_weight, overlap_weight, out_of_bound_weight, periphery_weight, blockage_weight, io_weight, max_iter, cool_rate,
+   * initial_temperature
+   */
+  MPComParam mp_com_param(1.0, 0.05, 0.02, 0.05, 0.0, 0.0, -1, 0.96, 2000.0);
+  FPLOG.info(Loc::current(), "wirelength_weight: ", mp_com_param.get_wirelength_weight());
+  FPLOG.info(Loc::current(), "overlap_weight: ", mp_com_param.get_overlap_weight());
+  FPLOG.info(Loc::current(), "out_of_bound_weight: ", mp_com_param.get_out_of_bound_weight());
+  FPLOG.info(Loc::current(), "periphery_weight: ", mp_com_param.get_periphery_weight());
+  FPLOG.info(Loc::current(), "blockage_weight: ", mp_com_param.get_blockage_weight());
+  FPLOG.info(Loc::current(), "io_weight: ", mp_com_param.get_io_weight());
+  FPLOG.info(Loc::current(), "max_iter: ", mp_com_param.get_max_iter());
+  FPLOG.info(Loc::current(), "cool_rate: ", mp_com_param.get_cool_rate());
+  FPLOG.info(Loc::current(), "initial_temperature: ", mp_com_param.get_initial_temperature());
+  mp_model.set_mp_com_param(mp_com_param);
 }
 
-void MacroPlacer::buildRoutingBlockage()
-{
-  for (std::vector<std::string>& value_list : FPDM.getConfig().routing_blockage_list) {
-    if (value_list.size() < 6) {
-      continue;
-    }
-    int32_t value_num = static_cast<int32_t>(value_list.size());
-    std::vector<std::string> layer_name_list(value_list.begin(), value_list.end() - 5);
-    Blockage blockage;
-    blockage.set_type(BlockageType::kRouting);
-    blockage.set_rect(std::stoi(value_list[value_num - 5]), std::stoi(value_list[value_num - 4]), std::stoi(value_list[value_num - 3]),
-                      std::stoi(value_list[value_num - 2]));
-    blockage.set_layer_name_list(layer_name_list);
-    blockage.set_except_pg_net(std::stoi(value_list[value_num - 1]) != 0);
-    FPDM.getDatabase().get_new_blockage_list().push_back(blockage);
-  }
-}
+#endif
 
-void MacroPlacer::buildRoutingHalo()
-{
-  for (std::vector<std::string>& value_list : FPDM.getConfig().routing_halo_list) {
-    if (value_list.size() < 7) {
-      continue;
-    }
-    int32_t value_num = static_cast<int32_t>(value_list.size());
-    std::vector<std::string> layer_name_list(value_list.begin() + 1, value_list.end() - 5);
-    Halo halo;
-    halo.set_type(HaloType::kRouting);
-    halo.set_instance_name(value_list[0]);
-    halo.set_layer_name_list(layer_name_list);
-    halo.set_top(std::stoi(value_list[value_num - 2]));
-    halo.set_bottom(std::stoi(value_list[value_num - 4]));
-    halo.set_left(std::stoi(value_list[value_num - 5]));
-    halo.set_right(std::stoi(value_list[value_num - 3]));
-    halo.set_except_pg_net(std::stoi(value_list[value_num - 1]) != 0);
-    FPDM.getDatabase().get_new_halo_list().push_back(halo);
-  }
-}
+#if 1  // 构建
 
 void MacroPlacer::buildModel(MPModel& mp_model)
 {
@@ -160,9 +114,7 @@ void MacroPlacer::buildModel(MPModel& mp_model)
 void MacroPlacer::buildNodeList(MPModel& mp_model)
 {
   Database& database = FPDM.getDatabase();
-  int32_t macro_halo = FPDM.getConfig().macro_halo_micron > 0.0
-                           ? std::round(FPDM.getConfig().macro_halo_micron * database.get_micron_dbu())
-                           : 0;
+  int32_t macro_halo = 0;
 
   for (Instance& instance : database.get_instance_list()) {
     if (!instance.get_macro()) {
@@ -225,7 +177,7 @@ void MacroPlacer::buildNetList(MPModel& mp_model)
         continue;
       }
 
-      auto node_iter = instance_name_to_node_idx.find(net_pin.get_instance_name());
+      std::unordered_map<std::string, int32_t>::iterator node_iter = instance_name_to_node_idx.find(net_pin.get_instance_name());
       if (node_iter != instance_name_to_node_idx.end()) {
         MPNode& mp_node = mp_model.get_mp_node_list()[node_iter->second];
         MPPin mp_pin;
@@ -258,16 +210,11 @@ void MacroPlacer::buildBlockageRectList(MPModel& mp_model)
     mp_model.get_blockage_rect_list().emplace_back(placement_blockage_rect.get_ll_x(), placement_blockage_rect.get_ll_y(),
                                                     placement_blockage_rect.get_ur_x(), placement_blockage_rect.get_ur_y());
   }
-  for (Blockage& blockage : database.get_new_blockage_list()) {
-    if (blockage.get_type() == BlockageType::kPlacement) {
-      mp_model.get_blockage_rect_list().emplace_back(blockage.get_ll_x(), blockage.get_ll_y(), blockage.get_ur_x(), blockage.get_ur_y());
-    }
-  }
 }
 
 #endif
 
-#if 1  // optimize
+#if 1  // 优化
 
 void MacroPlacer::optimize(MPModel& mp_model)
 {
@@ -280,15 +227,23 @@ void MacroPlacer::optimize(MPModel& mp_model)
   double current_conflict = calculateOverlap(mp_model, current_node_list) + calculateBlockageOverlap(mp_model, current_node_list);
   double best_conflict = current_conflict;
 
-  const Config& config = FPDM.getConfig();
-  double cool_rate = config.macro_cool_rate > 0.0 && config.macro_cool_rate < 1.0 ? config.macro_cool_rate : 0.96;
-  double temperature = config.macro_init_temperature > 0.0 ? config.macro_init_temperature : 2000.0;
-  double init_temperature = temperature;
+  MPComParam& mp_com_param = mp_model.get_mp_com_param();
+  std::vector<MPIterParam> mp_iter_param_list;
+  double temperature = mp_com_param.get_initial_temperature();
+  for (int32_t iter = 0; iter < mp_com_param.get_max_iter(); iter++) {
+    mp_iter_param_list.emplace_back(temperature);
+    temperature = std::max(temperature * mp_com_param.get_cool_rate(), std::numeric_limits<double>::epsilon());
+  }
+
   std::mt19937 random_generator(0);
   std::uniform_real_distribution<double> probability_distribution(0.0, 1.0);
   std::uniform_int_distribution<int32_t> movable_node_distribution(0, static_cast<int32_t>(mp_model.get_movable_node_idx_list().size()) - 1);
 
-  for (int32_t iter = 0; iter < config.macro_max_iters; iter++) {
+  for (int32_t i = 0, iter = 1; i < static_cast<int32_t>(mp_iter_param_list.size()); i++, iter++) {
+    Monitor iter_monitor;
+    FPLOG.info(Loc::current(), "***** Begin iteration ", iter, "/", mp_iter_param_list.size(), " *****");
+    setMPIterParam(mp_model, iter, mp_iter_param_list[i]);
+    double temperature = mp_model.get_mp_iter_param().get_temperature();
     std::vector<MPNode> candidate_node_list = current_node_list;
     int32_t first_node_idx = mp_model.get_movable_node_idx_list()[movable_node_distribution(random_generator)];
     if (mp_model.get_movable_node_idx_list().size() > 1 && probability_distribution(random_generator) < 0.5) {
@@ -302,7 +257,7 @@ void MacroPlacer::optimize(MPModel& mp_model)
       candidate_node_list[second_node_idx].set_coord(first_x, first_y);
     } else {
       MPNode& mp_node = candidate_node_list[first_node_idx];
-      double temperature_ratio = std::max(temperature / init_temperature, 0.05);
+      double temperature_ratio = std::max(temperature / mp_com_param.get_initial_temperature(), 0.05);
       int32_t max_delta_x = std::max(1, static_cast<int32_t>(mp_model.get_core_rect().get_width() * temperature_ratio / 4.0));
       int32_t max_delta_y = std::max(1, static_cast<int32_t>(mp_model.get_core_rect().get_height() * temperature_ratio / 4.0));
       std::uniform_int_distribution<int32_t> delta_x_distribution(-max_delta_x, max_delta_x);
@@ -336,10 +291,17 @@ void MacroPlacer::optimize(MPModel& mp_model)
         best_conflict = current_conflict;
       }
     }
-    temperature = std::max(temperature * cool_rate, std::numeric_limits<double>::epsilon());
+    FPLOG.info(Loc::current(), "***** End iteration ", iter, "/", mp_iter_param_list.size(), " ", iter_monitor.getStatsInfo(), " *****");
   }
 
   mp_model.set_mp_node_list(best_node_list);
+}
+
+void MacroPlacer::setMPIterParam(MPModel& mp_model, int32_t iter, MPIterParam& mp_iter_param)
+{
+  mp_model.set_iter(iter);
+  FPLOG.info(Loc::current(), "temperature: ", mp_iter_param.get_temperature());
+  mp_model.set_mp_iter_param(mp_iter_param);
 }
 
 void MacroPlacer::initializeNodeLocation(MPModel& mp_model)
@@ -367,16 +329,13 @@ void MacroPlacer::initializeNodeLocation(MPModel& mp_model)
 
 double MacroPlacer::calculateCost(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list)
 {
-  const Config& config = FPDM.getConfig();
-  double weight_wl = config.macro_weight_wl >= 0.0 ? config.macro_weight_wl : 1.0;
-  double weight_ol = config.macro_weight_ol >= 0.0 ? config.macro_weight_ol : 0.05;
-  double weight_ob = config.macro_weight_ob >= 0.0 ? config.macro_weight_ob : 0.02;
-  double weight_periphery = config.macro_weight_periphery >= 0.0 ? config.macro_weight_periphery : 0.05;
-  double weight_blockage = config.macro_weight_blockage >= 0.0 ? config.macro_weight_blockage : 0.0;
-  double weight_io = config.macro_weight_io >= 0.0 ? config.macro_weight_io : 0.0;
-  return weight_wl * calculateWirelength(mp_model, mp_node_list) + weight_ol * calculateOverlap(mp_model, mp_node_list)
-         + weight_ob * calculateOutOfBound(mp_model, mp_node_list) + weight_periphery * calculatePeriphery(mp_model, mp_node_list)
-         + weight_blockage * calculateBlockageOverlap(mp_model, mp_node_list) + weight_io * calculateIODistance(mp_model, mp_node_list);
+  const MPComParam& mp_com_param = mp_model.get_mp_com_param();
+  return mp_com_param.get_wirelength_weight() * calculateWirelength(mp_model, mp_node_list)
+         + mp_com_param.get_overlap_weight() * calculateOverlap(mp_model, mp_node_list)
+         + mp_com_param.get_out_of_bound_weight() * calculateOutOfBound(mp_model, mp_node_list)
+         + mp_com_param.get_periphery_weight() * calculatePeriphery(mp_model, mp_node_list)
+         + mp_com_param.get_blockage_weight() * calculateBlockageOverlap(mp_model, mp_node_list)
+         + mp_com_param.get_io_weight() * calculateIODistance(mp_model, mp_node_list);
 }
 
 double MacroPlacer::calculateWirelength(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list)
@@ -507,38 +466,36 @@ double MacroPlacer::calculateIODistance(const MPModel& mp_model, const std::vect
 
 #endif
 
-#if 1  // output
+#if 1  // 上传
 
-void MacroPlacer::writeModel(MPModel& mp_model)
+void MacroPlacer::uploadPlacementResult(MPModel& mp_model)
 {
   Database& database = FPDM.getDatabase();
   for (int32_t node_idx : mp_model.get_movable_node_idx_list()) {
     MPNode& mp_node = mp_model.get_mp_node_list()[node_idx];
     Instance& instance = database.get_instance_list()[database.get_instance_name_to_idx_map()[mp_node.get_name()]];
+    int32_t delta_x = mp_node.get_x() - instance.get_x();
+    int32_t delta_y = mp_node.get_y() - instance.get_y();
     instance.set_coord(mp_node.get_x(), mp_node.get_y());
-    if (instance.get_orient_name().empty()) {
-      instance.set_orient_name("N");
+    if (instance.get_orient() == PlacementOrientation::kNone) {
+      instance.set_orient(PlacementOrientation::kN);
+    }
+    PlanarRect& bounding_rect = instance.get_bounding_rect();
+    if (bounding_rect.get_width() > 0 && bounding_rect.get_height() > 0) {
+      bounding_rect.set_rect(bounding_rect.get_ll_x() + delta_x, bounding_rect.get_ll_y() + delta_y, bounding_rect.get_ur_x() + delta_x,
+                             bounding_rect.get_ur_y() + delta_y);
+    } else {
+      instance.set_bounding_rect(instance.get_x(), instance.get_y(), instance.get_x() + instance.get_width(),
+                                 instance.get_y() + instance.get_height());
+    }
+    for (InstancePinShape& pin_shape : instance.get_pin_shape_list()) {
+      pin_shape.set_rect(pin_shape.get_ll_x() + delta_x, pin_shape.get_ll_y() + delta_y, pin_shape.get_ur_x() + delta_x,
+                         pin_shape.get_ur_y() + delta_y);
     }
     instance.set_fixed(true);
     instance.set_cover(false);
     instance.set_placed(true);
     instance.set_placement_updated(true);
-  }
-}
-
-void MacroPlacer::writePlacementHalo()
-{
-  for (std::vector<std::string>& value_list : FPDM.getConfig().placement_halo_list) {
-    if (value_list.size() == 5) {
-      Halo halo;
-      halo.set_type(HaloType::kPlacement);
-      halo.set_instance_name(value_list[0]);
-      halo.set_top(std::stoi(value_list[4]));
-      halo.set_bottom(std::stoi(value_list[2]));
-      halo.set_left(std::stoi(value_list[1]));
-      halo.set_right(std::stoi(value_list[3]));
-      FPDM.getDatabase().get_new_halo_list().push_back(halo);
-    }
   }
 }
 

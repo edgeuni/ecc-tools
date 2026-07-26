@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include "MPComParam.hpp"
+#include "MPIterParam.hpp"
 #include "MPModel.hpp"
 
 namespace ifp {
@@ -43,12 +45,20 @@ class MacroPlacer
   MacroPlacer& operator=(MacroPlacer&& other) = delete;
   // function
 
-#if 1  // build
+#if 1  // 初始化
 
-  void buildPlacementBlockage();
-  void buildPlacementHalo();
-  void buildRoutingBlockage();
-  void buildRoutingHalo();
+  MPModel initMPModel();
+
+#endif
+
+#if 1  // 设置参数
+
+  void setMPComParam(MPModel& mp_model);
+
+#endif
+
+#if 1  // 构建
+
   void buildModel(MPModel& mp_model);
   void buildNodeList(MPModel& mp_model);
   void buildNetList(MPModel& mp_model);
@@ -56,9 +66,10 @@ class MacroPlacer
 
 #endif
 
-#if 1  // optimize
+#if 1  // 优化
 
   void optimize(MPModel& mp_model);
+  void setMPIterParam(MPModel& mp_model, int32_t iter, MPIterParam& mp_iter_param);
   void initializeNodeLocation(MPModel& mp_model);
   double calculateCost(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
   double calculateWirelength(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
@@ -71,10 +82,9 @@ class MacroPlacer
 
 #endif
 
-#if 1  // output
+#if 1  // 上传
 
-  void writeModel(MPModel& mp_model);
-  void writePlacementHalo();
+  void uploadPlacementResult(MPModel& mp_model);
 
 #endif
 };

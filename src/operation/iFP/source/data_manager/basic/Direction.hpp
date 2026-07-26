@@ -10,18 +10,18 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
 namespace ifp {
 
-enum class BlockageType
+enum class Direction
 {
-  kNone,
-  kPlacement,
-  kRouting
+  kNone = 0,
+  kHorizontal = 1,
+  kVertical = 2
 };
 
 }  // namespace ifp

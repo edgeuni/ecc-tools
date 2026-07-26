@@ -17,6 +17,11 @@
 #pragma once
 
 #include "FPHeader.hpp"
+#include "PGGlobalConnect.hpp"
+#include "PGGrid.hpp"
+#include "PGIOPin.hpp"
+#include "PGLayerPair.hpp"
+#include "PGStripe.hpp"
 
 namespace ifp {
 
@@ -25,80 +30,88 @@ class Config
  public:
   Config() = default;
   ~Config() = default;
-  /////////////////////////////////////////////
-  // **********        FP         ********** //
-  std::string temp_directory_path;  // required
-  int32_t thread_number;            // optional
-  // **********    DieBuilder     ******** //
-  double core_util = -1.0;          // optional
-  double cell_area = -1.0;          // optional
-  double x_margin = 10.0;           // optional
-  double y_margin = 10.0;           // optional
-  double xy_ratio = 1.0;            // optional
-  std::vector<double> die_area;     // optional
-  std::vector<double> core_area;    // optional
-  std::string core_site;            // optional
-  std::string io_site;              // optional
-  std::string corner_site;          // optional
-  std::vector<std::vector<std::string>> track_list;  // optional
-  // **********     IOPlacer      ******** //
-  std::string io_pin_layer;                   // optional
-  int32_t io_pin_width = -1;                  // optional
-  int32_t io_pin_height = -1;                 // optional
-  std::vector<std::string> io_pin_side_list;  // optional
-  std::vector<std::vector<std::string>> io_port_list;  // optional
-  std::vector<std::string> io_pad_master_list;     // optional
-  std::vector<std::string> io_corner_master_list;  // optional
-  std::vector<std::string> io_filler_name_list;    // optional
-  std::string io_filler_prefix;                     // optional
-  // **********    MacroPlacer    ******** //
-  double macro_halo_micron = -1.0;              // optional
-  double macro_dead_space_ratio = -1.0;         // optional
-  double macro_weight_wl = -1.0;                // optional
-  double macro_weight_ol = -1.0;                // optional
-  double macro_weight_ob = -1.0;                // optional
-  double macro_weight_periphery = -1.0;         // optional
-  double macro_weight_blockage = -1.0;          // optional
-  double macro_weight_io = -1.0;                // optional
-  int32_t macro_max_iters = -1;                 // optional
-  double macro_cool_rate = -1.0;                // optional
-  double macro_init_temperature = -1.0;         // optional
-  std::vector<std::vector<std::string>> placement_blockage_list;  // optional
-  std::vector<std::vector<std::string>> placement_halo_list;       // optional
-  std::vector<std::vector<std::string>> routing_blockage_list;     // optional
-  std::vector<std::vector<std::string>> routing_halo_list;         // optional
-  // **********   PDNGenerator    ******** //
-  std::vector<std::vector<std::string>> pdn_io_list;                 // optional
-  std::vector<std::vector<std::string>> pdn_global_connect_list;     // optional
-  std::vector<std::vector<std::string>> pdn_port_list;               // optional
-  std::vector<std::vector<std::string>> pdn_grid_list;               // optional
-  std::vector<std::vector<std::string>> pdn_stripe_list;             // optional
-  std::vector<std::vector<std::string>> pdn_layer_list;              // optional
-  std::vector<std::vector<std::string>> pdn_macro_connect_list;      // optional
-  std::vector<std::vector<std::string>> pdn_io_pin_connect_list;     // optional
-  std::vector<std::vector<std::string>> pdn_stripe_connect_list;     // optional
-  std::vector<std::vector<std::string>> pdn_segment_stripe_list;     // optional
-  std::vector<std::vector<std::string>> pdn_segment_via_list;        // optional
-  // **********    PhyPlacer     ******** //
-  std::string tapcell_name;  // optional
-  std::string endcap_name;   // optional
-  double tap_distance = -1.0;  // optional
-  /////////////////////////////////////////////
-  // **********        FP         ********** //
-  std::string log_file_path;  // building
-  // **********    DataManager    ********** //
-  std::string dm_temp_directory_path;  // building
-  // **********    DieBuilder     ******** //
-  std::string db_temp_directory_path;  // building
-  // **********     IOPlacer      ******** //
-  std::string iop_temp_directory_path;  // building
-  // **********    MacroPlacer    ******** //
-  std::string mp_temp_directory_path;  // building
-  // **********   PDNGenerator    ******** //
-  std::string pg_temp_directory_path;  // building
-  // **********    PhyPlacer      ******** //
-  std::string pp_temp_directory_path;  // building
-  /////////////////////////////////////////////
+
+#if 1  // FP
+
+  std::string temp_directory_path;
+  int32_t thread_number = -1;
+  std::string log_file_path;
+
+#endif
+
+#if 1  // DieBuilder
+
+  std::string layout_site_name;
+  double layout_xy_ratio = -1.0;
+  double layout_core_util = -1.0;
+  double layout_margin_left_micron = -1.0;
+  double layout_margin_right_micron = -1.0;
+  double layout_margin_top_micron = -1.0;
+  double layout_margin_bottom_micron = -1.0;
+
+#endif
+
+#if 1  // IOPlacer
+
+  std::vector<std::string> io_pin_layer_name_list;
+  double io_pin_width_micron = -1.0;
+  double io_pin_depth_micron = -1.0;
+
+#endif
+
+#if 1  // PDNGenerator
+
+  std::vector<PGIOPin> pg_io_pin_list;
+  std::vector<PGGlobalConnect> pg_global_connect_list;
+  std::vector<PGGrid> pg_grid_list;
+  std::vector<PGStripe> pg_stripe_list;
+  std::vector<PGLayerPair> pg_layer_pair_list;
+
+#endif
+
+#if 1  // PhyPlacer
+
+  std::string tapcell_name;
+  double tap_distance_micron = -1.0;
+  std::string endcap_name;
+
+#endif
+
+#if 1  // DataManager
+
+  std::string dm_temp_directory_path;
+
+#endif
+
+#if 1  // DieBuilder
+
+  std::string db_temp_directory_path;
+
+#endif
+
+#if 1  // IOPlacer
+
+  std::string ip_temp_directory_path;
+
+#endif
+
+#if 1  // MacroPlacer
+
+  std::string mp_temp_directory_path;
+
+#endif
+
+#if 1  // PDNGenerator
+
+  std::string pg_temp_directory_path;
+
+#endif
+
+#if 1  // PhyPlacer
+
+  std::string pp_temp_directory_path;
+
+#endif
 };
 
 }  // namespace ifp

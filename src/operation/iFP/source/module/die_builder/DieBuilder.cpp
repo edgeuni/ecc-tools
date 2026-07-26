@@ -19,6 +19,7 @@
 #include "DataManager.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "Utility.hpp"
 
 namespace ifp {
 
@@ -65,51 +66,53 @@ void DieBuilder::build()
 void DieBuilder::buildFloorplan()
 {
   Config& config = FPDM.getConfig();
-  if (config.die_area.size() == 4 && config.core_area.size() == 4) {
-    buildDie(config.die_area[0], config.die_area[1], config.die_area[2], config.die_area[3]);
-    buildCore(config.core_area[0], config.core_area[1], config.core_area[2], config.core_area[3], config.core_site, config.io_site,
-              config.corner_site);
-  } else if (config.core_util > 0.0 && !config.core_site.empty()) {
+  if (config.layout_core_util > 0.0 && !config.layout_site_name.empty()) {
     buildAutoFloorplan();
   }
 }
 
 void DieBuilder::buildTrackList()
 {
-  for (std::vector<std::string>& value_list : FPDM.getConfig().track_list) {
-    if (value_list.size() == 5) {
-      buildTrack(value_list[0], std::stoi(value_list[1]), std::stoi(value_list[2]), std::stoi(value_list[3]), std::stoi(value_list[4]));
+  Database& database = FPDM.getDatabase();
+  database.get_new_track_list().clear();
+  for (RoutingLayer& routing_layer : database.get_routing_layer_list()) {
+    int32_t x_pitch = routing_layer.get_pitch_x() > 0 ? routing_layer.get_pitch_x() : routing_layer.get_prefer_track_pitch();
+    int32_t y_pitch = routing_layer.get_pitch_y() > 0 ? routing_layer.get_pitch_y() : routing_layer.get_prefer_track_pitch();
+    if (x_pitch <= 0 || y_pitch <= 0) {
+      continue;
     }
+
+    int32_t offset = std::max(routing_layer.get_prefer_track_offset(), 0);
+    buildTrack(routing_layer.get_name(), offset, x_pitch, offset, y_pitch);
   }
 }
 
 void DieBuilder::buildDie(double die_lx, double die_ly, double die_ux, double die_uy)
 {
-  Die& die = FPDM.getDatabase().get_die();
-  die.set_rect(transUnitDB(die_lx), transUnitDB(die_ly), transUnitDB(die_ux), transUnitDB(die_uy));
+  Database& database = FPDM.getDatabase();
+  Die& die = database.get_die();
+  die.set_rect(FPUTIL.transMicronToDBU(die_lx, database.get_micron_dbu()), FPUTIL.transMicronToDBU(die_ly, database.get_micron_dbu()),
+               FPUTIL.transMicronToDBU(die_ux, database.get_micron_dbu()), FPUTIL.transMicronToDBU(die_uy, database.get_micron_dbu()));
   FPDM.getDatabase().set_die_updated(true);
 }
 
-void DieBuilder::buildCore(double core_lx, double core_ly, double core_ux, double core_uy, std::string core_site_name,
-                           std::string io_site_name, std::string corner_site_name)
+void DieBuilder::buildCore(double core_lx, double core_ly, double core_ux, double core_uy, std::string site_name)
 {
   Database& database = FPDM.getDatabase();
-  std::string io_site = io_site_name.empty() ? core_site_name : io_site_name;
-  std::string corner_site = corner_site_name.empty() ? io_site : corner_site_name;
-  Site& core_site = database.get_site_map()[core_site_name];
+  Site& core_site = database.get_site_map()[site_name];
 
   int32_t site_width = core_site.get_width();
   int32_t site_height = core_site.get_height();
-  int32_t core_lx_int = alignUp(transUnitDB(core_lx), site_width);
-  int32_t core_ly_int = alignUp(transUnitDB(core_ly), site_height);
-  int32_t core_ux_int = alignDown(transUnitDB(core_ux), site_width);
-  int32_t core_uy_int = alignDown(transUnitDB(core_uy), site_height);
+  int32_t core_lx_int = FPUTIL.alignUp(FPUTIL.transMicronToDBU(core_lx, database.get_micron_dbu()), site_width);
+  int32_t core_ly_int = FPUTIL.alignUp(FPUTIL.transMicronToDBU(core_ly, database.get_micron_dbu()), site_height);
+  int32_t core_ux_int = FPUTIL.alignDown(FPUTIL.transMicronToDBU(core_ux, database.get_micron_dbu()), site_width);
+  int32_t core_uy_int = FPUTIL.alignDown(FPUTIL.transMicronToDBU(core_uy, database.get_micron_dbu()), site_height);
 
   Core& core = database.get_core();
   core.set_rect(core_lx_int, core_ly_int, core_ux_int, core_uy_int);
-  core.set_core_site_name(core_site_name);
-  core.set_io_site_name(io_site);
-  core.set_corner_site_name(corner_site);
+  core.set_core_site_name(site_name);
+  core.set_io_site_name(site_name);
+  core.set_corner_site_name(site_name);
   database.set_core_updated(true);
   buildRowList();
 }
@@ -119,6 +122,11 @@ void DieBuilder::buildRowList()
   Database& database = FPDM.getDatabase();
   Core& core = database.get_core();
   Site& core_site = database.get_site_map()[core.get_core_site_name()];
+  std::vector<Row>& new_row_list = database.get_new_row_list();
+  std::vector<Row>& row_list = database.get_row_list();
+
+  new_row_list.clear();
+  row_list.clear();
 
   int32_t site_height = core_site.get_height();
   int32_t row_num = std::abs(core.get_height()) / site_height;
@@ -128,23 +136,25 @@ void DieBuilder::buildRowList()
     row.set_name("ROW_" + std::to_string(row_idx));
     row.set_site_name(core.get_core_site_name());
     row.set_y(y_coord);
-    row.set_orient_name(row_idx % 2 == 0 ? "FS" : "N");
+    row.set_orient(row_idx % 2 == 0 ? PlacementOrientation::kFS : PlacementOrientation::kN);
     row.set_rect(core.get_ll_x(), y_coord, core.get_ur_x(), y_coord + site_height);
-    database.get_new_row_list().push_back(row);
+    new_row_list.push_back(row);
+    row_list.push_back(row);
   }
 }
 
 void DieBuilder::buildAutoFloorplan()
 {
   Config& config = FPDM.getConfig();
-  double cell_area = config.cell_area > 0.0 ? config.cell_area : FPDM.getDatabase().get_cell_area();
-  double core_area = cell_area / config.core_util;
-  double core_height = std::sqrt(core_area / config.xy_ratio);
+  double cell_area = FPDM.getDatabase().get_cell_area();
+  double core_area = cell_area / config.layout_core_util;
+  double core_height = std::sqrt(core_area / config.layout_xy_ratio);
   double core_width = core_area / core_height;
 
-  buildDie(0.0, 0.0, core_width + 2.0 * config.x_margin, core_height + 2.0 * config.y_margin);
-  buildCore(config.x_margin, config.y_margin, config.x_margin + core_width, config.y_margin + core_height, config.core_site, config.io_site,
-            config.corner_site);
+  buildDie(0.0, 0.0, core_width + config.layout_margin_left_micron + config.layout_margin_right_micron,
+           core_height + config.layout_margin_bottom_micron + config.layout_margin_top_micron);
+  buildCore(config.layout_margin_left_micron, config.layout_margin_bottom_micron,
+            config.layout_margin_left_micron + core_width, config.layout_margin_bottom_micron + core_height, config.layout_site_name);
 }
 
 void DieBuilder::buildTrack(std::string layer_name, int32_t x_offset, int32_t x_pitch, int32_t y_offset, int32_t y_pitch)
@@ -157,27 +167,6 @@ void DieBuilder::buildTrack(std::string layer_name, int32_t x_offset, int32_t x_
   track.set_y_pitch(y_pitch);
   FPDM.getDatabase().get_new_track_list().push_back(track);
   FPDM.getDatabase().set_track_updated(true);
-}
-
-#endif
-
-#if 1  // utility
-
-int32_t DieBuilder::transUnitDB(double value)
-{
-  return std::round(FPDM.getDatabase().get_micron_dbu() * value);
-}
-
-int32_t DieBuilder::alignDown(int32_t value, int32_t step)
-{
-  int32_t remainder = value % step;
-  return remainder == 0 ? value : (value >= 0 ? value - remainder : value - remainder - step);
-}
-
-int32_t DieBuilder::alignUp(int32_t value, int32_t step)
-{
-  int32_t remainder = value % step;
-  return remainder == 0 ? value : (value >= 0 ? value + step - remainder : value - remainder);
 }
 
 #endif

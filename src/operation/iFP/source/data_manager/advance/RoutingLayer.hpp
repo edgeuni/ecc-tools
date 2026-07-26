@@ -16,6 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
+#include "Direction.hpp"
 #include "FPHeader.hpp"
 
 namespace ifp {
@@ -35,7 +36,7 @@ class RoutingLayer
   int32_t get_nonprefer_track_pitch() const { return _nonprefer_track_pitch; }
   int32_t get_prefer_track_offset() const { return _prefer_track_offset; }
   int32_t get_spacing() const { return _spacing; }
-  bool get_horizontal() const { return _horizontal; }
+  Direction get_prefer_direction() const { return _prefer_direction; }
 
   // const getter
   const std::string& get_name() const { return _name; }
@@ -50,7 +51,7 @@ class RoutingLayer
   void set_nonprefer_track_pitch(int32_t nonprefer_track_pitch) { _nonprefer_track_pitch = nonprefer_track_pitch; }
   void set_prefer_track_offset(int32_t prefer_track_offset) { _prefer_track_offset = prefer_track_offset; }
   void set_spacing(int32_t spacing) { _spacing = spacing; }
-  void set_horizontal(bool horizontal) { _horizontal = horizontal; }
+  void set_prefer_direction(Direction prefer_direction) { _prefer_direction = prefer_direction; }
 
   // function
 
@@ -64,7 +65,7 @@ class RoutingLayer
   int32_t _nonprefer_track_pitch = -1;
   int32_t _prefer_track_offset = -1;
   int32_t _spacing = -1;
-  bool _horizontal = false;
+  Direction _prefer_direction = Direction::kNone;
 };
 
 }  // namespace ifp

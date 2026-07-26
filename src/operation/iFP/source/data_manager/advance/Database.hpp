@@ -21,7 +21,6 @@
 #include "Core.hpp"
 #include "Die.hpp"
 #include "FPHeader.hpp"
-#include "Halo.hpp"
 #include "Instance.hpp"
 #include "IOPin.hpp"
 #include "Net.hpp"
@@ -64,8 +63,6 @@ class Database
   std::vector<Row>& get_row_list() { return _row_list; }
   std::vector<PlanarRect>& get_placement_blockage_rect_list() { return _placement_blockage_rect_list; }
   std::vector<Blockage>& get_routing_blockage_list() { return _routing_blockage_list; }
-  std::vector<Blockage>& get_new_blockage_list() { return _new_blockage_list; }
-  std::vector<Halo>& get_new_halo_list() { return _new_halo_list; }
   bool is_die_updated() const { return _die_updated; }
   bool is_core_updated() const { return _core_updated; }
   bool is_track_updated() const { return _track_updated; }
@@ -91,8 +88,6 @@ class Database
   const std::vector<Row>& get_row_list() const { return _row_list; }
   const std::vector<PlanarRect>& get_placement_blockage_rect_list() const { return _placement_blockage_rect_list; }
   const std::vector<Blockage>& get_routing_blockage_list() const { return _routing_blockage_list; }
-  const std::vector<Blockage>& get_new_blockage_list() const { return _new_blockage_list; }
-  const std::vector<Halo>& get_new_halo_list() const { return _new_halo_list; }
 
   // setter
   void set_design_name(std::string design_name) { _design_name = design_name; }
@@ -133,8 +128,6 @@ class Database
     _placement_blockage_rect_list = placement_blockage_rect_list;
   }
   void set_routing_blockage_list(const std::vector<Blockage>& routing_blockage_list) { _routing_blockage_list = routing_blockage_list; }
-  void set_new_blockage_list(const std::vector<Blockage>& new_blockage_list) { _new_blockage_list = new_blockage_list; }
-  void set_new_halo_list(const std::vector<Halo>& new_halo_list) { _new_halo_list = new_halo_list; }
   void set_die_updated(bool die_updated) { _die_updated = die_updated; }
   void set_core_updated(bool core_updated) { _core_updated = core_updated; }
   void set_track_updated(bool track_updated) { _track_updated = track_updated; }
@@ -165,8 +158,6 @@ class Database
   std::vector<Row> _row_list;
   std::vector<PlanarRect> _placement_blockage_rect_list;
   std::vector<Blockage> _routing_blockage_list;
-  std::vector<Blockage> _new_blockage_list;
-  std::vector<Halo> _new_halo_list;
   bool _die_updated = false;
   bool _core_updated = false;
   bool _track_updated = false;

@@ -5,43 +5,42 @@
 //
 // iEDA is licensed under Mulan PSL v2.
 // You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of Mulan PSL v2 at:
+// You may obtain a copy of the Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
 #include "FPHeader.hpp"
-#include "IOPadCoord.hpp"
 
 namespace ifp {
 
-class IOPModel
+class PGLayerPair
 {
  public:
-  IOPModel() = default;
-  ~IOPModel() = default;
+  PGLayerPair() = default;
+  ~PGLayerPair() = default;
   // getter
-  int32_t get_io_filler_idx() const { return _io_filler_idx; }
-  std::vector<IOPadCoord>& get_io_pad_coord_list() { return _io_pad_coord_list; }
+  std::string& get_first_layer_name() { return _first_layer_name; }
+  std::string& get_second_layer_name() { return _second_layer_name; }
 
   // const getter
-  const std::vector<IOPadCoord>& get_io_pad_coord_list() const { return _io_pad_coord_list; }
+  const std::string& get_first_layer_name() const { return _first_layer_name; }
+  const std::string& get_second_layer_name() const { return _second_layer_name; }
 
   // setter
-  void set_io_filler_idx(int32_t io_filler_idx) { _io_filler_idx = io_filler_idx; }
-  void set_io_pad_coord_list(const std::vector<IOPadCoord>& io_pad_coord_list) { _io_pad_coord_list = io_pad_coord_list; }
+  void set_first_layer_name(std::string first_layer_name) { _first_layer_name = first_layer_name; }
+  void set_second_layer_name(std::string second_layer_name) { _second_layer_name = second_layer_name; }
 
   // function
 
  private:
-  int32_t _io_filler_idx = -1;
-  std::vector<IOPadCoord> _io_pad_coord_list;
+  std::string _first_layer_name;
+  std::string _second_layer_name;
 };
 
 }  // namespace ifp

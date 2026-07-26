@@ -5,7 +5,7 @@
 //
 // iEDA is licensed under Mulan PSL v2.
 // You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of Mulan PSL v2 at:
+// You may obtain a copy of the Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
@@ -16,37 +16,39 @@
 #pragma once
 
 #include "FPHeader.hpp"
-#include "PlacementOrientation.hpp"
+#include "IOPinDirection.hpp"
+#include "PGNetType.hpp"
 
 namespace ifp {
 
-class PPRegion
+class PGIOPin
 {
  public:
-  PPRegion() = default;
-  ~PPRegion() = default;
+  PGIOPin() = default;
+  ~PGIOPin() = default;
   // getter
-  int32_t get_row_idx() const { return _row_idx; }
-  int32_t get_start_coord() const { return _start_coord; }
-  int32_t get_end_coord() const { return _end_coord; }
-  int32_t get_y_coord() const { return _y_coord; }
-  PlacementOrientation get_orient() const { return _orient; }
+  std::string& get_pin_name() { return _pin_name; }
+  std::string& get_net_name() { return _net_name; }
+  IOPinDirection get_direction() const { return _direction; }
+  PGNetType get_net_type() const { return _net_type; }
+
   // const getter
+  const std::string& get_pin_name() const { return _pin_name; }
+  const std::string& get_net_name() const { return _net_name; }
 
   // setter
-  void set_row_idx(int32_t row_idx) { _row_idx = row_idx; }
-  void set_start_coord(int32_t start_coord) { _start_coord = start_coord; }
-  void set_end_coord(int32_t end_coord) { _end_coord = end_coord; }
-  void set_y_coord(int32_t y_coord) { _y_coord = y_coord; }
-  void set_orient(PlacementOrientation orient) { _orient = orient; }
+  void set_pin_name(std::string pin_name) { _pin_name = pin_name; }
+  void set_net_name(std::string net_name) { _net_name = net_name; }
+  void set_direction(IOPinDirection direction) { _direction = direction; }
+  void set_net_type(PGNetType net_type) { _net_type = net_type; }
+
   // function
 
  private:
-  int32_t _row_idx = -1;
-  int32_t _start_coord = -1;
-  int32_t _end_coord = -1;
-  int32_t _y_coord = -1;
-  PlacementOrientation _orient = PlacementOrientation::kNone;
+  std::string _pin_name;
+  std::string _net_name;
+  IOPinDirection _direction = IOPinDirection::kNone;
+  PGNetType _net_type = PGNetType::kNone;
 };
 
 }  // namespace ifp

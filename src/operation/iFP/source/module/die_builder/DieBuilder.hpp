@@ -31,23 +31,6 @@ class DieBuilder
   // function
   void build();
 
-#if 1  // build
-  void buildFloorplan();
-  void buildTrackList();
-  void buildDie(double die_lx, double die_ly, double die_ux, double die_uy);
-  void buildCore(double core_lx, double core_ly, double core_ux, double core_uy, std::string core_site_name, std::string io_site_name,
-                 std::string corner_site_name);
-  void buildRowList();
-  void buildAutoFloorplan();
-  void buildTrack(std::string layer_name, int32_t x_offset, int32_t x_pitch, int32_t y_offset, int32_t y_pitch);
-#endif
-
-#if 1  // utility
-  int32_t transUnitDB(double value);
-  int32_t alignDown(int32_t value, int32_t step);
-  int32_t alignUp(int32_t value, int32_t step);
-#endif
-
  private:
   // self
   static DieBuilder* _db_instance;
@@ -59,6 +42,17 @@ class DieBuilder
   DieBuilder& operator=(const DieBuilder& other) = delete;
   DieBuilder& operator=(DieBuilder&& other) = delete;
   // function
+
+#if 1  // build
+  void buildFloorplan();
+  void buildTrackList();
+  void buildDie(double die_lx, double die_ly, double die_ux, double die_uy);
+  void buildCore(double core_lx, double core_ly, double core_ux, double core_uy, std::string site_name);
+  void buildRowList();
+  void buildAutoFloorplan();
+  void buildTrack(std::string layer_name, int32_t x_offset, int32_t x_pitch, int32_t y_offset, int32_t y_pitch);
+#endif
+
 };
 
 }  // namespace ifp

@@ -18,6 +18,7 @@
 
 #include "FPHeader.hpp"
 #include "IOPort.hpp"
+#include "PlacementOrientation.hpp"
 
 namespace ifp {
 
@@ -29,7 +30,7 @@ class IOPin
   // getter
   std::string& get_name() { return _name; }
   std::string& get_instance_name() { return _instance_name; }
-  std::string& get_orient_name() { return _orient_name; }
+  PlacementOrientation get_orient() const { return _orient; }
   std::vector<IOPort>& get_port_list() { return _port_list; }
   std::vector<IOPort>& get_new_port_list() { return _new_port_list; }
   int32_t get_x() const { return _x; }
@@ -48,14 +49,13 @@ class IOPin
   // const getter
   const std::string& get_name() const { return _name; }
   const std::string& get_instance_name() const { return _instance_name; }
-  const std::string& get_orient_name() const { return _orient_name; }
   const std::vector<IOPort>& get_port_list() const { return _port_list; }
   const std::vector<IOPort>& get_new_port_list() const { return _new_port_list; }
 
   // setter
   void set_name(std::string name) { _name = name; }
   void set_instance_name(std::string instance_name) { _instance_name = instance_name; }
-  void set_orient_name(std::string orient_name) { _orient_name = orient_name; }
+  void set_orient(PlacementOrientation orient) { _orient = orient; }
   void set_port_list(const std::vector<IOPort>& port_list) { _port_list = port_list; }
   void set_new_port_list(const std::vector<IOPort>& new_port_list) { _new_port_list = new_port_list; }
   void set_x(int32_t x) { _x = x; }
@@ -86,7 +86,7 @@ class IOPin
  private:
   std::string _name;
   std::string _instance_name;
-  std::string _orient_name;
+  PlacementOrientation _orient = PlacementOrientation::kNone;
   std::vector<IOPort> _port_list;
   std::vector<IOPort> _new_port_list;
   int32_t _x = -1;

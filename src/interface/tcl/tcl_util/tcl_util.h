@@ -40,6 +40,8 @@ using ieda::TclIntOption;
 using ieda::TclOption;
 using ieda::TclStringListOption;
 using ieda::TclStringListListOption;
+using ieda::TclStringListListListOption;
+using ieda::TclStringListListListListOption;
 using ieda::TclStringOption;
 using ieda::TclSwitchOption;
 
@@ -53,6 +55,8 @@ enum class ValueType
   kString,
   kStringList,
   kStringListList,
+  kStringListListList,
+  kStringListListListList,
   kStringDoubleMap
 };
 

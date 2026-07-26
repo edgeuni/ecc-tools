@@ -15,7 +15,6 @@
 // ***************************************************************************************
 #pragma once
 
-#include "BlockageType.hpp"
 #include "PlanarRect.hpp"
 
 namespace ifp {
@@ -26,7 +25,6 @@ class Blockage : public PlanarRect
   Blockage() = default;
   ~Blockage() = default;
   // getter
-  BlockageType get_type() const { return _type; }
   std::vector<std::string>& get_layer_name_list() { return _layer_name_list; }
   bool get_except_pg_net() const { return _except_pg_net; }
 
@@ -34,14 +32,12 @@ class Blockage : public PlanarRect
   const std::vector<std::string>& get_layer_name_list() const { return _layer_name_list; }
 
   // setter
-  void set_type(BlockageType type) { _type = type; }
   void set_layer_name_list(std::vector<std::string> layer_name_list) { _layer_name_list = layer_name_list; }
   void set_except_pg_net(bool except_pg_net) { _except_pg_net = except_pg_net; }
 
   // function
 
  private:
-  BlockageType _type = BlockageType::kNone;
   std::vector<std::string> _layer_name_list;
   bool _except_pg_net = false;
 };

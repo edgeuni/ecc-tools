@@ -10,18 +10,29 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
+#include "FPHeader.hpp"
+
 namespace ifp {
 
-enum class HaloType
+class MPIterParam
 {
-  kNone,
-  kPlacement,
-  kRouting
+ public:
+  MPIterParam() = default;
+  MPIterParam(double temperature) { _temperature = temperature; }
+  ~MPIterParam() = default;
+  // getter
+  double get_temperature() const { return _temperature; }
+  // setter
+  void set_temperature(double temperature) { _temperature = temperature; }
+
+ private:
+  double _temperature = 0;
 };
 
 }  // namespace ifp

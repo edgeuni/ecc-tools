@@ -8,7 +8,7 @@
 // You may obtain a copy of Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
-// THIS SOFTWARE IS PROVIDED ON AN \"AS IS\" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
@@ -18,6 +18,7 @@
 #include "DataManager.hpp"
 #include "Logger.hpp"
 #include "Monitor.hpp"
+#include "Utility.hpp"
 
 namespace ifp {
 
@@ -64,12 +65,12 @@ void PhyPlacer::place()
 void PhyPlacer::placePhyCell(PPModel& pp_model)
 {
   Config& config = FPDM.getConfig();
-  if (config.tap_distance <= 0.0 || config.tapcell_name.empty() || config.endcap_name.empty()) {
+  if (config.tap_distance_micron <= 0.0 || config.tapcell_name.empty() || config.endcap_name.empty()) {
     return;
   }
 
   Database& database = FPDM.getDatabase();
-  int32_t inst_space = static_cast<int32_t>(config.tap_distance * database.get_micron_dbu());
+  int32_t inst_space = FPUTIL.transMicronToDBU(config.tap_distance_micron, database.get_micron_dbu());
   adjustTapDistance(inst_space);
 
   if (database.get_cell_master_map().find(config.tapcell_name) == database.get_cell_master_map().end()
@@ -130,7 +131,7 @@ void PhyPlacer::buildPPRegionInRow(PPModel& pp_model, Row& row, int32_t row_idx)
     pp_region.set_start_coord(row_start_x);
     pp_region.set_end_coord(row_end_x);
     pp_region.set_y_coord(row.get_y());
-    pp_region.set_orient_name(row.get_orient_name());
+    pp_region.set_orient(row.get_orient());
     pp_model.get_pp_region_list().push_back(pp_region);
     return;
   }
@@ -144,7 +145,7 @@ void PhyPlacer::buildPPRegionInRow(PPModel& pp_model, Row& row, int32_t row_idx)
       pp_region.set_start_coord(row_start_x);
       pp_region.set_end_coord(blockage_rect_list[rect_idx]->get_ll_x());
       pp_region.set_y_coord(row.get_y());
-      pp_region.set_orient_name(row.get_orient_name());
+      pp_region.set_orient(row.get_orient());
       pp_model.get_pp_region_list().push_back(pp_region);
     }
     if (rect_idx == static_cast<int32_t>(blockage_rect_list.size()) - 1 && row_end_x > blockage_rect_list[rect_idx]->get_ur_x()) {
@@ -153,7 +154,7 @@ void PhyPlacer::buildPPRegionInRow(PPModel& pp_model, Row& row, int32_t row_idx)
       pp_region.set_start_coord(blockage_rect_list[rect_idx]->get_ur_x());
       pp_region.set_end_coord(row_end_x);
       pp_region.set_y_coord(row.get_y());
-      pp_region.set_orient_name(row.get_orient_name());
+      pp_region.set_orient(row.get_orient());
       pp_model.get_pp_region_list().push_back(pp_region);
     }
     if (rect_idx > 0 && rect_idx < static_cast<int32_t>(blockage_rect_list.size()) - 1) {
@@ -162,7 +163,7 @@ void PhyPlacer::buildPPRegionInRow(PPModel& pp_model, Row& row, int32_t row_idx)
       pp_region.set_start_coord(blockage_rect_list[rect_idx - 1]->get_ur_x());
       pp_region.set_end_coord(blockage_rect_list[rect_idx]->get_ll_x());
       pp_region.set_y_coord(row.get_y());
-      pp_region.set_orient_name(row.get_orient_name());
+      pp_region.set_orient(row.get_orient());
       pp_model.get_pp_region_list().push_back(pp_region);
     }
   }
@@ -177,32 +178,32 @@ int32_t PhyPlacer::insertPhyCell(PPModel& pp_model, int32_t inst_space, std::str
   int32_t endcap_idx = 0;
   int32_t tapcell_idx = 0;
   for (PPRegion& pp_region : pp_model.get_pp_region_list()) {
-    int32_t endcap_width = getCellMasterWidthByOrient(endcap_master, pp_region.get_orient_name());
+    int32_t endcap_width = getCellMasterWidthByOrient(endcap_master, pp_region.get_orient());
     if (pp_region.get_y_coord() == pp_model.get_top_y_coord() || pp_region.get_y_coord() == pp_model.get_bottom_y_coord()) {
       for (int32_t x_coord = pp_region.get_start_coord(); x_coord < pp_region.get_end_coord(); x_coord += endcap_width) {
-        addPhyCell("ENDCAP_" + std::to_string(endcap_idx++), endcap_name, x_coord, pp_region.get_y_coord(), pp_region.get_orient_name());
+        addPhyCell("ENDCAP_" + std::to_string(endcap_idx++), endcap_name, x_coord, pp_region.get_y_coord(), pp_region.get_orient());
       }
       continue;
     }
 
     if (pp_region.get_end_coord() - pp_region.get_start_coord() >= endcap_width) {
       addPhyCell("ENDCAP_" + std::to_string(endcap_idx++), endcap_name, pp_region.get_start_coord(), pp_region.get_y_coord(),
-                 pp_region.get_orient_name());
+                 pp_region.get_orient());
     }
     if (pp_region.get_end_coord() - pp_region.get_start_coord() >= 2 * endcap_width) {
       addPhyCell("ENDCAP_" + std::to_string(endcap_idx++), endcap_name, pp_region.get_end_coord() - endcap_width,
-                 pp_region.get_y_coord(), pp_region.get_orient_name());
+                 pp_region.get_y_coord(), pp_region.get_orient());
     }
 
     int32_t core_start_x = database.get_core().get_ll_x();
     int32_t region_start = pp_region.get_start_coord() + endcap_width;
     int32_t region_end = pp_region.get_end_coord() - endcap_width;
-    int32_t tapcell_width = getCellMasterWidthByOrient(tapcell_master, pp_region.get_orient_name());
+    int32_t tapcell_width = getCellMasterWidthByOrient(tapcell_master, pp_region.get_orient());
     int32_t x_coord = region_start;
     while (x_coord + tapcell_width <= region_end) {
       if (x_coord == region_start) {
         if (pp_region.get_row_idx() % 2 == 0) {
-          addPhyCell("PHY_" + std::to_string(tapcell_idx++), tapcell_name, region_start, pp_region.get_y_coord(), pp_region.get_orient_name());
+          addPhyCell("PHY_" + std::to_string(tapcell_idx++), tapcell_name, region_start, pp_region.get_y_coord(), pp_region.get_orient());
           x_coord = core_start_x + ((x_coord - core_start_x) / inst_space + 2) * inst_space;
         } else {
           x_coord = core_start_x + ((x_coord - core_start_x) / inst_space + 1) * inst_space;
@@ -210,11 +211,11 @@ int32_t PhyPlacer::insertPhyCell(PPModel& pp_model, int32_t inst_space, std::str
         continue;
       }
 
-      addPhyCell("PHY_" + std::to_string(tapcell_idx++), tapcell_name, x_coord, pp_region.get_y_coord(), pp_region.get_orient_name());
+      addPhyCell("PHY_" + std::to_string(tapcell_idx++), tapcell_name, x_coord, pp_region.get_y_coord(), pp_region.get_orient());
       if (x_coord + 2 * inst_space >= region_end && region_end - x_coord > tapcell_width * 2
           && pp_region.get_row_idx() % 2 == 0) {
         addPhyCell("PHY_" + std::to_string(tapcell_idx++), tapcell_name, region_end - tapcell_width, pp_region.get_y_coord(),
-                   pp_region.get_orient_name());
+                   pp_region.get_orient());
       }
       x_coord += inst_space * 2;
     }
@@ -223,14 +224,14 @@ int32_t PhyPlacer::insertPhyCell(PPModel& pp_model, int32_t inst_space, std::str
 }
 
 void PhyPlacer::addPhyCell(std::string instance_name, std::string cell_master_name, int32_t x_coord, int32_t y_coord,
-                           std::string orient_name)
+                           PlacementOrientation orient)
 {
   Database& database = FPDM.getDatabase();
   CellMaster& cell_master = database.get_cell_master_map()[cell_master_name];
   Instance instance;
   instance.set_name(instance_name);
   instance.set_master_name(cell_master_name);
-  instance.set_orient_name(orient_name);
+  instance.set_orient(orient);
   instance.set_coord(x_coord, y_coord);
   instance.set_width(cell_master.get_width());
   instance.set_height(cell_master.get_height());
@@ -242,9 +243,10 @@ void PhyPlacer::addPhyCell(std::string instance_name, std::string cell_master_na
   database.get_instance_name_to_idx_map()[instance_name] = instance_idx;
 }
 
-int32_t PhyPlacer::getCellMasterWidthByOrient(CellMaster& cell_master, std::string orient_name)
+int32_t PhyPlacer::getCellMasterWidthByOrient(CellMaster& cell_master, PlacementOrientation orient)
 {
-  if (orient_name == "N" || orient_name == "S" || orient_name == "FN" || orient_name == "FS") {
+  if (orient == PlacementOrientation::kN || orient == PlacementOrientation::kS || orient == PlacementOrientation::kFN
+      || orient == PlacementOrientation::kFS) {
     return cell_master.get_width();
   }
   return cell_master.get_height();

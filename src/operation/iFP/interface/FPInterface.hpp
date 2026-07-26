@@ -17,6 +17,7 @@
 #pragma once
 
 #include <any>
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -24,6 +25,8 @@
 
 namespace idb {
 class IdbSpecialWire;
+enum class IdbConnectDirection : uint8_t;
+enum class IdbOrient : uint8_t;
 }
 
 #endif
@@ -31,6 +34,8 @@ class IdbSpecialWire;
 namespace ifp {
 
 class PGSegment;
+enum class IOPinDirection;
+enum class PlacementOrientation;
 
 #define FPI (ifp::FPInterface::getInst())
 
@@ -57,6 +62,11 @@ class FPInterface
 #if 1  // input
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
+  void wrapLayoutConfig(std::map<std::string, std::any>& config_map);
+  void wrapIOPinConfig(std::map<std::string, std::any>& config_map);
+  void wrapPGConnectConfig(std::map<std::string, std::any>& config_map);
+  void wrapPDNMeshConfig(std::map<std::string, std::any>& config_map);
+  void wrapPhyInsertConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
   void wrapDBInfo();
   void wrapMicronDBU();
@@ -73,29 +83,26 @@ class FPInterface
   void wrapPGNetList();
   void wrapPlacementBlockageRectList();
   void wrapRoutingBlockageList();
+  PlacementOrientation wrapPlacementOrientation(idb::IdbOrient idb_orient);
+  IOPinDirection wrapIOPinDirection(idb::IdbConnectDirection idb_direction);
 #endif
 
 #if 1  // output
   void output();
-  void writeFloorplan();
-  void writeDie();
-  void writeCore();
-  void writeRowList();
-  void writeTrackList();
-  void writeIO();
-  void writeIOPinList();
-  void writeIOInstancePlacement();
-  void writeNewInstanceList();
-  void writeMacro();
-  void writeMacroPlacement();
-  void writeInstanceHalo();
-  void writeNewBlockageList();
-  void writeNewHaloList();
-  void writePDN();
-  void writePGNetList();
-  void writePGSegmentList();
-  void writePGVia(idb::IdbSpecialWire* idb_special_wire, PGSegment& pg_segment);
-  void writePhy();
+  void outputFloorplan();
+  void outputDie();
+  void outputCore();
+  void outputRowList();
+  void outputTrackList();
+  void outputIOPinList();
+  void outputIOInstancePlacement();
+  void outputNewInstanceList();
+  void outputMacroPlacement();
+  void outputPGNetList();
+  void outputPGSegmentList();
+  void outputPGVia(idb::IdbSpecialWire* idb_special_wire, PGSegment& pg_segment);
+  idb::IdbOrient unwrapPlacementOrientation(PlacementOrientation orient);
+  idb::IdbConnectDirection unwrapIOPinDirection(IOPinDirection io_pin_direction);
 #endif
 
 #endif

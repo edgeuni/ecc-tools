@@ -15,6 +15,7 @@
 // ***************************************************************************************
 #pragma once
 
+#include "PlacementOrientation.hpp"
 #include "PlanarRect.hpp"
 
 namespace ifp {
@@ -28,18 +29,17 @@ class Row : public PlanarRect
   std::string& get_name() { return _name; }
   std::string& get_site_name() { return _site_name; }
   int32_t get_y() const { return _y; }
-  std::string& get_orient_name() { return _orient_name; }
+  PlacementOrientation get_orient() const { return _orient; }
 
   // const getter
   const std::string& get_name() const { return _name; }
   const std::string& get_site_name() const { return _site_name; }
-  const std::string& get_orient_name() const { return _orient_name; }
 
   // setter
   void set_name(std::string name) { _name = name; }
   void set_site_name(std::string site_name) { _site_name = site_name; }
   void set_y(int32_t y) { _y = y; }
-  void set_orient_name(std::string orient_name) { _orient_name = orient_name; }
+  void set_orient(PlacementOrientation orient) { _orient = orient; }
 
   // function
 
@@ -47,7 +47,7 @@ class Row : public PlanarRect
   std::string _name;
   std::string _site_name;
   int32_t _y = -1;
-  std::string _orient_name;
+  PlacementOrientation _orient = PlacementOrientation::kNone;
 };
 
 }  // namespace ifp
