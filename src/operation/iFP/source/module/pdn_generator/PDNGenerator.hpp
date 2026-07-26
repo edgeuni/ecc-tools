@@ -50,45 +50,23 @@ class PDNGenerator
   PDNGenerator& operator=(PDNGenerator&& other) = delete;
   // function
 
-#if 1  // generate
-
   void generatePDN(PGModel& pg_model);
 
-#endif
-
-#if 1  // build net
-
   void buildIOPin();
-  PGNet& getPGNet(std::string net_name, PGNetType net_type);
   void buildGlobalConnect();
-
-#endif
-
-#if 1  // build grid
+  PGNet& getPGNet(std::string net_name);
 
   void buildGrid();
   RoutingLayer* findRoutingLayer(std::string layer_name);
-  void addLineSegmentWithBlockage(std::string net_name, std::string layer_name, PGSegmentType segment_type, int32_t width,
-                                  int32_t start_x, int32_t start_y, int32_t end_x, int32_t end_y);
   void addLineSegment(std::string net_name, std::string layer_name, PGSegmentType segment_type, int32_t width, int32_t start_x,
                       int32_t start_y, int32_t end_x, int32_t end_y);
 
-#endif
-
-#if 1  // build stripe
-
   void buildStripe();
-
-#endif
-
-#if 1  // build via
 
   void buildLayerConnect(PGModel& pg_model);
   PlanarRect getOverlapRect(PlanarRect first_rect, PlanarRect second_rect);
   void addViaSegment(PGModel& pg_model, std::string net_name, std::string bottom_layer_name, std::string top_layer_name,
                      std::string cut_layer_name, int32_t x, int32_t y, int32_t width, int32_t height);
-
-#endif
 
 };
 

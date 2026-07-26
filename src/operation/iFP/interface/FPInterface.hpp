@@ -62,29 +62,18 @@ class FPInterface
 #if 1  // input
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
-  void wrapLayoutConfig(std::map<std::string, std::any>& config_map);
-  void wrapIOPinConfig(std::map<std::string, std::any>& config_map);
-  void wrapPGConnectConfig(std::map<std::string, std::any>& config_map);
-  void wrapPDNMeshConfig(std::map<std::string, std::any>& config_map);
-  void wrapPhyInsertConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
   void wrapDBInfo();
   void wrapMicronDBU();
   void wrapManufactureGrid();
   void wrapCellArea();
-  void wrapFloorplan();
   void wrapSiteMap();
   void wrapCellMasterMap();
   void wrapRoutingLayerList();
-  void wrapRowList();
   void wrapInstanceList();
+  PlacementOrientation wrapPlacementOrientation(idb::IdbOrient idb_orient);
   void wrapNetList();
   void wrapIOPinList();
-  void wrapPGNetList();
-  void wrapPlacementBlockageRectList();
-  void wrapRoutingBlockageList();
-  PlacementOrientation wrapPlacementOrientation(idb::IdbOrient idb_orient);
-  IOPinDirection wrapIOPinDirection(idb::IdbConnectDirection idb_direction);
 #endif
 
 #if 1  // output
@@ -93,16 +82,16 @@ class FPInterface
   void outputDie();
   void outputCore();
   void outputRowList();
+  idb::IdbOrient unwrapPlacementOrientation(PlacementOrientation orient);
   void outputTrackList();
+  void outputPGNetList();
+  idb::IdbConnectDirection unwrapIOPinDirection(IOPinDirection io_pin_direction);
   void outputIOPinList();
   void outputIOInstancePlacement();
-  void outputNewInstanceList();
   void outputMacroPlacement();
-  void outputPGNetList();
+  void outputNewInstanceList();
   void outputPGSegmentList();
   void outputPGVia(idb::IdbSpecialWire* idb_special_wire, PGSegment& pg_segment);
-  idb::IdbOrient unwrapPlacementOrientation(PlacementOrientation orient);
-  idb::IdbConnectDirection unwrapIOPinDirection(IOPinDirection io_pin_direction);
 #endif
 
 #endif

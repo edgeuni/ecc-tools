@@ -56,11 +56,10 @@ class DataManager
 #if 1  // build
   void buildConfig();
   void buildDatabase();
-  void buildPGIOPinList();
   void buildInstanceNameToIdxMap();
   void buildRoutingLayerNameToIdxMap();
   void buildIOPinNameToIdxMap();
-  void buildPGNetNameToIdxMap();
+  void buildPGIOPinList();
 #endif
 
 #if 1  // exhibit

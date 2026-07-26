@@ -18,7 +18,6 @@
 
 #include "DataManager.hpp"
 #include "DieBuilder.hpp"
-#include "IdbBlockages.h"
 #include "idm.h"
 #include "IOPlacer.hpp"
 #include "Logger.hpp"
@@ -147,64 +146,42 @@ void FPInterface::input(std::map<std::string, std::any>& config_map)
 
 void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
 {
-  Config& config = FPDM.getConfig();
+  /////////////////////////////////////////////
+  FPDM.getConfig().temp_directory_path = FPUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./fp_temp_directory");
+  FPDM.getConfig().thread_number = FPUTIL.getConfigValue<int32_t>(config_map, "-thread_number", 128);
+  omp_set_num_threads(std::max(FPDM.getConfig().thread_number, 1));
 
-  config.temp_directory_path = FPUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./fp_temp_directory");
-  config.thread_number = FPUTIL.getConfigValue<int32_t>(config_map, "-thread_number", 128);
-  omp_set_num_threads(std::max(config.thread_number, 1));
-
-  wrapLayoutConfig(config_map);
-  wrapIOPinConfig(config_map);
-  wrapPGConnectConfig(config_map);
-  wrapPDNMeshConfig(config_map);
-  wrapPhyInsertConfig(config_map);
-}
-
-void FPInterface::wrapLayoutConfig(std::map<std::string, std::any>& config_map)
-{
-  Config& config = FPDM.getConfig();
-
-#if 1  // DieBuilder
-
+  FPDM.getConfig().layout_site_name = "";
+  FPDM.getConfig().layout_xy_ratio = -1.0;
+  FPDM.getConfig().layout_core_util = -1.0;
+  FPDM.getConfig().layout_margin_left_micron = -1.0;
+  FPDM.getConfig().layout_margin_right_micron = -1.0;
+  FPDM.getConfig().layout_margin_top_micron = -1.0;
+  FPDM.getConfig().layout_margin_bottom_micron = -1.0;
   std::vector<std::string> layout_list = FPUTIL.getConfigValue<std::vector<std::string>>(config_map, "-layout", {});
   if (layout_list.size() == 7) {
-    config.layout_site_name = layout_list[0];
-    config.layout_xy_ratio = std::stod(layout_list[1]);
-    config.layout_core_util = std::stod(layout_list[2]);
-    config.layout_margin_left_micron = std::stod(layout_list[3]);
-    config.layout_margin_right_micron = std::stod(layout_list[4]);
-    config.layout_margin_top_micron = std::stod(layout_list[5]);
-    config.layout_margin_bottom_micron = std::stod(layout_list[6]);
+    FPDM.getConfig().layout_site_name = layout_list[0];
+    FPDM.getConfig().layout_xy_ratio = std::stod(layout_list[1]);
+    FPDM.getConfig().layout_core_util = std::stod(layout_list[2]);
+    FPDM.getConfig().layout_margin_left_micron = std::stod(layout_list[3]);
+    FPDM.getConfig().layout_margin_right_micron = std::stod(layout_list[4]);
+    FPDM.getConfig().layout_margin_top_micron = std::stod(layout_list[5]);
+    FPDM.getConfig().layout_margin_bottom_micron = std::stod(layout_list[6]);
   }
 
-#endif
-}
-
-void FPInterface::wrapIOPinConfig(std::map<std::string, std::any>& config_map)
-{
-  Config& config = FPDM.getConfig();
-
-#if 1  // IOPlacer
-
+  FPDM.getConfig().io_pin_layer_name_list.clear();
+  FPDM.getConfig().io_pin_width_micron = -1.0;
+  FPDM.getConfig().io_pin_depth_micron = -1.0;
   std::vector<std::vector<std::string>> io_pin_list
       = FPUTIL.getConfigValue<std::vector<std::vector<std::string>>>(config_map, "-io_pin", {});
   if (io_pin_list.size() == 3 && !io_pin_list[0].empty() && io_pin_list[1].size() == 1 && io_pin_list[2].size() == 1) {
-    config.io_pin_layer_name_list = io_pin_list[0];
-    config.io_pin_width_micron = std::stod(io_pin_list[1][0]);
-    config.io_pin_depth_micron = std::stod(io_pin_list[2][0]);
+    FPDM.getConfig().io_pin_layer_name_list = io_pin_list[0];
+    FPDM.getConfig().io_pin_width_micron = std::stod(io_pin_list[1][0]);
+    FPDM.getConfig().io_pin_depth_micron = std::stod(io_pin_list[2][0]);
   }
 
-#endif
-}
-
-void FPInterface::wrapPGConnectConfig(std::map<std::string, std::any>& config_map)
-{
-  Config& config = FPDM.getConfig();
-
-#if 1  // PDNGenerator
-
-  config.pg_io_pin_list.clear();
-  config.pg_global_connect_list.clear();
+  FPDM.getConfig().pg_io_pin_list.clear();
+  FPDM.getConfig().pg_global_connect_list.clear();
   std::vector<std::vector<std::vector<std::string>>> pg_connect_list
       = FPUTIL.getConfigValue<std::vector<std::vector<std::vector<std::string>>>>(config_map, "-pg_connect", {});
   for (std::vector<std::vector<std::string>>& pg_connect : pg_connect_list) {
@@ -224,30 +201,21 @@ void FPInterface::wrapPGConnectConfig(std::map<std::string, std::any>& config_ma
       pg_io_pin.set_net_name(pin_name_list[0]);
       pg_io_pin.set_direction(IOPinDirection::kInOut);
       pg_io_pin.set_net_type(net_type);
-      config.pg_io_pin_list.push_back(pg_io_pin);
+      FPDM.getConfig().pg_io_pin_list.push_back(pg_io_pin);
 
       for (int32_t pin_idx = 1; pin_idx < static_cast<int32_t>(pin_name_list.size()); pin_idx++) {
         PGGlobalConnect pg_global_connect;
         pg_global_connect.set_net_name(pin_name_list[0]);
         pg_global_connect.set_instance_pin_name(pin_name_list[pin_idx]);
         pg_global_connect.set_net_type(net_type);
-        config.pg_global_connect_list.push_back(pg_global_connect);
+        FPDM.getConfig().pg_global_connect_list.push_back(pg_global_connect);
       }
     }
   }
 
-#endif
-}
-
-void FPInterface::wrapPDNMeshConfig(std::map<std::string, std::any>& config_map)
-{
-  Config& config = FPDM.getConfig();
-
-#if 1  // PDNGenerator
-
-  config.pg_grid_list.clear();
-  config.pg_stripe_list.clear();
-  config.pg_layer_pair_list.clear();
+  FPDM.getConfig().pg_grid_list.clear();
+  FPDM.getConfig().pg_stripe_list.clear();
+  FPDM.getConfig().pg_layer_pair_list.clear();
   std::vector<std::vector<std::vector<std::vector<std::string>>>> pdn_mesh_list
       = FPUTIL.getConfigValue<std::vector<std::vector<std::vector<std::vector<std::string>>>>>(config_map, "-pdn_mesh", {});
   for (std::vector<std::vector<std::vector<std::string>>>& pdn_mesh : pdn_mesh_list) {
@@ -266,7 +234,7 @@ void FPInterface::wrapPDNMeshConfig(std::map<std::string, std::any>& config_map)
         pg_grid.set_layer_name(layer_setting[0]);
         pg_grid.set_width_micron(std::stod(layer_setting[1]));
         pg_grid.set_offset_micron(0.0);
-        config.pg_grid_list.push_back(pg_grid);
+        FPDM.getConfig().pg_grid_list.push_back(pg_grid);
       } else if (layer_setting.size() == 4) {
         PGStripe pg_stripe;
         pg_stripe.set_power_net_name(power_net_name);
@@ -275,7 +243,7 @@ void FPInterface::wrapPDNMeshConfig(std::map<std::string, std::any>& config_map)
         pg_stripe.set_width_micron(std::stod(layer_setting[1]));
         pg_stripe.set_pitch_micron(std::stod(layer_setting[2]));
         pg_stripe.set_offset_micron(std::stod(layer_setting[3]));
-        config.pg_stripe_list.push_back(pg_stripe);
+        FPDM.getConfig().pg_stripe_list.push_back(pg_stripe);
       } else {
         continue;
       }
@@ -284,30 +252,23 @@ void FPInterface::wrapPDNMeshConfig(std::map<std::string, std::any>& config_map)
         PGLayerPair pg_layer_pair;
         pg_layer_pair.set_first_layer_name(previous_layer_name);
         pg_layer_pair.set_second_layer_name(layer_setting[0]);
-        config.pg_layer_pair_list.push_back(pg_layer_pair);
+        FPDM.getConfig().pg_layer_pair_list.push_back(pg_layer_pair);
       }
       previous_layer_name = layer_setting[0];
     }
   }
 
-#endif
-}
-
-void FPInterface::wrapPhyInsertConfig(std::map<std::string, std::any>& config_map)
-{
-  Config& config = FPDM.getConfig();
-
-#if 1  // PhyPlacer
-
+  FPDM.getConfig().tapcell_name = "";
+  FPDM.getConfig().tap_distance_micron = -1.0;
+  FPDM.getConfig().endcap_name = "";
   std::vector<std::vector<std::string>> phy_insert_list
       = FPUTIL.getConfigValue<std::vector<std::vector<std::string>>>(config_map, "-phy_insert", {});
   if (phy_insert_list.size() == 2 && phy_insert_list[0].size() == 2 && phy_insert_list[1].size() == 1) {
-    config.tapcell_name = phy_insert_list[0][0];
-    config.tap_distance_micron = std::stod(phy_insert_list[0][1]);
-    config.endcap_name = phy_insert_list[1][0];
+    FPDM.getConfig().tapcell_name = phy_insert_list[0][0];
+    FPDM.getConfig().tap_distance_micron = std::stod(phy_insert_list[0][1]);
+    FPDM.getConfig().endcap_name = phy_insert_list[1][0];
   }
-
-#endif
+  /////////////////////////////////////////////
 }
 
 void FPInterface::wrapDatabase()
@@ -316,16 +277,12 @@ void FPInterface::wrapDatabase()
   wrapMicronDBU();
   wrapManufactureGrid();
   wrapCellArea();
-  wrapFloorplan();
+  wrapSiteMap();
   wrapCellMasterMap();
   wrapRoutingLayerList();
-  wrapRowList();
   wrapInstanceList();
   wrapNetList();
   wrapIOPinList();
-  wrapPGNetList();
-  wrapPlacementBlockageRectList();
-  wrapRoutingBlockageList();
 }
 
 void FPInterface::wrapDBInfo()
@@ -346,23 +303,6 @@ void FPInterface::wrapManufactureGrid()
 void FPInterface::wrapCellArea()
 {
   FPDM.getDatabase().set_cell_area(dmInst->instanceArea(idb::IdbInstanceType::kMax));
-}
-
-void FPInterface::wrapFloorplan()
-{
-  idb::IdbLayout* idb_layout = dmInst->get_idb_layout();
-  idb::IdbDie* idb_die = idb_layout->get_die();
-  idb::IdbCore* idb_core = idb_layout->get_core();
-
-  Die& die = FPDM.getDatabase().get_die();
-  die.set_rect(idb_die->get_llx(), idb_die->get_lly(), idb_die->get_urx(), idb_die->get_ury());
-
-  if (idb_core != nullptr && idb_core->get_bounding_box() != nullptr) {
-    Core& core = FPDM.getDatabase().get_core();
-    core.set_rect(idb_core->get_bounding_box()->get_low_x(), idb_core->get_bounding_box()->get_low_y(),
-                  idb_core->get_bounding_box()->get_high_x(), idb_core->get_bounding_box()->get_high_y());
-  }
-  wrapSiteMap();
 }
 
 void FPInterface::wrapSiteMap()
@@ -422,22 +362,6 @@ void FPInterface::wrapRoutingLayerList()
   }
 }
 
-void FPInterface::wrapRowList()
-{
-  std::vector<Row>& row_list = FPDM.getDatabase().get_row_list();
-  row_list.clear();
-  for (idb::IdbRow* idb_row : dmInst->get_idb_layout()->get_rows()->get_row_list()) {
-    Row row;
-    row.set_name(idb_row->get_name());
-    row.set_site_name(idb_row->get_site()->get_name());
-    row.set_y(idb_row->get_original_coordinate()->get_y());
-    row.set_orient(wrapPlacementOrientation(idb_row->get_orient()));
-    row.set_rect(idb_row->get_bounding_box()->get_low_x(), idb_row->get_bounding_box()->get_low_y(), idb_row->get_bounding_box()->get_high_x(),
-                 idb_row->get_bounding_box()->get_high_y());
-    row_list.push_back(row);
-  }
-}
-
 void FPInterface::wrapInstanceList()
 {
   std::vector<Instance>& instance_list = FPDM.getDatabase().get_instance_list();
@@ -459,13 +383,6 @@ void FPInterface::wrapInstanceList()
       instance.set_bounding_rect(idb_instance->get_bounding_box()->get_low_x(), idb_instance->get_bounding_box()->get_low_y(),
                                  idb_instance->get_bounding_box()->get_high_x(), idb_instance->get_bounding_box()->get_high_y());
     }
-    if (idb_instance->has_halo()) {
-      idb::IdbHalo* idb_halo = idb_instance->get_halo();
-      instance.set_halo_left(idb_halo->get_extend_lef());
-      instance.set_halo_right(idb_halo->get_extend_right());
-      instance.set_halo_bottom(idb_halo->get_extend_bottom());
-      instance.set_halo_top(idb_halo->get_extend_top());
-    }
     if (instance.get_macro() && instance.get_placed()) {
       for (idb::IdbPin* idb_pin : idb_instance->get_pin_list()->get_pin_list()) {
         idb_pin->set_bounding_box();
@@ -481,6 +398,30 @@ void FPInterface::wrapInstanceList()
       }
     }
     instance_list.push_back(instance);
+  }
+}
+
+PlacementOrientation FPInterface::wrapPlacementOrientation(idb::IdbOrient idb_orient)
+{
+  switch (idb_orient) {
+    case idb::IdbOrient::kN_R0:
+      return PlacementOrientation::kN;
+    case idb::IdbOrient::kW_R90:
+      return PlacementOrientation::kW;
+    case idb::IdbOrient::kS_R180:
+      return PlacementOrientation::kS;
+    case idb::IdbOrient::kE_R270:
+      return PlacementOrientation::kE;
+    case idb::IdbOrient::kFN_MY:
+      return PlacementOrientation::kFN;
+    case idb::IdbOrient::kFE_MY90:
+      return PlacementOrientation::kFE;
+    case idb::IdbOrient::kFS_MX:
+      return PlacementOrientation::kFS;
+    case idb::IdbOrient::kFW_MX90:
+      return PlacementOrientation::kFW;
+    default:
+      return PlacementOrientation::kNone;
   }
 }
 
@@ -551,121 +492,6 @@ void FPInterface::wrapIOPinList()
       }
     }
     io_pin_list.push_back(io_pin);
-  }
-}
-
-void FPInterface::wrapPGNetList()
-{
-  Database& database = FPDM.getDatabase();
-  std::vector<PGNet>& pg_net_list = database.get_pg_net_list();
-  std::vector<PGSegment>& pg_segment_list = database.get_pg_segment_list();
-  pg_net_list.clear();
-  pg_segment_list.clear();
-
-  for (idb::IdbSpecialNet* idb_special_net : dmInst->get_idb_design()->get_special_net_list()->get_net_list()) {
-    PGNet pg_net;
-    pg_net.set_name(idb_special_net->get_net_name());
-    if (idb_special_net->is_vdd()) {
-      pg_net.set_type(PGNetType::kPower);
-    } else if (idb_special_net->is_vss()) {
-      pg_net.set_type(PGNetType::kGround);
-    }
-    pg_net.set_instance_pin_name_list(idb_special_net->get_pin_string_list());
-    for (idb::IdbPin* idb_pin : idb_special_net->get_io_pin_list()->get_pin_list()) {
-      pg_net.add_io_pin(idb_pin->get_pin_name(), wrapIOPinDirection(idb_pin->get_term()->get_direction()));
-    }
-    pg_net_list.push_back(pg_net);
-
-    for (idb::IdbSpecialWire* idb_special_wire : idb_special_net->get_wire_list()->get_wire_list()) {
-      for (idb::IdbSpecialWireSegment* idb_segment : idb_special_wire->get_segment_list()) {
-        if (!idb_segment->is_line() || idb_segment->get_layer() == nullptr) {
-          continue;
-        }
-        PGSegment pg_segment;
-        pg_segment.set_net_name(idb_special_net->get_net_name());
-        pg_segment.set_layer_name(idb_segment->get_layer()->get_name());
-        pg_segment.set_type(idb_segment->is_follow_pin() ? PGSegmentType::kFollowPin : PGSegmentType::kStripe);
-        pg_segment.set_width(idb_segment->get_route_width());
-        pg_segment.set_start_coord(idb_segment->get_point_start()->get_x(), idb_segment->get_point_start()->get_y());
-        pg_segment.set_end_coord(idb_segment->get_point_second()->get_x(), idb_segment->get_point_second()->get_y());
-        pg_segment_list.push_back(pg_segment);
-      }
-    }
-  }
-}
-
-void FPInterface::wrapPlacementBlockageRectList()
-{
-  std::vector<PlanarRect>& placement_blockage_rect_list = FPDM.getDatabase().get_placement_blockage_rect_list();
-  placement_blockage_rect_list.clear();
-  for (idb::IdbBlockage* idb_blockage : dmInst->get_idb_design()->get_blockage_list()->get_blockage_list()) {
-    if (!idb_blockage->is_palcement_blockage()) {
-      continue;
-    }
-    for (idb::IdbRect* idb_rect : idb_blockage->get_rect_list()) {
-      placement_blockage_rect_list.emplace_back(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y());
-    }
-  }
-}
-
-void FPInterface::wrapRoutingBlockageList()
-{
-  std::vector<Blockage>& routing_blockage_list = FPDM.getDatabase().get_routing_blockage_list();
-  routing_blockage_list.clear();
-  for (idb::IdbBlockage* idb_blockage : dmInst->get_idb_design()->get_blockage_list()->get_blockage_list()) {
-    if (!idb_blockage->is_routing_blockage()) {
-      continue;
-    }
-    idb::IdbRoutingBlockage* idb_routing_blockage = dynamic_cast<idb::IdbRoutingBlockage*>(idb_blockage);
-    for (idb::IdbRect* idb_rect : idb_routing_blockage->get_rect_list()) {
-      Blockage blockage;
-      blockage.set_rect(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y());
-      blockage.set_layer_name_list({idb_routing_blockage->get_layer_name()});
-      blockage.set_except_pg_net(idb_routing_blockage->is_except_pgnet());
-      routing_blockage_list.push_back(blockage);
-    }
-  }
-}
-
-PlacementOrientation FPInterface::wrapPlacementOrientation(idb::IdbOrient idb_orient)
-{
-  switch (idb_orient) {
-    case idb::IdbOrient::kN_R0:
-      return PlacementOrientation::kN;
-    case idb::IdbOrient::kW_R90:
-      return PlacementOrientation::kW;
-    case idb::IdbOrient::kS_R180:
-      return PlacementOrientation::kS;
-    case idb::IdbOrient::kE_R270:
-      return PlacementOrientation::kE;
-    case idb::IdbOrient::kFN_MY:
-      return PlacementOrientation::kFN;
-    case idb::IdbOrient::kFE_MY90:
-      return PlacementOrientation::kFE;
-    case idb::IdbOrient::kFS_MX:
-      return PlacementOrientation::kFS;
-    case idb::IdbOrient::kFW_MX90:
-      return PlacementOrientation::kFW;
-    default:
-      return PlacementOrientation::kNone;
-  }
-}
-
-IOPinDirection FPInterface::wrapIOPinDirection(idb::IdbConnectDirection idb_direction)
-{
-  switch (idb_direction) {
-    case idb::IdbConnectDirection::kInput:
-      return IOPinDirection::kInput;
-    case idb::IdbConnectDirection::kOutput:
-      return IOPinDirection::kOutput;
-    case idb::IdbConnectDirection::kOutputTriState:
-      return IOPinDirection::kOutputTriState;
-    case idb::IdbConnectDirection::kInOut:
-      return IOPinDirection::kInOut;
-    case idb::IdbConnectDirection::kFeedThru:
-      return IOPinDirection::kFeedThru;
-    default:
-      return IOPinDirection::kNone;
   }
 }
 
@@ -740,6 +566,30 @@ void FPInterface::outputRowList()
   }
 }
 
+idb::IdbOrient FPInterface::unwrapPlacementOrientation(PlacementOrientation orient)
+{
+  switch (orient) {
+    case PlacementOrientation::kN:
+      return idb::IdbOrient::kN_R0;
+    case PlacementOrientation::kW:
+      return idb::IdbOrient::kW_R90;
+    case PlacementOrientation::kS:
+      return idb::IdbOrient::kS_R180;
+    case PlacementOrientation::kE:
+      return idb::IdbOrient::kE_R270;
+    case PlacementOrientation::kFN:
+      return idb::IdbOrient::kFN_MY;
+    case PlacementOrientation::kFE:
+      return idb::IdbOrient::kFE_MY90;
+    case PlacementOrientation::kFS:
+      return idb::IdbOrient::kFS_MX;
+    case PlacementOrientation::kFW:
+      return idb::IdbOrient::kFW_MX90;
+    default:
+      return idb::IdbOrient::kNone;
+  }
+}
+
 void FPInterface::outputTrackList()
 {
   idb::IdbLayout* idb_layout = dmInst->get_idb_layout();
@@ -761,6 +611,60 @@ void FPInterface::outputTrackList()
     y_track_grid->get_track()->set_pitch(track.get_y_pitch());
     y_track_grid->get_track()->set_start(track.get_y_offset());
     y_track_grid->set_track_number((idb_layout->get_die()->get_height() - track.get_y_offset()) / track.get_y_pitch());
+  }
+}
+
+void FPInterface::outputPGNetList()
+{
+  idb::IdbDesign* idb_design = dmInst->get_idb_design();
+  for (PGNet& pg_net : FPDM.getDatabase().get_pg_net_list()) {
+    idb::IdbConnectType connect_type = idb::IdbConnectType::kNone;
+    if (pg_net.get_type() == PGNetType::kPower) {
+      connect_type = idb::IdbConnectType::kPower;
+    } else if (pg_net.get_type() == PGNetType::kGround) {
+      connect_type = idb::IdbConnectType::kGround;
+    }
+    idb::IdbSpecialNet* idb_special_net = idb_design->createOrFindSpecialNet(pg_net.get_name(), connect_type);
+    for (std::string& instance_pin_name : pg_net.get_instance_pin_name_list()) {
+      if (std::find(idb_special_net->get_pin_string_list().begin(), idb_special_net->get_pin_string_list().end(), instance_pin_name)
+          == idb_special_net->get_pin_string_list().end()) {
+        idb_special_net->add_pin_string(instance_pin_name);
+      }
+    }
+    for (std::pair<const std::string, IOPinDirection>& pair : pg_net.get_io_pin_name_to_direction_map()) {
+      idb::IdbPin* idb_pin = idb_design->get_io_pin_list()->find_pin(pair.first);
+      if (idb_pin == nullptr) {
+        idb_pin = idb_design->createOrFindIoPin(pair.first);
+      }
+      idb_pin->set_as_io();
+      idb::IdbTerm* idb_term = idb_pin->get_term();
+      if (idb_term == nullptr) {
+        idb_term = idb_pin->set_term();
+      }
+      if (pair.second != IOPinDirection::kNone) {
+        idb_term->set_direction(unwrapIOPinDirection(pair.second));
+      }
+      idb_term->set_type(connect_type);
+      idb_design->connectPinToSpecialNet(idb_pin, idb_special_net);
+    }
+  }
+}
+
+idb::IdbConnectDirection FPInterface::unwrapIOPinDirection(IOPinDirection io_pin_direction)
+{
+  switch (io_pin_direction) {
+    case IOPinDirection::kInput:
+      return idb::IdbConnectDirection::kInput;
+    case IOPinDirection::kOutput:
+      return idb::IdbConnectDirection::kOutput;
+    case IOPinDirection::kOutputTriState:
+      return idb::IdbConnectDirection::kOutputTriState;
+    case IOPinDirection::kInOut:
+      return idb::IdbConnectDirection::kInOut;
+    case IOPinDirection::kFeedThru:
+      return idb::IdbConnectDirection::kFeedThru;
+    default:
+      return idb::IdbConnectDirection::kNone;
   }
 }
 
@@ -825,22 +729,6 @@ void FPInterface::outputIOInstancePlacement()
   }
 }
 
-void FPInterface::outputNewInstanceList()
-{
-  for (Instance& instance : FPDM.getDatabase().get_instance_list()) {
-    if (!instance.is_new_instance()) {
-      continue;
-    }
-    idb::IdbOrient orient = unwrapPlacementOrientation(instance.get_orient());
-    if (orient == idb::IdbOrient::kNone) {
-      orient = idb::IdbOrient::kN_R0;
-    }
-    dmInst->createInstance(instance.get_name(), instance.get_master_name(), instance.get_x(), instance.get_y(), orient, idb::IdbInstanceType::kDist,
-                           idb::IdbPlacementStatus::kFixed);
-    instance.set_new_instance(false);
-  }
-}
-
 void FPInterface::outputMacroPlacement()
 {
   idb::IdbDesign* idb_design = dmInst->get_idb_design();
@@ -857,39 +745,19 @@ void FPInterface::outputMacroPlacement()
   }
 }
 
-void FPInterface::outputPGNetList()
+void FPInterface::outputNewInstanceList()
 {
-  idb::IdbDesign* idb_design = dmInst->get_idb_design();
-  for (PGNet& pg_net : FPDM.getDatabase().get_pg_net_list()) {
-    idb::IdbConnectType connect_type = idb::IdbConnectType::kNone;
-    if (pg_net.get_type() == PGNetType::kPower) {
-      connect_type = idb::IdbConnectType::kPower;
-    } else if (pg_net.get_type() == PGNetType::kGround) {
-      connect_type = idb::IdbConnectType::kGround;
+  for (Instance& instance : FPDM.getDatabase().get_instance_list()) {
+    if (!instance.is_new_instance()) {
+      continue;
     }
-    idb::IdbSpecialNet* idb_special_net = idb_design->createOrFindSpecialNet(pg_net.get_name(), connect_type);
-    for (std::string& instance_pin_name : pg_net.get_instance_pin_name_list()) {
-      if (std::find(idb_special_net->get_pin_string_list().begin(), idb_special_net->get_pin_string_list().end(), instance_pin_name)
-          == idb_special_net->get_pin_string_list().end()) {
-        idb_special_net->add_pin_string(instance_pin_name);
-      }
+    idb::IdbOrient orient = unwrapPlacementOrientation(instance.get_orient());
+    if (orient == idb::IdbOrient::kNone) {
+      orient = idb::IdbOrient::kN_R0;
     }
-    for (std::pair<const std::string, IOPinDirection>& pair : pg_net.get_io_pin_name_to_direction_map()) {
-      idb::IdbPin* idb_pin = idb_design->get_io_pin_list()->find_pin(pair.first);
-      if (idb_pin == nullptr) {
-        idb_pin = idb_design->createOrFindIoPin(pair.first);
-      }
-      idb_pin->set_as_io();
-      idb::IdbTerm* idb_term = idb_pin->get_term();
-      if (idb_term == nullptr) {
-        idb_term = idb_pin->set_term();
-      }
-      if (pair.second != IOPinDirection::kNone) {
-        idb_term->set_direction(unwrapIOPinDirection(pair.second));
-      }
-      idb_term->set_type(connect_type);
-      idb_design->connectPinToSpecialNet(idb_pin, idb_special_net);
-    }
+    dmInst->createInstance(instance.get_name(), instance.get_master_name(), instance.get_x(), instance.get_y(), orient, idb::IdbInstanceType::kDist,
+                           idb::IdbPlacementStatus::kFixed);
+    instance.set_new_instance(false);
   }
 }
 
@@ -967,48 +835,6 @@ void FPInterface::outputPGVia(idb::IdbSpecialWire* idb_special_wire, PGSegment& 
     idb::IdbVia* idb_via_copy = idb_segment->copy_via(idb_via);
     idb_via_copy->set_coordinate(pg_segment.get_start_x(), pg_segment.get_start_y());
     idb_segment->set_bounding_box();
-  }
-}
-
-idb::IdbOrient FPInterface::unwrapPlacementOrientation(PlacementOrientation orient)
-{
-  switch (orient) {
-    case PlacementOrientation::kN:
-      return idb::IdbOrient::kN_R0;
-    case PlacementOrientation::kW:
-      return idb::IdbOrient::kW_R90;
-    case PlacementOrientation::kS:
-      return idb::IdbOrient::kS_R180;
-    case PlacementOrientation::kE:
-      return idb::IdbOrient::kE_R270;
-    case PlacementOrientation::kFN:
-      return idb::IdbOrient::kFN_MY;
-    case PlacementOrientation::kFE:
-      return idb::IdbOrient::kFE_MY90;
-    case PlacementOrientation::kFS:
-      return idb::IdbOrient::kFS_MX;
-    case PlacementOrientation::kFW:
-      return idb::IdbOrient::kFW_MX90;
-    default:
-      return idb::IdbOrient::kNone;
-  }
-}
-
-idb::IdbConnectDirection FPInterface::unwrapIOPinDirection(IOPinDirection io_pin_direction)
-{
-  switch (io_pin_direction) {
-    case IOPinDirection::kInput:
-      return idb::IdbConnectDirection::kInput;
-    case IOPinDirection::kOutput:
-      return idb::IdbConnectDirection::kOutput;
-    case IOPinDirection::kOutputTriState:
-      return idb::IdbConnectDirection::kOutputTriState;
-    case IOPinDirection::kInOut:
-      return idb::IdbConnectDirection::kInOut;
-    case IOPinDirection::kFeedThru:
-      return idb::IdbConnectDirection::kFeedThru;
-    default:
-      return idb::IdbConnectDirection::kNone;
   }
 }
 

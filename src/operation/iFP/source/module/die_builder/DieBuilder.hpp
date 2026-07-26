@@ -43,16 +43,13 @@ class DieBuilder
   DieBuilder& operator=(DieBuilder&& other) = delete;
   // function
 
-#if 1  // build
   void buildFloorplan();
-  void buildTrackList();
+  void buildAutoFloorplan();
   void buildDie(double die_lx, double die_ly, double die_ux, double die_uy);
   void buildCore(double core_lx, double core_ly, double core_ux, double core_uy, std::string site_name);
   void buildRowList();
-  void buildAutoFloorplan();
+  void buildTrackList();
   void buildTrack(std::string layer_name, int32_t x_offset, int32_t x_pitch, int32_t y_offset, int32_t y_pitch);
-#endif
-
 };
 
 }  // namespace ifp

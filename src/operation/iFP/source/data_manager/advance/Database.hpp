@@ -16,7 +16,6 @@
 // ***************************************************************************************
 #pragma once
 
-#include "Blockage.hpp"
 #include "CellMaster.hpp"
 #include "Core.hpp"
 #include "Die.hpp"
@@ -26,7 +25,6 @@
 #include "Net.hpp"
 #include "PGNet.hpp"
 #include "PGSegment.hpp"
-#include "PlanarRect.hpp"
 #include "Row.hpp"
 #include "RoutingLayer.hpp"
 #include "Site.hpp"
@@ -61,8 +59,6 @@ class Database
   std::map<std::string, int32_t>& get_pg_net_name_to_idx_map() { return _pg_net_name_to_idx_map; }
   std::vector<PGSegment>& get_pg_segment_list() { return _pg_segment_list; }
   std::vector<Row>& get_row_list() { return _row_list; }
-  std::vector<PlanarRect>& get_placement_blockage_rect_list() { return _placement_blockage_rect_list; }
-  std::vector<Blockage>& get_routing_blockage_list() { return _routing_blockage_list; }
   bool is_die_updated() const { return _die_updated; }
   bool is_core_updated() const { return _core_updated; }
   bool is_track_updated() const { return _track_updated; }
@@ -86,9 +82,6 @@ class Database
   const std::map<std::string, int32_t>& get_pg_net_name_to_idx_map() const { return _pg_net_name_to_idx_map; }
   const std::vector<PGSegment>& get_pg_segment_list() const { return _pg_segment_list; }
   const std::vector<Row>& get_row_list() const { return _row_list; }
-  const std::vector<PlanarRect>& get_placement_blockage_rect_list() const { return _placement_blockage_rect_list; }
-  const std::vector<Blockage>& get_routing_blockage_list() const { return _routing_blockage_list; }
-
   // setter
   void set_design_name(std::string design_name) { _design_name = design_name; }
   void set_micron_dbu(int32_t micron_dbu) { _micron_dbu = micron_dbu; }
@@ -123,11 +116,6 @@ class Database
   }
   void set_pg_segment_list(const std::vector<PGSegment>& pg_segment_list) { _pg_segment_list = pg_segment_list; }
   void set_row_list(const std::vector<Row>& row_list) { _row_list = row_list; }
-  void set_placement_blockage_rect_list(const std::vector<PlanarRect>& placement_blockage_rect_list)
-  {
-    _placement_blockage_rect_list = placement_blockage_rect_list;
-  }
-  void set_routing_blockage_list(const std::vector<Blockage>& routing_blockage_list) { _routing_blockage_list = routing_blockage_list; }
   void set_die_updated(bool die_updated) { _die_updated = die_updated; }
   void set_core_updated(bool core_updated) { _core_updated = core_updated; }
   void set_track_updated(bool track_updated) { _track_updated = track_updated; }
@@ -156,8 +144,6 @@ class Database
   std::map<std::string, int32_t> _pg_net_name_to_idx_map;
   std::vector<PGSegment> _pg_segment_list;
   std::vector<Row> _row_list;
-  std::vector<PlanarRect> _placement_blockage_rect_list;
-  std::vector<Blockage> _routing_blockage_list;
   bool _die_updated = false;
   bool _core_updated = false;
   bool _track_updated = false;

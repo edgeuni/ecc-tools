@@ -45,48 +45,27 @@ class MacroPlacer
   MacroPlacer& operator=(MacroPlacer&& other) = delete;
   // function
 
-#if 1  // 初始化
-
   MPModel initMPModel();
-
-#endif
-
-#if 1  // 设置参数
-
-  void setMPComParam(MPModel& mp_model);
-
-#endif
-
-#if 1  // 构建
 
   void buildModel(MPModel& mp_model);
   void buildNodeList(MPModel& mp_model);
   void buildNetList(MPModel& mp_model);
-  void buildBlockageRectList(MPModel& mp_model);
 
-#endif
-
-#if 1  // 优化
+  void setMPComParam(MPModel& mp_model);
 
   void optimize(MPModel& mp_model);
-  void setMPIterParam(MPModel& mp_model, int32_t iter, MPIterParam& mp_iter_param);
   void initializeNodeLocation(MPModel& mp_model);
   double calculateCost(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
   double calculateWirelength(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
   double calculateOverlap(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
   MPRect getNodeRect(const MPNode& mp_node);
-  double calculateBlockageOverlap(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
   double calculateOutOfBound(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
   double calculatePeriphery(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
   double calculateIODistance(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
-
-#endif
-
-#if 1  // 上传
+  void setMPIterParam(MPModel& mp_model, int32_t iter, MPIterParam& mp_iter_param);
 
   void uploadPlacementResult(MPModel& mp_model);
 
-#endif
 };
 
 }  // namespace ifp

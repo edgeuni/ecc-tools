@@ -107,27 +107,7 @@ void DataManager::buildDatabase()
   buildInstanceNameToIdxMap();
   buildRoutingLayerNameToIdxMap();
   buildIOPinNameToIdxMap();
-  buildPGNetNameToIdxMap();
   buildPGIOPinList();
-}
-
-void DataManager::buildPGIOPinList()
-{
-  std::vector<IOPin>& io_pin_list = _database.get_io_pin_list();
-  std::map<std::string, int32_t>& io_pin_name_to_idx_map = _database.get_io_pin_name_to_idx_map();
-  for (PGIOPin& pg_io_pin : _config.pg_io_pin_list) {
-    std::string& pin_name = pg_io_pin.get_pin_name();
-    if (io_pin_name_to_idx_map.find(pin_name) != io_pin_name_to_idx_map.end()) {
-      io_pin_list[io_pin_name_to_idx_map[pin_name]].set_special_net(true);
-      continue;
-    }
-
-    IOPin io_pin;
-    io_pin.set_name(pin_name);
-    io_pin.set_special_net(true);
-    io_pin_list.push_back(io_pin);
-    io_pin_name_to_idx_map[pin_name] = static_cast<int32_t>(io_pin_list.size()) - 1;
-  }
 }
 
 void DataManager::buildInstanceNameToIdxMap()
@@ -157,12 +137,22 @@ void DataManager::buildIOPinNameToIdxMap()
   }
 }
 
-void DataManager::buildPGNetNameToIdxMap()
+void DataManager::buildPGIOPinList()
 {
-  std::map<std::string, int32_t>& pg_net_name_to_idx_map = _database.get_pg_net_name_to_idx_map();
-  pg_net_name_to_idx_map.clear();
-  for (int32_t pg_net_idx = 0; pg_net_idx < static_cast<int32_t>(_database.get_pg_net_list().size()); pg_net_idx++) {
-    pg_net_name_to_idx_map[_database.get_pg_net_list()[pg_net_idx].get_name()] = pg_net_idx;
+  std::vector<IOPin>& io_pin_list = _database.get_io_pin_list();
+  std::map<std::string, int32_t>& io_pin_name_to_idx_map = _database.get_io_pin_name_to_idx_map();
+  for (PGIOPin& pg_io_pin : _config.pg_io_pin_list) {
+    std::string& pin_name = pg_io_pin.get_pin_name();
+    if (io_pin_name_to_idx_map.find(pin_name) != io_pin_name_to_idx_map.end()) {
+      io_pin_list[io_pin_name_to_idx_map[pin_name]].set_special_net(true);
+      continue;
+    }
+
+    IOPin io_pin;
+    io_pin.set_name(pin_name);
+    io_pin.set_special_net(true);
+    io_pin_list.push_back(io_pin);
+    io_pin_name_to_idx_map[pin_name] = static_cast<int32_t>(io_pin_list.size()) - 1;
   }
 }
 

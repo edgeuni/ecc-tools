@@ -46,8 +46,6 @@ class IOPlacer
   IOPlacer& operator=(IOPlacer&& other) = delete;
   // function
 
-#if 1  // place IO pin
-
   void placeIOPin();
   void autoPlacePins(std::vector<std::string>& layer_name_list, int32_t width, int32_t depth);
   int32_t getTrackPitch(std::string layer_name);
@@ -61,7 +59,6 @@ class IOPlacer
   void syncPinLocation(IOPin& io_pin, IOPort& io_port, int32_t x, int32_t y);
   void updateNetIOPin(IOPin& io_pin);
 
-#endif
 };
 
 }  // namespace ifp

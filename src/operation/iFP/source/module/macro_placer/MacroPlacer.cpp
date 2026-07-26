@@ -63,41 +63,12 @@ void MacroPlacer::place()
   FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-#if 1  // 初始化
-
 MPModel MacroPlacer::initMPModel()
 {
   MPModel mp_model;
   buildModel(mp_model);
   return mp_model;
 }
-
-#endif
-
-#if 1  // 设置参数
-
-void MacroPlacer::setMPComParam(MPModel& mp_model)
-{
-  /**
-   * wirelength_weight, overlap_weight, out_of_bound_weight, periphery_weight, blockage_weight, io_weight, max_iter, cool_rate,
-   * initial_temperature
-   */
-  MPComParam mp_com_param(1.0, 0.05, 0.02, 0.05, 0.0, 0.0, -1, 0.96, 2000.0);
-  FPLOG.info(Loc::current(), "wirelength_weight: ", mp_com_param.get_wirelength_weight());
-  FPLOG.info(Loc::current(), "overlap_weight: ", mp_com_param.get_overlap_weight());
-  FPLOG.info(Loc::current(), "out_of_bound_weight: ", mp_com_param.get_out_of_bound_weight());
-  FPLOG.info(Loc::current(), "periphery_weight: ", mp_com_param.get_periphery_weight());
-  FPLOG.info(Loc::current(), "blockage_weight: ", mp_com_param.get_blockage_weight());
-  FPLOG.info(Loc::current(), "io_weight: ", mp_com_param.get_io_weight());
-  FPLOG.info(Loc::current(), "max_iter: ", mp_com_param.get_max_iter());
-  FPLOG.info(Loc::current(), "cool_rate: ", mp_com_param.get_cool_rate());
-  FPLOG.info(Loc::current(), "initial_temperature: ", mp_com_param.get_initial_temperature());
-  mp_model.set_mp_com_param(mp_com_param);
-}
-
-#endif
-
-#if 1  // 构建
 
 void MacroPlacer::buildModel(MPModel& mp_model)
 {
@@ -108,14 +79,11 @@ void MacroPlacer::buildModel(MPModel& mp_model)
 
   buildNodeList(mp_model);
   buildNetList(mp_model);
-  buildBlockageRectList(mp_model);
 }
 
 void MacroPlacer::buildNodeList(MPModel& mp_model)
 {
   Database& database = FPDM.getDatabase();
-  int32_t macro_halo = 0;
-
   for (Instance& instance : database.get_instance_list()) {
     if (!instance.get_macro()) {
       continue;
@@ -132,15 +100,6 @@ void MacroPlacer::buildNodeList(MPModel& mp_model)
     } else {
       mp_node.set_coord(mp_model.get_core_rect().get_lx(), mp_model.get_core_rect().get_ly());
     }
-
-    mp_node.set_halo_left(macro_halo);
-    mp_node.set_halo_right(macro_halo);
-    mp_node.set_halo_bottom(macro_halo);
-    mp_node.set_halo_top(macro_halo);
-    mp_node.set_halo_left(std::max(mp_node.get_halo_left(), instance.get_halo_left()));
-    mp_node.set_halo_right(std::max(mp_node.get_halo_right(), instance.get_halo_right()));
-    mp_node.set_halo_bottom(std::max(mp_node.get_halo_bottom(), instance.get_halo_bottom()));
-    mp_node.set_halo_top(std::max(mp_node.get_halo_top(), instance.get_halo_top()));
 
     int32_t node_idx = static_cast<int32_t>(mp_model.get_mp_node_list().size());
     mp_model.get_mp_node_list().push_back(mp_node);
@@ -203,18 +162,22 @@ void MacroPlacer::buildNetList(MPModel& mp_model)
   }
 }
 
-void MacroPlacer::buildBlockageRectList(MPModel& mp_model)
+void MacroPlacer::setMPComParam(MPModel& mp_model)
 {
-  Database& database = FPDM.getDatabase();
-  for (PlanarRect& placement_blockage_rect : database.get_placement_blockage_rect_list()) {
-    mp_model.get_blockage_rect_list().emplace_back(placement_blockage_rect.get_ll_x(), placement_blockage_rect.get_ll_y(),
-                                                    placement_blockage_rect.get_ur_x(), placement_blockage_rect.get_ur_y());
-  }
+  /**
+   * wirelength_weight, overlap_weight, out_of_bound_weight, periphery_weight, io_weight, max_iter, cool_rate, initial_temperature
+   */
+  MPComParam mp_com_param(1.0, 0.05, 0.02, 0.05, 0.0, -1, 0.96, 2000.0);
+  FPLOG.info(Loc::current(), "wirelength_weight: ", mp_com_param.get_wirelength_weight());
+  FPLOG.info(Loc::current(), "overlap_weight: ", mp_com_param.get_overlap_weight());
+  FPLOG.info(Loc::current(), "out_of_bound_weight: ", mp_com_param.get_out_of_bound_weight());
+  FPLOG.info(Loc::current(), "periphery_weight: ", mp_com_param.get_periphery_weight());
+  FPLOG.info(Loc::current(), "io_weight: ", mp_com_param.get_io_weight());
+  FPLOG.info(Loc::current(), "max_iter: ", mp_com_param.get_max_iter());
+  FPLOG.info(Loc::current(), "cool_rate: ", mp_com_param.get_cool_rate());
+  FPLOG.info(Loc::current(), "initial_temperature: ", mp_com_param.get_initial_temperature());
+  mp_model.set_mp_com_param(mp_com_param);
 }
-
-#endif
-
-#if 1  // 优化
 
 void MacroPlacer::optimize(MPModel& mp_model)
 {
@@ -224,7 +187,7 @@ void MacroPlacer::optimize(MPModel& mp_model)
   std::vector<MPNode> best_node_list = current_node_list;
   double current_cost = calculateCost(mp_model, current_node_list);
   double best_cost = current_cost;
-  double current_conflict = calculateOverlap(mp_model, current_node_list) + calculateBlockageOverlap(mp_model, current_node_list);
+  double current_conflict = calculateOverlap(mp_model, current_node_list);
   double best_conflict = current_conflict;
 
   MPComParam& mp_com_param = mp_model.get_mp_com_param();
@@ -267,16 +230,16 @@ void MacroPlacer::optimize(MPModel& mp_model)
 
     for (int32_t node_idx : mp_model.get_movable_node_idx_list()) {
       MPNode& mp_node = candidate_node_list[node_idx];
-      int32_t min_x = mp_model.get_core_rect().get_lx() + mp_node.get_halo_left();
-      int32_t min_y = mp_model.get_core_rect().get_ly() + mp_node.get_halo_bottom();
-      int32_t max_x = mp_model.get_core_rect().get_ux() - mp_node.get_width() - mp_node.get_halo_right();
-      int32_t max_y = mp_model.get_core_rect().get_uy() - mp_node.get_height() - mp_node.get_halo_top();
+      int32_t min_x = mp_model.get_core_rect().get_lx();
+      int32_t min_y = mp_model.get_core_rect().get_ly();
+      int32_t max_x = mp_model.get_core_rect().get_ux() - mp_node.get_width();
+      int32_t max_y = mp_model.get_core_rect().get_uy() - mp_node.get_height();
       mp_node.set_x(std::clamp(mp_node.get_x(), min_x, std::max(min_x, max_x)));
       mp_node.set_y(std::clamp(mp_node.get_y(), min_y, std::max(min_y, max_y)));
     }
 
     double candidate_cost = calculateCost(mp_model, candidate_node_list);
-    double candidate_conflict = calculateOverlap(mp_model, candidate_node_list) + calculateBlockageOverlap(mp_model, candidate_node_list);
+    double candidate_conflict = calculateOverlap(mp_model, candidate_node_list);
     double cost_delta = candidate_cost - current_cost;
     bool better_conflict = candidate_conflict < current_conflict;
     bool same_conflict = std::abs(candidate_conflict - current_conflict) <= std::numeric_limits<double>::epsilon();
@@ -297,13 +260,6 @@ void MacroPlacer::optimize(MPModel& mp_model)
   mp_model.set_mp_node_list(best_node_list);
 }
 
-void MacroPlacer::setMPIterParam(MPModel& mp_model, int32_t iter, MPIterParam& mp_iter_param)
-{
-  mp_model.set_iter(iter);
-  FPLOG.info(Loc::current(), "temperature: ", mp_iter_param.get_temperature());
-  mp_model.set_mp_iter_param(mp_iter_param);
-}
-
 void MacroPlacer::initializeNodeLocation(MPModel& mp_model)
 {
   int32_t next_x = mp_model.get_core_rect().get_lx();
@@ -314,14 +270,14 @@ void MacroPlacer::initializeNodeLocation(MPModel& mp_model)
     if (mp_node.get_placed()) {
       continue;
     }
-    int32_t node_width = mp_node.get_width() + mp_node.get_halo_left() + mp_node.get_halo_right();
-    int32_t node_height = mp_node.get_height() + mp_node.get_halo_bottom() + mp_node.get_halo_top();
+    int32_t node_width = mp_node.get_width();
+    int32_t node_height = mp_node.get_height();
     if (next_x + node_width > mp_model.get_core_rect().get_ux()) {
       next_x = mp_model.get_core_rect().get_lx();
       next_y += row_height;
       row_height = 0;
     }
-    mp_node.set_coord(next_x + mp_node.get_halo_left(), next_y + mp_node.get_halo_bottom());
+    mp_node.set_coord(next_x, next_y);
     next_x += node_width;
     row_height = std::max(row_height, node_height);
   }
@@ -334,7 +290,6 @@ double MacroPlacer::calculateCost(const MPModel& mp_model, const std::vector<MPN
          + mp_com_param.get_overlap_weight() * calculateOverlap(mp_model, mp_node_list)
          + mp_com_param.get_out_of_bound_weight() * calculateOutOfBound(mp_model, mp_node_list)
          + mp_com_param.get_periphery_weight() * calculatePeriphery(mp_model, mp_node_list)
-         + mp_com_param.get_blockage_weight() * calculateBlockageOverlap(mp_model, mp_node_list)
          + mp_com_param.get_io_weight() * calculateIODistance(mp_model, mp_node_list);
 }
 
@@ -383,25 +338,7 @@ double MacroPlacer::calculateOverlap(const MPModel& mp_model, const std::vector<
 
 MPRect MacroPlacer::getNodeRect(const MPNode& mp_node)
 {
-  return MPRect(mp_node.get_x() - mp_node.get_halo_left(), mp_node.get_y() - mp_node.get_halo_bottom(),
-                mp_node.get_x() + mp_node.get_width() + mp_node.get_halo_right(),
-                mp_node.get_y() + mp_node.get_height() + mp_node.get_halo_top());
-}
-
-double MacroPlacer::calculateBlockageOverlap(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list)
-{
-  double overlap = 0.0;
-  double core_area = std::max<int64_t>(1, static_cast<int64_t>(mp_model.get_core_rect().get_width()) * mp_model.get_core_rect().get_height());
-  for (const MPNode& mp_node : mp_node_list) {
-    if (mp_node.get_fixed()) {
-      continue;
-    }
-    MPRect node_rect = getNodeRect(mp_node);
-    for (const MPRect& blockage_rect : mp_model.get_blockage_rect_list()) {
-      overlap += node_rect.get_overlap_area(blockage_rect);
-    }
-  }
-  return overlap / core_area;
+  return MPRect(mp_node.get_x(), mp_node.get_y(), mp_node.get_x() + mp_node.get_width(), mp_node.get_y() + mp_node.get_height());
 }
 
 double MacroPlacer::calculateOutOfBound(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list)
@@ -464,9 +401,12 @@ double MacroPlacer::calculateIODistance(const MPModel& mp_model, const std::vect
   return io_distance / scale;
 }
 
-#endif
-
-#if 1  // 上传
+void MacroPlacer::setMPIterParam(MPModel& mp_model, int32_t iter, MPIterParam& mp_iter_param)
+{
+  mp_model.set_iter(iter);
+  FPLOG.info(Loc::current(), "temperature: ", mp_iter_param.get_temperature());
+  mp_model.set_mp_iter_param(mp_iter_param);
+}
 
 void MacroPlacer::uploadPlacementResult(MPModel& mp_model)
 {
@@ -498,8 +438,6 @@ void MacroPlacer::uploadPlacementResult(MPModel& mp_model)
     instance.set_placement_updated(true);
   }
 }
-
-#endif
 
 // private
 

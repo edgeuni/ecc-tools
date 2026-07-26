@@ -35,10 +35,6 @@ class Instance
   int32_t get_y() const { return _y; }
   int32_t get_width() const { return _width; }
   int32_t get_height() const { return _height; }
-  int32_t get_halo_left() const { return _halo_left; }
-  int32_t get_halo_right() const { return _halo_right; }
-  int32_t get_halo_bottom() const { return _halo_bottom; }
-  int32_t get_halo_top() const { return _halo_top; }
   PlanarRect& get_bounding_rect() { return _bounding_rect; }
   std::vector<InstancePinShape>& get_pin_shape_list() { return _pin_shape_list; }
   bool get_macro() const { return _macro; }
@@ -67,10 +63,6 @@ class Instance
   }
   void set_width(int32_t width) { _width = width; }
   void set_height(int32_t height) { _height = height; }
-  void set_halo_left(int32_t halo_left) { _halo_left = halo_left; }
-  void set_halo_right(int32_t halo_right) { _halo_right = halo_right; }
-  void set_halo_bottom(int32_t halo_bottom) { _halo_bottom = halo_bottom; }
-  void set_halo_top(int32_t halo_top) { _halo_top = halo_top; }
   void set_bounding_rect(const PlanarRect& bounding_rect) { _bounding_rect = bounding_rect; }
   void set_bounding_rect(int32_t ll_x, int32_t ll_y, int32_t ur_x, int32_t ur_y)
   {
@@ -94,10 +86,6 @@ class Instance
   int32_t _y = -1;
   int32_t _width = -1;
   int32_t _height = -1;
-  int32_t _halo_left = 0;
-  int32_t _halo_right = 0;
-  int32_t _halo_bottom = 0;
-  int32_t _halo_top = 0;
   PlanarRect _bounding_rect;
   std::vector<InstancePinShape> _pin_shape_list;
   bool _macro = false;

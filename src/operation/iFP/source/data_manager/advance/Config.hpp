@@ -30,88 +30,44 @@ class Config
  public:
   Config() = default;
   ~Config() = default;
-
-#if 1  // FP
-
-  std::string temp_directory_path;
-  int32_t thread_number = -1;
-  std::string log_file_path;
-
-#endif
-
-#if 1  // DieBuilder
-
-  std::string layout_site_name;
-  double layout_xy_ratio = -1.0;
-  double layout_core_util = -1.0;
-  double layout_margin_left_micron = -1.0;
-  double layout_margin_right_micron = -1.0;
-  double layout_margin_top_micron = -1.0;
-  double layout_margin_bottom_micron = -1.0;
-
-#endif
-
-#if 1  // IOPlacer
-
-  std::vector<std::string> io_pin_layer_name_list;
-  double io_pin_width_micron = -1.0;
-  double io_pin_depth_micron = -1.0;
-
-#endif
-
-#if 1  // PDNGenerator
-
-  std::vector<PGIOPin> pg_io_pin_list;
-  std::vector<PGGlobalConnect> pg_global_connect_list;
-  std::vector<PGGrid> pg_grid_list;
-  std::vector<PGStripe> pg_stripe_list;
-  std::vector<PGLayerPair> pg_layer_pair_list;
-
-#endif
-
-#if 1  // PhyPlacer
-
-  std::string tapcell_name;
-  double tap_distance_micron = -1.0;
-  std::string endcap_name;
-
-#endif
-
-#if 1  // DataManager
-
-  std::string dm_temp_directory_path;
-
-#endif
-
-#if 1  // DieBuilder
-
-  std::string db_temp_directory_path;
-
-#endif
-
-#if 1  // IOPlacer
-
-  std::string ip_temp_directory_path;
-
-#endif
-
-#if 1  // MacroPlacer
-
-  std::string mp_temp_directory_path;
-
-#endif
-
-#if 1  // PDNGenerator
-
-  std::string pg_temp_directory_path;
-
-#endif
-
-#if 1  // PhyPlacer
-
-  std::string pp_temp_directory_path;
-
-#endif
+  /////////////////////////////////////////////
+  // **********        FP         ********** //
+  std::string temp_directory_path;                              // required
+  int32_t thread_number;                                        // optional
+  std::string layout_site_name;                                 // optional
+  double layout_xy_ratio;                                       // optional
+  double layout_core_util;                                      // optional
+  double layout_margin_left_micron;                             // optional
+  double layout_margin_right_micron;                            // optional
+  double layout_margin_top_micron;                              // optional
+  double layout_margin_bottom_micron;                           // optional
+  std::vector<std::string> io_pin_layer_name_list;              // optional
+  double io_pin_width_micron;                                   // optional
+  double io_pin_depth_micron;                                   // optional
+  std::vector<PGIOPin> pg_io_pin_list;                          // optional
+  std::vector<PGGlobalConnect> pg_global_connect_list;          // optional
+  std::vector<PGGrid> pg_grid_list;                             // optional
+  std::vector<PGStripe> pg_stripe_list;                         // optional
+  std::vector<PGLayerPair> pg_layer_pair_list;                  // optional
+  std::string tapcell_name;                                     // optional
+  double tap_distance_micron;                                   // optional
+  std::string endcap_name;                                      // optional
+  /////////////////////////////////////////////
+  // **********        FP         ********** //
+  std::string log_file_path;              // building
+  // **********    DataManager    ********** //
+  std::string dm_temp_directory_path;     // building
+  // **********     DieBuilder    ********** //
+  std::string db_temp_directory_path;     // building
+  // **********     IOPlacer      ********** //
+  std::string ip_temp_directory_path;     // building
+  // **********    MacroPlacer    ********** //
+  std::string mp_temp_directory_path;     // building
+  // **********   PDNGenerator    ********** //
+  std::string pg_temp_directory_path;     // building
+  // **********     PhyPlacer     ********** //
+  std::string pp_temp_directory_path;     // building
+  /////////////////////////////////////////////
 };
 
 }  // namespace ifp

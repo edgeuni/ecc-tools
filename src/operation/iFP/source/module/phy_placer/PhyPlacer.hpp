@@ -45,15 +45,13 @@ class PhyPlacer
   PhyPlacer& operator=(PhyPlacer&& other) = delete;
   // function
 
-#if 1  // place phy cell
   void placePhyCell(PPModel& pp_model);
   void adjustTapDistance(int32_t& inst_space);
   int32_t buildPPRegionList(PPModel& pp_model);
   void buildPPRegionInRow(PPModel& pp_model, Row& row, int32_t row_idx);
   int32_t insertPhyCell(PPModel& pp_model, int32_t inst_space, std::string tapcell_name, std::string endcap_name);
-  void addPhyCell(std::string instance_name, std::string cell_master_name, int32_t x_coord, int32_t y_coord, PlacementOrientation orient);
   int32_t getCellMasterWidthByOrient(CellMaster& cell_master, PlacementOrientation orient);
-#endif
+  void addPhyCell(std::string instance_name, std::string cell_master_name, int32_t x_coord, int32_t y_coord, PlacementOrientation orient);
 };
 
 }  // namespace ifp

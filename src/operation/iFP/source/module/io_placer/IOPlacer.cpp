@@ -60,8 +60,6 @@ void IOPlacer::place()
   FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-#if 1  // place IO pin
-
 void IOPlacer::placeIOPin()
 {
   Config& config = FPDM.getConfig();
@@ -253,8 +251,6 @@ void IOPlacer::updateNetIOPin(IOPin& io_pin)
     }
   }
 }
-
-#endif
 
 // private
 

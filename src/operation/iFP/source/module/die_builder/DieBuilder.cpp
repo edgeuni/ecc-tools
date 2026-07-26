@@ -61,8 +61,6 @@ void DieBuilder::build()
   FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-#if 1  // build
-
 void DieBuilder::buildFloorplan()
 {
   Config& config = FPDM.getConfig();
@@ -71,20 +69,18 @@ void DieBuilder::buildFloorplan()
   }
 }
 
-void DieBuilder::buildTrackList()
+void DieBuilder::buildAutoFloorplan()
 {
-  Database& database = FPDM.getDatabase();
-  database.get_new_track_list().clear();
-  for (RoutingLayer& routing_layer : database.get_routing_layer_list()) {
-    int32_t x_pitch = routing_layer.get_pitch_x() > 0 ? routing_layer.get_pitch_x() : routing_layer.get_prefer_track_pitch();
-    int32_t y_pitch = routing_layer.get_pitch_y() > 0 ? routing_layer.get_pitch_y() : routing_layer.get_prefer_track_pitch();
-    if (x_pitch <= 0 || y_pitch <= 0) {
-      continue;
-    }
+  Config& config = FPDM.getConfig();
+  double cell_area = FPDM.getDatabase().get_cell_area();
+  double core_area = cell_area / config.layout_core_util;
+  double core_height = std::sqrt(core_area / config.layout_xy_ratio);
+  double core_width = core_area / core_height;
 
-    int32_t offset = std::max(routing_layer.get_prefer_track_offset(), 0);
-    buildTrack(routing_layer.get_name(), offset, x_pitch, offset, y_pitch);
-  }
+  buildDie(0.0, 0.0, core_width + config.layout_margin_left_micron + config.layout_margin_right_micron,
+           core_height + config.layout_margin_bottom_micron + config.layout_margin_top_micron);
+  buildCore(config.layout_margin_left_micron, config.layout_margin_bottom_micron,
+            config.layout_margin_left_micron + core_width, config.layout_margin_bottom_micron + core_height, config.layout_site_name);
 }
 
 void DieBuilder::buildDie(double die_lx, double die_ly, double die_ux, double die_uy)
@@ -143,18 +139,20 @@ void DieBuilder::buildRowList()
   }
 }
 
-void DieBuilder::buildAutoFloorplan()
+void DieBuilder::buildTrackList()
 {
-  Config& config = FPDM.getConfig();
-  double cell_area = FPDM.getDatabase().get_cell_area();
-  double core_area = cell_area / config.layout_core_util;
-  double core_height = std::sqrt(core_area / config.layout_xy_ratio);
-  double core_width = core_area / core_height;
+  Database& database = FPDM.getDatabase();
+  database.get_new_track_list().clear();
+  for (RoutingLayer& routing_layer : database.get_routing_layer_list()) {
+    int32_t x_pitch = routing_layer.get_pitch_x() > 0 ? routing_layer.get_pitch_x() : routing_layer.get_prefer_track_pitch();
+    int32_t y_pitch = routing_layer.get_pitch_y() > 0 ? routing_layer.get_pitch_y() : routing_layer.get_prefer_track_pitch();
+    if (x_pitch <= 0 || y_pitch <= 0) {
+      continue;
+    }
 
-  buildDie(0.0, 0.0, core_width + config.layout_margin_left_micron + config.layout_margin_right_micron,
-           core_height + config.layout_margin_bottom_micron + config.layout_margin_top_micron);
-  buildCore(config.layout_margin_left_micron, config.layout_margin_bottom_micron,
-            config.layout_margin_left_micron + core_width, config.layout_margin_bottom_micron + core_height, config.layout_site_name);
+    int32_t offset = std::max(routing_layer.get_prefer_track_offset(), 0);
+    buildTrack(routing_layer.get_name(), offset, x_pitch, offset, y_pitch);
+  }
 }
 
 void DieBuilder::buildTrack(std::string layer_name, int32_t x_offset, int32_t x_pitch, int32_t y_offset, int32_t y_pitch)
@@ -168,8 +166,6 @@ void DieBuilder::buildTrack(std::string layer_name, int32_t x_offset, int32_t x_
   FPDM.getDatabase().get_new_track_list().push_back(track);
   FPDM.getDatabase().set_track_updated(true);
 }
-
-#endif
 
 // private
 
