@@ -1,37 +1,21 @@
-# iLVS: Layout Versus Schematic
+# iLVS: Layout Versus Netlist Checking
 
-## Background
+iLVS checks post-route layout-versus-netlist consistency after routing and
+DRC. The active implementation compares value-owned netlist and DEF views,
+checks routing and power connectivity, and writes RPT and JSON reports. The
+previous implementation is retained under `src/operation/refactor/iLVS` and
+is not part of the default build.
 
-iLVS is the post-route LVS operation in iEDA. It compares a reference
-Verilog-derived netlist snapshot with a routed DEF-derived snapshot after
-routing and DRC. Until IDB can retain both views concurrently, the flow uses
-three independent processes: one writes the netlist snapshot, one writes the
-DEF snapshot, and one reads both snapshots and reports LVS results.
+The active Tcl lifecycle is:
 
-## Software Structure
+```tcl
+init_lvs ?-temp_directory_path <directory>? ?-thread_number <integer>?
+run_lvs
+destroy_lvs
+```
 
-### API: iLVS Tcl and C++ interfaces
-
-The interface owns the `init_lvs`, snapshot write/read, `run_lvs`, and
-`destroy_lvs` lifecycle. It initializes the data manager and iLVS modules,
-then connects the snapshot, checking, and reporting stages.
-
-### Data Manager: Top-level data manager
-
-The data manager owns configuration, the two value snapshots, the check
-result, report output paths, and the per-module temporary directories.
-
-### Module: Main LVS modules
-
-- NetlistExtractor: Extracts a logical or physical value snapshot from the
-  current single IDB design view.
-- LVSSnapshotIO: Writes and validates versioned logical and physical binary
-  snapshots.
-- LVSChecker: Compares entities and checks routed-net and power connectivity.
-- LVSReporter: Produces the console, RPT, and JSON LVS reports.
-
-### Utility: Tool modules
-
-- Logger: Log module.
-- Monitor: Runtime status monitor.
-- Utility: Configuration, filesystem, and table helpers.
+`run_lvs` executes EntityChecker, RoutingChecker, PDNChecker, and
+LVSReporter in that order. Current IDB accessors temporarily provide the same
+DEF-backed view as both inputs until IDB supports independent logical and DEF
+views; this exercises the active flow but is not a replacement for a reference
+netlist comparison.
