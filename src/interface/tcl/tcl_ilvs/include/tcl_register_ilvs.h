@@ -28,10 +28,6 @@ int registerCmdLVS()
   registerTclCmd(TclInitLVS, "init_lvs");
   registerTclCmd(TclRunLVS, "run_lvs");
   registerTclCmd(TclDestroyLVS, "destroy_lvs");
-  // snapshot
-  registerTclCmd(TclWriteLVSNetlist, "write_lvs_netlist");
-  registerTclCmd(TclWriteLVSDef, "write_lvs_def");
-  registerTclCmd(TclReadLVS, "read_lvs");
   return EXIT_SUCCESS;
 }
 
