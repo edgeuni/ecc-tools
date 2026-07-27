@@ -722,7 +722,7 @@ void PinAccessor::routePABoxMap(PAModel& pa_model)
   size_t routed_box_num = 0;
   for (std::vector<PABoxId>& pa_box_id_list : pa_model.get_pa_box_id_list_list()) {
     Monitor stage_monitor;
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 1)
     for (PABoxId& pa_box_id : pa_box_id_list) {
       PABox& pa_box = pa_box_map[pa_box_id.get_x()][pa_box_id.get_y()];
       buildFixedRect(pa_box);
@@ -1830,11 +1830,42 @@ void PinAccessor::patchPATask(PABox& pa_box, PATask* pa_task)
 
 void PinAccessor::initSinglePatchTask(PABox& pa_box, PATask* pa_task)
 {
-  // single task
+  // single task only checks relevant shapes
   pa_box.set_curr_patch_task(pa_task);
   pa_box.get_routing_patch_list().clear();
-  pa_box.set_patch_violation_list(getPatchViolationList(pa_box, {ViolationType::kMinimumArea}, {}));
+  std::vector<LayerRect> check_region_list;
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  int32_t curr_net_idx = pa_task->get_net_idx();
+  int32_t curr_task_idx = pa_task->get_task_idx();
+  for (Segment<LayerCoord>& segment : pa_box.get_net_task_access_result_map()[curr_net_idx][curr_task_idx]) {
+    for (NetShape& net_shape : RTDM.getNetDetailedShapeList(curr_net_idx, segment)) {
+      if (net_shape.get_is_routing()) {
+        check_region_list.emplace_back(RTUTIL.getEnlargedRect(net_shape.get_rect(), detection_distance), net_shape.get_layer_idx());
+      }
+    }
+  }
+  for (EXTLayerRect& patch : pa_box.get_net_task_access_patch_map()[curr_net_idx][curr_task_idx]) {
+    check_region_list.emplace_back(RTUTIL.getEnlargedRect(patch.get_real_rect(), detection_distance), patch.get_layer_idx());
+  }
+  pa_box.set_patch_violation_list(getPatchViolationList(pa_box, {ViolationType::kMinimumArea}, check_region_list));
   pa_box.get_tried_fix_violation_set().clear();
+}
+
+namespace {
+
+  bool overlapCheckRegion(int32_t layer_idx, const PlanarRect& real_rect, const std::vector<LayerRect>& check_region_list)
+  {
+    if (check_region_list.empty()) {
+      return true;
+    }
+    for (const LayerRect& check_region : check_region_list) {
+      if (layer_idx == check_region.get_layer_idx() && RTUTIL.isClosedOverlap(real_rect, check_region)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
 }
 
 std::vector<Violation> PinAccessor::getPatchViolationList(PABox& pa_box, const std::set<ViolationType>& check_type_set,
@@ -1848,11 +1879,16 @@ std::vector<Violation> PinAccessor::getPatchViolationList(PABox& pa_box, const s
       for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
         if (net_idx == -1) {
           for (auto& fixed_rect : fixed_rect_set) {
-            env_shape_list.emplace_back(fixed_rect, is_routing);
+            if (overlapCheckRegion(layer_idx, fixed_rect->get_real_rect(), check_region_list)) {
+              env_shape_list.emplace_back(fixed_rect, is_routing);
+            }
           }
         } else {
+          std::vector<std::pair<EXTLayerRect*, bool>>& pin_shape_list = net_pin_shape_map[net_idx];
           for (auto& fixed_rect : fixed_rect_set) {
-            net_pin_shape_map[net_idx].emplace_back(fixed_rect, is_routing);
+            if (overlapCheckRegion(layer_idx, fixed_rect->get_real_rect(), check_region_list)) {
+              pin_shape_list.emplace_back(fixed_rect, is_routing);
+            }
           }
         }
       }
@@ -1861,35 +1897,55 @@ std::vector<Violation> PinAccessor::getPatchViolationList(PABox& pa_box, const s
   std::map<int32_t, std::vector<Segment<LayerCoord>*>> net_result_map;
   for (auto& [net_idx, pin_access_result_map] : pa_box.get_net_pin_access_result_map()) {
     for (auto& [pin_idx, segment_set] : pin_access_result_map) {
+      std::vector<Segment<LayerCoord>*>& result_list = net_result_map[net_idx];
       for (Segment<LayerCoord>* segment : segment_set) {
-        net_result_map[net_idx].push_back(segment);
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
+          if (overlapCheckRegion(net_shape.get_layer_idx(), net_shape.get_rect(), check_region_list)) {
+            result_list.push_back(segment);
+            break;
+          }
+        }
       }
     }
   }
   for (auto& [net_idx, task_access_result_map] : pa_box.get_net_task_access_result_map()) {
     for (auto& [task_idx, segment_list] : task_access_result_map) {
+      std::vector<Segment<LayerCoord>*>& result_list = net_result_map[net_idx];
       for (Segment<LayerCoord>& segment : segment_list) {
-        net_result_map[net_idx].emplace_back(&segment);
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
+          if (overlapCheckRegion(net_shape.get_layer_idx(), net_shape.get_rect(), check_region_list)) {
+            result_list.emplace_back(&segment);
+            break;
+          }
+        }
       }
     }
   }
   std::map<int32_t, std::vector<EXTLayerRect*>> net_patch_map;
   for (auto& [net_idx, pin_access_patch_map] : pa_box.get_net_pin_access_patch_map()) {
     for (auto& [pin_idx, patch_set] : pin_access_patch_map) {
+      std::vector<EXTLayerRect*>& patch_list = net_patch_map[net_idx];
       for (EXTLayerRect* patch : patch_set) {
-        net_patch_map[net_idx].push_back(patch);
+        if (overlapCheckRegion(patch->get_layer_idx(), patch->get_real_rect(), check_region_list)) {
+          patch_list.push_back(patch);
+        }
       }
     }
   }
   for (auto& [net_idx, task_access_patch_map] : pa_box.get_net_task_access_patch_map()) {
     for (auto& [task_idx, patch_list] : task_access_patch_map) {
+      std::vector<EXTLayerRect*>& result_patch_list = net_patch_map[net_idx];
       if (net_idx == pa_box.get_curr_patch_task()->get_net_idx() && task_idx == pa_box.get_curr_patch_task()->get_task_idx()) {
         for (EXTLayerRect& patch : pa_box.get_routing_patch_list()) {
-          net_patch_map[net_idx].emplace_back(&patch);
+          if (overlapCheckRegion(patch.get_layer_idx(), patch.get_real_rect(), check_region_list)) {
+            result_patch_list.emplace_back(&patch);
+          }
         }
       } else {
         for (EXTLayerRect& patch : patch_list) {
-          net_patch_map[net_idx].emplace_back(&patch);
+          if (overlapCheckRegion(patch.get_layer_idx(), patch.get_real_rect(), check_region_list)) {
+            result_patch_list.emplace_back(&patch);
+          }
         }
       }
     }
@@ -1903,10 +1959,10 @@ std::vector<Violation> PinAccessor::getPatchViolationList(PABox& pa_box, const s
   de_task.set_proc_type(DEProcType::kGet);
   de_task.set_net_type(DENetType::kPatchHybrid);
   de_task.set_top_name(top_name);
-  de_task.set_env_shape_list(env_shape_list);
-  de_task.set_net_pin_shape_map(net_pin_shape_map);
-  de_task.set_net_result_map(net_result_map);
-  de_task.set_net_patch_map(net_patch_map);
+  de_task.set_env_shape_list(std::move(env_shape_list));
+  de_task.set_net_pin_shape_map(std::move(net_pin_shape_map));
+  de_task.set_net_result_map(std::move(net_result_map));
+  de_task.set_net_patch_map(std::move(net_patch_map));
   de_task.set_need_checked_net_set(need_checked_net_set);
   de_task.set_check_type_set(check_type_set);
   de_task.set_check_region_list(check_region_list);
@@ -2030,19 +2086,21 @@ void PinAccessor::patchSingleViolation(PABox& pa_box)
   std::vector<EXTLayerRect>& routing_patch_list = pa_box.get_routing_patch_list();
   std::set<Violation, CmpViolation>& tried_fix_violation_set = pa_box.get_tried_fix_violation_set();
   LayerRect violation_rect = pa_box.get_curr_patch_violation().get_violation_shape().getRealLayerRect();
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  LayerRect check_region(RTUTIL.getEnlargedRect(violation_rect.get_rect(), detection_distance), violation_rect.get_layer_idx());
 
   std::vector<PAPatch> pa_patch_list = getCandidatePatchList(pa_box);
   if (pa_patch_list.size() == 1) {
     routing_patch_list.push_back(pa_patch_list.front().get_patch());
   } else if (pa_patch_list.size() >= 2) {
-    std::vector<Violation> origin_patch_violation_list = getPatchViolationList(pa_box, {}, {violation_rect});
+    std::vector<Violation> origin_patch_violation_list = getPatchViolationList(pa_box, {}, {check_region});
 
     bool curr_is_solved = false;
     for (PAPatch& pa_patch : pa_patch_list) {
       std::vector<Violation> curr_patch_violation_list;
       {
         routing_patch_list.push_back(pa_patch.get_patch());
-        curr_patch_violation_list = getPatchViolationList(pa_box, {}, {violation_rect});
+        curr_patch_violation_list = getPatchViolationList(pa_box, {}, {check_region});
         routing_patch_list.pop_back();
       }
       curr_is_solved = getSolvedStatus(pa_box, origin_patch_violation_list, curr_patch_violation_list);
@@ -2292,8 +2350,9 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PABox& pa_box)
             env_shape_list.emplace_back(fixed_rect, is_routing);
           }
         } else {
+          std::vector<std::pair<EXTLayerRect*, bool>>& pin_shape_list = net_pin_shape_map[net_idx];
           for (auto& fixed_rect : fixed_rect_set) {
-            net_pin_shape_map[net_idx].emplace_back(fixed_rect, is_routing);
+            pin_shape_list.emplace_back(fixed_rect, is_routing);
           }
         }
       }
@@ -2302,30 +2361,34 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PABox& pa_box)
   std::map<int32_t, std::vector<Segment<LayerCoord>*>> net_result_map;
   for (auto& [net_idx, pin_access_result_map] : pa_box.get_net_pin_access_result_map()) {
     for (auto& [pin_idx, segment_set] : pin_access_result_map) {
+      std::vector<Segment<LayerCoord>*>& result_list = net_result_map[net_idx];
       for (Segment<LayerCoord>* segment : segment_set) {
-        net_result_map[net_idx].push_back(segment);
+        result_list.push_back(segment);
       }
     }
   }
   for (auto& [net_idx, task_access_result_map] : pa_box.get_net_task_access_result_map()) {
     for (auto& [task_idx, segment_list] : task_access_result_map) {
+      std::vector<Segment<LayerCoord>*>& result_list = net_result_map[net_idx];
       for (Segment<LayerCoord>& segment : segment_list) {
-        net_result_map[net_idx].emplace_back(&segment);
+        result_list.emplace_back(&segment);
       }
     }
   }
   std::map<int32_t, std::vector<EXTLayerRect*>> net_patch_map;
   for (auto& [net_idx, pin_access_patch_map] : pa_box.get_net_pin_access_patch_map()) {
     for (auto& [pin_idx, patch_set] : pin_access_patch_map) {
+      std::vector<EXTLayerRect*>& patch_list = net_patch_map[net_idx];
       for (EXTLayerRect* patch : patch_set) {
-        net_patch_map[net_idx].push_back(patch);
+        patch_list.push_back(patch);
       }
     }
   }
   for (auto& [net_idx, task_access_patch_map] : pa_box.get_net_task_access_patch_map()) {
     for (auto& [task_idx, patch_list] : task_access_patch_map) {
+      std::vector<EXTLayerRect*>& result_patch_list = net_patch_map[net_idx];
       for (EXTLayerRect& patch : patch_list) {
-        net_patch_map[net_idx].emplace_back(&patch);
+        result_patch_list.emplace_back(&patch);
       }
     }
   }
@@ -2338,10 +2401,10 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PABox& pa_box)
   de_task.set_proc_type(DEProcType::kGet);
   de_task.set_net_type(DENetType::kRouteHybrid);
   de_task.set_top_name(top_name);
-  de_task.set_env_shape_list(env_shape_list);
-  de_task.set_net_pin_shape_map(net_pin_shape_map);
-  de_task.set_net_result_map(net_result_map);
-  de_task.set_net_patch_map(net_patch_map);
+  de_task.set_env_shape_list(std::move(env_shape_list));
+  de_task.set_net_pin_shape_map(std::move(net_pin_shape_map));
+  de_task.set_net_result_map(std::move(net_result_map));
+  de_task.set_net_patch_map(std::move(net_patch_map));
   de_task.set_need_checked_net_set(need_checked_net_set);
   return RTDE.getViolationList(de_task);
 }
@@ -2553,8 +2616,9 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PAModel& pa_model)
               env_shape_list.emplace_back(fixed_rect, is_routing);
             }
           } else {
+            std::vector<std::pair<EXTLayerRect*, bool>>& pin_shape_list = net_pin_shape_map[net_idx];
             for (auto& fixed_rect : fixed_rect_set) {
-              net_pin_shape_map[net_idx].emplace_back(fixed_rect, is_routing);
+              pin_shape_list.emplace_back(fixed_rect, is_routing);
             }
           }
         }
@@ -2563,16 +2627,18 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PAModel& pa_model)
     std::map<int32_t, std::vector<Segment<LayerCoord>*>> net_result_map;
     for (auto& [net_idx, pin_access_result_map] : RTDM.getNetPinAccessResultMap(die)) {
       for (auto& [pin_idx, segment_set] : pin_access_result_map) {
+        std::vector<Segment<LayerCoord>*>& result_list = net_result_map[net_idx];
         for (Segment<LayerCoord>* segment : segment_set) {
-          net_result_map[net_idx].push_back(segment);
+          result_list.push_back(segment);
         }
       }
     }
     std::map<int32_t, std::vector<EXTLayerRect*>> net_patch_map;
     for (auto& [net_idx, pin_access_patch_map] : RTDM.getNetPinAccessPatchMap(die)) {
       for (auto& [pin_idx, patch_set] : pin_access_patch_map) {
+        std::vector<EXTLayerRect*>& patch_list = net_patch_map[net_idx];
         for (EXTLayerRect* patch : patch_set) {
-          net_patch_map[net_idx].push_back(patch);
+          patch_list.push_back(patch);
         }
       }
     }
@@ -2584,10 +2650,10 @@ std::vector<Violation> PinAccessor::getRouteViolationList(PAModel& pa_model)
     de_task.set_proc_type(DEProcType::kGet);
     de_task.set_net_type(DENetType::kRouteHybrid);
     de_task.set_top_name(top_name);
-    de_task.set_env_shape_list(env_shape_list);
-    de_task.set_net_pin_shape_map(net_pin_shape_map);
-    de_task.set_net_result_map(net_result_map);
-    de_task.set_net_patch_map(net_patch_map);
+    de_task.set_env_shape_list(std::move(env_shape_list));
+    de_task.set_net_pin_shape_map(std::move(net_pin_shape_map));
+    de_task.set_net_result_map(std::move(net_result_map));
+    de_task.set_net_patch_map(std::move(net_patch_map));
     de_task.set_need_checked_net_set(need_checked_net_set);
   }
   return RTDE.getViolationList(de_task);
