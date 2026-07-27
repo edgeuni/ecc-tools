@@ -47,14 +47,41 @@ class PhyPlacer
 
   void placePhyCell(PPModel& pp_model);
   void adjustTapDistance(int32_t& inst_space);
+
   int32_t buildPPRegionList(PPModel& pp_model);
   void buildPPRegionInRow(PPModel& pp_model, Row& row, int32_t row_idx);
-  std::vector<std::pair<int32_t, int32_t>> getMacroBottomIntervalList(Row& row);
+  std::vector<std::pair<int32_t, int32_t>> getMacroBlockageIntervalList(Row& row);
   void addPPRegion(PPModel& pp_model, Row& row, int32_t row_idx, int32_t start_coord, int32_t end_coord);
-  int32_t insertPhyCell(PPModel& pp_model, int32_t inst_space, std::string tapcell_name, std::string endcap_name);
-  void insertMacroBottomEndcap(int32_t& endcap_idx, std::string endcap_name);
+
+  void buildPPBoundaryRegionList(PPModel& pp_model);
+  void addCorePPBoundaryRegion(PPModel& pp_model);
+  void addPPBoundaryRegion(PPModel& pp_model, int32_t row_idx, int32_t start_coord, int32_t end_coord, int32_t y_coord,
+                           PlacementOrientation orient, PPBoundaryType boundary_type);
+  void addMacroPPBoundaryRegion(PPModel& pp_model);
+  void addMacroPPBoundaryRegionInRow(PPModel& pp_model, Row& row, PlanarRect& placement_halo_rect,
+                                     PPBoundaryType boundary_type);
+
+  void insertSideEndcap(PPModel& pp_model, int32_t& endcap_idx);
   int32_t getCellMasterWidthByOrient(CellMaster& cell_master, PlacementOrientation orient);
-  void addPhyCell(std::string instance_name, std::string cell_master_name, int32_t x_coord, int32_t y_coord, PlacementOrientation orient);
+  void addPhyCell(PPModel& pp_model, std::string instance_name, std::string cell_master_name, int32_t x_coord, int32_t y_coord,
+                  PlacementOrientation orient);
+
+  void insertWellTap(PPModel& pp_model, int32_t tap_distance, int32_t& tapcell_idx);
+  void insertWellTapInRegion(PPModel& pp_model, PPRegion& pp_region, int32_t tap_distance, int32_t tap_offset,
+                             int32_t& tapcell_idx);
+  void insertBoundaryWellTap(PPModel& pp_model, int32_t tap_distance, int32_t& tapcell_idx);
+  int32_t getAvailableCellCoord(PPModel& pp_model, int32_t start_coord, int32_t end_coord, int32_t y_coord, PlacementOrientation orient,
+                                CellMaster& cell_master);
+  bool isCellAvailable(PPModel& pp_model, int32_t start_coord, int32_t end_coord, int32_t y_coord);
+
+  void insertBoundaryTap(PPModel& pp_model, int32_t boundary_tap_rule, int32_t& boundary_tap_idx);
+  std::vector<std::string>& getBoundaryTapNameList(PPBoundaryType boundary_type);
+
+  void insertEdgeEndcap(PPModel& pp_model, int32_t& endcap_idx);
+  std::vector<std::string>& getEdgeEndcapNameList(PPBoundaryType boundary_type);
+  std::vector<PPRegion> getEmptyPPRegionList(PPModel& pp_model, PPRegion& boundary_region);
+  void fillEdgeEndcap(PPModel& pp_model, PPRegion& empty_region, std::vector<std::string>& endcap_name_list, int32_t& endcap_idx);
+  std::string getFittingCellMasterName(std::vector<std::string>& cell_master_name_list, int32_t max_width, PlacementOrientation orient);
 };
 
 }  // namespace ifp

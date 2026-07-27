@@ -50,7 +50,13 @@ class Config
   std::vector<PGLayerPair> pg_layer_pair_list;      // optional
   std::string tapcell_name;                         // optional
   double tap_distance_micron;                       // optional
-  std::string endcap_name;                          // optional
+  std::string left_endcap_name;                     // optional
+  std::string right_endcap_name;                    // optional
+  std::vector<std::string> top_endcap_name_list;    // optional
+  std::vector<std::string> bottom_endcap_name_list; // optional
+  std::vector<std::string> top_boundary_tap_name_list;    // optional
+  std::vector<std::string> bottom_boundary_tap_name_list; // optional
+  double boundary_tap_rule_micron;                        // optional
   /////////////////////////////////////////////
   // **********        FP         ********** //
   std::string log_file_path;  // building

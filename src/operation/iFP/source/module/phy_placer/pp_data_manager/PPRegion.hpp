@@ -17,6 +17,7 @@
 
 #include "FPHeader.hpp"
 #include "PlacementOrientation.hpp"
+#include "PPBoundaryType.hpp"
 
 namespace ifp {
 
@@ -31,6 +32,7 @@ class PPRegion
   int32_t get_end_coord() const { return _end_coord; }
   int32_t get_y_coord() const { return _y_coord; }
   PlacementOrientation get_orient() const { return _orient; }
+  PPBoundaryType get_boundary_type() const { return _boundary_type; }
   // const getter
 
   // setter
@@ -39,6 +41,7 @@ class PPRegion
   void set_end_coord(int32_t end_coord) { _end_coord = end_coord; }
   void set_y_coord(int32_t y_coord) { _y_coord = y_coord; }
   void set_orient(PlacementOrientation orient) { _orient = orient; }
+  void set_boundary_type(PPBoundaryType boundary_type) { _boundary_type = boundary_type; }
   // function
 
  private:
@@ -47,6 +50,7 @@ class PPRegion
   int32_t _end_coord = -1;
   int32_t _y_coord = -1;
   PlacementOrientation _orient = PlacementOrientation::kNone;
+  PPBoundaryType _boundary_type = PPBoundaryType::kNone;
 };
 
 }  // namespace ifp

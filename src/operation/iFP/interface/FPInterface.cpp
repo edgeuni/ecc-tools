@@ -241,13 +241,29 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
 
   FPDM.getConfig().tapcell_name = "";
   FPDM.getConfig().tap_distance_micron = -1.0;
-  FPDM.getConfig().endcap_name = "";
-  std::vector<std::vector<std::string>> phy_insert_list
-      = FPUTIL.getConfigValue<std::vector<std::vector<std::string>>>(config_map, "-phy_insert", {});
-  if (phy_insert_list.size() == 2 && phy_insert_list[0].size() == 2 && phy_insert_list[1].size() == 1) {
-    FPDM.getConfig().tapcell_name = phy_insert_list[0][0];
-    FPDM.getConfig().tap_distance_micron = std::stod(phy_insert_list[0][1]);
-    FPDM.getConfig().endcap_name = phy_insert_list[1][0];
+  FPDM.getConfig().left_endcap_name = "";
+  FPDM.getConfig().right_endcap_name = "";
+  FPDM.getConfig().top_endcap_name_list.clear();
+  FPDM.getConfig().bottom_endcap_name_list.clear();
+  FPDM.getConfig().top_boundary_tap_name_list.clear();
+  FPDM.getConfig().bottom_boundary_tap_name_list.clear();
+  FPDM.getConfig().boundary_tap_rule_micron = -1.0;
+  std::vector<std::vector<std::vector<std::string>>> phy_insert_list
+      = FPUTIL.getConfigValue<std::vector<std::vector<std::vector<std::string>>>>(config_map, "-phy_insert", {});
+  if (phy_insert_list.size() == 4 && phy_insert_list[0].size() == 2 && phy_insert_list[0][0].size() == 1
+      && phy_insert_list[0][1].size() == 1 && phy_insert_list[1].size() == 2 && phy_insert_list[1][0].size() == 1
+      && phy_insert_list[1][1].size() == 1 && phy_insert_list[2].size() == 2 && !phy_insert_list[2][0].empty()
+      && !phy_insert_list[2][1].empty() && phy_insert_list[3].size() == 3 && !phy_insert_list[3][0].empty()
+      && !phy_insert_list[3][1].empty() && phy_insert_list[3][2].size() == 1) {
+    FPDM.getConfig().tapcell_name = phy_insert_list[0][0][0];
+    FPDM.getConfig().tap_distance_micron = std::stod(phy_insert_list[0][1][0]);
+    FPDM.getConfig().left_endcap_name = phy_insert_list[1][0][0];
+    FPDM.getConfig().right_endcap_name = phy_insert_list[1][1][0];
+    FPDM.getConfig().top_endcap_name_list = phy_insert_list[2][0];
+    FPDM.getConfig().bottom_endcap_name_list = phy_insert_list[2][1];
+    FPDM.getConfig().top_boundary_tap_name_list = phy_insert_list[3][0];
+    FPDM.getConfig().bottom_boundary_tap_name_list = phy_insert_list[3][1];
+    FPDM.getConfig().boundary_tap_rule_micron = std::stod(phy_insert_list[3][2][0]);
   }
   /////////////////////////////////////////////
 }

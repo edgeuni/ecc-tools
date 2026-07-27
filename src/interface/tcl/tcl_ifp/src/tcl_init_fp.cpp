@@ -64,8 +64,10 @@ TclInitFP::TclInitFP(const char* cmd_name) : TclCmd(cmd_name)
 
 #if 1  // Phy cell
 
-  // -phy_insert {{tapcell_name tap_distance_micron} endcap_name}
-  _config_list.push_back(std::make_pair("-phy_insert", ValueType::kStringListList));
+  // -phy_insert {{tapcell_name tap_distance_micron} {left_endcap_name right_endcap_name}
+  //              {{top_endcap_name...} {bottom_endcap_name...}}
+  //              {{top_boundary_tap_name...} {bottom_boundary_tap_name...} boundary_tap_rule_micron}}
+  _config_list.push_back(std::make_pair("-phy_insert", ValueType::kStringListListList));
 
 #endif
 

@@ -219,8 +219,46 @@ void DataManager::printConfig()
   }
 
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "phy_insert");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "tapcell: ", _config.tapcell_name, ", tap_distance: ", _config.tap_distance_micron,
-             ", endcap: ", _config.endcap_name);
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "well_tap: ", _config.tapcell_name,
+             ", interval: ", _config.tap_distance_micron);
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "side_endcap: {left: ", _config.left_endcap_name,
+             ", right: ", _config.right_endcap_name, "}");
+  std::string top_endcap_name_string = "{";
+  for (int32_t endcap_idx = 0; endcap_idx < static_cast<int32_t>(_config.top_endcap_name_list.size()); endcap_idx++) {
+    if (endcap_idx != 0) {
+      top_endcap_name_string += " ";
+    }
+    top_endcap_name_string += _config.top_endcap_name_list[endcap_idx];
+  }
+  top_endcap_name_string += "}";
+  std::string bottom_endcap_name_string = "{";
+  for (int32_t endcap_idx = 0; endcap_idx < static_cast<int32_t>(_config.bottom_endcap_name_list.size()); endcap_idx++) {
+    if (endcap_idx != 0) {
+      bottom_endcap_name_string += " ";
+    }
+    bottom_endcap_name_string += _config.bottom_endcap_name_list[endcap_idx];
+  }
+  bottom_endcap_name_string += "}";
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "edge_endcap: {top: ", top_endcap_name_string,
+             ", bottom: ", bottom_endcap_name_string, "}");
+  std::string top_boundary_tap_name_string = "{";
+  for (int32_t tap_idx = 0; tap_idx < static_cast<int32_t>(_config.top_boundary_tap_name_list.size()); tap_idx++) {
+    if (tap_idx != 0) {
+      top_boundary_tap_name_string += " ";
+    }
+    top_boundary_tap_name_string += _config.top_boundary_tap_name_list[tap_idx];
+  }
+  top_boundary_tap_name_string += "}";
+  std::string bottom_boundary_tap_name_string = "{";
+  for (int32_t tap_idx = 0; tap_idx < static_cast<int32_t>(_config.bottom_boundary_tap_name_list.size()); tap_idx++) {
+    if (tap_idx != 0) {
+      bottom_boundary_tap_name_string += " ";
+    }
+    bottom_boundary_tap_name_string += _config.bottom_boundary_tap_name_list[tap_idx];
+  }
+  bottom_boundary_tap_name_string += "}";
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "boundary_tap: {top: ", top_boundary_tap_name_string,
+             ", bottom: ", bottom_boundary_tap_name_string, ", rule: ", _config.boundary_tap_rule_micron, "}");
 
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(0), "FP_CONFIG_BUILD");
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "log_file_path");
