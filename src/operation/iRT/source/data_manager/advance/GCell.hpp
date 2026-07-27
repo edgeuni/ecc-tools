@@ -16,6 +16,10 @@
 // ***************************************************************************************
 #pragma once
 
+#include <array>
+
+#include <boost/container/flat_map.hpp>
+
 #include "AccessPoint.hpp"
 #include "Violation.hpp"
 
@@ -24,10 +28,14 @@ namespace irt {
 class GCell : public PlanarRect
 {
  public:
+  using NetFixedRectMap = boost::container::flat_map<int32_t, std::set<EXTLayerRect*>>;
+  using LayerNetFixedRectMap = boost::container::flat_map<int32_t, NetFixedRectMap>;
+  using TypeLayerNetFixedRectMap = std::array<LayerNetFixedRectMap, 2>;
+
   GCell() = default;
   ~GCell() = default;
   // getter
-  std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
+  TypeLayerNetFixedRectMap& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::map<int32_t, std::vector<AccessPoint*>>& get_net_access_point_map() { return _net_access_point_map; }
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& get_net_pin_access_result_map() { return _net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& get_net_pin_access_patch_map() { return _net_pin_access_patch_map; }
@@ -36,7 +44,7 @@ class GCell : public PlanarRect
   std::map<int32_t, std::set<EXTLayerRect*>>& get_net_detailed_patch_map() { return _net_detailed_patch_map; }
   std::set<Violation*, CmpViolation>& get_violation_set() { return _violation_set; }
   // setter
-  void set_type_layer_net_fixed_rect_map(const std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& type_layer_net_fixed_rect_map)
+  void set_type_layer_net_fixed_rect_map(const TypeLayerNetFixedRectMap& type_layer_net_fixed_rect_map)
   {
     _type_layer_net_fixed_rect_map = type_layer_net_fixed_rect_map;
   }
@@ -69,7 +77,7 @@ class GCell : public PlanarRect
 
  private:
   // obstacle & pin_shape
-  std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
+  TypeLayerNetFixedRectMap _type_layer_net_fixed_rect_map;
   // access point
   std::map<int32_t, std::vector<AccessPoint*>> _net_access_point_map;
   // access routing result

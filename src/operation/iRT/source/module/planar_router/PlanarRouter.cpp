@@ -1906,7 +1906,7 @@ void PlanarRouter::debugPlotPRModel(PRModel& pr_model, std::string flag)
   }
 
   // fixed_rect
-  for (auto& [is_routing, layer_net_rect_map] : RTDM.getTypeLayerNetFixedRectMap(die)) {
+  for (auto& [is_routing, layer_net_rect_map] : RTDM.getTypeLayerNetFixedRectMap()) {
     for (auto& [layer_idx, net_rect_map] : layer_net_rect_map) {
       for (auto& [net_idx, rect_set] : net_rect_map) {
         GPStruct fixed_rect_struct(RTUTIL.getString("fixed_rect(net_", net_idx, ")"));

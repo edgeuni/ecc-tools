@@ -94,7 +94,7 @@ void DRCEngine::buildIgnoredViolationSet()
     std::string top_name = RTUTIL.getString("ignore_violation");
     std::vector<std::pair<EXTLayerRect*, bool>> env_shape_list;
     std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>> net_pin_shape_map;
-    for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap(die)) {
+    for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap()) {
       for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
         for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
           if (net_idx == -1) {

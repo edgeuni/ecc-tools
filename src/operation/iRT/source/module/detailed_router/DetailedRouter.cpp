@@ -2439,14 +2439,12 @@ void DetailedRouter::updateViolation(DRModel& dr_model)
 
 std::vector<Violation> DetailedRouter::getRouteViolationList(DRModel& dr_model)
 {
-  Die& die = RTDM.getDatabase().get_die();
-
   DETask de_task;
   {
     std::string top_name = RTUTIL.getString("dr_model");
     std::vector<std::pair<EXTLayerRect*, bool>> env_shape_list;
     std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>> net_pin_shape_map;
-    for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap(die)) {
+    for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap()) {
       for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
         for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
           if (net_idx == -1) {
@@ -3786,7 +3784,7 @@ void DetailedRouter::debugPlotDRModel(DRModel& dr_model, std::string flag)
   }
 
   // fixed_rect
-  for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap(die)) {
+  for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap()) {
     for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
       for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
         GPStruct fixed_rect_struct(RTUTIL.getString("fixed_rect(net_", net_idx, ")"));

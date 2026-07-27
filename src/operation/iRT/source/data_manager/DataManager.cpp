@@ -346,6 +346,11 @@ void DataManager::updateViolationToGCellMap(ChangeType change_type, Violation* v
   }
 }
 
+const std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& DataManager::getTypeLayerNetFixedRectMap()
+{
+  return _database.get_type_layer_net_fixed_rect_map();
+}
+
 std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> DataManager::getTypeLayerNetFixedRectMap(EXTPlanarRect& region)
 {
   Die& die = _database.get_die();
@@ -357,7 +362,8 @@ std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> Da
     std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> type_layer_net_fixed_rect_map;
     for (int32_t x = region.get_grid_ll_x(); x <= region.get_grid_ur_x(); x++) {
       for (int32_t y = region.get_grid_ll_y(); y <= region.get_grid_ur_y(); y++) {
-        for (auto& [is_routing, layer_net_fixed_rect_map] : gcell_map[x][y].get_type_layer_net_fixed_rect_map()) {
+        for (bool is_routing : {false, true}) {
+          auto& layer_net_fixed_rect_map = gcell_map[x][y].get_type_layer_net_fixed_rect_map()[is_routing];
           for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
             for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
               type_layer_net_fixed_rect_map[is_routing][layer_idx][net_idx].insert(fixed_rect_set.begin(), fixed_rect_set.end());
