@@ -36,7 +36,7 @@ class PRNet
   std::vector<PRPin>& get_pr_pin_list() { return _pr_pin_list; }
   BoundingBox& get_bounding_box() { return _bounding_box; }
   std::vector<Segment<PlanarCoord>>& get_routing_segment_list() { return _routing_segment_list; }
-  std::set<RoutingEdge*>& get_routing_edge_set() { return _routing_edge_set; }
+  std::unordered_set<RoutingEdge*>& get_routing_edge_set() { return _routing_edge_set; }
   // const getter
   const ConnectType& get_connect_type() const { return _connect_type; }
   const std::vector<PRPin>& get_pr_pin_list() const { return _pr_pin_list; }
@@ -58,7 +58,7 @@ class PRNet
   std::vector<PRPin> _pr_pin_list;
   BoundingBox _bounding_box;
   std::vector<Segment<PlanarCoord>> _routing_segment_list;
-  std::set<RoutingEdge*> _routing_edge_set;
+  std::unordered_set<RoutingEdge*> _routing_edge_set;
 };
 
 struct CmpPRNet

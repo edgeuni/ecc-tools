@@ -31,7 +31,7 @@ routePRNet
     失败时恢复旧 segment demand
 
 planar edge demand
-    每条 segment 展开为 unit edge 和对应 orient
+    每条 segment 展开为 unit edge
     同一 net 对同一 planar edge 仅计一次 demand
     ignore net 不计 demand
     supply 为 0 且非 ignore net 的 edge 仅标记 candidate path blocked
@@ -42,8 +42,11 @@ congestion
     history congestion cost = old cost * 0.8 + new local cost
 
 A* route
-    搜索范围为 topo bounding box 外扩 astar_search_margin
+    搜索范围以 topo/macro bounding box 为基础，失败后按固定 margin 递增
     workspace 复用 node state 和 open heap；search stamp 惰性重置访问过的 node
+    每个 grid cell 按水平/垂直到达方向保存两个 state，准确计算 corner cost
+    同一 grid cell 中，被另一方向支配的 state 和冗余转向扩展直接剪枝
+    heuristic 使用 Manhattan distance；已有 edge 时使用 owned bounding box 的零成本松弛下界
     supply 为 0 且非 ignore net 的 edge 不可走
     step cost = wire cost + planar edge cost + corner cost
 
