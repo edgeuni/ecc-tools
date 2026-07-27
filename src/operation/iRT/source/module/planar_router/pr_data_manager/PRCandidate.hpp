@@ -38,6 +38,7 @@ class PRCandidate
  public:
   PRCandidate() = default;
   explicit PRCandidate(const std::vector<Segment<PlanarCoord>>& routing_segment_list) : _routing_segment_list(routing_segment_list) {}
+  explicit PRCandidate(std::vector<Segment<PlanarCoord>>&& routing_segment_list) : _routing_segment_list(std::move(routing_segment_list)) {}
   ~PRCandidate() = default;
   // getter
   std::vector<Segment<PlanarCoord>>& get_routing_segment_list() { return _routing_segment_list; }

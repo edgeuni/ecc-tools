@@ -70,7 +70,7 @@ class PlanarRouter
     double getTotalCost() const { return usage_cost + saturation_cost + hotspot_cost + overflow_cost + congestion_cost; }
   };
 
-  PREdgeCost getRoutingEdgeCost(RoutingEdge& routing_edge, double overflow_unit);
+  PREdgeCost getRoutingEdgeCost(const RoutingEdge& routing_edge, double overflow_unit, int32_t demand_offset);
   void updateRoutingSegmentListToGraph(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
                                        ChangeType change_type, std::set<RoutingEdge*>& routing_edge_set);
 

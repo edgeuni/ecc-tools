@@ -48,6 +48,7 @@ class PRNet
   void set_pr_pin_list(const std::vector<PRPin>& pr_pin_list) { _pr_pin_list = pr_pin_list; }
   void set_bounding_box(const BoundingBox& bounding_box) { _bounding_box = bounding_box; }
   void set_routing_segment_list(const std::vector<Segment<PlanarCoord>>& routing_segment_list) { _routing_segment_list = routing_segment_list; }
+  void set_routing_segment_list(std::vector<Segment<PlanarCoord>>&& routing_segment_list) { _routing_segment_list = std::move(routing_segment_list); }
   // function
 
  private:
