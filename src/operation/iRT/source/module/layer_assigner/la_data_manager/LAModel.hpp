@@ -32,7 +32,7 @@ class LAModel
   std::vector<LANet*>& get_la_task_list() { return _la_task_list; }
   MTree<LayerCoord>& get_routing_tree() { return _routing_tree; }
   // setter
-  void set_la_net_list(const std::vector<LANet>& la_net_list) { _la_net_list = la_net_list; }
+  void set_la_net_list(std::vector<LANet>&& la_net_list) { _la_net_list = std::move(la_net_list); }
   void set_la_com_param(const LAComParam& la_com_param) { _la_com_param = la_com_param; }
   void set_routing_tree(MTree<LayerCoord>&& routing_tree) { _routing_tree = std::move(routing_tree); }
 

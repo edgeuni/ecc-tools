@@ -44,8 +44,8 @@ class LANet
   void set_net_idx(const int32_t net_idx) { _net_idx = net_idx; }
   void set_connect_type(const ConnectType& connect_type) { _connect_type = connect_type; }
   void set_bounding_box(const BoundingBox& bounding_box) { _bounding_box = bounding_box; }
-  void set_planar_tree(const MTree<LayerCoord>& planar_tree) { _planar_tree = planar_tree; }
-  void set_pillar_tree(const MTree<LAPillar>& pillar_tree) { _pillar_tree = pillar_tree; }
+  void set_planar_tree(MTree<LayerCoord>&& planar_tree) { _planar_tree = std::move(planar_tree); }
+  void set_pillar_tree(MTree<LAPillar>&& pillar_tree) { _pillar_tree = std::move(pillar_tree); }
   // function
 
  private:
