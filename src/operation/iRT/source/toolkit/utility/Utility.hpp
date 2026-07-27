@@ -2481,12 +2481,18 @@ class Utility
 
   static std::vector<PlanarRect> getMaxRectList(const std::vector<PlanarRect>& master_list)
   {
-    GTLPolySetInt gtl_poly_set;
-    for (const PlanarRect& master : master_list) {
-      gtl_poly_set += convertToGTLRectInt(master);
+    std::vector<GTLHolePolyInt> gtl_component_list;
+    {
+      GTLPolySetInt gtl_poly_set;
+      for (const PlanarRect& master : master_list) {
+        gtl_poly_set += convertToGTLRectInt(master);
+      }
+      gtl_poly_set.get(gtl_component_list);
     }
     std::vector<GTLRectInt> gtl_rect_list;
-    gtl::get_max_rectangles(gtl_rect_list, gtl_poly_set);
+    for (GTLHolePolyInt& gtl_component : gtl_component_list) {
+      gtl::get_max_rectangles(gtl_rect_list, gtl_component);
+    }
     std::vector<PlanarRect> result_list;
     result_list.reserve(gtl_rect_list.size());
     for (GTLRectInt& gtl_rect : gtl_rect_list) {

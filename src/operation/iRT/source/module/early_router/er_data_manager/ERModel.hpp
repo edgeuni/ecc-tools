@@ -19,6 +19,7 @@
 #include "ERBox.hpp"
 #include "ERComParam.hpp"
 #include "ERConflictGroup.hpp"
+#include "ERTGCell.hpp"
 #include "ERNet.hpp"
 #include "ERNode.hpp"
 #include "ERPanel.hpp"
@@ -36,6 +37,7 @@ class ERModel
   ERComParam& get_er_com_param() { return _er_com_param; }
   std::vector<ERConflictGroup>& get_er_conflict_group_list() { return _er_conflict_group_list; }
   std::vector<std::vector<std::pair<LayerCoord, LayerCoord>>>& get_grid_pair_list_list() { return _grid_pair_list_list; }
+  GridMap<ERTGCell>& get_ert_gcell_map() { return _ert_gcell_map; }
   GridMap<ERNode>& get_planar_node_map() { return _planar_node_map; }
   std::vector<GridMap<ERNode>>& get_layer_node_map() { return _layer_node_map; }
   std::vector<std::vector<ERPanel>>& get_layer_panel_list() { return _layer_panel_list; }
@@ -68,6 +70,7 @@ class ERModel
   ERComParam _er_com_param;
   std::vector<ERConflictGroup> _er_conflict_group_list;
   std::vector<std::vector<std::pair<LayerCoord, LayerCoord>>> _grid_pair_list_list;
+  GridMap<ERTGCell> _ert_gcell_map;
   GridMap<ERNode> _planar_node_map;
   std::vector<GridMap<ERNode>> _layer_node_map;
   std::vector<std::vector<ERPanel>> _layer_panel_list;

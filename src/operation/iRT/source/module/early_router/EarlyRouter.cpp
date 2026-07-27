@@ -125,9 +125,11 @@ EarlyRouter* EarlyRouter::_er_instance = nullptr;
 ERModel EarlyRouter::initERModel()
 {
   std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
 
   ERModel er_model;
   er_model.set_er_net_list(convertToERNetList(net_list));
+  er_model.get_ert_gcell_map().init(gcell_map.get_x_size(), gcell_map.get_y_size());
   return er_model;
 }
 
@@ -809,7 +811,7 @@ void EarlyRouter::analyzeSupply(ERModel& er_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   int32_t supply_reduction = er_model.get_er_com_param().get_supply_reduction();
 
   size_t total_pair_num = 0;
@@ -827,9 +829,9 @@ void EarlyRouter::analyzeSupply(ERModel& er_model)
       EXTLayerRect search_rect = getSearchRect(first_coord, second_coord);
 
       std::map<Orientation, int32_t>& first_orient_supply_map
-          = gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_orient_supply_map()[search_rect.get_layer_idx()];
+          = ert_gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_orient_supply_map()[search_rect.get_layer_idx()];
       std::map<Orientation, int32_t>& second_orient_supply_map
-          = gcell_map[second_coord.get_x()][second_coord.get_y()].get_routing_orient_supply_map()[search_rect.get_layer_idx()];
+          = ert_gcell_map[second_coord.get_x()][second_coord.get_y()].get_routing_orient_supply_map()[search_rect.get_layer_idx()];
 
       Orientation first_orientation = RTUTIL.getOrientation(first_coord, second_coord);
       Orientation second_orientation = RTUTIL.getOppositeOrientation(first_orientation);
@@ -976,6 +978,7 @@ void EarlyRouter::buildIgnoreNet(ERModel& er_model)
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   int32_t bottom_routing_layer_idx = RTDM.getConfig().bottom_routing_layer_idx;
   int32_t top_routing_layer_idx = RTDM.getConfig().top_routing_layer_idx;
 
@@ -1035,24 +1038,24 @@ void EarlyRouter::buildIgnoreNet(ERModel& er_model)
           orient_set = ignore_orient_set;
         }
       }
-      gcell_map[x][y].set_routing_ignore_net_orient_map(routing_ignore_net_orient_map);
+      ert_gcell_map[x][y].set_routing_ignore_net_orient_map(routing_ignore_net_orient_map);
     }
   }
 }
 
 void EarlyRouter::analyzeDemandUnit(ERModel& er_model)
 {
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   double boundary_wire_unit = er_model.get_er_com_param().get_boundary_wire_unit();
   double internal_wire_unit = er_model.get_er_com_param().get_internal_wire_unit();
   double internal_via_unit = er_model.get_er_com_param().get_internal_via_unit();
 
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      GCell& gcell = gcell_map[x][y];
-      gcell.set_boundary_wire_unit(boundary_wire_unit);
-      gcell.set_internal_wire_unit(internal_wire_unit);
-      gcell.set_internal_via_unit(internal_via_unit);
+  for (int32_t x = 0; x < ert_gcell_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < ert_gcell_map.get_y_size(); y++) {
+      ERTGCell& ert_gcell = ert_gcell_map[x][y];
+      ert_gcell.set_boundary_wire_unit(boundary_wire_unit);
+      ert_gcell.set_internal_wire_unit(internal_wire_unit);
+      ert_gcell.set_internal_via_unit(internal_via_unit);
     }
   }
 }
@@ -1063,6 +1066,7 @@ void EarlyRouter::buildPlanarNodeMap(ERModel& er_model)
   RTLOG.info(Loc::current(), "Starting...");
 
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   GridMap<ERNode>& planar_node_map = er_model.get_planar_node_map();
   planar_node_map.init(gcell_map.get_x_size(), gcell_map.get_y_size());
 #pragma omp parallel for collapse(2)
@@ -1070,10 +1074,10 @@ void EarlyRouter::buildPlanarNodeMap(ERModel& er_model)
     for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
       ERNode& er_node = planar_node_map[x][y];
       er_node.set_coord(x, y);
-      er_node.set_boundary_wire_unit(gcell_map[x][y].get_boundary_wire_unit());
-      er_node.set_internal_wire_unit(gcell_map[x][y].get_internal_wire_unit());
-      er_node.set_internal_via_unit(gcell_map[x][y].get_internal_via_unit());
-      for (auto& [routing_layer_idx, ignore_net_orient_map] : gcell_map[x][y].get_routing_ignore_net_orient_map()) {
+      er_node.set_boundary_wire_unit(ert_gcell_map[x][y].get_boundary_wire_unit());
+      er_node.set_internal_wire_unit(ert_gcell_map[x][y].get_internal_wire_unit());
+      er_node.set_internal_via_unit(ert_gcell_map[x][y].get_internal_via_unit());
+      for (auto& [routing_layer_idx, ignore_net_orient_map] : ert_gcell_map[x][y].get_routing_ignore_net_orient_map()) {
         for (auto& [net_idx, orient_set] : ignore_net_orient_map) {
           er_node.get_ignore_net_orient_map()[net_idx].insert(orient_set.begin(), orient_set.end());
         }
@@ -1117,14 +1121,14 @@ void EarlyRouter::buildPlanarOrientSupply(ERModel& er_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   GridMap<ERNode>& planar_node_map = er_model.get_planar_node_map();
 
 #pragma omp parallel for collapse(2)
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
+  for (int32_t x = 0; x < ert_gcell_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < ert_gcell_map.get_y_size(); y++) {
       std::map<Orientation, int32_t> planar_orient_supply_map;
-      for (auto& [layer_idx, orient_supply_map] : gcell_map[x][y].get_routing_orient_supply_map()) {
+      for (auto& [layer_idx, orient_supply_map] : ert_gcell_map[x][y].get_routing_orient_supply_map()) {
         for (auto& [orient, supply] : orient_supply_map) {
           planar_orient_supply_map[orient] += supply;
         }
@@ -1698,6 +1702,7 @@ void EarlyRouter::buildLayerNodeMap(ERModel& er_model)
   RTLOG.info(Loc::current(), "Starting...");
 
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
 
   std::vector<GridMap<ERNode>>& layer_node_map = er_model.get_layer_node_map();
@@ -1711,11 +1716,11 @@ void EarlyRouter::buildLayerNodeMap(ERModel& er_model)
         ERNode& er_node = er_node_map[x][y];
         er_node.set_coord(x, y);
         er_node.set_layer_idx(layer_idx);
-        er_node.set_boundary_wire_unit(gcell_map[x][y].get_boundary_wire_unit());
-        er_node.set_internal_wire_unit(gcell_map[x][y].get_internal_wire_unit());
-        er_node.set_internal_via_unit(gcell_map[x][y].get_internal_via_unit());
-        if (RTUTIL.exist(gcell_map[x][y].get_routing_ignore_net_orient_map(), layer_idx)) {
-          er_node.set_ignore_net_orient_map(gcell_map[x][y].get_routing_ignore_net_orient_map()[layer_idx]);
+        er_node.set_boundary_wire_unit(ert_gcell_map[x][y].get_boundary_wire_unit());
+        er_node.set_internal_wire_unit(ert_gcell_map[x][y].get_internal_wire_unit());
+        er_node.set_internal_via_unit(ert_gcell_map[x][y].get_internal_via_unit());
+        if (RTUTIL.exist(ert_gcell_map[x][y].get_routing_ignore_net_orient_map(), layer_idx)) {
+          er_node.set_ignore_net_orient_map(ert_gcell_map[x][y].get_routing_ignore_net_orient_map()[layer_idx]);
         }
       }
     }
@@ -1782,15 +1787,15 @@ void EarlyRouter::buildLayerOrientSupply(ERModel& er_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
 
   std::vector<GridMap<ERNode>>& layer_node_map = er_model.get_layer_node_map();
 
 #pragma omp parallel for collapse(2)
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
+  for (int32_t x = 0; x < ert_gcell_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < ert_gcell_map.get_y_size(); y++) {
       for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_node_map.size()); layer_idx++) {
-        layer_node_map[layer_idx][x][y].set_orient_supply_map(gcell_map[x][y].get_routing_orient_supply_map()[layer_idx]);
+        layer_node_map[layer_idx][x][y].set_orient_supply_map(ert_gcell_map[x][y].get_routing_orient_supply_map()[layer_idx]);
       }
     }
   }
@@ -2757,15 +2762,15 @@ void EarlyRouter::outputPlanarSupplyCSV(ERModel& er_model)
   RTLOG.info(Loc::current(), "Starting...");
 
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   std::string& er_temp_directory_path = RTDM.getConfig().er_temp_directory_path;
 
   std::ofstream* supply_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(er_temp_directory_path, "supply_map_planar.csv"));
-  for (int32_t y = gcell_map.get_y_size() - 1; y >= 0; y--) {
-    for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
+  for (int32_t y = ert_gcell_map.get_y_size() - 1; y >= 0; y--) {
+    for (int32_t x = 0; x < ert_gcell_map.get_x_size(); x++) {
       int32_t total_supply = 0;
       for (RoutingLayer& routing_layer : routing_layer_list) {
-        for (auto& [orient, supply] : gcell_map[x][y].get_routing_orient_supply_map()[routing_layer.get_layer_idx()]) {
+        for (auto& [orient, supply] : ert_gcell_map[x][y].get_routing_orient_supply_map()[routing_layer.get_layer_idx()]) {
           // boundary_supply + internal_supply
           total_supply += (2 * supply);
         }
@@ -2899,16 +2904,16 @@ void EarlyRouter::outputLayerSupplyCSV(ERModel& er_model)
   RTLOG.info(Loc::current(), "Starting...");
 
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   std::string& er_temp_directory_path = RTDM.getConfig().er_temp_directory_path;
 
   for (RoutingLayer& routing_layer : routing_layer_list) {
     std::ofstream* supply_csv_file
         = RTUTIL.getOutputFileStream(RTUTIL.getString(er_temp_directory_path, "supply_map_", routing_layer.get_layer_name(), ".csv"));
-    for (int32_t y = gcell_map.get_y_size() - 1; y >= 0; y--) {
-      for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
+    for (int32_t y = ert_gcell_map.get_y_size() - 1; y >= 0; y--) {
+      for (int32_t x = 0; x < ert_gcell_map.get_x_size(); x++) {
         int32_t total_supply = 0;
-        for (auto& [orient, supply] : gcell_map[x][y].get_routing_orient_supply_map()[routing_layer.get_layer_idx()]) {
+        for (auto& [orient, supply] : ert_gcell_map[x][y].get_routing_orient_supply_map()[routing_layer.get_layer_idx()]) {
           // boundary_supply + internal_supply
           total_supply += (2 * supply);
         }
@@ -3181,15 +3186,15 @@ void EarlyRouter::printAccessSummary(ERModel& er_model)
 
 void EarlyRouter::printSupplySummary(ERModel& er_model)
 {
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<ERTGCell>& ert_gcell_map = er_model.get_ert_gcell_map();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
 
   std::map<int32_t, int32_t> routing_supply_map;
   int32_t total_supply = 0;
 
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      for (auto& [routing_layer_idx, orient_supply_map] : gcell_map[x][y].get_routing_orient_supply_map()) {
+  for (int32_t x = 0; x < ert_gcell_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < ert_gcell_map.get_y_size(); y++) {
+      for (auto& [routing_layer_idx, orient_supply_map] : ert_gcell_map[x][y].get_routing_orient_supply_map()) {
         for (auto& [orient, supply] : orient_supply_map) {
           // boundary_supply + internal_supply
           routing_supply_map[routing_layer_idx] += (2 * supply);

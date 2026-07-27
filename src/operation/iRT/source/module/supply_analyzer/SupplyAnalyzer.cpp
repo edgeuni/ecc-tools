@@ -91,12 +91,6 @@ void SupplyAnalyzer::initRoutingEdgeMap()
     routing_h_edge_map[layer_idx].init(std::max(0, gcell_map.get_x_size() - 1), gcell_map.get_y_size());
     routing_v_edge_map[layer_idx].init(gcell_map.get_x_size(), std::max(0, gcell_map.get_y_size() - 1));
   }
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      gcell_map[x][y].set_routing_orient_supply_map({});
-      gcell_map[x][y].set_routing_ignore_net_orient_map({});
-    }
-  }
 }
 
 void SupplyAnalyzer::buildSupplySchedule(SAModel& sa_model)
@@ -139,7 +133,6 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
   std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
 
@@ -160,13 +153,6 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
       bool is_horizontal = RTUTIL.isHorizontal(first_coord, second_coord);
       RoutingEdge& routing_edge = is_horizontal ? routing_h_edge_map[first_coord.get_layer_idx()][first_coord.get_x()][first_coord.get_y()]
                                                 : routing_v_edge_map[first_coord.get_layer_idx()][first_coord.get_x()][first_coord.get_y()];
-      std::map<Orientation, int32_t>& first_orient_supply_map
-          = gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_orient_supply_map()[search_rect.get_layer_idx()];
-      std::map<Orientation, int32_t>& second_orient_supply_map
-          = gcell_map[second_coord.get_x()][second_coord.get_y()].get_routing_orient_supply_map()[search_rect.get_layer_idx()];
-
-      Orientation first_orientation = RTUTIL.getOrientation(first_coord, second_coord);
-      Orientation second_orientation = RTUTIL.getOppositeOrientation(first_orientation);
       std::set<int32_t>& ignore_net_set = routing_edge.get_ignore_net_set();
 
       std::vector<PlanarRect> obs_rect_list;
@@ -200,10 +186,6 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
                 continue;
               }
               ignore_net_set.insert(net_idx);
-              gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
-                  first_orientation);
-              gcell_map[second_coord.get_x()][second_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
-                  second_orientation);
             }
           }
         }
@@ -217,10 +199,6 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
               continue;
             }
             ignore_net_set.insert(net_idx);
-            gcell_map[first_coord.get_x()][first_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
-                first_orientation);
-            gcell_map[second_coord.get_x()][second_coord.get_y()].get_routing_ignore_net_orient_map()[search_rect.get_layer_idx()][net_idx].insert(
-                second_orientation);
           }
         }
       }
@@ -235,10 +213,6 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
       supply = std::max(0, supply);
       supply *= 0.9;
       routing_edge.set_supply(supply);
-      if (supply > 0) {
-        first_orient_supply_map[first_orientation] = routing_edge.get_supply();
-        second_orient_supply_map[second_orientation] = routing_edge.get_supply();
-      }
     }
     analyzed_pair_num += grid_pair_list.size();
     RTLOG.info(Loc::current(), "Analyzed ", analyzed_pair_num, "/", total_pair_num, "(", RTUTIL.getPercentage(analyzed_pair_num, total_pair_num),
@@ -326,11 +300,33 @@ bool SupplyAnalyzer::isAccess(LayerRect& wire, std::vector<PlanarRect>& obs_rect
   return true;
 }
 
+int32_t SupplyAnalyzer::getGCellSupply(int32_t layer_idx, int32_t x, int32_t y)
+{
+  GridMap<RoutingEdge>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map()[layer_idx];
+  GridMap<RoutingEdge>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map()[layer_idx];
+
+  int32_t supply = 0;
+  if (routing_h_edge_map.isInside(x - 1, y)) {
+    supply += routing_h_edge_map[x - 1][y].get_supply();
+  }
+  if (routing_h_edge_map.isInside(x, y)) {
+    supply += routing_h_edge_map[x][y].get_supply();
+  }
+  if (routing_v_edge_map.isInside(x, y - 1)) {
+    supply += routing_v_edge_map[x][y - 1].get_supply();
+  }
+  if (routing_v_edge_map.isInside(x, y)) {
+    supply += routing_v_edge_map[x][y].get_supply();
+  }
+  return supply;
+}
+
 #if 1  // exhibit
 
 void SupplyAnalyzer::updateSummary(SAModel& sa_model)
 {
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   Summary& summary = RTDM.getDatabase().get_summary();
 
   std::map<int32_t, int32_t>& routing_supply_map = summary.sa_summary.routing_supply_map;
@@ -341,12 +337,10 @@ void SupplyAnalyzer::updateSummary(SAModel& sa_model)
 
   for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
     for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      for (auto& [routing_layer_idx, orient_supply_map] : gcell_map[x][y].get_routing_orient_supply_map()) {
-        for (auto& [orient, supply] : orient_supply_map) {
-          // boundary_supply + internal_supply
-          routing_supply_map[routing_layer_idx] += (2 * supply);
-          total_supply += (2 * supply);
-        }
+      for (RoutingLayer& routing_layer : routing_layer_list) {
+        int32_t supply = 2 * getGCellSupply(routing_layer.get_layer_idx(), x, y);
+        routing_supply_map[routing_layer.get_layer_idx()] += supply;
+        total_supply += supply;
       }
     }
   }
@@ -392,10 +386,8 @@ void SupplyAnalyzer::outputPlanarSupplyCSV(SAModel& sa_model)
     for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
       int32_t total_supply = 0;
       for (RoutingLayer& routing_layer : routing_layer_list) {
-        for (auto& [orient, supply] : gcell_map[x][y].get_routing_orient_supply_map()[routing_layer.get_layer_idx()]) {
-          // boundary_supply + internal_supply
-          total_supply += (2 * supply);
-        }
+        // boundary_supply + internal_supply
+        total_supply += 2 * getGCellSupply(routing_layer.get_layer_idx(), x, y);
       }
       RTUTIL.pushStream(supply_csv_file, total_supply, ",");
     }
@@ -422,11 +414,8 @@ void SupplyAnalyzer::outputLayerSupplyCSV(SAModel& sa_model)
         = RTUTIL.getOutputFileStream(RTUTIL.getString(sa_temp_directory_path, "supply_map_", routing_layer.get_layer_name(), ".csv"));
     for (int32_t y = gcell_map.get_y_size() - 1; y >= 0; y--) {
       for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-        int32_t total_supply = 0;
-        for (auto& [orient, supply] : gcell_map[x][y].get_routing_orient_supply_map()[routing_layer.get_layer_idx()]) {
-          // boundary_supply + internal_supply
-          total_supply += (2 * supply);
-        }
+        // boundary_supply + internal_supply
+        int32_t total_supply = 2 * getGCellSupply(routing_layer.get_layer_idx(), x, y);
         RTUTIL.pushStream(supply_csv_file, total_supply, ",");
       }
       RTUTIL.pushStream(supply_csv_file, "\n");
@@ -446,6 +435,8 @@ void SupplyAnalyzer::debugPlotSAModel(SAModel& sa_model)
   Die& die = RTDM.getDatabase().get_die();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
+  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
   std::string& sa_temp_directory_path = RTDM.getConfig().sa_temp_directory_path;
 
   GPGDS gp_gds;
@@ -566,7 +557,6 @@ void SupplyAnalyzer::debugPlotSAModel(SAModel& sa_model)
     for (RoutingLayer& routing_layer : routing_layer_list) {
       for (int32_t grid_x = 0; grid_x < gcell_map.get_x_size(); grid_x++) {
         for (int32_t grid_y = 0; grid_y < gcell_map.get_y_size(); grid_y++) {
-          GCell& gcell = gcell_map[grid_x][grid_y];
           PlanarRect real_rect = RTUTIL.getRealRectByGCell(grid_x, grid_y, gcell_axis);
           int32_t y_reduced_span = std::max(1, real_rect.getYSpan() / 12);
           int32_t y = real_rect.get_ur_y();
@@ -580,7 +570,47 @@ void SupplyAnalyzer::debugPlotSAModel(SAModel& sa_model)
           gp_text_node_grid_coord.set_presentation(GPTextPresentation::kLeftMiddle);
           gcell_map_struct.push(gp_text_node_grid_coord);
 
-          if (RTUTIL.exist(gcell.get_routing_orient_supply_map(), routing_layer.get_layer_idx())) {
+          int32_t layer_idx = routing_layer.get_layer_idx();
+          std::map<Orientation, int32_t> orient_supply_map;
+          std::map<int32_t, std::set<Orientation>> ignore_net_orient_map;
+          if (routing_h_edge_map[layer_idx].isInside(grid_x - 1, grid_y)) {
+            RoutingEdge& routing_edge = routing_h_edge_map[layer_idx][grid_x - 1][grid_y];
+            if (routing_edge.get_supply() > 0) {
+              orient_supply_map[Orientation::kWest] = routing_edge.get_supply();
+            }
+            for (int32_t net_idx : routing_edge.get_ignore_net_set()) {
+              ignore_net_orient_map[net_idx].insert(Orientation::kWest);
+            }
+          }
+          if (routing_h_edge_map[layer_idx].isInside(grid_x, grid_y)) {
+            RoutingEdge& routing_edge = routing_h_edge_map[layer_idx][grid_x][grid_y];
+            if (routing_edge.get_supply() > 0) {
+              orient_supply_map[Orientation::kEast] = routing_edge.get_supply();
+            }
+            for (int32_t net_idx : routing_edge.get_ignore_net_set()) {
+              ignore_net_orient_map[net_idx].insert(Orientation::kEast);
+            }
+          }
+          if (routing_v_edge_map[layer_idx].isInside(grid_x, grid_y - 1)) {
+            RoutingEdge& routing_edge = routing_v_edge_map[layer_idx][grid_x][grid_y - 1];
+            if (routing_edge.get_supply() > 0) {
+              orient_supply_map[Orientation::kSouth] = routing_edge.get_supply();
+            }
+            for (int32_t net_idx : routing_edge.get_ignore_net_set()) {
+              ignore_net_orient_map[net_idx].insert(Orientation::kSouth);
+            }
+          }
+          if (routing_v_edge_map[layer_idx].isInside(grid_x, grid_y)) {
+            RoutingEdge& routing_edge = routing_v_edge_map[layer_idx][grid_x][grid_y];
+            if (routing_edge.get_supply() > 0) {
+              orient_supply_map[Orientation::kNorth] = routing_edge.get_supply();
+            }
+            for (int32_t net_idx : routing_edge.get_ignore_net_set()) {
+              ignore_net_orient_map[net_idx].insert(Orientation::kNorth);
+            }
+          }
+
+          if (!orient_supply_map.empty()) {
             y -= y_reduced_span;
             GPText gp_text_orient_supply_map;
             gp_text_orient_supply_map.set_coord(real_rect.get_ll_x(), y);
@@ -595,7 +625,7 @@ void SupplyAnalyzer::debugPlotSAModel(SAModel& sa_model)
             gp_text_orient_supply_map_info.set_coord(real_rect.get_ll_x(), y);
             gp_text_orient_supply_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
             std::string orient_supply_map_info_message = "--";
-            for (auto& [orient, supply] : gcell.get_routing_orient_supply_map()[routing_layer.get_layer_idx()]) {
+            for (auto& [orient, supply] : orient_supply_map) {
               orient_supply_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient), ",", supply, ")");
             }
             gp_text_orient_supply_map_info.set_message(orient_supply_map_info_message);
@@ -604,7 +634,7 @@ void SupplyAnalyzer::debugPlotSAModel(SAModel& sa_model)
             gcell_map_struct.push(gp_text_orient_supply_map_info);
           }
 
-          if (RTUTIL.exist(gcell.get_routing_ignore_net_orient_map(), routing_layer.get_layer_idx())) {
+          if (!ignore_net_orient_map.empty()) {
             y -= y_reduced_span;
             GPText gp_text_ignore_net_orient_map;
             gp_text_ignore_net_orient_map.set_coord(real_rect.get_ll_x(), y);
@@ -619,7 +649,7 @@ void SupplyAnalyzer::debugPlotSAModel(SAModel& sa_model)
             gp_text_ignore_net_orient_map_info.set_coord(real_rect.get_ll_x(), y);
             gp_text_ignore_net_orient_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
             std::string ignore_net_orient_map_info_message = "--";
-            for (auto& [net_idx, orient_set] : gcell.get_routing_ignore_net_orient_map()[routing_layer.get_layer_idx()]) {
+            for (auto& [net_idx, orient_set] : ignore_net_orient_map) {
               ignore_net_orient_map_info_message += RTUTIL.getString("(", net_idx);
               for (Orientation orient : orient_set) {
                 ignore_net_orient_map_info_message += RTUTIL.getString(",", GetOrientationName()(orient));

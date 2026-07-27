@@ -124,16 +124,6 @@ void RTInterface::runRT()
   SupplyAnalyzer::initInst();
   RTSA.analyze();
   SupplyAnalyzer::destroyInst();
-  {
-    GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
-#pragma omp parallel for
-    for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-      for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-        gcell_map[x][y].get_routing_orient_supply_map().clear();
-        gcell_map[x][y].get_routing_ignore_net_orient_map().clear();
-      }
-    }
-  }
 
   PlanarRouter::initInst();
   RTPR.generate();

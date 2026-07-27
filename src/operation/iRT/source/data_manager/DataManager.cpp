@@ -1611,21 +1611,44 @@ int32_t DataManager::getBucketIdx(int32_t scale_start, int32_t scale_end, int32_
 
 void DataManager::buildFixRectMap()
 {
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
   Die& die = _database.get_die();
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
+  std::vector<Obstacle>& routing_obstacle_list = _database.get_routing_obstacle_list();
+  std::vector<Obstacle>& cut_obstacle_list = _database.get_cut_obstacle_list();
+  std::vector<Net>& net_list = _database.get_net_list();
+  int32_t detection_distance = _database.get_detection_distance();
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& type_layer_net_fixed_rect_map = _database.get_type_layer_net_fixed_rect_map();
 
-  for (int32_t x = die.get_grid_ll_x(); x <= die.get_grid_ur_x(); x++) {
-    for (int32_t y = die.get_grid_ll_y(); y <= die.get_grid_ur_y(); y++) {
-      for (auto& [is_routing, layer_net_fixed_rect_map] : gcell_map[x][y].get_type_layer_net_fixed_rect_map()) {
-        for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
-          for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
-            type_layer_net_fixed_rect_map[is_routing][layer_idx][net_idx].insert(fixed_rect_set.begin(), fixed_rect_set.end());
-          }
+  for (Obstacle& obstacle : routing_obstacle_list) {
+    PlanarRect real_rect = RTUTIL.getEnlargedRect(obstacle.get_real_rect(), detection_distance);
+    if (RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+      type_layer_net_fixed_rect_map[true][obstacle.get_layer_idx()][-1].insert(&obstacle);
+    }
+  }
+  for (Obstacle& obstacle : cut_obstacle_list) {
+    PlanarRect real_rect = RTUTIL.getEnlargedRect(obstacle.get_real_rect(), detection_distance);
+    if (RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+      type_layer_net_fixed_rect_map[false][obstacle.get_layer_idx()][-1].insert(&obstacle);
+    }
+  }
+  for (Net& net : net_list) {
+    for (Pin& pin : net.get_pin_list()) {
+      for (EXTLayerRect& shape : pin.get_routing_shape_list()) {
+        PlanarRect real_rect = RTUTIL.getEnlargedRect(shape.get_real_rect(), detection_distance);
+        if (RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+          type_layer_net_fixed_rect_map[true][shape.get_layer_idx()][net.get_net_idx()].insert(&shape);
+        }
+      }
+      for (EXTLayerRect& shape : pin.get_cut_shape_list()) {
+        PlanarRect real_rect = RTUTIL.getEnlargedRect(shape.get_real_rect(), detection_distance);
+        if (RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+          type_layer_net_fixed_rect_map[false][shape.get_layer_idx()][net.get_net_idx()].insert(&shape);
         }
       }
     }
   }
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 void DataManager::printConfig()
