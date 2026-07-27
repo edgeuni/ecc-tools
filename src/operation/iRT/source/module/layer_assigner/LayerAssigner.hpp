@@ -65,7 +65,7 @@ class LayerAssigner
   void clearRoutingEdgeDemand();
   // routing edge
   RoutingEdge& getRoutingEdge(const LayerCoord& first_coord, const LayerCoord& second_coord);
-  double getOverflowCost(RoutingEdge& routing_edge, double overflow_unit, int32_t net_idx, Direction direction);
+  double getOverflowCost(RoutingEdge& routing_edge, double overflow_unit, int32_t net_idx);
   // route
   void buildPlaneTree(LAModel& la_model);
   void routeLAModel(LAModel& la_model);

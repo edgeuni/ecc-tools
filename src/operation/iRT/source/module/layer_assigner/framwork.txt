@@ -1,8 +1,8 @@
 initLAModel:初始化la_net_list
 setLAComParam:设置布线参数
 initLATaskList:构建task,有序
-资源:从RTDM routing_h_edge_map/routing_v_edge_map读取RoutingEdge的supply、orient_demand和ignore_net
-需求更新:水平segment左端仅East、右端仅West、中间节点两侧；垂直方向为South/North对称处理
+资源:从RTDM routing_h_edge_map/routing_v_edge_map读取RoutingEdge的supply、demand和ignore_net
+需求更新:同一net对同一RoutingEdge仅计一次demand
 buildPlaneTree:从顶层拿取topo树
 routeLAModel:进行层分配
     routeLATask:一个接一个的la_net进行布线

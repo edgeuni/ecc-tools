@@ -78,7 +78,7 @@ void LayerAssigner::clearRoutingEdgeDemand()
     for (GridMap<RoutingEdge>& routing_edge_map : *routing_edge_map_list) {
       for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
         for (int32_t y = 0; y < routing_edge_map.get_y_size(); y++) {
-          routing_edge_map[x][y].set_orient_demand_map({});
+          routing_edge_map[x][y].set_demand(0);
         }
       }
     }
@@ -163,7 +163,7 @@ RoutingEdge& LayerAssigner::getRoutingEdge(const LayerCoord& first_coord, const 
   return RTDM.getDatabase().get_routing_v_edge_map()[layer_idx][first_coord.get_x()][y];
 }
 
-double LayerAssigner::getOverflowCost(RoutingEdge& routing_edge, double overflow_unit, int32_t net_idx, Direction direction)
+double LayerAssigner::getOverflowCost(RoutingEdge& routing_edge, double overflow_unit, int32_t net_idx)
 {
   constexpr double blocked_edge_cost = 1e12;
 
@@ -174,23 +174,8 @@ double LayerAssigner::getOverflowCost(RoutingEdge& routing_edge, double overflow
     return blocked_edge_cost;
   }
 
-  RoutingEdge candidate_edge = routing_edge;
-  std::map<Orientation, int32_t>& orient_demand_map = candidate_edge.get_orient_demand_map();
-  if (direction == Direction::kHorizontal) {
-    orient_demand_map[Orientation::kEast]++;
-    orient_demand_map[Orientation::kWest]++;
-  } else if (direction == Direction::kVertical) {
-    orient_demand_map[Orientation::kNorth]++;
-    orient_demand_map[Orientation::kSouth]++;
-  } else {
-    RTLOG.error(Loc::current(), "The direction is error!");
-  }
-
-  int32_t demand = candidate_edge.get_usage();
-  if (demand == 0) {
-    return 0;
-  }
-  int32_t supply = candidate_edge.get_supply();
+  int32_t demand = routing_edge.get_demand() + 1;
+  int32_t supply = routing_edge.get_supply();
   if (demand == supply) {
     return overflow_unit;
   }
@@ -622,7 +607,6 @@ double LayerAssigner::getSegmentCost(LAModel& la_model, LAPackage& la_package, i
   if (!RTUTIL.isRightAngled(first_coord, second_coord)) {
     RTLOG.error(Loc::current(), "The segment is oblique!");
   }
-  Direction direction = RTUTIL.getDirection(first_coord, second_coord);
   int32_t first_x = first_coord.get_x();
   int32_t first_y = first_coord.get_y();
   int32_t second_x = second_coord.get_x();
@@ -635,13 +619,13 @@ double LayerAssigner::getSegmentCost(LAModel& la_model, LAPackage& la_package, i
     for (int32_t x = first_x; x < second_x; x++) {
       LayerCoord first_layer_coord(x, first_y, candidate_layer_idx);
       LayerCoord second_layer_coord(x + 1, first_y, candidate_layer_idx);
-      edge_cost += getOverflowCost(getRoutingEdge(first_layer_coord, second_layer_coord), overflow_unit, net_idx, direction);
+      edge_cost += getOverflowCost(getRoutingEdge(first_layer_coord, second_layer_coord), overflow_unit, net_idx);
     }
   } else {
     for (int32_t y = first_y; y < second_y; y++) {
       LayerCoord first_layer_coord(first_x, y, candidate_layer_idx);
       LayerCoord second_layer_coord(first_x, y + 1, candidate_layer_idx);
-      edge_cost += getOverflowCost(getRoutingEdge(first_layer_coord, second_layer_coord), overflow_unit, net_idx, direction);
+      edge_cost += getOverflowCost(getRoutingEdge(first_layer_coord, second_layer_coord), overflow_unit, net_idx);
     }
   }
   return edge_cost;
@@ -760,7 +744,7 @@ void LayerAssigner::updateRoutingTreeToGraph(LAModel& la_model, ChangeType chang
     RTLOG.error(Loc::current(), "The change type is error!");
   }
 
-  std::map<RoutingEdge*, std::set<Orientation>> routing_edge_orient_map;
+  std::set<RoutingEdge*> routing_edge_set;
   for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(la_model.get_routing_tree())) {
     LayerCoord first_coord = coord_segment.get_first()->value();
     LayerCoord second_coord = coord_segment.get_second()->value();
@@ -780,43 +764,23 @@ void LayerAssigner::updateRoutingTreeToGraph(LAModel& la_model, ChangeType chang
     int32_t first_y = std::min(first_coord.get_y(), second_coord.get_y());
     int32_t second_y = std::max(first_coord.get_y(), second_coord.get_y());
     if (RTUTIL.isHorizontal(first_coord, second_coord)) {
-      for (int32_t x = first_x; x <= second_x; x++) {
-        if (x != first_x) {
-          RoutingEdge& routing_edge = getRoutingEdge(LayerCoord(x - 1, first_y, layer_idx), LayerCoord(x, first_y, layer_idx));
-          routing_edge_orient_map[&routing_edge].insert(Orientation::kWest);
-        }
-        if (x != second_x) {
-          RoutingEdge& routing_edge = getRoutingEdge(LayerCoord(x, first_y, layer_idx), LayerCoord(x + 1, first_y, layer_idx));
-          routing_edge_orient_map[&routing_edge].insert(Orientation::kEast);
-        }
+      for (int32_t x = first_x; x < second_x; x++) {
+        routing_edge_set.insert(&getRoutingEdge(LayerCoord(x, first_y, layer_idx), LayerCoord(x + 1, first_y, layer_idx)));
       }
     } else {
-      for (int32_t y = first_y; y <= second_y; y++) {
-        if (y != first_y) {
-          RoutingEdge& routing_edge = getRoutingEdge(LayerCoord(first_x, y - 1, layer_idx), LayerCoord(first_x, y, layer_idx));
-          routing_edge_orient_map[&routing_edge].insert(Orientation::kSouth);
-        }
-        if (y != second_y) {
-          RoutingEdge& routing_edge = getRoutingEdge(LayerCoord(first_x, y, layer_idx), LayerCoord(first_x, y + 1, layer_idx));
-          routing_edge_orient_map[&routing_edge].insert(Orientation::kNorth);
-        }
+      for (int32_t y = first_y; y < second_y; y++) {
+        routing_edge_set.insert(&getRoutingEdge(LayerCoord(first_x, y, layer_idx), LayerCoord(first_x, y + 1, layer_idx)));
       }
     }
   }
-  for (auto& [routing_edge, orient_set] : routing_edge_orient_map) {
+  for (RoutingEdge* routing_edge : routing_edge_set) {
     if (routing_edge->get_ignore_net_set().count(curr_net_idx)) {
       continue;
     }
-    std::map<Orientation, int32_t>& orient_demand_map = routing_edge->get_orient_demand_map();
-    for (Orientation orient : orient_set) {
-      if (change_type == ChangeType::kDel && (!RTUTIL.exist(orient_demand_map, orient) || orient_demand_map[orient] <= 0)) {
-        RTLOG.error(Loc::current(), "The routing edge demand is error!");
-      }
-      orient_demand_map[orient] += delta;
-      if (orient_demand_map[orient] == 0) {
-        orient_demand_map.erase(orient);
-      }
+    if (change_type == ChangeType::kDel && routing_edge->get_demand() <= 0) {
+      RTLOG.error(Loc::current(), "The routing edge demand is error!");
     }
+    routing_edge->set_demand(routing_edge->get_demand() + delta);
   }
 }
 
@@ -861,7 +825,7 @@ void LayerAssigner::updateSummary(LAModel& la_model)
       for (int32_t x = 0; x < routing_edge_map->get_x_size(); x++) {
         for (int32_t y = 0; y < routing_edge_map->get_y_size(); y++) {
           RoutingEdge& routing_edge = (*routing_edge_map)[x][y];
-          double demand = routing_edge.get_usage();
+          double demand = routing_edge.get_demand();
           double overflow = routing_edge.get_overflow();
           routing_demand_map[layer_idx] += demand;
           total_demand += demand;
@@ -1097,7 +1061,7 @@ void LayerAssigner::outputNetCSV(LAModel& la_model)
         = routing_layer.isPreferH() ? routing_h_edge_map[routing_layer.get_layer_idx()] : routing_v_edge_map[routing_layer.get_layer_idx()];
     for (int32_t y = routing_edge_map.get_y_size() - 1; y >= 0; y--) {
       for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-        RTUTIL.pushStream(net_csv_file, routing_edge_map[x][y].get_usage(), ",");
+        RTUTIL.pushStream(net_csv_file, routing_edge_map[x][y].get_demand(), ",");
       }
       RTUTIL.pushStream(net_csv_file, "\n");
     }
@@ -1445,13 +1409,7 @@ void LayerAssigner::debugPlotLAModel(LAModel& la_model, std::string flag)
           message_list.push_back(RTUTIL.getString("grid: (", first_grid_coord.get_x(), " , ", first_grid_coord.get_y(), ")-(",
                                                   second_grid_coord.get_x(), " , ", second_grid_coord.get_y(), ")"));
           message_list.push_back(
-              RTUTIL.getString("supply: ", routing_edge.get_supply(), ", usage: ", routing_edge.get_usage(), ", overflow: ", routing_edge.get_overflow()));
-
-          std::string orient_demand_message = "orient_demand:";
-          for (auto& [orient, demand] : routing_edge.get_orient_demand_map()) {
-            orient_demand_message += RTUTIL.getString(" (", GetOrientationName()(orient), ",", demand, ")");
-          }
-          message_list.push_back(orient_demand_message);
+              RTUTIL.getString("supply: ", routing_edge.get_supply(), ", demand: ", routing_edge.get_demand(), ", overflow: ", routing_edge.get_overflow()));
 
           std::string ignore_net_message = "ignore_net:";
           for (int32_t net_idx : routing_edge.get_ignore_net_set()) {

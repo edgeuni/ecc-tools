@@ -35,7 +35,6 @@ class PlanarRouter
   static void destroyInst();
   // function
   void generate();
-  bool repair();
 
  private:
   // self
@@ -54,8 +53,6 @@ class PlanarRouter
   void setPRComParam(PRModel& pr_model);
   void initPRTaskList(PRModel& pr_model);
   void buildPlanarRoutingEdgeMap();
-  void updateLayerCongestion(PRModel& pr_model);
-  std::vector<PRNet*> buildPRResult(PRModel& pr_model);
 
   struct PREdgeCost
   {
@@ -73,8 +70,6 @@ class PlanarRouter
     double getTotalCost() const { return usage_cost + saturation_cost + hotspot_cost + overflow_cost + congestion_cost; }
   };
 
-  // routing edge
-  RoutingEdge& getPlanarRoutingEdge(const PlanarCoord& first_coord, const PlanarCoord& second_coord);
   PREdgeCost getRoutingEdgeCost(RoutingEdge& routing_edge, double overflow_unit);
   void updateRoutingSegmentListToGraph(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
                                        ChangeType change_type, std::set<RoutingEdge*>& routing_edge_set);
