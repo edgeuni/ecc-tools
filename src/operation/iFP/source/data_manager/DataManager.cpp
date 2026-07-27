@@ -161,8 +161,9 @@ void DataManager::printConfig()
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.temp_directory_path);
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "thread_number");
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.thread_number);
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "macro_place_file_path");
-  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.macro_place_file_path);
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "macro_placer");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "location_path: ", _config.macro_place_file_path,
+             ", placement_halo: ", _config.macro_placement_halo, ", routing_halo: ", _config.macro_routing_halo);
 
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout");
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "site: ", _config.layout_site_name, ", ratio: ", _config.layout_xy_ratio,
@@ -208,9 +209,9 @@ void DataManager::printConfig()
                ", type: ", pg_net_to_type_map[pg_net_name] == PGNetType::kPower ? "power" : "ground");
   }
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "pdn_mesh");
-  for (PGGrid& pg_grid : _config.pg_grid_list) {
-    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "rail: ", pg_grid.get_layer_name(),
-               ", rail_width: ", pg_grid.get_width_micron());
+  for (PGRail& pg_rail : _config.pg_rail_list) {
+    FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "rail: ", pg_rail.get_layer_name(),
+               ", rail_width: ", pg_rail.get_width_micron());
   }
   for (PGStripe& pg_stripe : _config.pg_stripe_list) {
     FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "stripe: ", pg_stripe.get_layer_name(),

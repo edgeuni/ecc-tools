@@ -19,11 +19,11 @@
 
 namespace ifp {
 
-class PGGrid
+class PGRail
 {
  public:
-  PGGrid() = default;
-  ~PGGrid() = default;
+  PGRail() = default;
+  ~PGRail() = default;
   // getter
   std::string& get_layer_name() { return _layer_name; }
   double get_width_micron() const { return _width_micron; }

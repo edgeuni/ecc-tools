@@ -63,7 +63,7 @@ void PDNGenerator::generate()
 void PDNGenerator::generatePDN(PGModel& pg_model)
 {
   buildPGNet(pg_model);
-  buildGrid(pg_model);
+  buildRail(pg_model);
   buildStripe(pg_model);
   buildLayerConnect(pg_model);
   buildMacroConnect(pg_model);
@@ -103,17 +103,17 @@ PGNet& PDNGenerator::getPGNet(std::string net_name)
   return database.get_pg_net_list()[database.get_pg_net_name_to_idx_map()[net_name]];
 }
 
-void PDNGenerator::buildGrid(PGModel& pg_model)
+void PDNGenerator::buildRail(PGModel& pg_model)
 {
   Database& database = FPDM.getDatabase();
   Core& core = database.get_core();
-  for (PGGrid& pg_grid : FPDM.getConfig().pg_grid_list) {
-    RoutingLayer* routing_layer = findRoutingLayer(pg_grid.get_layer_name());
+  for (PGRail& pg_rail : FPDM.getConfig().pg_rail_list) {
+    RoutingLayer* routing_layer = findRoutingLayer(pg_rail.get_layer_name());
     if (routing_layer == nullptr || routing_layer->get_prefer_direction() != Direction::kHorizontal) {
       continue;
     }
 
-    int32_t width = FPUTIL.transMicronToDBU(pg_grid.get_width_micron(), database.get_micron_dbu());
+    int32_t width = FPUTIL.transMicronToDBU(pg_rail.get_width_micron(), database.get_micron_dbu());
     if (width <= 0) {
       continue;
     }

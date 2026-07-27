@@ -18,7 +18,7 @@
 
 #include "FPHeader.hpp"
 #include "PGGlobalConnect.hpp"
-#include "PGGrid.hpp"
+#include "PGRail.hpp"
 #include "PGLayerPair.hpp"
 #include "PGStripe.hpp"
 
@@ -34,6 +34,8 @@ class Config
   std::string temp_directory_path;                  // required
   int32_t thread_number;                            // optional
   std::string macro_place_file_path;                // optional
+  double macro_placement_halo;                      // optional
+  double macro_routing_halo;                        // optional
   std::string layout_site_name;                     // optional
   double layout_xy_ratio;                           // optional
   double layout_core_util;                          // optional
@@ -45,7 +47,7 @@ class Config
   double io_pin_width_micron;                       // optional
   double io_pin_depth_micron;                       // optional
   std::vector<PGGlobalConnect> pg_connect_list;     // optional
-  std::vector<PGGrid> pg_grid_list;                 // optional
+  std::vector<PGRail> pg_rail_list;                 // optional
   std::vector<PGStripe> pg_stripe_list;             // optional
   std::vector<PGLayerPair> pg_layer_pair_list;      // optional
   std::string tapcell_name;                         // optional

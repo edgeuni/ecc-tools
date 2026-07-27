@@ -57,7 +57,7 @@ class PDNGenerator
   void buildPGNet(PGModel& pg_model);
   PGNet& getPGNet(std::string net_name);
 
-  void buildGrid(PGModel& pg_model);
+  void buildRail(PGModel& pg_model);
   RoutingLayer* findRoutingLayer(std::string layer_name);
   void addLineSegment(std::string net_name, std::string layer_name, PGSegmentType segment_type, int32_t width, int32_t start_x,
                       int32_t start_y, int32_t end_x, int32_t end_y);

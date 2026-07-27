@@ -151,6 +151,8 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   config.temp_directory_path = "./fp_temp_directory";
   config.thread_number = 128;
   config.macro_place_file_path = "";
+  config.macro_placement_halo = -1.0;
+  config.macro_routing_halo = -1.0;
   config.layout_site_name = "";
   config.layout_xy_ratio = -1.0;
   config.layout_core_util = -1.0;
@@ -162,7 +164,7 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   config.io_pin_width_micron = -1.0;
   config.io_pin_depth_micron = -1.0;
   config.pg_connect_list.clear();
-  config.pg_grid_list.clear();
+  config.pg_rail_list.clear();
   config.pg_stripe_list.clear();
   config.pg_layer_pair_list.clear();
   config.tapcell_name = "";
@@ -185,47 +187,48 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   config_file_stream >> config_json;
   std::filesystem::path config_directory_path = config_file_path.parent_path();
 
-  nlohmann::json& general_json = config_json["general"];
+  nlohmann::json& ifp_json = config_json["ifp"];
   config.temp_directory_path
-      = FPUTIL.getAbsolutePath(config_directory_path, general_json["temporary_directory_path"].get<std::string>());
-  config.thread_number = std::max(general_json["thread_number"].get<int32_t>(), 1);
+      = FPUTIL.getAbsolutePath(config_directory_path, ifp_json["temp_directory_path"].get<std::string>());
+  config.thread_number = std::max(ifp_json["thread_number"].get<int32_t>(), 1);
 
-  nlohmann::json& macro_placement_json = config_json["macro_placement"];
+  nlohmann::json& macro_placer_json = config_json["macro_placer"];
   config.macro_place_file_path
-      = FPUTIL.getAbsolutePath(config_directory_path, macro_placement_json["macro_placement_file_path"].get<std::string>());
+      = FPUTIL.getAbsolutePath(config_directory_path, macro_placer_json["macro_location_path"].get<std::string>());
+  config.macro_placement_halo = macro_placer_json["macro_placement_halo"].get<double>();
+  config.macro_routing_halo = macro_placer_json["macro_routing_halo"].get<double>();
 
-  nlohmann::json& floorplan_json = config_json["floorplan"];
-  nlohmann::json& layout_json = floorplan_json["layout"];
-  config.layout_site_name = layout_json["site_name"].get<std::string>();
-  config.layout_xy_ratio = layout_json["core_width_to_height_ratio"].get<double>();
-  config.layout_core_util = layout_json["core_utilization"].get<double>();
-  config.layout_margin_left_micron = layout_json["left_margin_micron"].get<double>();
-  config.layout_margin_right_micron = layout_json["right_margin_micron"].get<double>();
-  config.layout_margin_top_micron = layout_json["top_margin_micron"].get<double>();
-  config.layout_margin_bottom_micron = layout_json["bottom_margin_micron"].get<double>();
+  nlohmann::json& die_builder_json = config_json["die_builder"];
+  config.layout_site_name = die_builder_json["site_name"].get<std::string>();
+  config.layout_xy_ratio = die_builder_json["core_width_to_height_ratio"].get<double>();
+  config.layout_core_util = die_builder_json["core_utilization"].get<double>();
+  config.layout_margin_left_micron = die_builder_json["left_margin_micron"].get<double>();
+  config.layout_margin_right_micron = die_builder_json["right_margin_micron"].get<double>();
+  config.layout_margin_top_micron = die_builder_json["top_margin_micron"].get<double>();
+  config.layout_margin_bottom_micron = die_builder_json["bottom_margin_micron"].get<double>();
 
-  nlohmann::json& io_pin_json = floorplan_json["auto_place_pin"];
-  for (nlohmann::json& layer_name_json : io_pin_json["routing_layer_name_list"]) {
+  nlohmann::json& io_placer_json = config_json["io_placer"];
+  for (nlohmann::json& layer_name_json : io_placer_json["io_layer_list"]) {
     config.io_pin_layer_name_list.push_back(layer_name_json.get<std::string>());
   }
-  config.io_pin_width_micron = io_pin_json["width_micron"].get<double>();
-  config.io_pin_depth_micron = io_pin_json["depth_micron"].get<double>();
+  config.io_pin_width_micron = io_placer_json["width_micron"].get<double>();
+  config.io_pin_depth_micron = io_placer_json["depth_micron"].get<double>();
 
-  nlohmann::json& phy_cell_json = floorplan_json["physical_cell"];
-  nlohmann::json& well_tap_json = phy_cell_json["well_tap"];
+  nlohmann::json& phy_placer_json = config_json["phy_placer"];
+  nlohmann::json& well_tap_json = phy_placer_json["well_tap"];
   config.tapcell_name = well_tap_json["cell_name"].get<std::string>();
   config.tap_distance_micron = well_tap_json["distance_micron"].get<double>();
-  nlohmann::json& side_endcap_json = phy_cell_json["side_endcap"];
+  nlohmann::json& side_endcap_json = phy_placer_json["side_endcap"];
   config.left_endcap_name = side_endcap_json["left_cell_name"].get<std::string>();
   config.right_endcap_name = side_endcap_json["right_cell_name"].get<std::string>();
-  nlohmann::json& edge_endcap_json = phy_cell_json["edge_endcap"];
+  nlohmann::json& edge_endcap_json = phy_placer_json["edge_endcap"];
   for (nlohmann::json& cell_name_json : edge_endcap_json["top_cell_name_list"]) {
     config.top_endcap_name_list.push_back(cell_name_json.get<std::string>());
   }
   for (nlohmann::json& cell_name_json : edge_endcap_json["bottom_cell_name_list"]) {
     config.bottom_endcap_name_list.push_back(cell_name_json.get<std::string>());
   }
-  nlohmann::json& boundary_tap_json = phy_cell_json["boundary_tap"];
+  nlohmann::json& boundary_tap_json = phy_placer_json["boundary_tap"];
   for (nlohmann::json& cell_name_json : boundary_tap_json["top_cell_name_list"]) {
     config.top_boundary_tap_name_list.push_back(cell_name_json.get<std::string>());
   }
@@ -234,21 +237,21 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   }
   config.boundary_tap_rule_micron = boundary_tap_json["rule_micron"].get<double>();
 
-  nlohmann::json& pdn_json = config_json["pdn"];
-  for (nlohmann::json& pg_connect_json : pdn_json["global_connect"]) {
+  nlohmann::json& pdn_generator_json = config_json["pdn_generator"];
+  for (nlohmann::json& pg_connect_json : pdn_generator_json["global_connect"]) {
     PGGlobalConnect pg_connect;
     pg_connect.set_net_name(pg_connect_json["net_name"].get<std::string>());
     pg_connect.set_pin_name(pg_connect_json["instance_pin_name"].get<std::string>());
     pg_connect.set_net_type(pg_connect_json["is_power"].get<bool>() ? PGNetType::kPower : PGNetType::kGround);
     config.pg_connect_list.push_back(pg_connect);
   }
-  for (nlohmann::json& pg_grid_json : pdn_json["grid"]) {
-    PGGrid pg_grid;
-    pg_grid.set_layer_name(pg_grid_json["routing_layer_name"].get<std::string>());
-    pg_grid.set_width_micron(pg_grid_json["width_micron"].get<double>());
-    config.pg_grid_list.push_back(pg_grid);
+  for (nlohmann::json& pg_rail_json : pdn_generator_json["rail"]) {
+    PGRail pg_rail;
+    pg_rail.set_layer_name(pg_rail_json["routing_layer_name"].get<std::string>());
+    pg_rail.set_width_micron(pg_rail_json["width_micron"].get<double>());
+    config.pg_rail_list.push_back(pg_rail);
   }
-  for (nlohmann::json& pg_stripe_json : pdn_json["stripe"]) {
+  for (nlohmann::json& pg_stripe_json : pdn_generator_json["stripe"]) {
     PGStripe pg_stripe;
     pg_stripe.set_layer_name(pg_stripe_json["routing_layer_name"].get<std::string>());
     pg_stripe.set_width_micron(pg_stripe_json["width_micron"].get<double>());
@@ -256,7 +259,7 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
     pg_stripe.set_offset_micron(pg_stripe_json["offset_micron"].get<double>());
     config.pg_stripe_list.push_back(pg_stripe);
   }
-  for (nlohmann::json& layer_connect_json : pdn_json["connect_layers"]) {
+  for (nlohmann::json& layer_connect_json : pdn_generator_json["connect_layers"]) {
     PGLayerPair pg_layer_pair;
     pg_layer_pair.set_first_layer_name(layer_connect_json["bottom_routing_layer_name"].get<std::string>());
     pg_layer_pair.set_second_layer_name(layer_connect_json["top_routing_layer_name"].get<std::string>());

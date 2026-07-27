@@ -66,10 +66,8 @@ void MacroPlacer::place()
 
 void MacroPlacer::setMPComParam(MPComParam& mp_com_param)
 {
-  double halo_base = 3.0;
-
-  mp_com_param.set_placement_halo_micron(halo_base);
-  mp_com_param.set_routing_halo_micron(halo_base);
+  mp_com_param.set_placement_halo_micron(FPDM.getConfig().macro_placement_halo);
+  mp_com_param.set_routing_halo_micron(FPDM.getConfig().macro_routing_halo);
   FPLOG.info(Loc::current(), "placement_halo_micron: ", mp_com_param.get_placement_halo_micron());
   FPLOG.info(Loc::current(), "routing_halo_micron: ", mp_com_param.get_routing_halo_micron());
 }
