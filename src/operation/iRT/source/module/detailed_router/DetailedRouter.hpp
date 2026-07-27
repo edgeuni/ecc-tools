@@ -56,6 +56,7 @@ class DetailedRouter
   DRModel initDRModel();
   std::vector<DRNet> convertToDRNetList(std::vector<Net>& net_list);
   DRNet convertToDRNet(Net& net);
+  void readDRModel(DRModel& dr_model);
   void routeDRModel(DRModel& dr_model);
   void initRoutingState(DRModel& dr_model);
   void setDRIterParam(DRModel& dr_model, int32_t iter, DRIterParam& dr_iter_param);
@@ -63,13 +64,17 @@ class DetailedRouter
   void resetRoutingState(DRModel& dr_model);
   void buildBoxSchedule(DRModel& dr_model);
   void splitNetResult(DRModel& dr_model);
+  std::set<DRBoxId, CmpDRBoxId> getDRBoxIdSet(DRModel& dr_model, PlanarRect real_rect);
   void routeDRBoxMap(DRModel& dr_model);
   void buildFixedRect(DRBox& dr_box);
   void buildAccessPoint(DRBox& dr_box);
-  void buildNetResult(DRBox& dr_box);
-  void buildNetPatch(DRBox& dr_box);
+  void buildNetEnvironment(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list);
+  void addNetResultToEnvironment(DRModel& dr_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx,
+                                 Segment<LayerCoord>& segment);
+  void addNetPatchToEnvironment(DRModel& dr_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx,
+                                EXTLayerRect& patch);
   void initDRTaskList(DRModel& dr_model, DRBox& dr_box);
-  void buildRouteViolation(DRBox& dr_box);
+  void buildRouteViolation(DRModel& dr_model, DRBox& dr_box);
   bool needRouting(DRBox& dr_box);
   void buildBoxTrackAxis(DRBox& dr_box);
   void buildLayerNodeMap(DRBox& dr_box);
@@ -128,17 +133,21 @@ class DetailedRouter
   void updateBestResult(DRBox& dr_box);
   void updateTaskSchedule(DRBox& dr_box, std::vector<DRTask*>& routing_task_list);
   void selectBestResult(DRBox& dr_box);
-  void uploadBestResult(DRBox& dr_box);
   void freeDRBox(DRBox& dr_box);
+  void updateDRModel(DRModel& dr_model);
   int32_t getRouteViolationNum(DRModel& dr_model);
-  void uploadNetResult(DRModel& dr_model);
-  void uploadNetPatch(DRModel& dr_model);
-  void uploadViolation(DRModel& dr_model);
+  void updateNetResult(DRModel& dr_model);
+  void updateNetPatch(DRModel& dr_model);
+  void updateViolation(DRModel& dr_model);
   std::vector<Violation> getRouteViolationList(DRModel& dr_model);
   void updateBestResult(DRModel& dr_model);
   bool stopIteration(DRModel& dr_model, std::vector<DRIterParam>& dr_iter_param_list);
   void selectBestResult(DRModel& dr_model);
-  void uploadBestResult(DRModel& dr_model);
+  void patchFinalMinArea(DRModel& dr_model);
+  void buildFinalPatchBox(DRModel& dr_model, DRBox& dr_box, const std::set<Violation*, CmpViolation>& patch_violation_set);
+  void updateFinalPatch(DRBox& dr_box, std::map<int32_t, std::set<LayerRect, CmpLayerRectByXASC>>& uploaded_patch_map,
+                        std::map<int32_t, std::vector<EXTLayerRect>>& new_patch_map);
+  void uploadDRModel(DRModel& dr_model);
 
 #if 1  // update env
   void updateFixedRectToGraph(DRBox& dr_box, ChangeType change_type, int32_t net_idx, EXTLayerRect* fixed_rect, bool is_routing);
