@@ -183,6 +183,15 @@ class Utility
     return result_list;
   }
 
+  static std::string getAbsolutePath(const std::filesystem::path& directory_path, const std::string& file_path)
+  {
+    std::filesystem::path path(file_path);
+    if (path.is_absolute()) {
+      return path.string();
+    }
+    return std::filesystem::absolute(directory_path / path).string();
+  }
+
   static void createDirByFile(std::string file_path) { createDir(dirname((char*) file_path.c_str())); }
 
   static void createDir(std::string dir_path)

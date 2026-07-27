@@ -147,125 +147,123 @@ void FPInterface::input(std::map<std::string, std::any>& config_map)
 
 void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
 {
-  /////////////////////////////////////////////
-  FPDM.getConfig().temp_directory_path = FPUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./fp_temp_directory");
-  FPDM.getConfig().thread_number = FPUTIL.getConfigValue<int32_t>(config_map, "-thread_number", 128);
-  FPDM.getConfig().macro_place_file_path = FPUTIL.getConfigValue<std::string>(config_map, "-macro_place_file_path", "");
-  omp_set_num_threads(std::max(FPDM.getConfig().thread_number, 1));
+  Config& config = FPDM.getConfig();
+  config.temp_directory_path = "./fp_temp_directory";
+  config.thread_number = 128;
+  config.macro_place_file_path = "";
+  config.layout_site_name = "";
+  config.layout_xy_ratio = -1.0;
+  config.layout_core_util = -1.0;
+  config.layout_margin_left_micron = -1.0;
+  config.layout_margin_right_micron = -1.0;
+  config.layout_margin_top_micron = -1.0;
+  config.layout_margin_bottom_micron = -1.0;
+  config.io_pin_layer_name_list.clear();
+  config.io_pin_width_micron = -1.0;
+  config.io_pin_depth_micron = -1.0;
+  config.pg_connect_list.clear();
+  config.pg_grid_list.clear();
+  config.pg_stripe_list.clear();
+  config.pg_layer_pair_list.clear();
+  config.tapcell_name = "";
+  config.tap_distance_micron = -1.0;
+  config.left_endcap_name = "";
+  config.right_endcap_name = "";
+  config.top_endcap_name_list.clear();
+  config.bottom_endcap_name_list.clear();
+  config.top_boundary_tap_name_list.clear();
+  config.bottom_boundary_tap_name_list.clear();
+  config.boundary_tap_rule_micron = -1.0;
 
-  FPDM.getConfig().layout_site_name = "";
-  FPDM.getConfig().layout_xy_ratio = -1.0;
-  FPDM.getConfig().layout_core_util = -1.0;
-  FPDM.getConfig().layout_margin_left_micron = -1.0;
-  FPDM.getConfig().layout_margin_right_micron = -1.0;
-  FPDM.getConfig().layout_margin_top_micron = -1.0;
-  FPDM.getConfig().layout_margin_bottom_micron = -1.0;
-  std::vector<std::string> layout_list = FPUTIL.getConfigValue<std::vector<std::string>>(config_map, "-layout", {});
-  if (layout_list.size() == 7) {
-    FPDM.getConfig().layout_site_name = layout_list[0];
-    FPDM.getConfig().layout_xy_ratio = std::stod(layout_list[1]);
-    FPDM.getConfig().layout_core_util = std::stod(layout_list[2]);
-    FPDM.getConfig().layout_margin_left_micron = std::stod(layout_list[3]);
-    FPDM.getConfig().layout_margin_right_micron = std::stod(layout_list[4]);
-    FPDM.getConfig().layout_margin_top_micron = std::stod(layout_list[5]);
-    FPDM.getConfig().layout_margin_bottom_micron = std::stod(layout_list[6]);
+  std::filesystem::path config_file_path = std::filesystem::absolute(FPUTIL.getConfigValue<std::string>(config_map, "-config", ""));
+  std::ifstream config_file_stream(config_file_path);
+  if (!config_file_stream.is_open()) {
+    FPLOG.error(Loc::current(), "Failed to open config file '", config_file_path.string(), "'!");
   }
 
-  FPDM.getConfig().io_pin_layer_name_list.clear();
-  FPDM.getConfig().io_pin_width_micron = -1.0;
-  FPDM.getConfig().io_pin_depth_micron = -1.0;
-  std::vector<std::vector<std::string>> io_pin_list
-      = FPUTIL.getConfigValue<std::vector<std::vector<std::string>>>(config_map, "-io_pin", {});
-  if (io_pin_list.size() == 3 && !io_pin_list[0].empty() && io_pin_list[1].size() == 1 && io_pin_list[2].size() == 1) {
-    FPDM.getConfig().io_pin_layer_name_list = io_pin_list[0];
-    FPDM.getConfig().io_pin_width_micron = std::stod(io_pin_list[1][0]);
-    FPDM.getConfig().io_pin_depth_micron = std::stod(io_pin_list[2][0]);
+  nlohmann::json config_json;
+  config_file_stream >> config_json;
+  std::filesystem::path config_directory_path = config_file_path.parent_path();
+
+  nlohmann::json& general_json = config_json["General"];
+  config.temp_directory_path
+      = FPUTIL.getAbsolutePath(config_directory_path, general_json["temporary directory path"].get<std::string>());
+  config.thread_number = std::max(general_json["thread number"].get<int32_t>(), 1);
+
+  nlohmann::json& macro_placement_json = config_json["Macro Placement"];
+  config.macro_place_file_path
+      = FPUTIL.getAbsolutePath(config_directory_path, macro_placement_json["macro placement file path"].get<std::string>());
+
+  nlohmann::json& floorplan_json = config_json["Floorplan"];
+  nlohmann::json& layout_json = floorplan_json["Layout"];
+  config.layout_site_name = layout_json["site name"].get<std::string>();
+  config.layout_xy_ratio = layout_json["core width to height ratio"].get<double>();
+  config.layout_core_util = layout_json["core utilization"].get<double>();
+  config.layout_margin_left_micron = layout_json["left margin micron"].get<double>();
+  config.layout_margin_right_micron = layout_json["right margin micron"].get<double>();
+  config.layout_margin_top_micron = layout_json["top margin micron"].get<double>();
+  config.layout_margin_bottom_micron = layout_json["bottom margin micron"].get<double>();
+
+  nlohmann::json& io_pin_json = floorplan_json["Auto place pin"];
+  for (nlohmann::json& layer_name_json : io_pin_json["routing layer name list"]) {
+    config.io_pin_layer_name_list.push_back(layer_name_json.get<std::string>());
+  }
+  config.io_pin_width_micron = io_pin_json["width micron"].get<double>();
+  config.io_pin_depth_micron = io_pin_json["depth micron"].get<double>();
+
+  nlohmann::json& phy_cell_json = floorplan_json["Physical cell"];
+  nlohmann::json& well_tap_json = phy_cell_json["Well tap"];
+  config.tapcell_name = well_tap_json["cell name"].get<std::string>();
+  config.tap_distance_micron = well_tap_json["distance micron"].get<double>();
+  nlohmann::json& side_endcap_json = phy_cell_json["Side endcap"];
+  config.left_endcap_name = side_endcap_json["left cell name"].get<std::string>();
+  config.right_endcap_name = side_endcap_json["right cell name"].get<std::string>();
+  nlohmann::json& edge_endcap_json = phy_cell_json["Edge endcap"];
+  for (nlohmann::json& cell_name_json : edge_endcap_json["top cell name list"]) {
+    config.top_endcap_name_list.push_back(cell_name_json.get<std::string>());
+  }
+  for (nlohmann::json& cell_name_json : edge_endcap_json["bottom cell name list"]) {
+    config.bottom_endcap_name_list.push_back(cell_name_json.get<std::string>());
+  }
+  nlohmann::json& boundary_tap_json = phy_cell_json["Boundary tap"];
+  for (nlohmann::json& cell_name_json : boundary_tap_json["top cell name list"]) {
+    config.top_boundary_tap_name_list.push_back(cell_name_json.get<std::string>());
+  }
+  for (nlohmann::json& cell_name_json : boundary_tap_json["bottom cell name list"]) {
+    config.bottom_boundary_tap_name_list.push_back(cell_name_json.get<std::string>());
+  }
+  config.boundary_tap_rule_micron = boundary_tap_json["rule micron"].get<double>();
+
+  nlohmann::json& pdn_json = config_json["PDN"];
+  for (nlohmann::json& pg_connect_json : pdn_json["Global connect"]) {
+    PGGlobalConnect pg_connect;
+    pg_connect.set_net_name(pg_connect_json["net name"].get<std::string>());
+    pg_connect.set_pin_name(pg_connect_json["instance pin name"].get<std::string>());
+    pg_connect.set_net_type(pg_connect_json["is power"].get<bool>() ? PGNetType::kPower : PGNetType::kGround);
+    config.pg_connect_list.push_back(pg_connect);
+  }
+  for (nlohmann::json& pg_grid_json : pdn_json["Grid"]) {
+    PGGrid pg_grid;
+    pg_grid.set_layer_name(pg_grid_json["routing layer name"].get<std::string>());
+    pg_grid.set_width_micron(pg_grid_json["width micron"].get<double>());
+    config.pg_grid_list.push_back(pg_grid);
+  }
+  for (nlohmann::json& pg_stripe_json : pdn_json["Stripe"]) {
+    PGStripe pg_stripe;
+    pg_stripe.set_layer_name(pg_stripe_json["routing layer name"].get<std::string>());
+    pg_stripe.set_width_micron(pg_stripe_json["width micron"].get<double>());
+    pg_stripe.set_pitch_micron(pg_stripe_json["pitch micron"].get<double>());
+    pg_stripe.set_offset_micron(pg_stripe_json["offset micron"].get<double>());
+    config.pg_stripe_list.push_back(pg_stripe);
+  }
+  for (nlohmann::json& layer_connect_json : pdn_json["Connect layers"]) {
+    PGLayerPair pg_layer_pair;
+    pg_layer_pair.set_first_layer_name(layer_connect_json["bottom routing layer name"].get<std::string>());
+    pg_layer_pair.set_second_layer_name(layer_connect_json["top routing layer name"].get<std::string>());
+    config.pg_layer_pair_list.push_back(pg_layer_pair);
   }
 
-  FPDM.getConfig().pg_connect_list.clear();
-  std::vector<std::vector<std::vector<std::string>>> pg_connect_list
-      = FPUTIL.getConfigValue<std::vector<std::vector<std::vector<std::string>>>>(config_map, "-pg_connect", {});
-  for (std::vector<std::vector<std::string>>& pg_connect : pg_connect_list) {
-    if (pg_connect.size() < 2 || pg_connect.back().size() != 1) {
-      continue;
-    }
-
-    PGNetType net_type = std::stoi(pg_connect.back()[0]) != 0 ? PGNetType::kPower : PGNetType::kGround;
-    for (int32_t pg_net_idx = 0; pg_net_idx < static_cast<int32_t>(pg_connect.size()) - 1; pg_net_idx++) {
-      std::vector<std::string>& pg_net_pin_name_list = pg_connect[pg_net_idx];
-      if (pg_net_pin_name_list.empty()) {
-        continue;
-      }
-
-      for (int32_t pin_idx = 1; pin_idx < static_cast<int32_t>(pg_net_pin_name_list.size()); pin_idx++) {
-        PGGlobalConnect pg_connect_item;
-        pg_connect_item.set_net_name(pg_net_pin_name_list[0]);
-        pg_connect_item.set_pin_name(pg_net_pin_name_list[pin_idx]);
-        pg_connect_item.set_net_type(net_type);
-        FPDM.getConfig().pg_connect_list.push_back(pg_connect_item);
-      }
-    }
-  }
-
-  FPDM.getConfig().pg_grid_list.clear();
-  FPDM.getConfig().pg_stripe_list.clear();
-  FPDM.getConfig().pg_layer_pair_list.clear();
-  std::vector<std::vector<std::string>> pdn_mesh_list
-      = FPUTIL.getConfigValue<std::vector<std::vector<std::string>>>(config_map, "-pdn_mesh", {});
-  std::string previous_layer_name;
-  for (std::vector<std::string>& layer_setting : pdn_mesh_list) {
-    if (layer_setting.size() == 2) {
-      PGGrid pg_grid;
-      pg_grid.set_layer_name(layer_setting[0]);
-      pg_grid.set_width_micron(std::stod(layer_setting[1]));
-      FPDM.getConfig().pg_grid_list.push_back(pg_grid);
-    } else if (layer_setting.size() == 4) {
-      PGStripe pg_stripe;
-      pg_stripe.set_layer_name(layer_setting[0]);
-      pg_stripe.set_width_micron(std::stod(layer_setting[1]));
-      pg_stripe.set_pitch_micron(std::stod(layer_setting[2]));
-      pg_stripe.set_offset_micron(std::stod(layer_setting[3]));
-      FPDM.getConfig().pg_stripe_list.push_back(pg_stripe);
-    } else {
-      continue;
-    }
-
-    if (!previous_layer_name.empty()) {
-      PGLayerPair pg_layer_pair;
-      pg_layer_pair.set_first_layer_name(previous_layer_name);
-      pg_layer_pair.set_second_layer_name(layer_setting[0]);
-      FPDM.getConfig().pg_layer_pair_list.push_back(pg_layer_pair);
-    }
-    previous_layer_name = layer_setting[0];
-  }
-
-  FPDM.getConfig().tapcell_name = "";
-  FPDM.getConfig().tap_distance_micron = -1.0;
-  FPDM.getConfig().left_endcap_name = "";
-  FPDM.getConfig().right_endcap_name = "";
-  FPDM.getConfig().top_endcap_name_list.clear();
-  FPDM.getConfig().bottom_endcap_name_list.clear();
-  FPDM.getConfig().top_boundary_tap_name_list.clear();
-  FPDM.getConfig().bottom_boundary_tap_name_list.clear();
-  FPDM.getConfig().boundary_tap_rule_micron = -1.0;
-  std::vector<std::vector<std::vector<std::string>>> phy_insert_list
-      = FPUTIL.getConfigValue<std::vector<std::vector<std::vector<std::string>>>>(config_map, "-phy_insert", {});
-  if (phy_insert_list.size() == 4 && phy_insert_list[0].size() == 2 && phy_insert_list[0][0].size() == 1
-      && phy_insert_list[0][1].size() == 1 && phy_insert_list[1].size() == 2 && phy_insert_list[1][0].size() == 1
-      && phy_insert_list[1][1].size() == 1 && phy_insert_list[2].size() == 2 && !phy_insert_list[2][0].empty()
-      && !phy_insert_list[2][1].empty() && phy_insert_list[3].size() == 3 && !phy_insert_list[3][0].empty()
-      && !phy_insert_list[3][1].empty() && phy_insert_list[3][2].size() == 1) {
-    FPDM.getConfig().tapcell_name = phy_insert_list[0][0][0];
-    FPDM.getConfig().tap_distance_micron = std::stod(phy_insert_list[0][1][0]);
-    FPDM.getConfig().left_endcap_name = phy_insert_list[1][0][0];
-    FPDM.getConfig().right_endcap_name = phy_insert_list[1][1][0];
-    FPDM.getConfig().top_endcap_name_list = phy_insert_list[2][0];
-    FPDM.getConfig().bottom_endcap_name_list = phy_insert_list[2][1];
-    FPDM.getConfig().top_boundary_tap_name_list = phy_insert_list[3][0];
-    FPDM.getConfig().bottom_boundary_tap_name_list = phy_insert_list[3][1];
-    FPDM.getConfig().boundary_tap_rule_micron = std::stod(phy_insert_list[3][2][0]);
-  }
-  /////////////////////////////////////////////
+  omp_set_num_threads(config.thread_number);
 }
 
 void FPInterface::wrapDatabase()
