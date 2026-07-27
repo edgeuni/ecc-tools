@@ -185,81 +185,81 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   config_file_stream >> config_json;
   std::filesystem::path config_directory_path = config_file_path.parent_path();
 
-  nlohmann::json& general_json = config_json["General"];
+  nlohmann::json& general_json = config_json["general"];
   config.temp_directory_path
-      = FPUTIL.getAbsolutePath(config_directory_path, general_json["temporary directory path"].get<std::string>());
-  config.thread_number = std::max(general_json["thread number"].get<int32_t>(), 1);
+      = FPUTIL.getAbsolutePath(config_directory_path, general_json["temporary_directory_path"].get<std::string>());
+  config.thread_number = std::max(general_json["thread_number"].get<int32_t>(), 1);
 
-  nlohmann::json& macro_placement_json = config_json["Macro Placement"];
+  nlohmann::json& macro_placement_json = config_json["macro_placement"];
   config.macro_place_file_path
-      = FPUTIL.getAbsolutePath(config_directory_path, macro_placement_json["macro placement file path"].get<std::string>());
+      = FPUTIL.getAbsolutePath(config_directory_path, macro_placement_json["macro_placement_file_path"].get<std::string>());
 
-  nlohmann::json& floorplan_json = config_json["Floorplan"];
-  nlohmann::json& layout_json = floorplan_json["Layout"];
-  config.layout_site_name = layout_json["site name"].get<std::string>();
-  config.layout_xy_ratio = layout_json["core width to height ratio"].get<double>();
-  config.layout_core_util = layout_json["core utilization"].get<double>();
-  config.layout_margin_left_micron = layout_json["left margin micron"].get<double>();
-  config.layout_margin_right_micron = layout_json["right margin micron"].get<double>();
-  config.layout_margin_top_micron = layout_json["top margin micron"].get<double>();
-  config.layout_margin_bottom_micron = layout_json["bottom margin micron"].get<double>();
+  nlohmann::json& floorplan_json = config_json["floorplan"];
+  nlohmann::json& layout_json = floorplan_json["layout"];
+  config.layout_site_name = layout_json["site_name"].get<std::string>();
+  config.layout_xy_ratio = layout_json["core_width_to_height_ratio"].get<double>();
+  config.layout_core_util = layout_json["core_utilization"].get<double>();
+  config.layout_margin_left_micron = layout_json["left_margin_micron"].get<double>();
+  config.layout_margin_right_micron = layout_json["right_margin_micron"].get<double>();
+  config.layout_margin_top_micron = layout_json["top_margin_micron"].get<double>();
+  config.layout_margin_bottom_micron = layout_json["bottom_margin_micron"].get<double>();
 
-  nlohmann::json& io_pin_json = floorplan_json["Auto place pin"];
-  for (nlohmann::json& layer_name_json : io_pin_json["routing layer name list"]) {
+  nlohmann::json& io_pin_json = floorplan_json["auto_place_pin"];
+  for (nlohmann::json& layer_name_json : io_pin_json["routing_layer_name_list"]) {
     config.io_pin_layer_name_list.push_back(layer_name_json.get<std::string>());
   }
-  config.io_pin_width_micron = io_pin_json["width micron"].get<double>();
-  config.io_pin_depth_micron = io_pin_json["depth micron"].get<double>();
+  config.io_pin_width_micron = io_pin_json["width_micron"].get<double>();
+  config.io_pin_depth_micron = io_pin_json["depth_micron"].get<double>();
 
-  nlohmann::json& phy_cell_json = floorplan_json["Physical cell"];
-  nlohmann::json& well_tap_json = phy_cell_json["Well tap"];
-  config.tapcell_name = well_tap_json["cell name"].get<std::string>();
-  config.tap_distance_micron = well_tap_json["distance micron"].get<double>();
-  nlohmann::json& side_endcap_json = phy_cell_json["Side endcap"];
-  config.left_endcap_name = side_endcap_json["left cell name"].get<std::string>();
-  config.right_endcap_name = side_endcap_json["right cell name"].get<std::string>();
-  nlohmann::json& edge_endcap_json = phy_cell_json["Edge endcap"];
-  for (nlohmann::json& cell_name_json : edge_endcap_json["top cell name list"]) {
+  nlohmann::json& phy_cell_json = floorplan_json["physical_cell"];
+  nlohmann::json& well_tap_json = phy_cell_json["well_tap"];
+  config.tapcell_name = well_tap_json["cell_name"].get<std::string>();
+  config.tap_distance_micron = well_tap_json["distance_micron"].get<double>();
+  nlohmann::json& side_endcap_json = phy_cell_json["side_endcap"];
+  config.left_endcap_name = side_endcap_json["left_cell_name"].get<std::string>();
+  config.right_endcap_name = side_endcap_json["right_cell_name"].get<std::string>();
+  nlohmann::json& edge_endcap_json = phy_cell_json["edge_endcap"];
+  for (nlohmann::json& cell_name_json : edge_endcap_json["top_cell_name_list"]) {
     config.top_endcap_name_list.push_back(cell_name_json.get<std::string>());
   }
-  for (nlohmann::json& cell_name_json : edge_endcap_json["bottom cell name list"]) {
+  for (nlohmann::json& cell_name_json : edge_endcap_json["bottom_cell_name_list"]) {
     config.bottom_endcap_name_list.push_back(cell_name_json.get<std::string>());
   }
-  nlohmann::json& boundary_tap_json = phy_cell_json["Boundary tap"];
-  for (nlohmann::json& cell_name_json : boundary_tap_json["top cell name list"]) {
+  nlohmann::json& boundary_tap_json = phy_cell_json["boundary_tap"];
+  for (nlohmann::json& cell_name_json : boundary_tap_json["top_cell_name_list"]) {
     config.top_boundary_tap_name_list.push_back(cell_name_json.get<std::string>());
   }
-  for (nlohmann::json& cell_name_json : boundary_tap_json["bottom cell name list"]) {
+  for (nlohmann::json& cell_name_json : boundary_tap_json["bottom_cell_name_list"]) {
     config.bottom_boundary_tap_name_list.push_back(cell_name_json.get<std::string>());
   }
-  config.boundary_tap_rule_micron = boundary_tap_json["rule micron"].get<double>();
+  config.boundary_tap_rule_micron = boundary_tap_json["rule_micron"].get<double>();
 
-  nlohmann::json& pdn_json = config_json["PDN"];
-  for (nlohmann::json& pg_connect_json : pdn_json["Global connect"]) {
+  nlohmann::json& pdn_json = config_json["pdn"];
+  for (nlohmann::json& pg_connect_json : pdn_json["global_connect"]) {
     PGGlobalConnect pg_connect;
-    pg_connect.set_net_name(pg_connect_json["net name"].get<std::string>());
-    pg_connect.set_pin_name(pg_connect_json["instance pin name"].get<std::string>());
-    pg_connect.set_net_type(pg_connect_json["is power"].get<bool>() ? PGNetType::kPower : PGNetType::kGround);
+    pg_connect.set_net_name(pg_connect_json["net_name"].get<std::string>());
+    pg_connect.set_pin_name(pg_connect_json["instance_pin_name"].get<std::string>());
+    pg_connect.set_net_type(pg_connect_json["is_power"].get<bool>() ? PGNetType::kPower : PGNetType::kGround);
     config.pg_connect_list.push_back(pg_connect);
   }
-  for (nlohmann::json& pg_grid_json : pdn_json["Grid"]) {
+  for (nlohmann::json& pg_grid_json : pdn_json["grid"]) {
     PGGrid pg_grid;
-    pg_grid.set_layer_name(pg_grid_json["routing layer name"].get<std::string>());
-    pg_grid.set_width_micron(pg_grid_json["width micron"].get<double>());
+    pg_grid.set_layer_name(pg_grid_json["routing_layer_name"].get<std::string>());
+    pg_grid.set_width_micron(pg_grid_json["width_micron"].get<double>());
     config.pg_grid_list.push_back(pg_grid);
   }
-  for (nlohmann::json& pg_stripe_json : pdn_json["Stripe"]) {
+  for (nlohmann::json& pg_stripe_json : pdn_json["stripe"]) {
     PGStripe pg_stripe;
-    pg_stripe.set_layer_name(pg_stripe_json["routing layer name"].get<std::string>());
-    pg_stripe.set_width_micron(pg_stripe_json["width micron"].get<double>());
-    pg_stripe.set_pitch_micron(pg_stripe_json["pitch micron"].get<double>());
-    pg_stripe.set_offset_micron(pg_stripe_json["offset micron"].get<double>());
+    pg_stripe.set_layer_name(pg_stripe_json["routing_layer_name"].get<std::string>());
+    pg_stripe.set_width_micron(pg_stripe_json["width_micron"].get<double>());
+    pg_stripe.set_pitch_micron(pg_stripe_json["pitch_micron"].get<double>());
+    pg_stripe.set_offset_micron(pg_stripe_json["offset_micron"].get<double>());
     config.pg_stripe_list.push_back(pg_stripe);
   }
-  for (nlohmann::json& layer_connect_json : pdn_json["Connect layers"]) {
+  for (nlohmann::json& layer_connect_json : pdn_json["connect_layers"]) {
     PGLayerPair pg_layer_pair;
-    pg_layer_pair.set_first_layer_name(layer_connect_json["bottom routing layer name"].get<std::string>());
-    pg_layer_pair.set_second_layer_name(layer_connect_json["top routing layer name"].get<std::string>());
+    pg_layer_pair.set_first_layer_name(layer_connect_json["bottom_routing_layer_name"].get<std::string>());
+    pg_layer_pair.set_second_layer_name(layer_connect_json["top_routing_layer_name"].get<std::string>());
     config.pg_layer_pair_list.push_back(pg_layer_pair);
   }
 
