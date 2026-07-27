@@ -128,6 +128,7 @@ void RTInterface::runRT()
   PlanarRouter::initInst();
   RTPR.generate();
   PlanarRouter::destroyInst();
+
   RTDM.getDatabase().get_planar_routing_h_edge_map().free();
   RTDM.getDatabase().get_planar_routing_v_edge_map().free();
 
@@ -135,34 +136,12 @@ void RTInterface::runRT()
   RTLA.assign();
   LayerAssigner::destroyInst();
 
-  // PlanarRouter::initInst();
-  // bool repaired = RTPR.repair();
-  // PlanarRouter::destroyInst();
-
-  // if (repaired) {
-  //   LayerAssigner::initInst();
-  //   RTLA.assign();
-  //   LayerAssigner::destroyInst();
-  // }
-
-  // SpaceRouter::initInst();
-  // RTSR.route();
-  // SpaceRouter::destroyInst();
-
   std::vector<GridMap<RoutingEdge>>().swap(RTDM.getDatabase().get_routing_h_edge_map());
   std::vector<GridMap<RoutingEdge>>().swap(RTDM.getDatabase().get_routing_v_edge_map());
 
   TrackAssigner::initInst();
   RTTA.assign();
   TrackAssigner::destroyInst();
-  {
-    Die& die = RTDM.getDatabase().get_die();
-    for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-      for (Segment<LayerCoord>* segment : segment_set) {
-        RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
-      }
-    }
-  }
 
   DetailedRouter::initInst();
   RTDR.route();
