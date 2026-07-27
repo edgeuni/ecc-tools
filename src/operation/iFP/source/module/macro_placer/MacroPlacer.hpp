@@ -17,8 +17,7 @@
 #pragma once
 
 #include "MPComParam.hpp"
-#include "MPIterParam.hpp"
-#include "MPModel.hpp"
+#include "Row.hpp"
 
 namespace ifp {
 
@@ -45,26 +44,13 @@ class MacroPlacer
   MacroPlacer& operator=(MacroPlacer&& other) = delete;
   // function
 
-  MPModel initMPModel();
-
-  void buildModel(MPModel& mp_model);
-  void buildNodeList(MPModel& mp_model);
-  void buildNetList(MPModel& mp_model);
-
-  void setMPComParam(MPModel& mp_model);
-
-  void optimize(MPModel& mp_model);
-  void initializeNodeLocation(MPModel& mp_model);
-  double calculateCost(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
-  double calculateWirelength(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
-  double calculateOverlap(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
-  MPRect getNodeRect(const MPNode& mp_node);
-  double calculateOutOfBound(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
-  double calculatePeriphery(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
-  double calculateIODistance(const MPModel& mp_model, const std::vector<MPNode>& mp_node_list);
-  void setMPIterParam(MPModel& mp_model, int32_t iter, MPIterParam& mp_iter_param);
-
-  void uploadPlacementResult(MPModel& mp_model);
+  void setMPComParam(MPComParam& mp_com_param);
+  void buildMacroPlacementHalo(MPComParam& mp_com_param);
+  void buildMacroRoutingHalo(MPComParam& mp_com_param);
+  void cutRowList();
+  void cutRow(Row& row, std::vector<Row>& cut_row_list);
+  std::vector<std::pair<int32_t, int32_t>> getRowBlockageIntervalList(Row& row);
+  void addCutRow(Row& row, std::vector<Row>& cut_row_list, int32_t start_x, int32_t end_x, int32_t cut_row_idx);
 };
 
 }  // namespace ifp

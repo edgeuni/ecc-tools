@@ -25,6 +25,7 @@
 #include "PDNGenerator.hpp"
 #include "PhyPlacer.hpp"
 #include "Utility.hpp"
+#include "IdbTerm.h"
 #include "idm.h"
 
 namespace ifp {
@@ -149,6 +150,7 @@ void FPInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   /////////////////////////////////////////////
   FPDM.getConfig().temp_directory_path = FPUTIL.getConfigValue<std::string>(config_map, "-temp_directory_path", "./fp_temp_directory");
   FPDM.getConfig().thread_number = FPUTIL.getConfigValue<int32_t>(config_map, "-thread_number", 128);
+  FPDM.getConfig().macro_place_file_path = FPUTIL.getConfigValue<std::string>(config_map, "-macro_place_file_path", "");
   omp_set_num_threads(std::max(FPDM.getConfig().thread_number, 1));
 
   FPDM.getConfig().layout_site_name = "";
@@ -261,6 +263,7 @@ void FPInterface::wrapDatabase()
   wrapRoutingLayerList();
   wrapInstanceList();
   wrapNetList();
+  wrapMacroPlacement();
   wrapIOPinList();
 }
 
@@ -281,7 +284,15 @@ void FPInterface::wrapManufactureGrid()
 
 void FPInterface::wrapCellArea()
 {
-  FPDM.getDatabase().set_cell_area(dmInst->instanceArea(idb::IdbInstanceType::kMax));
+  double cell_area = 0.0;
+  int32_t micron_dbu = FPDM.getDatabase().get_micron_dbu();
+  for (idb::IdbInstance* idb_instance : dmInst->get_idb_design()->get_instance_list()->get_instance_list()) {
+    idb::IdbCellMaster* idb_cell_master = idb_instance->get_cell_master();
+    double width_micron = idb_cell_master->get_width() / 1.0 / micron_dbu;
+    double height_micron = idb_cell_master->get_height() / 1.0 / micron_dbu;
+    cell_area += width_micron * height_micron;
+  }
+  FPDM.getDatabase().set_cell_area(cell_area);
 }
 
 void FPInterface::wrapSiteMap()
@@ -362,21 +373,52 @@ void FPInterface::wrapInstanceList()
       instance.set_bounding_rect(idb_instance->get_bounding_box()->get_low_x(), idb_instance->get_bounding_box()->get_low_y(),
                                  idb_instance->get_bounding_box()->get_high_x(), idb_instance->get_bounding_box()->get_high_y());
     }
-    if (instance.get_macro() && instance.get_placed()) {
-      for (idb::IdbPin* idb_pin : idb_instance->get_pin_list()->get_pin_list()) {
-        idb_pin->set_bounding_box();
-        for (idb::IdbLayerShape* idb_layer_shape : idb_pin->get_port_box_list()) {
-          for (idb::IdbRect* idb_rect : idb_layer_shape->get_rect_list()) {
-            InstancePinShape pin_shape;
-            pin_shape.set_pin_name(idb_pin->get_pin_name());
-            pin_shape.set_layer_name(idb_layer_shape->get_layer()->get_name());
-            pin_shape.set_rect(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y());
-            instance.get_pin_shape_list().push_back(pin_shape);
-          }
+    if (instance.get_macro()) {
+      wrapMacroPinShapeList(idb_instance, instance);
+    }
+    instance_list.push_back(instance);
+  }
+}
+
+void FPInterface::wrapMacroPinShapeList(idb::IdbInstance* idb_instance, Instance& instance)
+{
+  if (idb_instance->has_placed()) {
+    wrapPlacedMacroPinShapeList(idb_instance, instance);
+  } else {
+    wrapUnplacedMacroPinShapeList(idb_instance, instance);
+  }
+}
+
+void FPInterface::wrapPlacedMacroPinShapeList(idb::IdbInstance* idb_instance, Instance& instance)
+{
+  for (idb::IdbPin* idb_pin : idb_instance->get_pin_list()->get_pin_list()) {
+    idb_pin->set_bounding_box();
+    for (idb::IdbLayerShape* idb_layer_shape : idb_pin->get_port_box_list()) {
+      for (idb::IdbRect* idb_rect : idb_layer_shape->get_rect_list()) {
+        InstancePinShape pin_shape;
+        pin_shape.set_pin_name(idb_pin->get_pin_name());
+        pin_shape.set_layer_name(idb_layer_shape->get_layer()->get_name());
+        pin_shape.set_rect(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y());
+        instance.get_pin_shape_list().push_back(pin_shape);
+      }
+    }
+  }
+}
+
+void FPInterface::wrapUnplacedMacroPinShapeList(idb::IdbInstance* idb_instance, Instance& instance)
+{
+  for (idb::IdbTerm* idb_term : idb_instance->get_cell_master()->get_term_list()) {
+    for (idb::IdbPort* idb_port : idb_term->get_port_list()) {
+      for (idb::IdbLayerShape* idb_layer_shape : idb_port->get_layer_shape()) {
+        for (idb::IdbRect* idb_rect : idb_layer_shape->get_rect_list()) {
+          InstancePinShape pin_shape;
+          pin_shape.set_pin_name(idb_term->get_name());
+          pin_shape.set_layer_name(idb_layer_shape->get_layer()->get_name());
+          pin_shape.set_rect(idb_rect->get_low_x(), idb_rect->get_low_y(), idb_rect->get_high_x(), idb_rect->get_high_y());
+          instance.get_pin_shape_list().push_back(pin_shape);
         }
       }
     }
-    instance_list.push_back(instance);
   }
 }
 
@@ -436,6 +478,141 @@ void FPInterface::wrapNetList()
       net.get_net_pin_list().push_back(net_pin);
     }
     net_list.push_back(net);
+  }
+}
+
+void FPInterface::wrapMacroPlacement()
+{
+  if (FPDM.getConfig().macro_place_file_path.empty()) {
+    return;
+  }
+
+  std::ifstream* macro_place_file = FPUTIL.getInputFileStream(FPDM.getConfig().macro_place_file_path);
+  std::string line;
+  while (std::getline(*macro_place_file, line)) {
+    if (line.empty() || line[0] == '#') {
+      continue;
+    }
+
+    std::istringstream line_stream(line);
+    std::string instance_name;
+    double x_micron = -1.0;
+    double y_micron = -1.0;
+    std::string orient_name;
+    line_stream >> instance_name >> x_micron >> y_micron >> orient_name;
+    for (Instance& instance : FPDM.getDatabase().get_instance_list()) {
+      if (!instance.get_macro() || instance.get_name() != instance_name) {
+        continue;
+      }
+      wrapMacroPlacement(instance, x_micron, y_micron, GetPlacementOrientationByName()(orient_name));
+      break;
+    }
+  }
+  FPUTIL.closeFileStream(macro_place_file);
+}
+
+void FPInterface::wrapMacroPlacement(Instance& instance, double x_micron, double y_micron, PlacementOrientation orient)
+{
+  int32_t x = FPUTIL.transMicronToDBU(x_micron, FPDM.getDatabase().get_micron_dbu());
+  int32_t y = FPUTIL.transMicronToDBU(y_micron, FPDM.getDatabase().get_micron_dbu());
+  int32_t bounding_width = instance.get_width();
+  int32_t bounding_height = instance.get_height();
+  if (orient == PlacementOrientation::kW || orient == PlacementOrientation::kE || orient == PlacementOrientation::kFE
+      || orient == PlacementOrientation::kFW) {
+    std::swap(bounding_width, bounding_height);
+  }
+
+  instance.set_coord(x, y);
+  instance.set_orient(orient);
+  instance.set_bounding_rect(x, y, x + bounding_width, y + bounding_height);
+  for (InstancePinShape& pin_shape : instance.get_pin_shape_list()) {
+    int32_t ll_x = pin_shape.get_ll_x();
+    int32_t ll_y = pin_shape.get_ll_y();
+    int32_t ur_x = pin_shape.get_ur_x();
+    int32_t ur_y = pin_shape.get_ur_y();
+    int32_t transformed_ll_x = ll_x;
+    int32_t transformed_ll_y = ll_y;
+    int32_t transformed_ur_x = ur_x;
+    int32_t transformed_ur_y = ur_y;
+    switch (orient) {
+      case PlacementOrientation::kW:
+        transformed_ll_x = instance.get_height() - ur_y;
+        transformed_ll_y = ll_x;
+        transformed_ur_x = instance.get_height() - ll_y;
+        transformed_ur_y = ur_x;
+        break;
+      case PlacementOrientation::kS:
+        transformed_ll_x = instance.get_width() - ur_x;
+        transformed_ll_y = instance.get_height() - ur_y;
+        transformed_ur_x = instance.get_width() - ll_x;
+        transformed_ur_y = instance.get_height() - ll_y;
+        break;
+      case PlacementOrientation::kE:
+        transformed_ll_x = ll_y;
+        transformed_ll_y = instance.get_width() - ur_x;
+        transformed_ur_x = ur_y;
+        transformed_ur_y = instance.get_width() - ll_x;
+        break;
+      case PlacementOrientation::kFN:
+        transformed_ll_x = instance.get_width() - ur_x;
+        transformed_ur_x = instance.get_width() - ll_x;
+        break;
+      case PlacementOrientation::kFE:
+        transformed_ll_x = instance.get_height() - ur_y;
+        transformed_ll_y = instance.get_width() - ur_x;
+        transformed_ur_x = instance.get_height() - ll_y;
+        transformed_ur_y = instance.get_width() - ll_x;
+        break;
+      case PlacementOrientation::kFS:
+        transformed_ll_y = instance.get_height() - ur_y;
+        transformed_ur_y = instance.get_height() - ll_y;
+        break;
+      case PlacementOrientation::kFW:
+        transformed_ll_x = ll_y;
+        transformed_ll_y = ll_x;
+        transformed_ur_x = ur_y;
+        transformed_ur_y = ur_x;
+        break;
+      default:
+        break;
+    }
+    pin_shape.set_rect(x + transformed_ll_x, y + transformed_ll_y, x + transformed_ur_x, y + transformed_ur_y);
+  }
+  instance.set_fixed(true);
+  instance.set_cover(false);
+  instance.set_placed(true);
+  instance.set_placement_updated(true);
+  wrapMacroNetPinList(instance);
+}
+
+void FPInterface::wrapMacroNetPinList(Instance& instance)
+{
+  for (Net& net : FPDM.getDatabase().get_net_list()) {
+    for (NetPin& net_pin : net.get_net_pin_list()) {
+      if (net_pin.get_io() || net_pin.get_instance_name() != instance.get_name()) {
+        continue;
+      }
+      int32_t ll_x = INT32_MAX;
+      int32_t ll_y = INT32_MAX;
+      int32_t ur_x = INT32_MIN;
+      int32_t ur_y = INT32_MIN;
+      bool pin_shape_exist = false;
+      for (InstancePinShape& pin_shape : instance.get_pin_shape_list()) {
+        if (pin_shape.get_pin_name() != net_pin.get_pin_name()) {
+          continue;
+        }
+        ll_x = std::min(ll_x, pin_shape.get_ll_x());
+        ll_y = std::min(ll_y, pin_shape.get_ll_y());
+        ur_x = std::max(ur_x, pin_shape.get_ur_x());
+        ur_y = std::max(ur_y, pin_shape.get_ur_y());
+        pin_shape_exist = true;
+      }
+      if (!pin_shape_exist) {
+        continue;
+      }
+      net_pin.set_coord((ll_x + ur_x) / 2, (ll_y + ur_y) / 2);
+      net_pin.set_placed(true);
+    }
   }
 }
 

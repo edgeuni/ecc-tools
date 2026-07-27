@@ -98,9 +98,15 @@ void PhyPlacer::adjustTapDistance(int32_t& inst_space)
 int32_t PhyPlacer::buildPPRegionList(PPModel& pp_model)
 {
   std::vector<Row>& row_list = FPDM.getDatabase().get_row_list();
-  for (int32_t row_idx = 0; row_idx < static_cast<int32_t>(row_list.size()); row_idx++) {
-    buildPPRegionInRow(pp_model, row_list[row_idx], row_idx);
-    int32_t y_coord = row_list[row_idx].get_y();
+  int32_t row_idx = -1;
+  int32_t previous_y_coord = INT32_MIN;
+  for (Row& row : row_list) {
+    if (row.get_y() != previous_y_coord) {
+      row_idx++;
+      previous_y_coord = row.get_y();
+    }
+    buildPPRegionInRow(pp_model, row, row_idx);
+    int32_t y_coord = row.get_y();
     pp_model.set_top_y_coord(std::max(pp_model.get_top_y_coord(), y_coord));
     pp_model.set_bottom_y_coord(std::min(pp_model.get_bottom_y_coord(), y_coord));
   }
@@ -109,10 +115,63 @@ int32_t PhyPlacer::buildPPRegionList(PPModel& pp_model)
 
 void PhyPlacer::buildPPRegionInRow(PPModel& pp_model, Row& row, int32_t row_idx)
 {
+  std::vector<std::pair<int32_t, int32_t>> macro_bottom_interval_list = getMacroBottomIntervalList(row);
+  if (macro_bottom_interval_list.empty()) {
+    addPPRegion(pp_model, row, row_idx, row.get_ll_x(), row.get_ur_x());
+    return;
+  }
+
+  int32_t current_x = row.get_ll_x();
+  for (std::pair<int32_t, int32_t>& macro_bottom_interval : macro_bottom_interval_list) {
+    if (macro_bottom_interval.second <= current_x) {
+      continue;
+    }
+    if (macro_bottom_interval.first > current_x) {
+      addPPRegion(pp_model, row, row_idx, current_x, macro_bottom_interval.first);
+    }
+    current_x = std::max(current_x, macro_bottom_interval.second);
+    if (current_x >= row.get_ur_x()) {
+      return;
+    }
+  }
+  if (current_x < row.get_ur_x()) {
+    addPPRegion(pp_model, row, row_idx, current_x, row.get_ur_x());
+  }
+}
+
+std::vector<std::pair<int32_t, int32_t>> PhyPlacer::getMacroBottomIntervalList(Row& row)
+{
+  Database& database = FPDM.getDatabase();
+  Site& site = database.get_site_map()[row.get_site_name()];
+  std::vector<std::pair<int32_t, int32_t>> macro_bottom_interval_list;
+  for (Instance& instance : database.get_instance_list()) {
+    if (!instance.get_macro() || !instance.get_placed()) {
+      continue;
+    }
+    PlanarRect& placement_halo_rect = instance.get_placement_halo_rect();
+    if (row.get_ur_y() > placement_halo_rect.get_ll_y() || placement_halo_rect.get_ll_y() >= row.get_ur_y() + row.get_height()) {
+      continue;
+    }
+    int32_t start_x = std::max(row.get_ll_x(), FPUTIL.alignDown(placement_halo_rect.get_ll_x(), site.get_width()));
+    int32_t end_x = std::min(row.get_ur_x(), FPUTIL.alignUp(placement_halo_rect.get_ur_x(), site.get_width()));
+    if (start_x < end_x) {
+      macro_bottom_interval_list.emplace_back(start_x, end_x);
+    }
+  }
+  std::sort(macro_bottom_interval_list.begin(), macro_bottom_interval_list.end(),
+            [](const std::pair<int32_t, int32_t>& first, const std::pair<int32_t, int32_t>& second) { return first.first < second.first; });
+  return macro_bottom_interval_list;
+}
+
+void PhyPlacer::addPPRegion(PPModel& pp_model, Row& row, int32_t row_idx, int32_t start_coord, int32_t end_coord)
+{
+  if (start_coord >= end_coord) {
+    return;
+  }
   PPRegion pp_region;
   pp_region.set_row_idx(row_idx);
-  pp_region.set_start_coord(row.get_ll_x());
-  pp_region.set_end_coord(row.get_ur_x());
+  pp_region.set_start_coord(start_coord);
+  pp_region.set_end_coord(end_coord);
   pp_region.set_y_coord(row.get_y());
   pp_region.set_orient(row.get_orient());
   pp_model.get_pp_region_list().push_back(pp_region);
@@ -168,7 +227,29 @@ int32_t PhyPlacer::insertPhyCell(PPModel& pp_model, int32_t inst_space, std::str
       x_coord += inst_space * 2;
     }
   }
+  insertMacroBottomEndcap(endcap_idx, endcap_name);
   return endcap_idx + tapcell_idx;
+}
+
+void PhyPlacer::insertMacroBottomEndcap(int32_t& endcap_idx, std::string endcap_name)
+{
+  Database& database = FPDM.getDatabase();
+  CellMaster& endcap_master = database.get_cell_master_map()[endcap_name];
+  for (Row& row : database.get_row_list()) {
+    int32_t current_x = row.get_ll_x();
+    int32_t endcap_width = getCellMasterWidthByOrient(endcap_master, row.get_orient());
+    std::vector<std::pair<int32_t, int32_t>> macro_bottom_interval_list = getMacroBottomIntervalList(row);
+    for (std::pair<int32_t, int32_t>& macro_bottom_interval : macro_bottom_interval_list) {
+      if (macro_bottom_interval.second <= current_x) {
+        continue;
+      }
+      int32_t start_x = std::max(current_x, macro_bottom_interval.first);
+      for (int32_t x_coord = start_x; x_coord + endcap_width <= macro_bottom_interval.second; x_coord += endcap_width) {
+        addPhyCell("ENDCAP_" + std::to_string(endcap_idx++), endcap_name, x_coord, row.get_y(), row.get_orient());
+      }
+      current_x = std::max(current_x, macro_bottom_interval.second);
+    }
+  }
 }
 
 int32_t PhyPlacer::getCellMasterWidthByOrient(CellMaster& cell_master, PlacementOrientation orient)

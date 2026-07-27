@@ -24,47 +24,20 @@ class MPComParam
 {
  public:
   MPComParam() = default;
-  MPComParam(double wirelength_weight, double overlap_weight, double out_of_bound_weight, double periphery_weight, double io_weight,
-             int32_t max_iter, double cool_rate, double initial_temperature)
-  {
-    _wirelength_weight = wirelength_weight;
-    _overlap_weight = overlap_weight;
-    _out_of_bound_weight = out_of_bound_weight;
-    _periphery_weight = periphery_weight;
-    _io_weight = io_weight;
-    _max_iter = max_iter;
-    _cool_rate = cool_rate;
-    _initial_temperature = initial_temperature;
-  }
   ~MPComParam() = default;
   // getter
-  double get_wirelength_weight() const { return _wirelength_weight; }
-  double get_overlap_weight() const { return _overlap_weight; }
-  double get_out_of_bound_weight() const { return _out_of_bound_weight; }
-  double get_periphery_weight() const { return _periphery_weight; }
-  double get_io_weight() const { return _io_weight; }
-  int32_t get_max_iter() const { return _max_iter; }
-  double get_cool_rate() const { return _cool_rate; }
-  double get_initial_temperature() const { return _initial_temperature; }
+  double get_placement_halo_micron() const { return _placement_halo_micron; }
+  double get_routing_halo_micron() const { return _routing_halo_micron; }
+
   // setter
-  void set_wirelength_weight(double wirelength_weight) { _wirelength_weight = wirelength_weight; }
-  void set_overlap_weight(double overlap_weight) { _overlap_weight = overlap_weight; }
-  void set_out_of_bound_weight(double out_of_bound_weight) { _out_of_bound_weight = out_of_bound_weight; }
-  void set_periphery_weight(double periphery_weight) { _periphery_weight = periphery_weight; }
-  void set_io_weight(double io_weight) { _io_weight = io_weight; }
-  void set_max_iter(int32_t max_iter) { _max_iter = max_iter; }
-  void set_cool_rate(double cool_rate) { _cool_rate = cool_rate; }
-  void set_initial_temperature(double initial_temperature) { _initial_temperature = initial_temperature; }
+  void set_placement_halo_micron(double placement_halo_micron) { _placement_halo_micron = placement_halo_micron; }
+  void set_routing_halo_micron(double routing_halo_micron) { _routing_halo_micron = routing_halo_micron; }
+
+  // function
 
  private:
-  double _wirelength_weight = 0;
-  double _overlap_weight = 0;
-  double _out_of_bound_weight = 0;
-  double _periphery_weight = 0;
-  double _io_weight = 0;
-  int32_t _max_iter = -1;
-  double _cool_rate = 0;
-  double _initial_temperature = 0;
+  double _placement_halo_micron = -1.0;
+  double _routing_halo_micron = -1.0;
 };
 
 }  // namespace ifp

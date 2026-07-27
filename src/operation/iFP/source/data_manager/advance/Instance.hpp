@@ -36,6 +36,8 @@ class Instance
   int32_t get_width() const { return _width; }
   int32_t get_height() const { return _height; }
   PlanarRect& get_bounding_rect() { return _bounding_rect; }
+  PlanarRect& get_placement_halo_rect() { return _placement_halo_rect; }
+  PlanarRect& get_routing_halo_rect() { return _routing_halo_rect; }
   std::vector<InstancePinShape>& get_pin_shape_list() { return _pin_shape_list; }
   bool get_macro() const { return _macro; }
   bool get_fixed() const { return _fixed; }
@@ -48,6 +50,8 @@ class Instance
   const std::string& get_name() const { return _name; }
   const std::string& get_master_name() const { return _master_name; }
   const PlanarRect& get_bounding_rect() const { return _bounding_rect; }
+  const PlanarRect& get_placement_halo_rect() const { return _placement_halo_rect; }
+  const PlanarRect& get_routing_halo_rect() const { return _routing_halo_rect; }
   const std::vector<InstancePinShape>& get_pin_shape_list() const { return _pin_shape_list; }
 
   // setter
@@ -65,6 +69,8 @@ class Instance
   void set_height(int32_t height) { _height = height; }
   void set_bounding_rect(const PlanarRect& bounding_rect) { _bounding_rect = bounding_rect; }
   void set_bounding_rect(int32_t ll_x, int32_t ll_y, int32_t ur_x, int32_t ur_y) { _bounding_rect.set_rect(ll_x, ll_y, ur_x, ur_y); }
+  void set_placement_halo_rect(const PlanarRect& placement_halo_rect) { _placement_halo_rect = placement_halo_rect; }
+  void set_routing_halo_rect(const PlanarRect& routing_halo_rect) { _routing_halo_rect = routing_halo_rect; }
   void set_pin_shape_list(const std::vector<InstancePinShape>& pin_shape_list) { _pin_shape_list = pin_shape_list; }
   void set_macro(bool macro) { _macro = macro; }
   void set_fixed(bool fixed) { _fixed = fixed; }
@@ -84,6 +90,8 @@ class Instance
   int32_t _width = -1;
   int32_t _height = -1;
   PlanarRect _bounding_rect;
+  PlanarRect _placement_halo_rect;
+  PlanarRect _routing_halo_rect;
   std::vector<InstancePinShape> _pin_shape_list;
   bool _macro = false;
   bool _fixed = false;

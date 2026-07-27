@@ -33,6 +33,7 @@ class Config
   // **********        FP         ********** //
   std::string temp_directory_path;                  // required
   int32_t thread_number;                            // optional
+  std::string macro_place_file_path;                // optional
   std::string layout_site_name;                     // optional
   double layout_xy_ratio;                           // optional
   double layout_core_util;                          // optional

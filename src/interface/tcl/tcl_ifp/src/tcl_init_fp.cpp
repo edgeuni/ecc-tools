@@ -27,6 +27,13 @@ TclInitFP::TclInitFP(const char* cmd_name) : TclCmd(cmd_name)
   _config_list.push_back(std::make_pair("-temp_directory_path", ValueType::kString));
   _config_list.push_back(std::make_pair("-thread_number", ValueType::kInt));
 
+#if 1  // Macro placement
+
+  // -macro_place_file_path path
+  _config_list.push_back(std::make_pair("-macro_place_file_path", ValueType::kString));
+
+#endif
+
 #if 1  // Floorplan
 
   // -layout {site_name xy_ratio core_util margin_left margin_right margin_top margin_bottom}

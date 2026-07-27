@@ -161,6 +161,8 @@ void DataManager::printConfig()
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.temp_directory_path);
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "thread_number");
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.thread_number);
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "macro_place_file_path");
+  FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), _config.macro_place_file_path);
 
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(1), "layout");
   FPLOG.info(Loc::current(), FPUTIL.getSpaceByTabNum(2), "site: ", _config.layout_site_name, ", ratio: ", _config.layout_xy_ratio,

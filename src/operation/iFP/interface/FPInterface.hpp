@@ -24,6 +24,7 @@
 #if 1  // 前向声明
 
 namespace idb {
+class IdbInstance;
 class IdbSpecialWire;
 enum class IdbConnectDirection : uint8_t;
 enum class IdbOrient : uint8_t;
@@ -33,6 +34,7 @@ enum class IdbOrient : uint8_t;
 
 namespace ifp {
 
+class Instance;
 class PGSegment;
 enum class IOPinDirection;
 enum class PlacementOrientation;
@@ -71,8 +73,14 @@ class FPInterface
   void wrapCellMasterMap();
   void wrapRoutingLayerList();
   void wrapInstanceList();
+  void wrapMacroPinShapeList(idb::IdbInstance* idb_instance, Instance& instance);
+  void wrapPlacedMacroPinShapeList(idb::IdbInstance* idb_instance, Instance& instance);
+  void wrapUnplacedMacroPinShapeList(idb::IdbInstance* idb_instance, Instance& instance);
   PlacementOrientation wrapPlacementOrientation(idb::IdbOrient idb_orient);
   void wrapNetList();
+  void wrapMacroPlacement();
+  void wrapMacroPlacement(Instance& instance, double x_micron, double y_micron, PlacementOrientation orient);
+  void wrapMacroNetPinList(Instance& instance);
   void wrapIOPinList();
 #endif
 

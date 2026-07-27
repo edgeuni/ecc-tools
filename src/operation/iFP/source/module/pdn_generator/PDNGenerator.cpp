@@ -66,6 +66,7 @@ void PDNGenerator::generatePDN(PGModel& pg_model)
   buildGrid(pg_model);
   buildStripe(pg_model);
   buildLayerConnect(pg_model);
+  buildMacroConnect(pg_model);
 }
 
 void PDNGenerator::buildPGNet(PGModel& pg_model)
@@ -117,18 +118,22 @@ void PDNGenerator::buildGrid(PGModel& pg_model)
       continue;
     }
 
-    int32_t row_idx = 0;
+    int32_t row_idx = -1;
+    int32_t previous_y = INT32_MIN;
     int32_t top_y = core.get_ll_y();
     for (Row& row : database.get_row_list()) {
+      if (row.get_y() != previous_y) {
+        row_idx++;
+        previous_y = row.get_y();
+      }
       std::string net_name = row_idx % 2 == 0 ? pg_model.get_default_power_net_name() : pg_model.get_default_ground_net_name();
-      addLineSegment(net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, core.get_ll_x(), row.get_y(), core.get_ur_x(),
+      addLineSegment(net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, row.get_ll_x(), row.get_y(), row.get_ur_x(),
                      row.get_y());
       top_y = std::max(top_y, row.get_y());
-      row_idx++;
     }
     if (!database.get_row_list().empty()) {
       top_y += database.get_row_list()[0].get_height();
-      std::string net_name = row_idx % 2 == 0 ? pg_model.get_default_power_net_name() : pg_model.get_default_ground_net_name();
+      std::string net_name = (row_idx + 1) % 2 == 0 ? pg_model.get_default_power_net_name() : pg_model.get_default_ground_net_name();
       addLineSegment(net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, core.get_ll_x(), top_y, core.get_ur_x(), top_y);
     }
   }
@@ -150,6 +155,49 @@ void PDNGenerator::addLineSegment(std::string net_name, std::string layer_name, 
   if (width <= 0 || (start_x == end_x && start_y == end_y)) {
     return;
   }
+
+  std::vector<std::pair<int32_t, int32_t>> blockage_interval_list
+      = getMacroBlockageIntervalList(layer_name, width, start_x, start_y, end_x, end_y);
+  if (blockage_interval_list.empty()) {
+    addUnblockedLineSegment(net_name, layer_name, segment_type, width, start_x, start_y, end_x, end_y);
+    return;
+  }
+
+  bool horizontal = start_y == end_y;
+  int32_t line_begin = horizontal ? std::min(start_x, end_x) : std::min(start_y, end_y);
+  int32_t line_end = horizontal ? std::max(start_x, end_x) : std::max(start_y, end_y);
+  int32_t current_coord = line_begin;
+  for (std::pair<int32_t, int32_t>& blockage_interval : blockage_interval_list) {
+    if (blockage_interval.second <= current_coord) {
+      continue;
+    }
+    if (blockage_interval.first > current_coord) {
+      if (horizontal) {
+        addUnblockedLineSegment(net_name, layer_name, segment_type, width, current_coord, start_y, blockage_interval.first, start_y);
+      } else {
+        addUnblockedLineSegment(net_name, layer_name, segment_type, width, start_x, current_coord, start_x, blockage_interval.first);
+      }
+    }
+    current_coord = std::max(current_coord, blockage_interval.second);
+    if (current_coord >= line_end) {
+      return;
+    }
+  }
+  if (current_coord < line_end) {
+    if (horizontal) {
+      addUnblockedLineSegment(net_name, layer_name, segment_type, width, current_coord, start_y, line_end, start_y);
+    } else {
+      addUnblockedLineSegment(net_name, layer_name, segment_type, width, start_x, current_coord, start_x, line_end);
+    }
+  }
+}
+
+void PDNGenerator::addUnblockedLineSegment(std::string net_name, std::string layer_name, PGSegmentType segment_type, int32_t width,
+                                           int32_t start_x, int32_t start_y, int32_t end_x, int32_t end_y)
+{
+  if (start_x == end_x && start_y == end_y) {
+    return;
+  }
   PGSegment pg_segment;
   pg_segment.set_net_name(net_name);
   pg_segment.set_layer_name(layer_name);
@@ -159,6 +207,59 @@ void PDNGenerator::addLineSegment(std::string net_name, std::string layer_name, 
   pg_segment.set_end_coord(end_x, end_y);
   pg_segment.set_generated(true);
   FPDM.getDatabase().get_pg_segment_list().push_back(pg_segment);
+}
+
+std::vector<std::pair<int32_t, int32_t>> PDNGenerator::getMacroBlockageIntervalList(std::string layer_name, int32_t width,
+                                                                                      int32_t start_x, int32_t start_y, int32_t end_x,
+                                                                                      int32_t end_y)
+{
+  RoutingLayer* routing_layer = findRoutingLayer(layer_name);
+  std::vector<std::pair<int32_t, int32_t>> blockage_interval_list;
+  bool horizontal = start_y == end_y;
+  int32_t line_begin = horizontal ? std::min(start_x, end_x) : std::min(start_y, end_y);
+  int32_t line_end = horizontal ? std::max(start_x, end_x) : std::max(start_y, end_y);
+  int32_t line_coord = horizontal ? start_y : start_x;
+  int32_t half_width = width / 2;
+  for (Instance& instance : FPDM.getDatabase().get_instance_list()) {
+    if (!instance.get_macro() || !instance.get_placed() || routing_layer->get_order() > getMacroTopLayerOrder(instance)) {
+      continue;
+    }
+    PlanarRect& routing_halo_rect = instance.get_routing_halo_rect();
+    if (horizontal) {
+      if (line_coord + half_width <= routing_halo_rect.get_ll_y() || routing_halo_rect.get_ur_y() <= line_coord - half_width) {
+        continue;
+      }
+      int32_t start_coord = std::max(line_begin, routing_halo_rect.get_ll_x() - half_width);
+      int32_t end_coord = std::min(line_end, routing_halo_rect.get_ur_x() + half_width);
+      if (start_coord < end_coord) {
+        blockage_interval_list.emplace_back(start_coord, end_coord);
+      }
+    } else {
+      if (line_coord + half_width <= routing_halo_rect.get_ll_x() || routing_halo_rect.get_ur_x() <= line_coord - half_width) {
+        continue;
+      }
+      int32_t start_coord = std::max(line_begin, routing_halo_rect.get_ll_y() - half_width);
+      int32_t end_coord = std::min(line_end, routing_halo_rect.get_ur_y() + half_width);
+      if (start_coord < end_coord) {
+        blockage_interval_list.emplace_back(start_coord, end_coord);
+      }
+    }
+  }
+  std::sort(blockage_interval_list.begin(), blockage_interval_list.end(),
+            [](const std::pair<int32_t, int32_t>& first, const std::pair<int32_t, int32_t>& second) { return first.first < second.first; });
+  return blockage_interval_list;
+}
+
+int32_t PDNGenerator::getMacroTopLayerOrder(Instance& instance)
+{
+  int32_t top_layer_order = -1;
+  for (InstancePinShape& pin_shape : instance.get_pin_shape_list()) {
+    RoutingLayer* routing_layer = findRoutingLayer(pin_shape.get_layer_name());
+    if (routing_layer != nullptr) {
+      top_layer_order = std::max(top_layer_order, routing_layer->get_order());
+    }
+  }
+  return top_layer_order;
 }
 
 void PDNGenerator::buildStripe(PGModel& pg_model)
@@ -286,6 +387,74 @@ void PDNGenerator::addViaSegment(PGModel& pg_model, std::string net_name, std::s
   pg_segment.set_via_height(std::max(height, 1));
   pg_segment.set_generated(true);
   FPDM.getDatabase().get_pg_segment_list().push_back(pg_segment);
+}
+
+void PDNGenerator::buildMacroConnect(PGModel& pg_model)
+{
+  Database& database = FPDM.getDatabase();
+  for (PGNet& pg_net : database.get_pg_net_list()) {
+    for (Instance& instance : database.get_instance_list()) {
+      if (!instance.get_macro() || !instance.get_placed()) {
+        continue;
+      }
+      for (InstancePinShape& pin_shape : instance.get_pin_shape_list()) {
+        if (std::find(pg_net.get_instance_pin_name_list().begin(), pg_net.get_instance_pin_name_list().end(), pin_shape.get_pin_name())
+            == pg_net.get_instance_pin_name_list().end()) {
+          continue;
+        }
+        connectMacroPin(pg_model, pg_net, pin_shape);
+      }
+    }
+  }
+}
+
+void PDNGenerator::connectMacroPin(PGModel& pg_model, PGNet& pg_net, InstancePinShape& pin_shape)
+{
+  RoutingLayer* pin_layer = findRoutingLayer(pin_shape.get_layer_name());
+  if (pin_layer == nullptr) {
+    return;
+  }
+
+  Database& database = FPDM.getDatabase();
+  PlanarRect pin_rect(pin_shape.get_ll_x(), pin_shape.get_ll_y(), pin_shape.get_ur_x(), pin_shape.get_ur_y());
+  std::vector<PGSegment> pg_segment_list = database.get_pg_segment_list();
+  int32_t connect_layer_order = INT32_MAX;
+  for (PGSegment& pg_segment : pg_segment_list) {
+    if (!pg_segment.is_line() || pg_segment.get_net_name() != pg_net.get_name()) {
+      continue;
+    }
+    RoutingLayer* routing_layer = findRoutingLayer(pg_segment.get_layer_name());
+    if (routing_layer == nullptr || routing_layer->get_order() <= pin_layer->get_order()) {
+      continue;
+    }
+    PlanarRect segment_rect(pg_segment.get_ll_x(), pg_segment.get_ll_y(), pg_segment.get_ur_x(), pg_segment.get_ur_y());
+    PlanarRect overlap_rect = getOverlapRect(pin_rect, segment_rect);
+    if (overlap_rect.get_width() <= 0 || overlap_rect.get_height() <= 0) {
+      continue;
+    }
+    connect_layer_order = std::min(connect_layer_order, routing_layer->get_order());
+  }
+  if (connect_layer_order == INT32_MAX) {
+    return;
+  }
+
+  for (PGSegment& pg_segment : pg_segment_list) {
+    if (!pg_segment.is_line() || pg_segment.get_net_name() != pg_net.get_name()) {
+      continue;
+    }
+    RoutingLayer* routing_layer = findRoutingLayer(pg_segment.get_layer_name());
+    if (routing_layer == nullptr || routing_layer->get_order() != connect_layer_order) {
+      continue;
+    }
+    PlanarRect segment_rect(pg_segment.get_ll_x(), pg_segment.get_ll_y(), pg_segment.get_ur_x(), pg_segment.get_ur_y());
+    PlanarRect overlap_rect = getOverlapRect(pin_rect, segment_rect);
+    if (overlap_rect.get_width() <= 0 || overlap_rect.get_height() <= 0) {
+      continue;
+    }
+    addViaSegment(pg_model, pg_net.get_name(), pin_layer->get_name(), routing_layer->get_name(), "",
+                  (overlap_rect.get_ll_x() + overlap_rect.get_ur_x()) / 2, (overlap_rect.get_ll_y() + overlap_rect.get_ur_y()) / 2,
+                  overlap_rect.get_width(), overlap_rect.get_height());
+  }
 }
 
 // private
