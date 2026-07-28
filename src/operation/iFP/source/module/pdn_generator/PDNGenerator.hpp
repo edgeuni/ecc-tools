@@ -68,6 +68,9 @@ class PDNGenerator
   int32_t getMacroTopLayerOrder(Instance& instance);
 
   void buildStripe(PGModel& pg_model);
+  void alignStripeSegmentList();
+  void alignStripeSegment(PGSegment& stripe_segment);
+  int32_t getClosestRailCoord(PGSegment& stripe_segment, Instance& instance, bool high_side);
 
   void buildLayerConnect(PGModel& pg_model);
   PlanarRect getOverlapRect(PlanarRect first_rect, PlanarRect second_rect);

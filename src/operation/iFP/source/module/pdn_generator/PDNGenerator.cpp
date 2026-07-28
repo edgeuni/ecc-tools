@@ -65,6 +65,7 @@ void PDNGenerator::generatePDN(PGModel& pg_model)
   buildPGNet(pg_model);
   buildRail(pg_model);
   buildStripe(pg_model);
+  alignStripeSegmentList();
   buildLayerConnect(pg_model);
   buildMacroConnect(pg_model);
 }
@@ -310,6 +311,130 @@ void PDNGenerator::buildStripe(PGModel& pg_model)
       }
     }
   }
+}
+
+void PDNGenerator::alignStripeSegmentList()
+{
+  for (PGSegment& pg_segment : FPDM.getDatabase().get_pg_segment_list()) {
+    if (pg_segment.get_type() != PGSegmentType::kStripe) {
+      continue;
+    }
+    alignStripeSegment(pg_segment);
+  }
+}
+
+void PDNGenerator::alignStripeSegment(PGSegment& stripe_segment)
+{
+  RoutingLayer* routing_layer = findRoutingLayer(stripe_segment.get_layer_name());
+  if (routing_layer == nullptr) {
+    return;
+  }
+
+  bool vertical = stripe_segment.is_vertical();
+  int32_t half_width = stripe_segment.get_width() / 2;
+  for (Instance& instance : FPDM.getDatabase().get_instance_list()) {
+    if (!instance.get_macro() || !instance.get_placed() || routing_layer->get_order() > getMacroTopLayerOrder(instance)) {
+      continue;
+    }
+
+    PlanarRect& routing_halo_rect = instance.get_routing_halo_rect();
+    if (vertical) {
+      if (stripe_segment.get_ur_x() <= routing_halo_rect.get_ll_x() || routing_halo_rect.get_ur_x() <= stripe_segment.get_ll_x()) {
+        continue;
+      }
+      if (stripe_segment.get_start_y() == routing_halo_rect.get_ur_y() + half_width) {
+        int32_t rail_coord = getClosestRailCoord(stripe_segment, instance, true);
+        if (rail_coord != INT32_MAX && rail_coord <= stripe_segment.get_end_y()) {
+          stripe_segment.set_start_y(rail_coord);
+        }
+      }
+      if (stripe_segment.get_end_y() == routing_halo_rect.get_ll_y() - half_width) {
+        int32_t rail_coord = getClosestRailCoord(stripe_segment, instance, false);
+        if (rail_coord != INT32_MAX && stripe_segment.get_start_y() <= rail_coord) {
+          stripe_segment.set_end_y(rail_coord);
+        }
+      }
+    } else {
+      if (stripe_segment.get_ur_y() <= routing_halo_rect.get_ll_y() || routing_halo_rect.get_ur_y() <= stripe_segment.get_ll_y()) {
+        continue;
+      }
+      if (stripe_segment.get_start_x() == routing_halo_rect.get_ur_x() + half_width) {
+        int32_t rail_coord = getClosestRailCoord(stripe_segment, instance, true);
+        if (rail_coord != INT32_MAX && rail_coord <= stripe_segment.get_end_x()) {
+          stripe_segment.set_start_x(rail_coord);
+        }
+      }
+      if (stripe_segment.get_end_x() == routing_halo_rect.get_ll_x() - half_width) {
+        int32_t rail_coord = getClosestRailCoord(stripe_segment, instance, false);
+        if (rail_coord != INT32_MAX && stripe_segment.get_start_x() <= rail_coord) {
+          stripe_segment.set_end_x(rail_coord);
+        }
+      }
+    }
+  }
+}
+
+int32_t PDNGenerator::getClosestRailCoord(PGSegment& stripe_segment, Instance& instance, bool high_side)
+{
+  PlanarRect& routing_halo_rect = instance.get_routing_halo_rect();
+  bool vertical = stripe_segment.is_vertical();
+  int32_t closest_rail_coord = INT32_MAX;
+  int32_t closest_distance = INT32_MAX;
+  for (PGSegment& rail_segment : FPDM.getDatabase().get_pg_segment_list()) {
+    if (rail_segment.get_type() != PGSegmentType::kFollowPin || rail_segment.get_net_name() != stripe_segment.get_net_name()) {
+      continue;
+    }
+    if (vertical) {
+      if (!rail_segment.is_horizontal() || stripe_segment.get_ur_x() <= rail_segment.get_ll_x()
+          || rail_segment.get_ur_x() <= stripe_segment.get_ll_x()) {
+        continue;
+      }
+      if (high_side) {
+        if (rail_segment.get_ll_y() < routing_halo_rect.get_ur_y()) {
+          continue;
+        }
+        int32_t distance = rail_segment.get_start_y() - routing_halo_rect.get_ur_y();
+        if (distance < closest_distance) {
+          closest_distance = distance;
+          closest_rail_coord = rail_segment.get_start_y();
+        }
+      } else {
+        if (routing_halo_rect.get_ll_y() < rail_segment.get_ur_y()) {
+          continue;
+        }
+        int32_t distance = routing_halo_rect.get_ll_y() - rail_segment.get_start_y();
+        if (distance < closest_distance) {
+          closest_distance = distance;
+          closest_rail_coord = rail_segment.get_start_y();
+        }
+      }
+    } else {
+      if (!rail_segment.is_vertical() || stripe_segment.get_ur_y() <= rail_segment.get_ll_y()
+          || rail_segment.get_ur_y() <= stripe_segment.get_ll_y()) {
+        continue;
+      }
+      if (high_side) {
+        if (rail_segment.get_ll_x() < routing_halo_rect.get_ur_x()) {
+          continue;
+        }
+        int32_t distance = rail_segment.get_start_x() - routing_halo_rect.get_ur_x();
+        if (distance < closest_distance) {
+          closest_distance = distance;
+          closest_rail_coord = rail_segment.get_start_x();
+        }
+      } else {
+        if (routing_halo_rect.get_ll_x() < rail_segment.get_ur_x()) {
+          continue;
+        }
+        int32_t distance = routing_halo_rect.get_ll_x() - rail_segment.get_start_x();
+        if (distance < closest_distance) {
+          closest_distance = distance;
+          closest_rail_coord = rail_segment.get_start_x();
+        }
+      }
+    }
+  }
+  return closest_rail_coord;
 }
 
 void PDNGenerator::buildLayerConnect(PGModel& pg_model)
