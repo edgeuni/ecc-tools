@@ -18,5 +18,9 @@ target_link_libraries(ilvs_data_manager
 target_include_directories(ilvs_data_manager
     PUBLIC
     ${ILVS_DATA_MANAGER}/advance
+    ${ILVS_DATA_MANAGER}/basic
     ${ILVS_DATA_MANAGER}
+    ${ILVS_MODULE}/entity_checker/ec_data_manager
+    ${ILVS_MODULE}/routing_checker/rc_data_manager
+    ${ILVS_MODULE}/pdn_checker/pc_data_manager
 )

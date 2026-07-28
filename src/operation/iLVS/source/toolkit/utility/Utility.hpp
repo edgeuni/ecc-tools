@@ -90,6 +90,16 @@ class Utility
 
     return digit_string;
   }
+  static std::string getIOName(const std::string& pin_name) { return "PIN/" + pin_name; }
+  static std::string getInstancePinName(const std::string& instance_name, const std::string& pin_name)
+  {
+    return instance_name + "/" + pin_name;
+  }
+  static bool isIOName(const std::string& terminal_name) { return terminal_name.rfind("PIN/", 0) == 0; }
+  static std::string getIOPinName(const std::string& terminal_name)
+  {
+    return isIOName(terminal_name) ? terminal_name.substr(std::string("PIN/").size()) : terminal_name;
+  }
   template <typename T>
   static T getConfigValue(std::map<std::string, std::any>& config_map, const std::string& config_name, const T& default_value)
   {
@@ -105,7 +115,7 @@ class Utility
 
 #endif
 
-#if 1  // std数据结构工具函数
+#if 1  // 标准数据结构工具函数
 
   template <typename Key>
   static bool exist(const std::vector<Key>& vector, const Key& key)
@@ -116,6 +126,26 @@ class Utility
       }
     }
     return false;
+  }
+
+  template <typename T>
+  static std::vector<T> getSortedUniqueList(std::vector<T> value_list)
+  {
+    std::sort(value_list.begin(), value_list.end());
+    value_list.erase(std::unique(value_list.begin(), value_list.end()), value_list.end());
+    return value_list;
+  }
+
+  template <typename TValue>
+  static std::vector<std::string> getSortedKeyNameList(const std::map<std::string, TValue>& value_map)
+  {
+    std::vector<std::string> name_list;
+    name_list.reserve(value_map.size());
+    for (const auto& [name, value] : value_map) {
+      (void) value;
+      name_list.push_back(name);
+    }
+    return getSortedUniqueList(std::move(name_list));
   }
 
   template <typename Key, typename Compare = std::less<Key>>

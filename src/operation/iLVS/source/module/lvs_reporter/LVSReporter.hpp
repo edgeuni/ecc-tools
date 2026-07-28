@@ -10,19 +10,18 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "Config.hpp"
 #include "DataManager.hpp"
 #include "Database.hpp"
-#include "Logger.hpp"
+#include "LVSConnectivitySummaryRow.hpp"
+#include "LVSEntitySummaryRow.hpp"
+#include "LRModel.hpp"
 #include "LVSHeader.hpp"
 #include "Monitor.hpp"
 
@@ -37,13 +36,7 @@ class LVSReporter
   static LVSReporter& getInst();
   static void destroyInst();
   // function
-#if 1  // report
-  std::vector<fort::char_table> getSummaryTableList(const CheckResult& check_result, const Netlist& netlist,
-                                                     const Netlist& def);
-
-  void report(const CheckResult& check_result, const Netlist& netlist, const Netlist& def,
-              const std::string& report_directory_path);
-#endif
+  void report();
 
  private:
   // self
@@ -55,6 +48,19 @@ class LVSReporter
   ~LVSReporter() = default;
   LVSReporter& operator=(const LVSReporter& other) = delete;
   LVSReporter& operator=(LVSReporter&& other) = delete;
+  // function
+
+  LRModel initLRModel();
+  std::vector<fort::char_table> getSummaryTableList();
+  std::vector<LVSEntitySummaryRow> getEntitySummaryRowList(const Summary& summary);
+  std::vector<LVSConnectivitySummaryRow> getConnectivitySummaryRowList(const Summary& summary);
+  std::vector<Violation> getViolationList();
+  void outputRPT(const LRModel& lr_model, const std::vector<fort::char_table>& summary_table_list,
+                 const std::vector<Violation>& violation_list);
+  std::string getJoinedString(const std::vector<int32_t>& value_list);
+  std::string getJoinedString(const std::vector<std::string>& value_list);
+  void outputJson(const LRModel& lr_model, const std::vector<Violation>& violation_list);
+  void printSummary(const std::vector<fort::char_table>& summary_table_list);
 };
 
 }  // namespace ilvs
