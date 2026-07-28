@@ -48,14 +48,7 @@ std::string Monitor::getUsageMemory()
 
 std::string Monitor::getCurrentRSS()
 {
-  std::ifstream statm_file("/proc/self/statm");
-  long virtual_page_num = 0;
-  long resident_page_num = 0;
-  if (statm_file.is_open()) {
-    statm_file >> virtual_page_num >> resident_page_num;
-  }
-  double rss = static_cast<double>(resident_page_num * sysconf(_SC_PAGESIZE)) / 1000000.0;
-  return RTUTIL.getString(RTUTIL.formatByTwoDecimalPlaces(rss), "MB");
+  return RTUTIL.getCurrentRSS();
 }
 
 // private

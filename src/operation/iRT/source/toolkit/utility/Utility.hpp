@@ -42,6 +42,8 @@ class Utility
   static Utility& getInst();
   static void destroyInst();
   // function
+  static std::string getCurrentRSS();
+  static void releaseMemory(const std::string& stage);
 
 #if 1  // 方向方位计算
 

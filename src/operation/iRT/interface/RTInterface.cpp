@@ -120,6 +120,7 @@ void RTInterface::runRT()
   PinAccessor::initInst();
   RTPA.access();
   PinAccessor::destroyInst();
+  RTUTIL.releaseMemory("PinAccessor");
 
   SupplyAnalyzer::initInst();
   RTSA.analyze();
@@ -146,6 +147,7 @@ void RTInterface::runRT()
   DetailedRouter::initInst();
   RTDR.route();
   DetailedRouter::destroyInst();
+  RTUTIL.releaseMemory("DetailedRouter");
 
   ViolationReporter::initInst();
   RTVR.report();
@@ -168,6 +170,7 @@ void RTInterface::destroyRT()
   TOPOBuilder::destroyInst();
   RTDM.output();
   DataManager::destroyInst();
+  RTUTIL.releaseMemory("DataManager");
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 
