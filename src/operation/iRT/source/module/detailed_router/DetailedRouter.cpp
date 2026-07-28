@@ -29,22 +29,7 @@
 
 namespace irt {
 
-namespace {
 
-bool overlapCheckRegion(int32_t layer_idx, const PlanarRect& real_rect, const std::vector<LayerRect>& check_region_list)
-{
-  if (check_region_list.empty()) {
-    return true;
-  }
-  for (const LayerRect& check_region : check_region_list) {
-    if (layer_idx == check_region.get_layer_idx() && RTUTIL.isClosedOverlap(real_rect, check_region)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
 
 // public
 
@@ -1681,6 +1666,23 @@ void DetailedRouter::initSinglePatchTask(DRBox& dr_box, DRTask* dr_task)
   dr_box.get_tried_fix_violation_set().clear();
 }
 
+namespace {
+
+  bool overlapCheckRegion(int32_t layer_idx, const PlanarRect& real_rect, const std::vector<LayerRect>& check_region_list)
+  {
+    if (check_region_list.empty()) {
+      return true;
+    }
+    for (const LayerRect& check_region : check_region_list) {
+      if (layer_idx == check_region.get_layer_idx() && RTUTIL.isClosedOverlap(real_rect, check_region)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+}
+
 std::vector<Violation> DetailedRouter::getPatchViolationList(DRBox& dr_box, const std::set<ViolationType>& check_type_set,
                                                              const std::vector<LayerRect>& check_region_list)
 {
@@ -1957,13 +1959,13 @@ std::vector<DRPatch> DetailedRouter::getCandidatePatchList(DRBox& dr_box)
       return {};
     }
   }
+  std::vector<GTLRectInt> h_gtl_rect_list;
   PlanarRect h_cutting_rect;
   {
-    std::vector<GTLRectInt> gtl_rect_list;
-    gtl::get_rectangles(gtl_rect_list, gtl_poly, gtl::HORIZONTAL);
+    gtl::get_rectangles(h_gtl_rect_list, gtl_poly, gtl::HORIZONTAL);
     GTLRectInt best_gtl_rect;
     int32_t max_x_span = 0;
-    for (GTLRectInt& gtl_rect : gtl_rect_list) {
+    for (GTLRectInt& gtl_rect : h_gtl_rect_list) {
       int32_t curr_x_span = std::abs(gtl::xl(gtl_rect) - gtl::xh(gtl_rect));
       if (max_x_span <= curr_x_span) {
         max_x_span = curr_x_span;
@@ -1993,38 +1995,93 @@ std::vector<DRPatch> DetailedRouter::getCandidatePatchList(DRBox& dr_box)
     while (h_wire_length % manufacture_grid != 0) {
       h_wire_length++;
     }
-    for (int32_t y : {h_cutting_rect.get_ll_y(), v_cutting_rect.get_ll_y(), v_cutting_rect.get_ur_y() - wire_width}) {
-      for (int32_t x = v_cutting_rect.get_ur_x() - h_wire_length; x <= v_cutting_rect.get_ll_x(); x += manufacture_grid) {
-        PlanarRect h_real_rect = RTUTIL.getEnlargedRect(PlanarCoord(x, y), 0, 0, h_wire_length, wire_width);
-        if (!RTUTIL.isInside(die.get_real_rect(), h_real_rect)) {
-          continue;
-        }
-        dr_patch_list.emplace_back(h_real_rect, violation_layer_idx);
-      }
-    }
     int32_t v_wire_length = static_cast<int32_t>(std::ceil((min_area - h_cutting_rect.getArea()) / wire_width) + h_cutting_rect.getYSpan());
     while (v_wire_length % manufacture_grid != 0) {
       v_wire_length++;
     }
-    for (int32_t x : {v_cutting_rect.get_ll_x(), h_cutting_rect.get_ll_x(), h_cutting_rect.get_ur_x() - wire_width}) {
-      for (int32_t y = h_cutting_rect.get_ur_y() - v_wire_length; y <= h_cutting_rect.get_ll_y(); y += manufacture_grid) {
-        PlanarRect v_real_rect = RTUTIL.getEnlargedRect(PlanarCoord(x, y), 0, 0, wire_width, v_wire_length);
-        if (!RTUTIL.isInside(die.get_real_rect(), v_real_rect)) {
-          continue;
+    int32_t h_start_x = v_cutting_rect.get_ur_x() - h_wire_length;
+    int32_t v_start_y = h_cutting_rect.get_ur_y() - v_wire_length;
+    int32_t h_position_num = (v_cutting_rect.get_ll_x() - h_start_x) / manufacture_grid + 1;
+    int32_t v_position_num = (h_cutting_rect.get_ll_y() - v_start_y) / manufacture_grid + 1;
+
+    int32_t initial_sample_step = 1;
+    int32_t patch_position_num = 3 * (h_position_num + v_position_num);
+    int32_t initial_patch_num = std::max(1, 4 * max_candidate_patch_num);
+    while ((patch_position_num + initial_sample_step - 1) / initial_sample_step > initial_patch_num) {
+      initial_sample_step *= 2;
+    }
+    dr_patch_list.reserve(initial_patch_num + 6);
+
+    int32_t zero_cost_patch_num = 0;
+    // 首轮覆盖区间首尾，后续每次减半只补充上一轮区间的中点。
+    for (int32_t sample_step = initial_sample_step; sample_step >= 1; sample_step /= 2) {
+      bool is_initial_sample = (sample_step == initial_sample_step);
+      int32_t sample_begin = is_initial_sample ? 0 : sample_step;
+      int32_t sample_interval = is_initial_sample ? sample_step : sample_step * 2;
+      size_t patch_begin_idx = dr_patch_list.size();
+
+      for (int32_t y : {h_cutting_rect.get_ll_y(), v_cutting_rect.get_ll_y(), v_cutting_rect.get_ur_y() - wire_width}) {
+        for (int32_t i = sample_begin; i < h_position_num; i += sample_interval) {
+          if (!is_initial_sample && i == h_position_num - 1) {
+            continue;
+          }
+          PlanarRect h_real_rect = RTUTIL.getEnlargedRect(PlanarCoord(h_start_x + i * manufacture_grid, y), 0, 0, h_wire_length, wire_width);
+          if (RTUTIL.isInside(die.get_real_rect(), h_real_rect)) {
+            dr_patch_list.emplace_back(h_real_rect, violation_layer_idx);
+          }
         }
-        dr_patch_list.emplace_back(v_real_rect, violation_layer_idx);
+        if (is_initial_sample && (h_position_num - 1) % sample_step != 0) {
+          PlanarRect h_real_rect
+              = RTUTIL.getEnlargedRect(PlanarCoord(v_cutting_rect.get_ll_x(), y), 0, 0, h_wire_length, wire_width);
+          if (RTUTIL.isInside(die.get_real_rect(), h_real_rect)) {
+            dr_patch_list.emplace_back(h_real_rect, violation_layer_idx);
+          }
+        }
+      }
+      for (int32_t x : {v_cutting_rect.get_ll_x(), h_cutting_rect.get_ll_x(), h_cutting_rect.get_ur_x() - wire_width}) {
+        for (int32_t i = sample_begin; i < v_position_num; i += sample_interval) {
+          if (!is_initial_sample && i == v_position_num - 1) {
+            continue;
+          }
+          PlanarRect v_real_rect = RTUTIL.getEnlargedRect(PlanarCoord(x, v_start_y + i * manufacture_grid), 0, 0, wire_width, v_wire_length);
+          if (RTUTIL.isInside(die.get_real_rect(), v_real_rect)) {
+            dr_patch_list.emplace_back(v_real_rect, violation_layer_idx);
+          }
+        }
+        if (is_initial_sample && (v_position_num - 1) % sample_step != 0) {
+          PlanarRect v_real_rect
+              = RTUTIL.getEnlargedRect(PlanarCoord(x, h_cutting_rect.get_ll_y()), 0, 0, wire_width, v_wire_length);
+          if (RTUTIL.isInside(die.get_real_rect(), v_real_rect)) {
+            dr_patch_list.emplace_back(v_real_rect, violation_layer_idx);
+          }
+        }
+      }
+      for (size_t i = patch_begin_idx; i < dr_patch_list.size(); i++) {
+        DRPatch& dr_patch = dr_patch_list[i];
+        EXTLayerRect& patch = dr_patch.get_patch();
+        PlanarRect& patch_rect = patch.get_real_rect();
+        patch.set_grid_rect(RTUTIL.getClosedGCellGridRect(patch_rect, gcell_axis));
+        dr_patch.set_fixed_rect_cost(getFixedRectCost(dr_box, curr_net_idx, patch));
+        dr_patch.set_routed_rect_cost(getRoutedRectCost(dr_box, curr_net_idx, patch));
+        dr_patch.set_violation_cost(getViolationCost(dr_box, curr_net_idx, patch));
+        dr_patch.set_direction(patch_rect.getRectDirection(layer_direction));
+        int64_t overlap_area = 0;
+        for (GTLRectInt& gtl_rect : h_gtl_rect_list) {
+          int32_t x_span = std::min(gtl::xh(gtl_rect), patch_rect.get_ur_x()) - std::max(gtl::xl(gtl_rect), patch_rect.get_ll_x());
+          int32_t y_span = std::min(gtl::yh(gtl_rect), patch_rect.get_ur_y()) - std::max(gtl::yl(gtl_rect), patch_rect.get_ll_y());
+          if (x_span > 0 && y_span > 0) {
+            overlap_area += static_cast<int64_t>(x_span) * y_span;
+          }
+        }
+        dr_patch.set_overlap_area(static_cast<int32_t>(overlap_area));
+        if (dr_patch.getTotalCost() == 0) {
+          zero_cost_patch_num++;
+        }
+      }
+      if (zero_cost_patch_num >= max_candidate_patch_num || sample_step == 1) {
+        break;
       }
     }
-    for (DRPatch& dr_patch : dr_patch_list) {
-      EXTLayerRect& patch = dr_patch.get_patch();
-      patch.set_grid_rect(RTUTIL.getClosedGCellGridRect(patch.get_real_rect(), gcell_axis));
-      dr_patch.set_fixed_rect_cost(getFixedRectCost(dr_box, curr_net_idx, patch));
-      dr_patch.set_routed_rect_cost(getRoutedRectCost(dr_box, curr_net_idx, patch));
-      dr_patch.set_violation_cost(getViolationCost(dr_box, curr_net_idx, patch));
-      dr_patch.set_direction(patch.get_real_rect().getRectDirection(layer_direction));
-      dr_patch.set_overlap_area(static_cast<int32_t>(gtl::area(gtl_poly & RTUTIL.convertToGTLRectInt(patch.get_real_rect()))));
-    }
-    std::sort(dr_patch_list.begin(), dr_patch_list.end(), [&layer_direction](DRPatch& a, DRPatch& b) { return CmpDRPatch()(a, b, layer_direction); });
     if (dr_patch_list.empty()) {
       RTLOG.error(Loc::current(), "The dr_patch_list is empty!");
     }
@@ -2038,8 +2095,11 @@ std::vector<DRPatch> DetailedRouter::getCandidatePatchList(DRBox& dr_box)
       }
       dr_patch_list_temp.push_back(dr_patch);
     }
+    auto cmp_dr_patch = [&layer_direction](DRPatch& a, DRPatch& b) { return CmpDRPatch()(a, b, layer_direction); };
     if (dr_patch_list_temp.empty()) {
-      dr_patch_list_temp.push_back(dr_patch_list.front());
+      dr_patch_list_temp.push_back(*std::min_element(dr_patch_list.begin(), dr_patch_list.end(), cmp_dr_patch));
+    } else {
+      std::sort(dr_patch_list_temp.begin(), dr_patch_list_temp.end(), cmp_dr_patch);
     }
     int32_t patch_size = static_cast<int32_t>(dr_patch_list_temp.size());
     if (patch_size <= max_candidate_patch_num) {
