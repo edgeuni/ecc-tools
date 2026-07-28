@@ -94,10 +94,11 @@ void DataManager::updateFixedRectToGCellMap(ChangeType change_type, int32_t net_
     for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
       auto& net_fixed_rect_map = gcell_map[x][y].get_type_layer_net_fixed_rect_map()[is_routing][ext_layer_rect->get_layer_idx()];
       if (change_type == ChangeType::kAdd) {
-        net_fixed_rect_map[net_idx].insert(ext_layer_rect);
+        net_fixed_rect_map[net_idx].push_back(ext_layer_rect);
       } else if (change_type == ChangeType::kDel) {
-        net_fixed_rect_map[net_idx].erase(ext_layer_rect);
-        if (net_fixed_rect_map[net_idx].empty()) {
+        std::vector<EXTLayerRect*>& fixed_rect_list = net_fixed_rect_map[net_idx];
+        fixed_rect_list.erase(std::remove(fixed_rect_list.begin(), fixed_rect_list.end(), ext_layer_rect), fixed_rect_list.end());
+        if (fixed_rect_list.empty()) {
           net_fixed_rect_map.erase(net_idx);
         }
       }
@@ -1508,6 +1509,7 @@ void DataManager::updateGCellMap()
 {
   ScaleAxis& gcell_axis = _database.get_gcell_axis();
   Die& die = _database.get_die();
+  GridMap<GCell>& gcell_map = _database.get_gcell_map();
   std::vector<Obstacle>& routing_obstacle_list = _database.get_routing_obstacle_list();
   std::vector<Obstacle>& cut_obstacle_list = _database.get_cut_obstacle_list();
   std::vector<Net>& net_list = _database.get_net_list();
@@ -1599,6 +1601,20 @@ void DataManager::updateGCellMap()
       continue;
     }
     updateFixedRectToGCellMap(ChangeType::kAdd, aux_shape.net_idx, aux_shape.rect, aux_shape.is_routing);
+  }
+
+#pragma omp parallel for collapse(2)
+  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
+      for (GCell::LayerNetFixedRectMap& layer_net_fixed_rect_map : gcell_map[x][y].get_type_layer_net_fixed_rect_map()) {
+        for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
+          for (auto& [net_idx, fixed_rect_list] : net_fixed_rect_map) {
+            std::sort(fixed_rect_list.begin(), fixed_rect_list.end(), std::less<EXTLayerRect*>());
+            fixed_rect_list.erase(std::unique(fixed_rect_list.begin(), fixed_rect_list.end()), fixed_rect_list.end());
+          }
+        }
+      }
+    }
   }
 }
 

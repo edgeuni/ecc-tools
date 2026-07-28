@@ -28,7 +28,7 @@ namespace irt {
 class GCell : public PlanarRect
 {
  public:
-  using NetFixedRectMap = boost::container::flat_map<int32_t, std::set<EXTLayerRect*>>;
+  using NetFixedRectMap = boost::container::flat_map<int32_t, std::vector<EXTLayerRect*>>;
   using LayerNetFixedRectMap = boost::container::flat_map<int32_t, NetFixedRectMap>;
   using TypeLayerNetFixedRectMap = std::array<LayerNetFixedRectMap, 2>;
 
