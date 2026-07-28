@@ -120,6 +120,7 @@ void buildDefData(ilvs::Database& database)
 
   physical_graph.get_component_net_name_map()[42] = {"n_connected", "n_open"};
   physical_graph.get_component_shape_map()[42] = {makeShape(2, 0, 20, 30, 22)};
+  physical_graph.get_component_net_name_map()[300] = {"VDD", "VSS"};
   physical_graph.get_power_net_name_set().insert("VDD");
   physical_graph.get_ground_net_name_set().insert("VSS");
   ilvs::NetRoutingGraph& power_routing_graph = physical_graph.get_net_routing_graph_map()["VDD"];
@@ -199,7 +200,7 @@ int main()
   assert(summary.ec_summary.instance_difference_num == 2);
   assert(summary.ec_summary.net_difference_num == 3);
   assert(summary.rc_summary.open_net_num == 2);
-  assert(summary.rc_summary.short_net_num == 1);
+  assert(summary.rc_summary.short_net_num == 2);
   assert(summary.pc_summary.open_vdd_num == 2);
   assert(summary.pc_summary.open_vss_num == 2);
 
@@ -217,7 +218,7 @@ int main()
   assert(violation_type_num_map[ilvs::ViolationType::kInstance] == 2);
   assert(violation_type_num_map[ilvs::ViolationType::kNet] == 3);
   assert(violation_type_num_map[ilvs::ViolationType::kRoutingOpen] == 2);
-  assert(violation_type_num_map[ilvs::ViolationType::kRoutingShort] == 1);
+  assert(violation_type_num_map[ilvs::ViolationType::kRoutingShort] == 2);
   assert(violation_type_num_map[ilvs::ViolationType::kPowerOpenVDD] == 2);
   assert(violation_type_num_map[ilvs::ViolationType::kPowerOpenVSS] == 2);
   assert(ilvs::GetViolationTypeName()(ilvs::ViolationType::kIO) == "IO");
@@ -245,9 +246,24 @@ int main()
   assert(rpt_content.find("PowerOpenVDD") != std::string::npos);
   assert(rpt_content.find("PowerOpenVSS") != std::string::npos);
   assert(rpt_content.find("RoutingDriverMissing") == std::string::npos);
-  assert(rpt_content.find("Open VSS") != std::string::npos);
+  assert(rpt_content.find("Connectivity") != std::string::npos);
+  assert(rpt_content.find("Open") != std::string::npos);
+  assert(rpt_content.find("Short") != std::string::npos);
+  assert(rpt_content.find("Connected") != std::string::npos);
+  assert(rpt_content.find("Total") != std::string::npos);
+  assert(rpt_content.find("Routing") != std::string::npos);
+  assert(rpt_content.find("Power VDD") != std::string::npos);
+  assert(rpt_content.find("Power VSS") != std::string::npos);
+  assert(rpt_content.find("2 (40.00%)") != std::string::npos);
+  assert(rpt_content.find("1 (20.00%)") != std::string::npos);
+  assert(rpt_content.find("1 (33.33%)") != std::string::npos);
   assert(json_content.find("\"entity\"") != std::string::npos);
   assert(json_content.find("\"connectivity\"") != std::string::npos);
+  assert(json_content.find("\"open\"") != std::string::npos);
+  assert(json_content.find("\"short\"") != std::string::npos);
+  assert(json_content.find("\"connected\"") != std::string::npos);
+  assert(json_content.find("\"total\"") != std::string::npos);
+  assert(json_content.find("33.33") != std::string::npos);
   assert(json_content.find("\"violations\"") != std::string::npos);
 
   ilvs::DataManager::destroyInst();
