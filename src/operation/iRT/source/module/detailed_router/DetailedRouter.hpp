@@ -68,6 +68,7 @@ class DetailedRouter
   void routeDRBoxMap(DRModel& dr_model);
   void buildFixedRect(DRBox& dr_box);
   void buildAccessPoint(DRBox& dr_box);
+  void buildGlobalResult(DRBox& dr_box);
   void buildNetEnvironment(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list);
   void addNetResultToEnvironment(DRModel& dr_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx,
                                  Segment<LayerCoord>& segment);
@@ -88,6 +89,7 @@ class DetailedRouter
   void updateGraph(DRBox& dr_box, DRTask* dr_task);
   void routeDRTask(DRBox& dr_box, DRTask* dr_task);
   void initSingleRouteTask(DRBox& dr_box, DRTask* dr_task);
+  void buildGuidePenaltyMap(DRBox& dr_box, DRTask* dr_task);
   bool isConnectedAllEnd(DRBox& dr_box);
   void routeSinglePath(DRBox& dr_box);
   void initPathHead(DRBox& dr_box);
@@ -108,6 +110,7 @@ class DetailedRouter
   double getNodeCost(DRBox& dr_box, DRNode* curr_node, Orientation orientation);
   double getKnownWireCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node);
   double getKnownViaCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node);
+  double getKnownGuideCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node, double edge_base_cost);
   double getKnownBendCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node);
   double getKnownSelfCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node);
   double getEstimateCostToEnd(DRBox& dr_box, DRNode* curr_node);

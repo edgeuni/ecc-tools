@@ -40,11 +40,13 @@ class DRNode : public LayerCoord
   ~DRNode() = default;
   // getter
   std::map<Orientation, DRNode*>& get_neighbor_node_map() { return _neighbor_node_map; }
+  PlanarCoord& get_gcell_coord() { return _gcell_coord; }
   std::map<Orientation, std::set<int32_t>>& get_orient_fixed_rect_map() { return _orient_fixed_rect_map; }
   std::map<Orientation, std::set<int32_t>>& get_orient_routed_rect_map() { return _orient_routed_rect_map; }
   std::map<Orientation, int32_t>& get_orient_violation_number_map() { return _orient_violation_number_map; }
   // setter
   void set_neighbor_node_map(const std::map<Orientation, DRNode*>& neighbor_node_map) { _neighbor_node_map = neighbor_node_map; }
+  void set_gcell_coord(const PlanarCoord& gcell_coord) { _gcell_coord = gcell_coord; }
   void set_orient_fixed_rect_map(const std::map<Orientation, std::set<int32_t>>& orient_fixed_rect_map) { _orient_fixed_rect_map = orient_fixed_rect_map; }
   void set_orient_routed_rect_map(const std::map<Orientation, std::set<int32_t>>& orient_routed_rect_map) { _orient_routed_rect_map = orient_routed_rect_map; }
   void set_orient_violation_number_map(const std::map<Orientation, int32_t>& orient_violation_number_map)
@@ -132,6 +134,7 @@ class DRNode : public LayerCoord
 
  private:
   std::map<Orientation, DRNode*> _neighbor_node_map;
+  PlanarCoord _gcell_coord;
   // obstacle & pin_shape
   std::map<Orientation, std::set<int32_t>> _orient_fixed_rect_map;
   // net_result
