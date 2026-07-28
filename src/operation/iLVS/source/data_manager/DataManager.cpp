@@ -193,16 +193,20 @@ void DataManager::buildPhysicalGraph()
 void DataManager::buildPhysicalGraphNode(PhysicalGraphBuildData& physical_graph_build_data, const std::string& net_name,
                                          const NetRoutingGraph& routing_graph)
 {
+  PhysicalGraph& physical_graph = _database.get_def_data().get_physical_graph();
   std::vector<int32_t> graph_node_idx_list;
   const std::vector<RoutingShape>& routing_shape_list = routing_graph.get_routing_shape_list();
+  physical_graph.get_net_routing_shape_component_id_list_map()[net_name].assign(routing_shape_list.size(), -1);
+  int32_t routing_shape_idx = 0;
   for (const RoutingShape& routing_shape : routing_shape_list) {
     PhysicalGraphBuildNode graph_node;
     graph_node.set_net_name(net_name);
     graph_node.set_shape(routing_shape.get_shape());
+    graph_node.set_routing_shape_idx(routing_shape_idx);
     graph_node.set_layer_order(routing_shape.get_layer_order());
-    graph_node.set_is_supply_route_shape(routing_shape.get_is_supply_route_shape());
     physical_graph_build_data.get_graph_node_list().push_back(std::move(graph_node));
     graph_node_idx_list.push_back(static_cast<int32_t>(physical_graph_build_data.get_graph_node_list().size()) - 1);
+    routing_shape_idx++;
   }
   for (auto& [bottom_shape_idx, top_shape_idx] : routing_graph.get_via_shape_idx_pair_list()) {
     if (bottom_shape_idx < 0 || top_shape_idx < 0 || bottom_shape_idx >= static_cast<int32_t>(graph_node_idx_list.size())
@@ -302,13 +306,15 @@ void DataManager::buildPhysicalGraphComponent(PhysicalGraphBuildData& physical_g
     PhysicalGraphBuildNode& graph_node = graph_node_list[node_idx];
     int32_t node_component_id = component_id_map[graph.find(node_idx)];
     physical_graph.get_component_shape_map()[node_component_id].push_back(graph_node.get_shape());
-    if (graph_node.get_is_supply_route_shape()) {
-      SupplyRouteShape supply_route_shape;
-      supply_route_shape.set_net_name(graph_node.get_net_name());
-      supply_route_shape.set_component_id(node_component_id);
-      supply_route_shape.set_layer_order(graph_node.get_layer_order());
-      supply_route_shape.set_shape(graph_node.get_shape());
-      physical_graph.get_supply_route_shape_list().push_back(std::move(supply_route_shape));
+    std::map<std::string, std::vector<int32_t>>::iterator component_id_list_iter =
+        physical_graph.get_net_routing_shape_component_id_list_map().find(graph_node.get_net_name());
+    if (component_id_list_iter == physical_graph.get_net_routing_shape_component_id_list_map().end()) {
+      continue;
+    }
+    std::vector<int32_t>& component_id_list = component_id_list_iter->second;
+    int32_t routing_shape_idx = graph_node.get_routing_shape_idx();
+    if (routing_shape_idx >= 0 && routing_shape_idx < static_cast<int32_t>(component_id_list.size())) {
+      component_id_list[routing_shape_idx] = node_component_id;
     }
   }
   for (auto& [net_name, terminal_build_data_list] : net_terminal_build_data_map) {
