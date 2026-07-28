@@ -28,18 +28,18 @@ class Config
   /////////////////////////////////////////////
   // **********       LVS        ********** //
   std::string temp_directory_path;  // required
-  int32_t thread_number;            // optional
+  int32_t thread_number = 0;        // optional
   /////////////////////////////////////////////
   // **********       LVS        ********** //
   std::string log_file_path;  // building
   // **********   DataManager    ********** //
   std::string dm_temp_directory_path;  // building
-  // ******** NetlistExtractor   ********** //
-  std::string ne_temp_directory_path;  // building
-  // *********  SnapshotIO       ********** //
-  std::string sio_temp_directory_path;  // building
-  // **********   LVSChecker     ********** //
-  std::string lc_temp_directory_path;  // building
+  // **********  EntityChecker   ********** //
+  std::string ec_temp_directory_path;  // building
+  // **********  RoutingChecker  ********** //
+  std::string rc_temp_directory_path;  // building
+  // **********    PDNChecker    ********** //
+  std::string pc_temp_directory_path;  // building
   // **********   LVSReporter    ********** //
   std::string lr_temp_directory_path;  // building
   /////////////////////////////////////////////

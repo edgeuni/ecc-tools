@@ -23,7 +23,7 @@ catboost_info
 *.codex
 
 .agents
-.codex 
+.codex
 .trellis
 AGENTS.md
 
