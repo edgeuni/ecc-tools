@@ -131,6 +131,7 @@ void DieBuilder::buildRowList()
     Row row;
     row.set_name("ROW_" + std::to_string(row_idx));
     row.set_site_name(core.get_core_site_name());
+    row.set_site_origin_x(core.get_ll_x());
     row.set_y(y_coord);
     row.set_orient(row_idx % 2 == 0 ? PlacementOrientation::kFS : PlacementOrientation::kN);
     row.set_rect(core.get_ll_x(), y_coord, core.get_ur_x(), y_coord + site_height);

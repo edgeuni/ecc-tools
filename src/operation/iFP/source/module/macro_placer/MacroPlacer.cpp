@@ -57,6 +57,7 @@ void MacroPlacer::place()
 
   MPComParam mp_com_param;
   setMPComParam(mp_com_param);
+  checkMacroInCore();
   buildMacroPlacementHalo(mp_com_param);
   buildMacroRoutingHalo(mp_com_param);
   cutRowList();
@@ -70,6 +71,22 @@ void MacroPlacer::setMPComParam(MPComParam& mp_com_param)
   mp_com_param.set_routing_halo_micron(FPDM.getConfig().macro_routing_halo);
   FPLOG.info(Loc::current(), "placement_halo_micron: ", mp_com_param.get_placement_halo_micron());
   FPLOG.info(Loc::current(), "routing_halo_micron: ", mp_com_param.get_routing_halo_micron());
+}
+
+void MacroPlacer::checkMacroInCore()
+{
+  Core& core = FPDM.getDatabase().get_core();
+  for (Instance& instance : FPDM.getDatabase().get_instance_list()) {
+    if (!instance.get_macro() || !instance.get_placed()) {
+      continue;
+    }
+    PlanarRect& macro_rect = instance.get_bounding_rect();
+    if (core.get_ll_x() <= macro_rect.get_ll_x() && macro_rect.get_ur_x() <= core.get_ur_x()
+        && core.get_ll_y() <= macro_rect.get_ll_y() && macro_rect.get_ur_y() <= core.get_ur_y()) {
+      continue;
+    }
+    FPLOG.warn(Loc::current(), "The macro '", instance.get_name(), "' is placed outside core!");
+  }
 }
 
 void MacroPlacer::buildMacroPlacementHalo(MPComParam& mp_com_param)
@@ -151,8 +168,11 @@ std::vector<std::pair<int32_t, int32_t>> MacroPlacer::getRowBlockageIntervalList
     if (placement_halo_rect.get_ur_y() <= row.get_ll_y() || row.get_ur_y() <= placement_halo_rect.get_ll_y()) {
       continue;
     }
-    int32_t start_x = std::max(row.get_ll_x(), FPUTIL.alignDown(placement_halo_rect.get_ll_x(), site.get_width()));
-    int32_t end_x = std::min(row.get_ur_x(), FPUTIL.alignUp(placement_halo_rect.get_ur_x(), site.get_width()));
+    int32_t site_origin_x = row.get_site_origin_x();
+    int32_t start_x
+        = std::max(row.get_ll_x(), site_origin_x + FPUTIL.alignDown(placement_halo_rect.get_ll_x() - site_origin_x, site.get_width()));
+    int32_t end_x
+        = std::min(row.get_ur_x(), site_origin_x + FPUTIL.alignUp(placement_halo_rect.get_ur_x() - site_origin_x, site.get_width()));
     if (start_x < end_x) {
       blockage_interval_list.emplace_back(start_x, end_x);
     }
@@ -167,6 +187,7 @@ void MacroPlacer::addCutRow(Row& row, std::vector<Row>& cut_row_list, int32_t st
   Row cut_row;
   cut_row.set_name(row.get_name() + "_" + std::to_string(cut_row_idx));
   cut_row.set_site_name(row.get_site_name());
+  cut_row.set_site_origin_x(row.get_site_origin_x());
   cut_row.set_y(row.get_y());
   cut_row.set_orient(row.get_orient());
   cut_row.set_rect(start_x, row.get_ll_y(), end_x, row.get_ur_y());

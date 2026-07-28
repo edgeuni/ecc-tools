@@ -159,8 +159,11 @@ std::vector<std::pair<int32_t, int32_t>> PhyPlacer::getMacroBlockageIntervalList
     if (row.get_ur_y() <= placement_halo_rect.get_ll_y() || placement_halo_rect.get_ur_y() <= row.get_ll_y()) {
       continue;
     }
-    int32_t start_x_coord = std::max(row.get_ll_x(), FPUTIL.alignDown(placement_halo_rect.get_ll_x(), site.get_width()));
-    int32_t end_x_coord = std::min(row.get_ur_x(), FPUTIL.alignUp(placement_halo_rect.get_ur_x(), site.get_width()));
+    int32_t site_origin_x = row.get_site_origin_x();
+    int32_t start_x_coord = std::max(
+        row.get_ll_x(), site_origin_x + FPUTIL.alignDown(placement_halo_rect.get_ll_x() - site_origin_x, site.get_width()));
+    int32_t end_x_coord
+        = std::min(row.get_ur_x(), site_origin_x + FPUTIL.alignUp(placement_halo_rect.get_ur_x() - site_origin_x, site.get_width()));
     if (start_x_coord < end_x_coord) {
       macro_blockage_interval_list.emplace_back(start_x_coord, end_x_coord);
     }
@@ -171,13 +174,25 @@ std::vector<std::pair<int32_t, int32_t>> PhyPlacer::getMacroBlockageIntervalList
 
 void PhyPlacer::addPPRegion(PPModel& pp_model, Row& row, int32_t row_idx, int32_t start_coord, int32_t end_coord)
 {
-  if (start_coord >= end_coord) {
+  Site& site = FPDM.getDatabase().get_site_map()[row.get_site_name()];
+  if (site.get_width() <= 0 || site.get_height() <= 0) {
     return;
   }
+
+  int32_t site_origin_x = row.get_site_origin_x();
+  int32_t site_start_coord = site_origin_x + FPUTIL.alignUp(start_coord - site_origin_x, site.get_width());
+  int32_t site_end_coord = site_origin_x + FPUTIL.alignDown(end_coord - site_origin_x, site.get_width());
+  if (site_start_coord >= site_end_coord) {
+    return;
+  }
+
   PPRegion pp_region;
   pp_region.set_row_idx(row_idx);
-  pp_region.set_start_coord(start_coord);
-  pp_region.set_end_coord(end_coord);
+  pp_region.set_start_coord(site_start_coord);
+  pp_region.set_end_coord(site_end_coord);
+  pp_region.set_site_origin_x(site_origin_x);
+  pp_region.set_site_width(site.get_width());
+  pp_region.set_site_height(site.get_height());
   pp_region.set_y_coord(row.get_y());
   pp_region.set_orient(row.get_orient());
   pp_model.get_pp_region_list().push_back(pp_region);
@@ -193,18 +208,16 @@ void PhyPlacer::addCorePPBoundaryRegion(PPModel& pp_model)
 {
   for (PPRegion& pp_region : pp_model.get_pp_region_list()) {
     if (pp_region.get_y_coord() == pp_model.get_top_y_coord()) {
-      addPPBoundaryRegion(pp_model, pp_region.get_row_idx(), pp_region.get_start_coord(), pp_region.get_end_coord(),
-                          pp_region.get_y_coord(), pp_region.get_orient(), PPBoundaryType::kTop);
+      addPPBoundaryRegion(pp_model, pp_region, pp_region.get_start_coord(), pp_region.get_end_coord(), PPBoundaryType::kTop);
     }
     if (pp_region.get_y_coord() == pp_model.get_bottom_y_coord()) {
-      addPPBoundaryRegion(pp_model, pp_region.get_row_idx(), pp_region.get_start_coord(), pp_region.get_end_coord(),
-                          pp_region.get_y_coord(), pp_region.get_orient(), PPBoundaryType::kBottom);
+      addPPBoundaryRegion(pp_model, pp_region, pp_region.get_start_coord(), pp_region.get_end_coord(), PPBoundaryType::kBottom);
     }
   }
 }
 
-void PhyPlacer::addPPBoundaryRegion(PPModel& pp_model, int32_t row_idx, int32_t start_coord, int32_t end_coord, int32_t y_coord,
-                                    PlacementOrientation orient, PPBoundaryType boundary_type)
+void PhyPlacer::addPPBoundaryRegion(PPModel& pp_model, PPRegion& pp_region, int32_t start_coord, int32_t end_coord,
+                                    PPBoundaryType boundary_type)
 {
   if (start_coord >= end_coord || boundary_type == PPBoundaryType::kNone) {
     return;
@@ -215,7 +228,10 @@ void PhyPlacer::addPPBoundaryRegion(PPModel& pp_model, int32_t row_idx, int32_t 
   std::vector<PPRegion>& boundary_region_list = pp_model.get_boundary_region_list();
   for (int32_t region_idx = 0; region_idx < static_cast<int32_t>(boundary_region_list.size());) {
     PPRegion& boundary_region = boundary_region_list[region_idx];
-    if (boundary_region.get_y_coord() != y_coord || boundary_region.get_orient() != orient
+    if (boundary_region.get_y_coord() != pp_region.get_y_coord() || boundary_region.get_orient() != pp_region.get_orient()
+        || boundary_region.get_site_origin_x() != pp_region.get_site_origin_x()
+        || boundary_region.get_site_width() != pp_region.get_site_width()
+        || boundary_region.get_site_height() != pp_region.get_site_height()
         || boundary_region.get_boundary_type() != boundary_type || merged_end_coord < boundary_region.get_start_coord()
         || boundary_region.get_end_coord() < merged_start_coord) {
       region_idx++;
@@ -226,12 +242,9 @@ void PhyPlacer::addPPBoundaryRegion(PPModel& pp_model, int32_t row_idx, int32_t 
     boundary_region_list.erase(boundary_region_list.begin() + region_idx);
   }
 
-  PPRegion boundary_region;
-  boundary_region.set_row_idx(row_idx);
+  PPRegion boundary_region = pp_region;
   boundary_region.set_start_coord(merged_start_coord);
   boundary_region.set_end_coord(merged_end_coord);
-  boundary_region.set_y_coord(y_coord);
-  boundary_region.set_orient(orient);
   boundary_region.set_boundary_type(boundary_type);
   boundary_region_list.push_back(boundary_region);
 }
@@ -269,16 +282,16 @@ void PhyPlacer::addMacroPPBoundaryRegionInRow(PPModel& pp_model, Row& row, Plana
                                               PPBoundaryType boundary_type)
 {
   Site& site = FPDM.getDatabase().get_site_map()[row.get_site_name()];
-  int32_t start_coord = FPUTIL.alignDown(placement_halo_rect.get_ll_x(), site.get_width());
-  int32_t end_coord = FPUTIL.alignUp(placement_halo_rect.get_ur_x(), site.get_width());
+  int32_t site_origin_x = row.get_site_origin_x();
+  int32_t start_coord = site_origin_x + FPUTIL.alignDown(placement_halo_rect.get_ll_x() - site_origin_x, site.get_width());
+  int32_t end_coord = site_origin_x + FPUTIL.alignUp(placement_halo_rect.get_ur_x() - site_origin_x, site.get_width());
   for (PPRegion& pp_region : pp_model.get_pp_region_list()) {
     if (pp_region.get_y_coord() != row.get_y()) {
       continue;
     }
     int32_t clipped_start_coord = std::max(start_coord, pp_region.get_start_coord());
     int32_t clipped_end_coord = std::min(end_coord, pp_region.get_end_coord());
-    addPPBoundaryRegion(pp_model, pp_region.get_row_idx(), clipped_start_coord, clipped_end_coord, row.get_y(), row.get_orient(),
-                        boundary_type);
+    addPPBoundaryRegion(pp_model, pp_region, clipped_start_coord, clipped_end_coord, boundary_type);
   }
 }
 
@@ -294,13 +307,16 @@ void PhyPlacer::insertSideEndcap(PPModel& pp_model, int32_t& endcap_idx)
     if (left_endcap_width <= 0 || right_endcap_width <= 0) {
       continue;
     }
-    if (pp_region.get_end_coord() - pp_region.get_start_coord() >= left_endcap_width) {
-      addPhyCell(pp_model, "BNDRY_CAP_" + std::to_string(endcap_idx++), config.left_endcap_name, pp_region.get_start_coord(),
-                 pp_region.get_y_coord(), pp_region.get_orient());
+    int32_t left_endcap_x_coord = pp_region.get_site_origin_x()
+                                  + FPUTIL.alignUp(pp_region.get_start_coord() - pp_region.get_site_origin_x(), pp_region.get_site_width());
+    int32_t right_endcap_x_coord = pp_region.get_site_origin_x()
+                                   + FPUTIL.alignDown(pp_region.get_end_coord() - right_endcap_width - pp_region.get_site_origin_x(),
+                                                       pp_region.get_site_width());
+    if (left_endcap_x_coord + left_endcap_width <= pp_region.get_end_coord()) {
+      addPhyCell(pp_model, pp_region, "BNDRY_CAP_" + std::to_string(endcap_idx++), config.left_endcap_name, left_endcap_x_coord);
     }
-    if (pp_region.get_end_coord() - pp_region.get_start_coord() >= left_endcap_width + right_endcap_width) {
-      addPhyCell(pp_model, "BNDRY_CAP_" + std::to_string(endcap_idx++), config.right_endcap_name,
-                 pp_region.get_end_coord() - right_endcap_width, pp_region.get_y_coord(), pp_region.get_orient());
+    if (left_endcap_x_coord + left_endcap_width <= right_endcap_x_coord) {
+      addPhyCell(pp_model, pp_region, "BNDRY_CAP_" + std::to_string(endcap_idx++), config.right_endcap_name, right_endcap_x_coord);
     }
   }
 }
@@ -314,20 +330,20 @@ int32_t PhyPlacer::getCellMasterWidthByOrient(CellMaster& cell_master, Placement
   return cell_master.get_height();
 }
 
-void PhyPlacer::addPhyCell(PPModel& pp_model, std::string instance_name, std::string cell_master_name, int32_t x_coord, int32_t y_coord,
-                           PlacementOrientation orient)
+void PhyPlacer::addPhyCell(PPModel& pp_model, PPRegion& pp_region, std::string instance_name, std::string cell_master_name,
+                           int32_t x_coord)
 {
   Database& database = FPDM.getDatabase();
   CellMaster& cell_master = database.get_cell_master_map()[cell_master_name];
-  int32_t cell_width = getCellMasterWidthByOrient(cell_master, orient);
-  if (cell_width <= 0) {
+  if (!isPhyCellOnSite(pp_region, cell_master, x_coord)) {
     return;
   }
+  int32_t cell_width = getCellMasterWidthByOrient(cell_master, pp_region.get_orient());
   Instance instance;
   instance.set_name(instance_name);
   instance.set_master_name(cell_master_name);
-  instance.set_orient(orient);
-  instance.set_coord(x_coord, y_coord);
+  instance.set_orient(pp_region.get_orient());
+  instance.set_coord(x_coord, pp_region.get_y_coord());
   instance.set_width(cell_master.get_width());
   instance.set_height(cell_master.get_height());
   instance.set_fixed(true);
@@ -340,9 +356,24 @@ void PhyPlacer::addPhyCell(PPModel& pp_model, std::string instance_name, std::st
   PPRegion occupied_region;
   occupied_region.set_start_coord(x_coord);
   occupied_region.set_end_coord(x_coord + cell_width);
-  occupied_region.set_y_coord(y_coord);
-  occupied_region.set_orient(orient);
+  occupied_region.set_site_origin_x(pp_region.get_site_origin_x());
+  occupied_region.set_site_width(pp_region.get_site_width());
+  occupied_region.set_site_height(pp_region.get_site_height());
+  occupied_region.set_y_coord(pp_region.get_y_coord());
+  occupied_region.set_orient(pp_region.get_orient());
   pp_model.get_occupied_region_list().push_back(occupied_region);
+}
+
+bool PhyPlacer::isPhyCellOnSite(PPRegion& pp_region, CellMaster& cell_master, int32_t x_coord)
+{
+  int32_t cell_width = getCellMasterWidthByOrient(cell_master, pp_region.get_orient());
+  if (cell_width <= 0 || pp_region.get_site_width() <= 0 || pp_region.get_site_height() <= 0
+      || x_coord < pp_region.get_start_coord() || pp_region.get_end_coord() < x_coord + cell_width
+      || (x_coord - pp_region.get_site_origin_x()) % pp_region.get_site_width() != 0
+      || cell_width % pp_region.get_site_width() != 0 || cell_master.get_height() != pp_region.get_site_height()) {
+    return false;
+  }
+  return true;
 }
 
 void PhyPlacer::insertWellTap(PPModel& pp_model, int32_t tap_distance, int32_t& tapcell_idx)
@@ -363,17 +394,15 @@ void PhyPlacer::insertWellTapInRegion(PPModel& pp_model, PPRegion& pp_region, in
   if (tapcell_width <= 0) {
     return;
   }
-  int32_t x_coord = database.get_core().get_ll_x() + tap_offset;
+  int32_t x_coord = pp_region.get_site_origin_x() + tap_offset;
   while (x_coord < pp_region.get_start_coord()) {
     x_coord += tap_distance;
   }
   while (x_coord + tapcell_width <= pp_region.get_end_coord()) {
     int32_t search_end_coord = std::min(pp_region.get_end_coord(), x_coord + tap_distance);
-    int32_t available_x_coord
-        = getAvailableCellCoord(pp_model, x_coord, search_end_coord, pp_region.get_y_coord(), pp_region.get_orient(), tapcell_master);
+    int32_t available_x_coord = getAvailableCellCoord(pp_model, pp_region, x_coord, search_end_coord, tapcell_master);
     if (available_x_coord >= 0) {
-      addPhyCell(pp_model, "WELLTAP_" + std::to_string(tapcell_idx++), config.tapcell_name, available_x_coord, pp_region.get_y_coord(),
-                 pp_region.get_orient());
+      addPhyCell(pp_model, pp_region, "WELLTAP_" + std::to_string(tapcell_idx++), config.tapcell_name, available_x_coord);
     }
     x_coord += tap_distance;
   }
@@ -387,20 +416,18 @@ void PhyPlacer::insertBoundaryWellTap(PPModel& pp_model, int32_t tap_distance, i
   }
 }
 
-int32_t PhyPlacer::getAvailableCellCoord(PPModel& pp_model, int32_t start_coord, int32_t end_coord, int32_t y_coord,
-                                         PlacementOrientation orient, CellMaster& cell_master)
+int32_t PhyPlacer::getAvailableCellCoord(PPModel& pp_model, PPRegion& pp_region, int32_t start_coord, int32_t end_coord,
+                                         CellMaster& cell_master)
 {
-  Database& database = FPDM.getDatabase();
-  Site& core_site = database.get_site_map()[database.get_core().get_core_site_name()];
-  int32_t site_width = core_site.get_width();
-  int32_t cell_width = getCellMasterWidthByOrient(cell_master, orient);
-  if (site_width <= 0 || cell_width <= 0) {
+  int32_t site_width = pp_region.get_site_width();
+  int32_t cell_width = getCellMasterWidthByOrient(cell_master, pp_region.get_orient());
+  if (site_width <= 0 || cell_width <= 0 || cell_width % site_width != 0 || cell_master.get_height() != pp_region.get_site_height()) {
     return -1;
   }
-  int32_t core_relative_start = start_coord - database.get_core().get_ll_x();
-  int32_t x_coord = database.get_core().get_ll_x() + FPUTIL.alignUp(core_relative_start, site_width);
+  int32_t relative_start_coord = start_coord - pp_region.get_site_origin_x();
+  int32_t x_coord = pp_region.get_site_origin_x() + FPUTIL.alignUp(relative_start_coord, site_width);
   for (; x_coord + cell_width <= end_coord; x_coord += site_width) {
-    if (isCellAvailable(pp_model, x_coord, x_coord + cell_width, y_coord)) {
+    if (isCellAvailable(pp_model, x_coord, x_coord + cell_width, pp_region.get_y_coord())) {
       return x_coord;
     }
   }
@@ -428,13 +455,12 @@ void PhyPlacer::insertBoundaryTap(PPModel& pp_model, int32_t boundary_tap_rule, 
       int32_t search_end_coord = std::min(boundary_region.get_end_coord(), x_coord + boundary_tap_rule);
       for (std::string& boundary_tap_name : boundary_tap_name_list) {
         CellMaster& boundary_tap_master = FPDM.getDatabase().get_cell_master_map()[boundary_tap_name];
-        int32_t available_x_coord = getAvailableCellCoord(pp_model, x_coord, search_end_coord, boundary_region.get_y_coord(),
-                                                           boundary_region.get_orient(), boundary_tap_master);
+        int32_t available_x_coord = getAvailableCellCoord(pp_model, boundary_region, x_coord, search_end_coord, boundary_tap_master);
         if (available_x_coord < 0) {
           continue;
         }
-        addPhyCell(pp_model, "BNDRY_CAP_TAP_" + std::to_string(boundary_tap_idx++), boundary_tap_name, available_x_coord,
-                   boundary_region.get_y_coord(), boundary_region.get_orient());
+        addPhyCell(pp_model, boundary_region, "BNDRY_CAP_TAP_" + std::to_string(boundary_tap_idx++), boundary_tap_name,
+                   available_x_coord);
         break;
       }
       x_coord += 2 * boundary_tap_rule;
@@ -512,7 +538,8 @@ std::vector<PPRegion> PhyPlacer::getEmptyPPRegionList(PPModel& pp_model, PPRegio
 void PhyPlacer::fillEdgeEndcap(PPModel& pp_model, PPRegion& empty_region, std::vector<std::string>& endcap_name_list,
                                int32_t& endcap_idx)
 {
-  int32_t x_coord = empty_region.get_start_coord();
+  int32_t x_coord = empty_region.get_site_origin_x()
+                    + FPUTIL.alignUp(empty_region.get_start_coord() - empty_region.get_site_origin_x(), empty_region.get_site_width());
   while (x_coord < empty_region.get_end_coord()) {
     std::string endcap_name
         = getFittingCellMasterName(endcap_name_list, empty_region.get_end_coord() - x_coord, empty_region.get_orient());
@@ -521,8 +548,7 @@ void PhyPlacer::fillEdgeEndcap(PPModel& pp_model, PPRegion& empty_region, std::v
     }
     CellMaster& endcap_master = FPDM.getDatabase().get_cell_master_map()[endcap_name];
     int32_t endcap_width = getCellMasterWidthByOrient(endcap_master, empty_region.get_orient());
-    addPhyCell(pp_model, "BNDRY_CAP_" + std::to_string(endcap_idx++), endcap_name, x_coord, empty_region.get_y_coord(),
-               empty_region.get_orient());
+    addPhyCell(pp_model, empty_region, "BNDRY_CAP_" + std::to_string(endcap_idx++), endcap_name, x_coord);
     x_coord += endcap_width;
   }
 }

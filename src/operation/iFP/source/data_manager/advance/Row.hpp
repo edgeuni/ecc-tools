@@ -28,6 +28,7 @@ class Row : public PlanarRect
   // getter
   std::string& get_name() { return _name; }
   std::string& get_site_name() { return _site_name; }
+  int32_t get_site_origin_x() const { return _site_origin_x; }
   int32_t get_y() const { return _y; }
   PlacementOrientation get_orient() const { return _orient; }
 
@@ -38,6 +39,7 @@ class Row : public PlanarRect
   // setter
   void set_name(std::string name) { _name = name; }
   void set_site_name(std::string site_name) { _site_name = site_name; }
+  void set_site_origin_x(int32_t site_origin_x) { _site_origin_x = site_origin_x; }
   void set_y(int32_t y) { _y = y; }
   void set_orient(PlacementOrientation orient) { _orient = orient; }
 
@@ -46,6 +48,7 @@ class Row : public PlanarRect
  private:
   std::string _name;
   std::string _site_name;
+  int32_t _site_origin_x = -1;
   int32_t _y = -1;
   PlacementOrientation _orient = PlacementOrientation::kNone;
 };

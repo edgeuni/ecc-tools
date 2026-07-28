@@ -936,6 +936,8 @@ void FPInterface::outputNewInstanceList()
 
 void FPInterface::outputPGSegmentList()
 {
+  adjustStripeSegmentListByViaEnclosure();
+
   idb::IdbDesign* idb_design = dmInst->get_idb_design();
   idb::IdbLayout* idb_layout = dmInst->get_idb_layout();
   std::map<std::string, idb::IdbSpecialWire*> pg_net_name_to_wire_map;
@@ -977,6 +979,141 @@ void FPInterface::outputPGSegmentList()
   }
 }
 
+void FPInterface::adjustStripeSegmentListByViaEnclosure()
+{
+  idb::IdbLayout* idb_layout = dmInst->get_idb_layout();
+  std::vector<PGSegment>& pg_segment_list = FPDM.getDatabase().get_pg_segment_list();
+  std::map<std::string, std::map<int32_t, std::vector<PGSegment*>>> pg_net_layer_coord_to_stripe_segment_list_map;
+  for (PGSegment& pg_segment : pg_segment_list) {
+    if (pg_segment.get_type() != PGSegmentType::kStripe) {
+      continue;
+    }
+    std::string pg_net_layer_key = FPUTIL.getString(pg_segment.get_net_name(), "|", pg_segment.get_layer_name());
+    int32_t stripe_coord = pg_segment.is_vertical() ? pg_segment.get_start_x() : pg_segment.get_start_y();
+    pg_net_layer_coord_to_stripe_segment_list_map[pg_net_layer_key][stripe_coord].push_back(&pg_segment);
+  }
+
+  for (PGSegment& pg_segment : pg_segment_list) {
+    if (pg_segment.get_type() != PGSegmentType::kVia) {
+      continue;
+    }
+
+    std::vector<idb::IdbLayerCut*> idb_cut_layer_list;
+    if (!pg_segment.get_cut_layer_name().empty()) {
+      idb::IdbLayer* idb_layer = idb_layout->get_layers()->find_layer(pg_segment.get_cut_layer_name());
+      idb::IdbLayerCut* idb_cut_layer = dynamic_cast<idb::IdbLayerCut*>(idb_layer);
+      if (idb_cut_layer != nullptr) {
+        idb_cut_layer_list.push_back(idb_cut_layer);
+      }
+    } else {
+      idb_cut_layer_list = idb_layout->get_layers()->find_cut_layer_list(pg_segment.get_bottom_layer_name(), pg_segment.get_top_layer_name());
+    }
+
+    for (idb::IdbLayerCut* idb_cut_layer : idb_cut_layer_list) {
+      idb::IdbVia* idb_via = getIDBVia(idb_cut_layer, pg_segment);
+      idb::IdbLayerShape idb_bottom_layer_shape = idb_via->get_bottom_layer_shape();
+      idb::IdbRect idb_bottom_enclosure = idb_bottom_layer_shape.get_bounding_box();
+      adjustStripeSegmentListByViaEnclosure(
+          pg_net_layer_coord_to_stripe_segment_list_map, pg_segment, idb_bottom_layer_shape.get_layer()->get_name(),
+          pg_segment.get_start_x() + idb_bottom_enclosure.get_low_x(), pg_segment.get_start_y() + idb_bottom_enclosure.get_low_y(),
+          pg_segment.get_start_x() + idb_bottom_enclosure.get_high_x(), pg_segment.get_start_y() + idb_bottom_enclosure.get_high_y());
+
+      idb::IdbLayerShape idb_top_layer_shape = idb_via->get_top_layer_shape();
+      idb::IdbRect idb_top_enclosure = idb_top_layer_shape.get_bounding_box();
+      adjustStripeSegmentListByViaEnclosure(
+          pg_net_layer_coord_to_stripe_segment_list_map, pg_segment, idb_top_layer_shape.get_layer()->get_name(),
+          pg_segment.get_start_x() + idb_top_enclosure.get_low_x(), pg_segment.get_start_y() + idb_top_enclosure.get_low_y(),
+          pg_segment.get_start_x() + idb_top_enclosure.get_high_x(), pg_segment.get_start_y() + idb_top_enclosure.get_high_y());
+    }
+  }
+}
+
+idb::IdbVia* FPInterface::getIDBVia(idb::IdbLayerCut* idb_cut_layer, PGSegment& pg_segment)
+{
+  std::string via_name
+      = idb_cut_layer->get_name() + "_" + std::to_string(pg_segment.get_via_width()) + "x" + std::to_string(pg_segment.get_via_height());
+  idb::IdbVia* idb_via = dmInst->get_idb_design()->get_via_list()->find_via(via_name);
+  if (idb_via == nullptr) {
+    idb_via = dmInst->get_idb_design()->get_via_list()->createVia(via_name, idb_cut_layer, pg_segment.get_via_width(),
+                                                                  pg_segment.get_via_height());
+  }
+  return idb_via;
+}
+
+void FPInterface::adjustStripeSegmentListByViaEnclosure(
+    std::map<std::string, std::map<int32_t, std::vector<PGSegment*>>>& pg_net_layer_coord_to_stripe_segment_list_map,
+    PGSegment& pg_segment, std::string layer_name, int32_t enclosure_ll_x, int32_t enclosure_ll_y, int32_t enclosure_ur_x,
+    int32_t enclosure_ur_y)
+{
+  std::string pg_net_layer_key = FPUTIL.getString(pg_segment.get_net_name(), "|", layer_name);
+  std::map<std::string, std::map<int32_t, std::vector<PGSegment*>>>::iterator pg_net_layer_map_iter
+      = pg_net_layer_coord_to_stripe_segment_list_map.find(pg_net_layer_key);
+  if (pg_net_layer_map_iter == pg_net_layer_coord_to_stripe_segment_list_map.end()) {
+    return;
+  }
+
+  std::map<int32_t, std::vector<PGSegment*>>& coord_to_stripe_segment_list_map = pg_net_layer_map_iter->second;
+  std::map<int32_t, std::vector<PGSegment*>>::iterator x_coord_iter
+      = coord_to_stripe_segment_list_map.find(pg_segment.get_start_x());
+  if (x_coord_iter != coord_to_stripe_segment_list_map.end()) {
+    adjustStripeSegmentByViaEnclosure(x_coord_iter->second, enclosure_ll_x, enclosure_ll_y, enclosure_ur_x, enclosure_ur_y);
+  }
+  std::map<int32_t, std::vector<PGSegment*>>::iterator y_coord_iter
+      = coord_to_stripe_segment_list_map.find(pg_segment.get_start_y());
+  if (y_coord_iter != coord_to_stripe_segment_list_map.end()) {
+    adjustStripeSegmentByViaEnclosure(y_coord_iter->second, enclosure_ll_x, enclosure_ll_y, enclosure_ur_x, enclosure_ur_y);
+  }
+}
+
+void FPInterface::adjustStripeSegmentByViaEnclosure(std::vector<PGSegment*>& stripe_segment_list, int32_t enclosure_ll_x,
+                                                     int32_t enclosure_ll_y, int32_t enclosure_ur_x, int32_t enclosure_ur_y)
+{
+  for (PGSegment* stripe_segment : stripe_segment_list) {
+    int32_t half_width = stripe_segment->get_width() / 2;
+    if (stripe_segment->is_vertical()) {
+      if (stripe_segment->get_ur_x() <= enclosure_ll_x || enclosure_ur_x <= stripe_segment->get_ll_x()
+          || stripe_segment->get_ur_y() < enclosure_ll_y || enclosure_ur_y < stripe_segment->get_ll_y()) {
+        continue;
+      }
+      if (stripe_segment->get_start_y() <= stripe_segment->get_end_y()) {
+        if (enclosure_ll_y < stripe_segment->get_ll_y()) {
+          stripe_segment->set_start_y(enclosure_ll_y + half_width);
+        }
+        if (stripe_segment->get_ur_y() < enclosure_ur_y) {
+          stripe_segment->set_end_y(enclosure_ur_y - half_width);
+        }
+      } else {
+        if (enclosure_ll_y < stripe_segment->get_ll_y()) {
+          stripe_segment->set_end_y(enclosure_ll_y + half_width);
+        }
+        if (stripe_segment->get_ur_y() < enclosure_ur_y) {
+          stripe_segment->set_start_y(enclosure_ur_y - half_width);
+        }
+      }
+    } else if (stripe_segment->is_horizontal()) {
+      if (stripe_segment->get_ur_y() <= enclosure_ll_y || enclosure_ur_y <= stripe_segment->get_ll_y()
+          || stripe_segment->get_ur_x() < enclosure_ll_x || enclosure_ur_x < stripe_segment->get_ll_x()) {
+        continue;
+      }
+      if (stripe_segment->get_start_x() <= stripe_segment->get_end_x()) {
+        if (enclosure_ll_x < stripe_segment->get_ll_x()) {
+          stripe_segment->set_start_x(enclosure_ll_x + half_width);
+        }
+        if (stripe_segment->get_ur_x() < enclosure_ur_x) {
+          stripe_segment->set_end_x(enclosure_ur_x - half_width);
+        }
+      } else {
+        if (enclosure_ll_x < stripe_segment->get_ll_x()) {
+          stripe_segment->set_end_x(enclosure_ll_x + half_width);
+        }
+        if (stripe_segment->get_ur_x() < enclosure_ur_x) {
+          stripe_segment->set_start_x(enclosure_ur_x - half_width);
+        }
+      }
+    }
+  }
+}
+
 void FPInterface::outputPGVia(idb::IdbSpecialWire* idb_special_wire, PGSegment& pg_segment)
 {
   idb::IdbLayout* idb_layout = dmInst->get_idb_layout();
@@ -991,13 +1128,7 @@ void FPInterface::outputPGVia(idb::IdbSpecialWire* idb_special_wire, PGSegment& 
     idb_cut_layer_list = idb_layout->get_layers()->find_cut_layer_list(pg_segment.get_bottom_layer_name(), pg_segment.get_top_layer_name());
   }
   for (idb::IdbLayerCut* idb_cut_layer : idb_cut_layer_list) {
-    std::string via_name
-        = idb_cut_layer->get_name() + "_" + std::to_string(pg_segment.get_via_width()) + "x" + std::to_string(pg_segment.get_via_height());
-    idb::IdbVia* idb_via = dmInst->get_idb_design()->get_via_list()->find_via(via_name);
-    if (idb_via == nullptr) {
-      idb_via = dmInst->get_idb_design()->get_via_list()->createVia(via_name, idb_cut_layer, pg_segment.get_via_width(),
-                                                                    pg_segment.get_via_height());
-    }
+    idb::IdbVia* idb_via = getIDBVia(idb_cut_layer, pg_segment);
     idb::IdbSpecialWireSegment* idb_segment = idb_special_wire->add_segment();
     idb_segment->set_is_via(true);
     idb_segment->add_point(pg_segment.get_start_x(), pg_segment.get_start_y());

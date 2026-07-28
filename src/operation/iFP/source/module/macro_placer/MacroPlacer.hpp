@@ -45,6 +45,7 @@ class MacroPlacer
   // function
 
   void setMPComParam(MPComParam& mp_com_param);
+  void checkMacroInCore();
   void buildMacroPlacementHalo(MPComParam& mp_com_param);
   void buildMacroRoutingHalo(MPComParam& mp_com_param);
   void cutRowList();

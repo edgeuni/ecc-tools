@@ -72,6 +72,9 @@ void PDNGenerator::generatePDN(PGModel& pg_model)
 
 void PDNGenerator::buildPGNet(PGModel& pg_model)
 {
+  Monitor monitor;
+  FPLOG.info(Loc::current(), "Starting...");
+
   Database& database = FPDM.getDatabase();
   for (PGGlobalConnect& pg_connect : FPDM.getConfig().pg_connect_list) {
     std::map<std::string, int32_t>::iterator pg_net_iter = database.get_pg_net_name_to_idx_map().find(pg_connect.get_net_name());
@@ -96,6 +99,8 @@ void PDNGenerator::buildPGNet(PGModel& pg_model)
       pg_net.add_instance_pin(pg_connect.get_pin_name());
     }
   }
+
+  FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 PGNet& PDNGenerator::getPGNet(std::string net_name)
@@ -106,8 +111,10 @@ PGNet& PDNGenerator::getPGNet(std::string net_name)
 
 void PDNGenerator::buildRail(PGModel& pg_model)
 {
+  Monitor monitor;
+  FPLOG.info(Loc::current(), "Starting...");
+
   Database& database = FPDM.getDatabase();
-  Core& core = database.get_core();
   for (PGRail& pg_rail : FPDM.getConfig().pg_rail_list) {
     RoutingLayer* routing_layer = findRoutingLayer(pg_rail.get_layer_name());
     if (routing_layer == nullptr || routing_layer->get_prefer_direction() != Direction::kHorizontal) {
@@ -119,25 +126,98 @@ void PDNGenerator::buildRail(PGModel& pg_model)
       continue;
     }
 
-    int32_t row_idx = -1;
-    int32_t previous_y = INT32_MIN;
-    int32_t top_y = core.get_ll_y();
     for (Row& row : database.get_row_list()) {
-      if (row.get_y() != previous_y) {
-        row_idx++;
-        previous_y = row.get_y();
-      }
-      std::string net_name = row_idx % 2 == 0 ? pg_model.get_default_power_net_name() : pg_model.get_default_ground_net_name();
-      addLineSegment(net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, row.get_ll_x(), row.get_y(), row.get_ur_x(),
-                     row.get_y());
-      top_y = std::max(top_y, row.get_y());
+      std::string bottom_net_name = row.get_orient() == PlacementOrientation::kN || row.get_orient() == PlacementOrientation::kFN
+                                        ? pg_model.get_default_ground_net_name()
+                                        : pg_model.get_default_power_net_name();
+      // Followpin 由合法 row 的边界决定，不能被相邻 macro 的 routing halo 切断。
+      addUnblockedLineSegment(bottom_net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, row.get_ll_x(), row.get_y(),
+                              row.get_ur_x(), row.get_y());
     }
-    if (!database.get_row_list().empty()) {
-      top_y += database.get_row_list()[0].get_height();
-      std::string net_name = (row_idx + 1) % 2 == 0 ? pg_model.get_default_power_net_name() : pg_model.get_default_ground_net_name();
-      addLineSegment(net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, core.get_ll_x(), top_y, core.get_ur_x(), top_y);
+
+    for (Row& row : database.get_row_list()) {
+      std::string top_net_name = row.get_orient() == PlacementOrientation::kN || row.get_orient() == PlacementOrientation::kFN
+                                     ? pg_model.get_default_power_net_name()
+                                     : pg_model.get_default_ground_net_name();
+      std::vector<std::pair<int32_t, int32_t>> covered_interval_list;
+      for (PGSegment& pg_segment : database.get_pg_segment_list()) {
+        if (pg_segment.get_type() != PGSegmentType::kFollowPin || !pg_segment.is_horizontal()
+            || pg_segment.get_layer_name() != routing_layer->get_name() || pg_segment.get_net_name() != top_net_name
+            || pg_segment.get_start_y() != row.get_ur_y()) {
+          continue;
+        }
+        int32_t start_x = std::max(row.get_ll_x(), std::min(pg_segment.get_start_x(), pg_segment.get_end_x()));
+        int32_t end_x = std::min(row.get_ur_x(), std::max(pg_segment.get_start_x(), pg_segment.get_end_x()));
+        if (start_x < end_x) {
+          covered_interval_list.emplace_back(start_x, end_x);
+        }
+      }
+      std::sort(covered_interval_list.begin(), covered_interval_list.end());
+
+      int32_t current_x = row.get_ll_x();
+      for (std::pair<int32_t, int32_t>& covered_interval : covered_interval_list) {
+        if (covered_interval.second <= current_x) {
+          continue;
+        }
+        if (current_x < covered_interval.first) {
+          addUnblockedLineSegment(top_net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, current_x, row.get_ur_y(),
+                                  covered_interval.first, row.get_ur_y());
+        }
+        current_x = std::max(current_x, covered_interval.second);
+        if (row.get_ur_x() <= current_x) {
+          break;
+        }
+      }
+      if (current_x < row.get_ur_x()) {
+        addUnblockedLineSegment(top_net_name, routing_layer->get_name(), PGSegmentType::kFollowPin, width, current_x, row.get_ur_y(),
+                                row.get_ur_x(), row.get_ur_y());
+      }
     }
   }
+  mergeRailSegmentList();
+
+  FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void PDNGenerator::mergeRailSegmentList()
+{
+  Database& database = FPDM.getDatabase();
+  std::vector<PGSegment> merged_pg_segment_list;
+  for (PGSegment& pg_segment : database.get_pg_segment_list()) {
+    if (pg_segment.get_type() != PGSegmentType::kFollowPin || !pg_segment.is_horizontal()) {
+      merged_pg_segment_list.push_back(pg_segment);
+      continue;
+    }
+
+    PGSegment merged_rail_segment = pg_segment;
+    for (int32_t segment_idx = 0; segment_idx < static_cast<int32_t>(merged_pg_segment_list.size());) {
+      PGSegment& rail_segment = merged_pg_segment_list[segment_idx];
+      if (rail_segment.get_type() != PGSegmentType::kFollowPin || !rail_segment.is_horizontal()
+          || rail_segment.get_net_name() != merged_rail_segment.get_net_name()
+          || rail_segment.get_layer_name() != merged_rail_segment.get_layer_name()
+          || rail_segment.get_width() != merged_rail_segment.get_width()
+          || rail_segment.get_start_y() != merged_rail_segment.get_start_y()) {
+        segment_idx++;
+        continue;
+      }
+
+      int32_t rail_start_x = std::min(rail_segment.get_start_x(), rail_segment.get_end_x());
+      int32_t rail_end_x = std::max(rail_segment.get_start_x(), rail_segment.get_end_x());
+      int32_t merged_start_x = std::min(merged_rail_segment.get_start_x(), merged_rail_segment.get_end_x());
+      int32_t merged_end_x = std::max(merged_rail_segment.get_start_x(), merged_rail_segment.get_end_x());
+      if (rail_segment.get_ur_x() <= merged_rail_segment.get_ll_x()
+          || merged_rail_segment.get_ur_x() <= rail_segment.get_ll_x()) {
+        segment_idx++;
+        continue;
+      }
+
+      merged_rail_segment.set_start_coord(std::min(rail_start_x, merged_start_x), merged_rail_segment.get_start_y());
+      merged_rail_segment.set_end_coord(std::max(rail_end_x, merged_end_x), merged_rail_segment.get_start_y());
+      merged_pg_segment_list.erase(merged_pg_segment_list.begin() + segment_idx);
+    }
+    merged_pg_segment_list.push_back(merged_rail_segment);
+  }
+  database.set_pg_segment_list(merged_pg_segment_list);
 }
 
 RoutingLayer* PDNGenerator::findRoutingLayer(std::string layer_name)
@@ -265,6 +345,9 @@ int32_t PDNGenerator::getMacroTopLayerOrder(Instance& instance)
 
 void PDNGenerator::buildStripe(PGModel& pg_model)
 {
+  Monitor monitor;
+  FPLOG.info(Loc::current(), "Starting...");
+
   Core& core = FPDM.getDatabase().get_core();
   for (PGStripe& pg_stripe : FPDM.getConfig().pg_stripe_list) {
     RoutingLayer* routing_layer = findRoutingLayer(pg_stripe.get_layer_name());
@@ -311,16 +394,23 @@ void PDNGenerator::buildStripe(PGModel& pg_model)
       }
     }
   }
+
+  FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 void PDNGenerator::alignStripeSegmentList()
 {
+  Monitor monitor;
+  FPLOG.info(Loc::current(), "Starting...");
+
   for (PGSegment& pg_segment : FPDM.getDatabase().get_pg_segment_list()) {
     if (pg_segment.get_type() != PGSegmentType::kStripe) {
       continue;
     }
     alignStripeSegment(pg_segment);
   }
+
+  FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 void PDNGenerator::alignStripeSegment(PGSegment& stripe_segment)
@@ -343,13 +433,13 @@ void PDNGenerator::alignStripeSegment(PGSegment& stripe_segment)
         continue;
       }
       if (stripe_segment.get_start_y() == routing_halo_rect.get_ur_y() + half_width) {
-        int32_t rail_coord = getClosestRailCoord(stripe_segment, instance, true);
+        int32_t rail_coord = getClosestRailEdgeCoord(stripe_segment, instance, true);
         if (rail_coord != INT32_MAX && rail_coord <= stripe_segment.get_end_y()) {
           stripe_segment.set_start_y(rail_coord);
         }
       }
       if (stripe_segment.get_end_y() == routing_halo_rect.get_ll_y() - half_width) {
-        int32_t rail_coord = getClosestRailCoord(stripe_segment, instance, false);
+        int32_t rail_coord = getClosestRailEdgeCoord(stripe_segment, instance, false);
         if (rail_coord != INT32_MAX && stripe_segment.get_start_y() <= rail_coord) {
           stripe_segment.set_end_y(rail_coord);
         }
@@ -359,13 +449,13 @@ void PDNGenerator::alignStripeSegment(PGSegment& stripe_segment)
         continue;
       }
       if (stripe_segment.get_start_x() == routing_halo_rect.get_ur_x() + half_width) {
-        int32_t rail_coord = getClosestRailCoord(stripe_segment, instance, true);
+        int32_t rail_coord = getClosestRailEdgeCoord(stripe_segment, instance, true);
         if (rail_coord != INT32_MAX && rail_coord <= stripe_segment.get_end_x()) {
           stripe_segment.set_start_x(rail_coord);
         }
       }
       if (stripe_segment.get_end_x() == routing_halo_rect.get_ll_x() - half_width) {
-        int32_t rail_coord = getClosestRailCoord(stripe_segment, instance, false);
+        int32_t rail_coord = getClosestRailEdgeCoord(stripe_segment, instance, false);
         if (rail_coord != INT32_MAX && stripe_segment.get_start_x() <= rail_coord) {
           stripe_segment.set_end_x(rail_coord);
         }
@@ -374,11 +464,11 @@ void PDNGenerator::alignStripeSegment(PGSegment& stripe_segment)
   }
 }
 
-int32_t PDNGenerator::getClosestRailCoord(PGSegment& stripe_segment, Instance& instance, bool high_side)
+int32_t PDNGenerator::getClosestRailEdgeCoord(PGSegment& stripe_segment, Instance& instance, bool high_side)
 {
   PlanarRect& routing_halo_rect = instance.get_routing_halo_rect();
   bool vertical = stripe_segment.is_vertical();
-  int32_t closest_rail_coord = INT32_MAX;
+  int32_t closest_rail_edge_coord = INT32_MAX;
   int32_t closest_distance = INT32_MAX;
   for (PGSegment& rail_segment : FPDM.getDatabase().get_pg_segment_list()) {
     if (rail_segment.get_type() != PGSegmentType::kFollowPin || rail_segment.get_net_name() != stripe_segment.get_net_name()) {
@@ -393,19 +483,19 @@ int32_t PDNGenerator::getClosestRailCoord(PGSegment& stripe_segment, Instance& i
         if (rail_segment.get_ll_y() < routing_halo_rect.get_ur_y()) {
           continue;
         }
-        int32_t distance = rail_segment.get_start_y() - routing_halo_rect.get_ur_y();
+        int32_t distance = rail_segment.get_ll_y() - routing_halo_rect.get_ur_y();
         if (distance < closest_distance) {
           closest_distance = distance;
-          closest_rail_coord = rail_segment.get_start_y();
+          closest_rail_edge_coord = rail_segment.get_ll_y();
         }
       } else {
         if (routing_halo_rect.get_ll_y() < rail_segment.get_ur_y()) {
           continue;
         }
-        int32_t distance = routing_halo_rect.get_ll_y() - rail_segment.get_start_y();
+        int32_t distance = routing_halo_rect.get_ll_y() - rail_segment.get_ur_y();
         if (distance < closest_distance) {
           closest_distance = distance;
-          closest_rail_coord = rail_segment.get_start_y();
+          closest_rail_edge_coord = rail_segment.get_ur_y();
         }
       }
     } else {
@@ -417,28 +507,31 @@ int32_t PDNGenerator::getClosestRailCoord(PGSegment& stripe_segment, Instance& i
         if (rail_segment.get_ll_x() < routing_halo_rect.get_ur_x()) {
           continue;
         }
-        int32_t distance = rail_segment.get_start_x() - routing_halo_rect.get_ur_x();
+        int32_t distance = rail_segment.get_ll_x() - routing_halo_rect.get_ur_x();
         if (distance < closest_distance) {
           closest_distance = distance;
-          closest_rail_coord = rail_segment.get_start_x();
+          closest_rail_edge_coord = rail_segment.get_ll_x();
         }
       } else {
         if (routing_halo_rect.get_ll_x() < rail_segment.get_ur_x()) {
           continue;
         }
-        int32_t distance = routing_halo_rect.get_ll_x() - rail_segment.get_start_x();
+        int32_t distance = routing_halo_rect.get_ll_x() - rail_segment.get_ur_x();
         if (distance < closest_distance) {
           closest_distance = distance;
-          closest_rail_coord = rail_segment.get_start_x();
+          closest_rail_edge_coord = rail_segment.get_ur_x();
         }
       }
     }
   }
-  return closest_rail_coord;
+  return closest_rail_edge_coord;
 }
 
 void PDNGenerator::buildLayerConnect(PGModel& pg_model)
 {
+  Monitor monitor;
+  FPLOG.info(Loc::current(), "Starting...");
+
   Database& database = FPDM.getDatabase();
   for (PGLayerPair& pg_layer_pair : FPDM.getConfig().pg_layer_pair_list) {
     RoutingLayer* first_layer = findRoutingLayer(pg_layer_pair.get_first_layer_name());
@@ -481,6 +574,8 @@ void PDNGenerator::buildLayerConnect(PGModel& pg_model)
       }
     }
   }
+
+  FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 PlanarRect PDNGenerator::getOverlapRect(PlanarRect first_rect, PlanarRect second_rect)
@@ -516,7 +611,28 @@ void PDNGenerator::addViaSegment(PGModel& pg_model, std::string net_name, std::s
 
 void PDNGenerator::buildMacroConnect(PGModel& pg_model)
 {
+  Monitor monitor;
+  FPLOG.info(Loc::current(), "Starting...");
+
   Database& database = FPDM.getDatabase();
+  int32_t macro_pin_num = 0;
+  for (PGNet& pg_net : database.get_pg_net_list()) {
+    for (Instance& instance : database.get_instance_list()) {
+      if (!instance.get_macro() || !instance.get_placed()) {
+        continue;
+      }
+      for (InstancePinShape& pin_shape : instance.get_pin_shape_list()) {
+        if (std::find(pg_net.get_instance_pin_name_list().begin(), pg_net.get_instance_pin_name_list().end(), pin_shape.get_pin_name())
+            != pg_net.get_instance_pin_name_list().end()) {
+          macro_pin_num++;
+        }
+      }
+    }
+  }
+
+  int32_t batch_size = std::max(macro_pin_num / 10, 1);
+  int32_t processed_macro_pin_num = 0;
+  Monitor stage_monitor;
   for (PGNet& pg_net : database.get_pg_net_list()) {
     for (Instance& instance : database.get_instance_list()) {
       if (!instance.get_macro() || !instance.get_placed()) {
@@ -528,9 +644,16 @@ void PDNGenerator::buildMacroConnect(PGModel& pg_model)
           continue;
         }
         connectMacroPin(pg_model, pg_net, pin_shape);
+        processed_macro_pin_num++;
+        if (processed_macro_pin_num % batch_size == 0 || processed_macro_pin_num == macro_pin_num) {
+          FPLOG.info(Loc::current(), "Processed ", processed_macro_pin_num, "/", macro_pin_num, " macro pins",
+                     stage_monitor.getStatsInfo());
+        }
       }
     }
   }
+
+  FPLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
 void PDNGenerator::connectMacroPin(PGModel& pg_model, PGNet& pg_net, InstancePinShape& pin_shape)
