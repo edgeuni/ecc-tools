@@ -2969,22 +2969,24 @@ void PinAccessor::uploadAccessPoint(PAModel& pa_model)
 
 void PinAccessor::uploadAccessResult(PAModel& pa_model)
 {
+  std::map<int32_t, std::vector<Segment<LayerCoord>>>& net_detailed_result_map = RTDM.getDatabase().get_net_detailed_result_map();
+  net_detailed_result_map.clear();
   for (auto& [net_idx, pin_access_result_map] : pa_model.get_net_pin_access_result_map()) {
     for (auto& [pin_idx, segment_list] : pin_access_result_map) {
-      for (Segment<LayerCoord>& segment : segment_list) {
-        RTDM.updateNetDetailedResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(segment));
-      }
+      net_detailed_result_map[net_idx].insert(net_detailed_result_map[net_idx].end(), std::make_move_iterator(segment_list.begin()),
+                                               std::make_move_iterator(segment_list.end()));
     }
   }
 }
 
 void PinAccessor::uploadAccessPatch(PAModel& pa_model)
 {
+  std::map<int32_t, std::vector<EXTLayerRect>>& net_detailed_patch_map = RTDM.getDatabase().get_net_detailed_patch_map();
+  net_detailed_patch_map.clear();
   for (auto& [net_idx, pin_access_patch_map] : pa_model.get_net_pin_access_patch_map()) {
     for (auto& [pin_idx, patch_list] : pin_access_patch_map) {
-      for (EXTLayerRect& patch : patch_list) {
-        RTDM.updateNetDetailedPatchToGCellMap(ChangeType::kAdd, net_idx, new EXTLayerRect(patch));
-      }
+      net_detailed_patch_map[net_idx].insert(net_detailed_patch_map[net_idx].end(), std::make_move_iterator(patch_list.begin()),
+                                              std::make_move_iterator(patch_list.end()));
     }
   }
 }

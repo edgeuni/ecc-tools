@@ -143,6 +143,50 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
   std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
   GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
 
+  using DetailedRTree = bgi::rtree<std::pair<BGRectInt, int32_t>, bgi::quadratic<16>>;
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
+  std::vector<std::vector<std::pair<int32_t, PlanarRect>>> layer_detailed_shape_list(routing_layer_list.size());
+  std::vector<std::vector<std::pair<BGRectInt, int32_t>>> layer_rtree_value_list(routing_layer_list.size());
+  Die& die = RTDM.getDatabase().get_die();
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  for (auto& [net_idx, segment_list] : RTDM.getDatabase().get_net_detailed_result_map()) {
+    for (Segment<LayerCoord>& segment : segment_list) {
+      for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
+        if (!net_shape.get_is_routing()) {
+          continue;
+        }
+        PlanarRect real_rect = net_shape;
+        if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+          continue;
+        }
+        int32_t layer_idx = net_shape.get_layer_idx();
+        std::vector<std::pair<int32_t, PlanarRect>>& detailed_shape_list = layer_detailed_shape_list[layer_idx];
+        layer_rtree_value_list[layer_idx].emplace_back(RTUTIL.convertToBGRectInt(real_rect),
+                                                      static_cast<int32_t>(detailed_shape_list.size()));
+        detailed_shape_list.emplace_back(net_idx, net_shape);
+      }
+    }
+  }
+  for (auto& [net_idx, patch_list] : RTDM.getDatabase().get_net_detailed_patch_map()) {
+    for (EXTLayerRect& patch : patch_list) {
+      PlanarRect real_rect = patch.get_real_rect();
+      if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+        continue;
+      }
+      int32_t layer_idx = patch.get_layer_idx();
+      std::vector<std::pair<int32_t, PlanarRect>>& detailed_shape_list = layer_detailed_shape_list[layer_idx];
+      layer_rtree_value_list[layer_idx].emplace_back(RTUTIL.convertToBGRectInt(real_rect),
+                                                    static_cast<int32_t>(detailed_shape_list.size()));
+      detailed_shape_list.emplace_back(net_idx, patch.get_real_rect());
+    }
+  }
+  std::vector<DetailedRTree> layer_rtree_list(routing_layer_list.size());
+#pragma omp parallel for
+  for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(routing_layer_list.size()); layer_idx++) {
+    layer_rtree_list[layer_idx] = DetailedRTree(layer_rtree_value_list[layer_idx].begin(), layer_rtree_value_list[layer_idx].end());
+  }
+  std::vector<std::vector<std::pair<BGRectInt, int32_t>>>().swap(layer_rtree_value_list);
+
   size_t total_pair_num = 0;
   for (std::vector<std::pair<LayerCoord, LayerCoord>>& grid_pair_list : sa_model.get_grid_pair_list_list()) {
     total_pair_num += grid_pair_list.size();
@@ -165,8 +209,6 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
       std::vector<PlanarRect> obs_rect_list;
       {
         std::vector<EXTLayerRect*> fixed_rect_list;
-        std::vector<std::pair<int32_t, Segment<LayerCoord>*>> detailed_segment_list;
-        std::vector<std::pair<int32_t, EXTLayerRect*>> detailed_patch_list;
         for (int32_t x = search_rect.get_grid_ll_x(); x <= search_rect.get_grid_ur_x(); x++) {
           for (int32_t y = search_rect.get_grid_ll_y(); y <= search_rect.get_grid_ur_y(); y++) {
             GCell& gcell = gcell_map[x][y];
@@ -177,18 +219,6 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
                 fixed_rect_list.insert(fixed_rect_list.end(), fixed_rect_set.begin(), fixed_rect_set.end());
               }
             }
-            for (auto& [net_idx, segment_set] : gcell.get_net_detailed_result_map()) {
-              for (Segment<LayerCoord>* segment : segment_set) {
-                detailed_segment_list.emplace_back(net_idx, segment);
-              }
-            }
-            for (auto& [net_idx, patch_set] : gcell.get_net_detailed_patch_map()) {
-              for (EXTLayerRect* patch : patch_set) {
-                if (search_rect.get_layer_idx() == patch->get_layer_idx()) {
-                  detailed_patch_list.emplace_back(net_idx, patch);
-                }
-              }
-            }
           }
         }
 
@@ -196,21 +226,14 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
           obs_rect_list.push_back(fixed_rect->get_real_rect());
         }
 
-        for (auto& [net_idx, segment] : detailed_segment_list) {
-          for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
-            if (!net_shape.get_is_routing() || search_rect.get_layer_idx() != net_shape.get_layer_idx()) {
-              continue;
-            }
-            obs_rect_list.push_back(net_shape);
-            if (RTUTIL.isOpenOverlap(search_rect.get_real_rect(), net_shape.get_rect())) {
-              ignore_net_set.insert(net_idx);
-            }
-          }
-        }
-
-        for (auto& [net_idx, patch] : detailed_patch_list) {
-          obs_rect_list.push_back(patch->get_real_rect());
-          if (RTUTIL.isOpenOverlap(search_rect.get_real_rect(), patch->get_real_rect())) {
+        PlanarRect query_real_rect = RTUTIL.getEnlargedRect(search_rect.get_real_rect(), detection_distance);
+        BGRectInt query_rect = RTUTIL.convertToBGRectInt(query_real_rect);
+        std::vector<std::pair<BGRectInt, int32_t>> rtree_value_list;
+        layer_rtree_list[search_rect.get_layer_idx()].query(bgi::intersects(query_rect), std::back_inserter(rtree_value_list));
+        for (auto& [rect, shape_idx] : rtree_value_list) {
+          auto& [net_idx, detailed_shape] = layer_detailed_shape_list[search_rect.get_layer_idx()][shape_idx];
+          obs_rect_list.push_back(detailed_shape);
+          if (RTUTIL.isOpenOverlap(search_rect.get_real_rect(), detailed_shape)) {
             ignore_net_set.insert(net_idx);
           }
         }

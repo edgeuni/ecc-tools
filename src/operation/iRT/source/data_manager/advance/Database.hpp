@@ -62,6 +62,8 @@ class Database
   std::vector<Obstacle>& get_cut_obstacle_list() { return _cut_obstacle_list; }
   std::vector<Macro>& get_macro_list() { return _macro_list; }
   std::vector<Net>& get_net_list() { return _net_list; }
+  std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_net_detailed_result_map() { return _net_detailed_result_map; }
+  std::map<int32_t, std::vector<EXTLayerRect>>& get_net_detailed_patch_map() { return _net_detailed_patch_map; }
   int32_t get_detection_distance() const { return _detection_distance; }
   GridMap<GCell>& get_gcell_map() { return _gcell_map; }
   GridMap<RoutingEdge>& get_planar_routing_h_edge_map() { return _planar_routing_h_edge_map; }
@@ -103,6 +105,8 @@ class Database
   std::vector<Obstacle> _cut_obstacle_list;
   std::vector<Macro> _macro_list;
   std::vector<Net> _net_list;
+  std::map<int32_t, std::vector<Segment<LayerCoord>>> _net_detailed_result_map;
+  std::map<int32_t, std::vector<EXTLayerRect>> _net_detailed_patch_map;
   int32_t _detection_distance = -1;
   GridMap<GCell> _gcell_map;
   GridMap<RoutingEdge> _planar_routing_h_edge_map;

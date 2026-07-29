@@ -105,16 +105,8 @@ void DetailedRouter::readDRModel(DRModel& dr_model)
 {
   Die& die = RTDM.getDatabase().get_die();
 
-  for (auto& [net_idx, segment_set] : RTDM.getNetDetailedResultMap(die)) {
-    for (Segment<LayerCoord>* segment : segment_set) {
-      dr_model.get_net_detailed_result_map()[net_idx].push_back(*segment);
-    }
-  }
-  for (auto& [net_idx, patch_set] : RTDM.getNetDetailedPatchMap(die)) {
-    for (EXTLayerRect* patch : patch_set) {
-      dr_model.get_net_detailed_patch_map()[net_idx].push_back(*patch);
-    }
-  }
+  dr_model.get_net_detailed_result_map() = RTDM.getDatabase().get_net_detailed_result_map();
+  dr_model.get_net_detailed_patch_map() = RTDM.getDatabase().get_net_detailed_patch_map();
   for (Violation* violation : RTDM.getViolationSet(die)) {
     dr_model.get_route_violation_list().push_back(*violation);
   }
@@ -3098,30 +3090,12 @@ void DetailedRouter::uploadDRModel(DRModel& dr_model)
 {
   Die& die = RTDM.getDatabase().get_die();
 
-  for (auto& [net_idx, segment_set] : RTDM.getNetDetailedResultMap(die)) {
-    for (Segment<LayerCoord>* segment : segment_set) {
-      RTDM.updateNetDetailedResultToGCellMap(ChangeType::kDel, net_idx, segment);
-    }
-  }
-  for (auto& [net_idx, patch_set] : RTDM.getNetDetailedPatchMap(die)) {
-    for (EXTLayerRect* patch : patch_set) {
-      RTDM.updateNetDetailedPatchToGCellMap(ChangeType::kDel, net_idx, patch);
-    }
-  }
   for (Violation* violation : RTDM.getViolationSet(die)) {
     RTDM.updateViolationToGCellMap(ChangeType::kDel, violation);
   }
 
-  for (auto& [net_idx, segment_list] : dr_model.get_net_detailed_result_map()) {
-    for (Segment<LayerCoord>& segment : segment_list) {
-      RTDM.updateNetDetailedResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(segment));
-    }
-  }
-  for (auto& [net_idx, patch_list] : dr_model.get_net_detailed_patch_map()) {
-    for (EXTLayerRect& patch : patch_list) {
-      RTDM.updateNetDetailedPatchToGCellMap(ChangeType::kAdd, net_idx, new EXTLayerRect(patch));
-    }
-  }
+  RTDM.getDatabase().get_net_detailed_result_map() = std::move(dr_model.get_net_detailed_result_map());
+  RTDM.getDatabase().get_net_detailed_patch_map() = std::move(dr_model.get_net_detailed_patch_map());
   for (Violation& violation : dr_model.get_route_violation_list()) {
     RTDM.updateViolationToGCellMap(ChangeType::kAdd, new Violation(violation));
   }

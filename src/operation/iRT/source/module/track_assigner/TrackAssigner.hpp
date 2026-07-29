@@ -54,9 +54,9 @@ class TrackAssigner
   void setTAComParam(TAModel& ta_model);
   void initTAPanelMap(TAModel& ta_model);
   void buildPanelSchedule(TAModel& ta_model);
+  TAPanelId getTAPanelId(const LayerCoord& coord);
+  void splitDetailedResult(TAModel& ta_model);
   void assignTAPanelMap(TAModel& ta_model);
-  void buildNetResult(TAPanel& ta_panel);
-  void buildNetPatch(TAPanel& ta_panel);
   void initTATaskList(TAModel& ta_model, TAPanel& ta_panel);
   void buildViolation(TAPanel& ta_panel);
   bool needRouting(TAPanel& ta_panel);
@@ -97,9 +97,11 @@ class TrackAssigner
   std::vector<Violation> getViolationListByShort(TAPanel& ta_panel, std::map<int32_t, std::vector<PlanarRect>>& env_net_rect_map,
                                                  std::map<int32_t, std::vector<PlanarRect>>& result_net_rect_map);
   void updateTaskSchedule(TAPanel& ta_panel, std::vector<TATask*>& routing_task_list);
-  void uploadNetResult(TAPanel& ta_panel);
+  void updateTAPanel(TAPanel& ta_panel);
   void uploadViolation(TAPanel& ta_panel);
   void freeTAPanel(TAPanel& ta_panel);
+  void updateTAModel(TAModel& ta_model);
+  void uploadTAModel(TAModel& ta_model);
   int32_t getViolationNum(TAModel& ta_model);
 
 #if 1  // update env

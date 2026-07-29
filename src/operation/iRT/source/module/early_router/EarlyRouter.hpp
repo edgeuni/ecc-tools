@@ -128,10 +128,12 @@ class EarlyRouter
   void initERBoxMap(ERModel& er_model);
   void buildBoxSchedule(ERModel& er_model);
   void routeDetailed(ERModel& er_model);
+  void addNetResultToERBoxTask(ERModel& er_model, int32_t net_idx, Segment<LayerCoord>& segment);
   void routeERBox(ERBox& er_box);
   void updateNetResult(ERModel& er_model);
   void updateNetPatch(ERModel& er_model);
   void cleanTempResult(ERModel& er_model);
+  void uploadERModel(ERModel& er_model);
 
 #if 1  // output
   void outputGCellCSV(ERModel& er_model);

@@ -44,6 +44,8 @@ class ERModel
   std::vector<std::vector<ERPanelId>>& get_er_panel_id_list_list() { return _er_panel_id_list_list; }
   GridMap<ERBox>& get_er_box_map() { return _er_box_map; }
   std::vector<std::vector<ERBoxId>>& get_er_box_id_list_list() { return _er_box_id_list_list; }
+  std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_net_detailed_result_map() { return _net_detailed_result_map; }
+  std::map<int32_t, std::vector<EXTLayerRect>>& get_net_detailed_patch_map() { return _net_detailed_patch_map; }
   // setter
   void set_er_net_list(const std::vector<ERNet>& er_net_list) { _er_net_list = er_net_list; }
   void set_er_com_param(const ERComParam& er_com_param) { _er_com_param = er_com_param; }
@@ -77,6 +79,8 @@ class ERModel
   std::vector<std::vector<ERPanelId>> _er_panel_id_list_list;
   GridMap<ERBox> _er_box_map;
   std::vector<std::vector<ERBoxId>> _er_box_id_list_list;
+  std::map<int32_t, std::vector<Segment<LayerCoord>>> _net_detailed_result_map;
+  std::map<int32_t, std::vector<EXTLayerRect>> _net_detailed_patch_map;
 #if 1
   // single task
   ERNet* _curr_er_task = nullptr;

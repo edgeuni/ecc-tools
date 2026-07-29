@@ -61,7 +61,10 @@ void TrackAssigner::assign()
   setTAComParam(ta_model);
   initTAPanelMap(ta_model);
   buildPanelSchedule(ta_model);
+  splitDetailedResult(ta_model);
   assignTAPanelMap(ta_model);
+  updateTAModel(ta_model);
+  uploadTAModel(ta_model);
   // debugPlotTAModel(ta_model, "after");
   std::vector<std::vector<TAPanel>>().swap(ta_model.get_layer_panel_list());
   std::vector<std::vector<TAPanelId>>().swap(ta_model.get_ta_panel_id_list_list());
@@ -84,6 +87,8 @@ TAModel TrackAssigner::initTAModel()
 
   TAModel ta_model;
   ta_model.set_ta_net_list(convertToTANetList(net_list));
+  ta_model.get_net_detailed_result_map() = RTDM.getDatabase().get_net_detailed_result_map();
+  ta_model.get_net_detailed_patch_map() = RTDM.getDatabase().get_net_detailed_patch_map();
   return ta_model;
 }
 
@@ -199,12 +204,97 @@ void TrackAssigner::buildPanelSchedule(TAModel& ta_model)
   ta_model.set_ta_panel_id_list_list(ta_panel_id_list_list);
 }
 
+TAPanelId TrackAssigner::getTAPanelId(const LayerCoord& coord)
+{
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  RoutingLayer& routing_layer = RTDM.getDatabase().get_routing_layer_list()[coord.get_layer_idx()];
+  int32_t panel_idx = routing_layer.isPreferH() ? RTUTIL.getGCellGridLB(coord.get_y(), gcell_axis.get_y_grid_list())
+                                                : RTUTIL.getGCellGridLB(coord.get_x(), gcell_axis.get_x_grid_list());
+  return TAPanelId(coord.get_layer_idx(), panel_idx);
+}
+
+void TrackAssigner::splitDetailedResult(TAModel& ta_model)
+{
+  std::vector<std::vector<TAPanel>>& layer_panel_list = ta_model.get_layer_panel_list();
+  for (auto& [net_idx, segment_list] : ta_model.get_net_detailed_result_map()) {
+    for (Segment<LayerCoord>& segment : segment_list) {
+      TAPanelId owner_id = getTAPanelId(segment.get_first());
+      layer_panel_list[owner_id.get_layer_idx()][owner_id.get_panel_idx()].get_net_owner_detailed_result_map()[net_idx].push_back(std::move(segment));
+    }
+  }
+  ta_model.get_net_detailed_result_map().clear();
+  for (auto& [net_idx, patch_list] : ta_model.get_net_detailed_patch_map()) {
+    for (EXTLayerRect& patch : patch_list) {
+      TAPanelId owner_id = getTAPanelId(LayerCoord(patch.get_real_rect().getMidPoint(), patch.get_layer_idx()));
+      layer_panel_list[owner_id.get_layer_idx()][owner_id.get_panel_idx()].get_net_owner_detailed_patch_map()[net_idx].push_back(std::move(patch));
+    }
+  }
+  ta_model.get_net_detailed_patch_map().clear();
+}
+
 void TrackAssigner::assignTAPanelMap(TAModel& ta_model)
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
   std::vector<std::vector<TAPanel>>& layer_panel_list = ta_model.get_layer_panel_list();
+  using DetailedRTree = bgi::rtree<std::pair<BGRectInt, int32_t>, bgi::quadratic<16>>;
+  std::vector<TAPanel*> owner_panel_list;
+  for (std::vector<TAPanel>& panel_list : layer_panel_list) {
+    for (TAPanel& ta_panel : panel_list) {
+      if (!ta_panel.get_net_owner_detailed_result_map().empty() || !ta_panel.get_net_owner_detailed_patch_map().empty()) {
+        owner_panel_list.push_back(&ta_panel);
+      }
+    }
+  }
+  std::vector<std::vector<std::pair<int32_t, LayerRect>>> owner_result_shape_list(owner_panel_list.size());
+  std::vector<std::vector<std::pair<int32_t, LayerRect>>> owner_patch_shape_list(owner_panel_list.size());
+#pragma omp parallel for schedule(dynamic, 1)
+  for (int32_t i = 0; i < static_cast<int32_t>(owner_panel_list.size()); i++) {
+    for (auto& [net_idx, segment_list] : owner_panel_list[i]->get_net_owner_detailed_result_map()) {
+      for (Segment<LayerCoord>& segment : segment_list) {
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
+          if (net_shape.get_is_routing()) {
+            owner_result_shape_list[i].emplace_back(net_idx, net_shape);
+          }
+        }
+      }
+    }
+    for (auto& [net_idx, patch_list] : owner_panel_list[i]->get_net_owner_detailed_patch_map()) {
+      for (EXTLayerRect& patch : patch_list) {
+        owner_patch_shape_list[i].emplace_back(net_idx, patch.getRealLayerRect());
+      }
+    }
+  }
+  std::vector<std::vector<std::pair<int32_t, LayerRect>>> layer_result_shape_list(layer_panel_list.size());
+  std::vector<std::vector<std::pair<int32_t, LayerRect>>> layer_patch_shape_list(layer_panel_list.size());
+  for (int32_t i = 0; i < static_cast<int32_t>(owner_panel_list.size()); i++) {
+    for (auto& [net_idx, shape] : owner_result_shape_list[i]) {
+      layer_result_shape_list[shape.get_layer_idx()].emplace_back(net_idx, std::move(shape));
+    }
+    for (auto& [net_idx, shape] : owner_patch_shape_list[i]) {
+      layer_patch_shape_list[shape.get_layer_idx()].emplace_back(net_idx, std::move(shape));
+    }
+  }
+  std::vector<std::vector<std::pair<int32_t, LayerRect>>>().swap(owner_result_shape_list);
+  std::vector<std::vector<std::pair<int32_t, LayerRect>>>().swap(owner_patch_shape_list);
+  std::vector<DetailedRTree> layer_result_rtree_list(layer_panel_list.size());
+  std::vector<DetailedRTree> layer_patch_rtree_list(layer_panel_list.size());
+#pragma omp parallel for
+  for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_panel_list.size()); layer_idx++) {
+    std::vector<std::pair<BGRectInt, int32_t>> result_value_list;
+    result_value_list.reserve(layer_result_shape_list[layer_idx].size());
+    for (int32_t i = 0; i < static_cast<int32_t>(layer_result_shape_list[layer_idx].size()); i++) {
+      result_value_list.emplace_back(RTUTIL.convertToBGRectInt(layer_result_shape_list[layer_idx][i].second), i);
+    }
+    layer_result_rtree_list[layer_idx] = DetailedRTree(result_value_list.begin(), result_value_list.end());
+    std::vector<std::pair<BGRectInt, int32_t>> patch_value_list;
+    patch_value_list.reserve(layer_patch_shape_list[layer_idx].size());
+    for (int32_t i = 0; i < static_cast<int32_t>(layer_patch_shape_list[layer_idx].size()); i++) {
+      patch_value_list.emplace_back(RTUTIL.convertToBGRectInt(layer_patch_shape_list[layer_idx][i].second), i);
+    }
+    layer_patch_rtree_list[layer_idx] = DetailedRTree(patch_value_list.begin(), patch_value_list.end());
+  }
 
   size_t total_panel_num = 0;
   for (std::vector<TAPanelId>& ta_panel_id_list : ta_model.get_ta_panel_id_list_list()) {
@@ -212,14 +302,27 @@ void TrackAssigner::assignTAPanelMap(TAModel& ta_model)
   }
 
   size_t assigned_panel_num = 0;
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
   for (std::vector<TAPanelId>& ta_panel_id_list : ta_model.get_ta_panel_id_list_list()) {
     Monitor stage_monitor;
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 1)
     for (TAPanelId& ta_panel_id : ta_panel_id_list) {
       TAPanel& ta_panel = layer_panel_list[ta_panel_id.get_layer_idx()][ta_panel_id.get_panel_idx()];
+      int32_t layer_idx = ta_panel_id.get_layer_idx();
+      BGRectInt query_rect = RTUTIL.convertToBGRectInt(RTUTIL.getEnlargedRect(ta_panel.get_panel_rect().get_real_rect(), detection_distance));
+      std::vector<std::pair<BGRectInt, int32_t>> value_list;
+      layer_result_rtree_list[layer_idx].query(bgi::intersects(query_rect), std::back_inserter(value_list));
+      for (auto& [rect, shape_idx] : value_list) {
+        auto& [net_idx, shape] = layer_result_shape_list[layer_idx][shape_idx];
+        ta_panel.get_net_detailed_result_map()[net_idx].push_back(shape);
+      }
+      value_list.clear();
+      layer_patch_rtree_list[layer_idx].query(bgi::intersects(query_rect), std::back_inserter(value_list));
+      for (auto& [rect, shape_idx] : value_list) {
+        auto& [net_idx, shape] = layer_patch_shape_list[layer_idx][shape_idx];
+        ta_panel.get_net_detailed_patch_map()[net_idx].push_back(shape);
+      }
       buildFixedRect(ta_panel);
-      buildNetResult(ta_panel);
-      buildNetPatch(ta_panel);
       initTATaskList(ta_model, ta_panel);
       buildViolation(ta_panel);
       if (needRouting(ta_panel)) {
@@ -231,9 +334,23 @@ void TrackAssigner::assignTAPanelMap(TAModel& ta_model)
         // debugPlotTAPanel(ta_panel, "before");
         routeTAPanel(ta_panel);
         // debugPlotTAPanel(ta_panel, "after");
-        uploadNetResult(ta_panel);
+        updateTAPanel(ta_panel);
       }
       uploadViolation(ta_panel);
+    }
+    for (TAPanelId& ta_panel_id : ta_panel_id_list) {
+      TAPanel& ta_panel = layer_panel_list[ta_panel_id.get_layer_idx()][ta_panel_id.get_panel_idx()];
+      for (auto& [net_idx, shape] : ta_panel.get_detailed_result_update_list()) {
+        int32_t layer_idx = shape.get_layer_idx();
+        int32_t shape_idx = static_cast<int32_t>(layer_result_shape_list[layer_idx].size());
+        BGRectInt bg_rect = RTUTIL.convertToBGRectInt(shape);
+        layer_result_shape_list[layer_idx].emplace_back(net_idx, std::move(shape));
+        layer_result_rtree_list[layer_idx].insert(std::make_pair(bg_rect, shape_idx));
+      }
+    }
+#pragma omp parallel for
+    for (TAPanelId& ta_panel_id : ta_panel_id_list) {
+      TAPanel& ta_panel = layer_panel_list[ta_panel_id.get_layer_idx()][ta_panel_id.get_panel_idx()];
       freeTAPanel(ta_panel);
     }
     assigned_panel_num += ta_panel_id_list.size();
@@ -254,32 +371,6 @@ void TrackAssigner::buildFixedRect(TAPanel& ta_panel)
       }
       ta_panel.set_net_fixed_rect_map(net_fixed_rect_map);
       break;
-    }
-  }
-}
-
-void TrackAssigner::buildNetResult(TAPanel& ta_panel)
-{
-  for (auto& [net_idx, segment_set] : RTDM.getNetDetailedResultMap(ta_panel.get_panel_rect())) {
-    for (Segment<LayerCoord>* segment : segment_set) {
-      for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, *segment)) {
-        if (net_shape.get_is_routing() != true || net_shape.get_layer_idx() != ta_panel.get_panel_rect().get_layer_idx()) {
-          continue;
-        }
-        ta_panel.get_net_detailed_result_map()[net_idx].push_back(net_shape);
-      }
-    }
-  }
-}
-
-void TrackAssigner::buildNetPatch(TAPanel& ta_panel)
-{
-  for (auto& [net_idx, patch_set] : RTDM.getNetDetailedPatchMap(ta_panel.get_panel_rect())) {
-    for (EXTLayerRect* patch : patch_set) {
-      if (patch->get_layer_idx() != ta_panel.get_panel_rect().get_layer_idx()) {
-        continue;
-      }
-      ta_panel.get_net_detailed_patch_map()[net_idx].push_back(patch->getRealLayerRect());
     }
   }
 }
@@ -1092,13 +1183,19 @@ void TrackAssigner::updateTaskSchedule(TAPanel& ta_panel, std::vector<TATask*>& 
   ta_panel.set_ta_task_list(new_ta_task_list);
 }
 
-void TrackAssigner::uploadNetResult(TAPanel& ta_panel)
+void TrackAssigner::updateTAPanel(TAPanel& ta_panel)
 {
   for (auto& [net_idx, task_detailed_result_map] : ta_panel.get_net_task_detailed_result_map()) {
     for (auto& [task_idx, segment_list] : task_detailed_result_map) {
       for (Segment<LayerCoord>& segment : segment_list) {
-        RTDM.updateNetDetailedResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(segment));
+        for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
+          if (net_shape.get_is_routing()) {
+            ta_panel.get_detailed_result_update_list().emplace_back(net_idx, net_shape);
+          }
+        }
       }
+      std::vector<Segment<LayerCoord>>& owner_segment_list = ta_panel.get_net_owner_detailed_result_map()[net_idx];
+      owner_segment_list.insert(owner_segment_list.end(), std::make_move_iterator(segment_list.begin()), std::make_move_iterator(segment_list.end()));
     }
   }
 }
@@ -1122,6 +1219,7 @@ void TrackAssigner::freeTAPanel(TAPanel& ta_panel)
   ta_panel.get_net_fixed_rect_map().clear();
   ta_panel.get_net_detailed_result_map().clear();
   ta_panel.get_net_detailed_patch_map().clear();
+  std::vector<std::pair<int32_t, LayerRect>>().swap(ta_panel.get_detailed_result_update_list());
   ta_panel.get_net_task_detailed_result_map().clear();
   std::vector<Violation>().swap(ta_panel.get_violation_list());
   std::vector<ScaleGrid>().swap(ta_panel.get_panel_track_axis().get_x_grid_list());
@@ -1137,6 +1235,28 @@ void TrackAssigner::freeTAPanel(TAPanel& ta_panel)
   std::vector<TANode*>().swap(ta_panel.get_single_path_visited_node_list());
   ta_panel.set_path_head_node(nullptr);
   ta_panel.set_end_node_list_idx(-1);
+}
+
+void TrackAssigner::updateTAModel(TAModel& ta_model)
+{
+  for (std::vector<TAPanel>& panel_list : ta_model.get_layer_panel_list()) {
+    for (TAPanel& ta_panel : panel_list) {
+      for (auto& [net_idx, segment_list] : ta_panel.get_net_owner_detailed_result_map()) {
+        std::vector<Segment<LayerCoord>>& model_segment_list = ta_model.get_net_detailed_result_map()[net_idx];
+        model_segment_list.insert(model_segment_list.end(), std::make_move_iterator(segment_list.begin()), std::make_move_iterator(segment_list.end()));
+      }
+      for (auto& [net_idx, patch_list] : ta_panel.get_net_owner_detailed_patch_map()) {
+        std::vector<EXTLayerRect>& model_patch_list = ta_model.get_net_detailed_patch_map()[net_idx];
+        model_patch_list.insert(model_patch_list.end(), std::make_move_iterator(patch_list.begin()), std::make_move_iterator(patch_list.end()));
+      }
+    }
+  }
+}
+
+void TrackAssigner::uploadTAModel(TAModel& ta_model)
+{
+  RTDM.getDatabase().get_net_detailed_result_map() = std::move(ta_model.get_net_detailed_result_map());
+  RTDM.getDatabase().get_net_detailed_patch_map() = std::move(ta_model.get_net_detailed_patch_map());
 }
 
 int32_t TrackAssigner::getViolationNum(TAModel& ta_model)
@@ -1457,37 +1577,36 @@ void TrackAssigner::outputNetCSV(TAModel& ta_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  std::vector<GridMap<int32_t>> layer_net_map;
+  std::vector<GridMap<std::set<int32_t>>> layer_net_map;
   layer_net_map.resize(routing_layer_list.size());
-  for (GridMap<int32_t>& net_map : layer_net_map) {
+  for (GridMap<std::set<int32_t>>& net_map : layer_net_map) {
     net_map.init(gcell_map.get_x_size(), gcell_map.get_y_size());
   }
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      std::map<int32_t, std::set<int32_t>> net_layer_map;
-      for (auto& [net_idx, segment_set] : gcell_map[x][y].get_net_detailed_result_map()) {
-        for (Segment<LayerCoord>* segment : segment_set) {
-          int32_t first_layer_idx = segment->get_first().get_layer_idx();
-          int32_t second_layer_idx = segment->get_second().get_layer_idx();
-          RTUTIL.swapByASC(first_layer_idx, second_layer_idx);
-          for (int32_t layer_idx = first_layer_idx; layer_idx <= second_layer_idx; layer_idx++) {
-            net_layer_map[net_idx].insert(layer_idx);
-          }
+  Die& die = RTDM.getDatabase().get_die();
+  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  for (auto& [net_idx, segment_list] : RTDM.getDatabase().get_net_detailed_result_map()) {
+    for (Segment<LayerCoord>& segment : segment_list) {
+      for (NetShape& net_shape : RTDM.getNetDetailedShapeList(net_idx, segment)) {
+        PlanarRect real_rect = RTUTIL.getEnlargedRect(net_shape, detection_distance);
+        if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
+          continue;
         }
-      }
-      for (auto& [net_idx, layer_set] : net_layer_map) {
-        for (int32_t layer_idx : layer_set) {
-          layer_net_map[layer_idx][x][y]++;
+        PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(RTUTIL.getRegularRect(real_rect, die.get_real_rect()), gcell_axis);
+        for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+          for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
+            layer_net_map[net_shape.get_layer_idx()][x][y].insert(net_idx);
+          }
         }
       }
     }
   }
   for (RoutingLayer& routing_layer : routing_layer_list) {
     std::ofstream* net_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(ta_temp_directory_path, "net_map_", routing_layer.get_layer_name(), ".csv"));
-    GridMap<int32_t>& net_map = layer_net_map[routing_layer.get_layer_idx()];
+    GridMap<std::set<int32_t>>& net_map = layer_net_map[routing_layer.get_layer_idx()];
     for (int32_t y = net_map.get_y_size() - 1; y >= 0; y--) {
       for (int32_t x = 0; x < net_map.get_x_size(); x++) {
-        RTUTIL.pushStream(net_csv_file, net_map[x][y], ",");
+        RTUTIL.pushStream(net_csv_file, net_map[x][y].size(), ",");
       }
       RTUTIL.pushStream(net_csv_file, "\n");
     }
