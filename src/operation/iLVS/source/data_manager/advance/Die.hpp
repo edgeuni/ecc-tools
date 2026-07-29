@@ -17,34 +17,36 @@
 #pragma once
 
 #include "LVSHeader.hpp"
-#include "Shape.hpp"
 
 namespace ilvs {
 
-class SupplyRouteShape
+class Die
 {
  public:
-  SupplyRouteShape() = default;
-  ~SupplyRouteShape() = default;
+  Die() = default;
+  ~Die() = default;
   // getter
-  std::string& get_net_name() { return _net_name; }
-  int32_t get_component_id() const { return _component_id; }
-  int32_t get_layer_order() const { return _layer_order; }
-  Shape& get_shape() { return _shape; }
-  // const getter
-  const std::string& get_net_name() const { return _net_name; }
-  const Shape& get_shape() const { return _shape; }
+  int32_t get_real_ll_x() const { return _real_ll_x; }
+  int32_t get_real_ll_y() const { return _real_ll_y; }
+  int32_t get_real_ur_x() const { return _real_ur_x; }
+  int32_t get_real_ur_y() const { return _real_ur_y; }
   // setter
-  void set_net_name(const std::string& net_name) { _net_name = net_name; }
-  void set_component_id(const int32_t component_id) { _component_id = component_id; }
-  void set_layer_order(const int32_t layer_order) { _layer_order = layer_order; }
-  void set_shape(const Shape& shape) { _shape = shape; }
+  void set_real_ll(const int32_t x, const int32_t y)
+  {
+    _real_ll_x = x;
+    _real_ll_y = y;
+  }
+  void set_real_ur(const int32_t x, const int32_t y)
+  {
+    _real_ur_x = x;
+    _real_ur_y = y;
+  }
 
  private:
-  std::string _net_name;
-  int32_t _component_id = -1;
-  int32_t _layer_order = -1;
-  Shape _shape;
+  int32_t _real_ll_x = 0;
+  int32_t _real_ll_y = 0;
+  int32_t _real_ur_x = 0;
+  int32_t _real_ur_y = 0;
 };
 
 }  // namespace ilvs
