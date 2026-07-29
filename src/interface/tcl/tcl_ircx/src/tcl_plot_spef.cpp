@@ -14,56 +14,27 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-/**
- * @file tcl_plot_spef.cpp
- * @author Yipei Xu (yipeix@163.com)
- * @brief
- * @version 0.1
- * @date 2026-06-01
- */
-#include "RCXAPI.hh"
-#include "log/Log.hh"
-#include "tcl_ircx.h"
-
-#include <utility>
+#include "RCXInterface.hpp"
+#include "tcl_rcx.h"
+#include "tcl_util.h"
 
 namespace tcl {
-namespace {
 
-constexpr const char* kSpefArg = "spef";
-constexpr const char* kOutputArg = "output";
-
-auto getStringValue(TclOption* option) -> const char*
-{
-  if (option == nullptr || !option->is_set_val()) {
-    return nullptr;
-  }
-  return option->getStringVal();
-}
-
-auto isOptionSet(TclOption* option) -> bool
-{
-  return option != nullptr && option->is_set_val();
-}
-
-}  // namespace
+// public
 
 TclPlotSpef::TclPlotSpef(const char* cmd_name) : TclCmd(cmd_name)
 {
-  addOption(new TclStringOption(kSpefArg, 1, nullptr));
-  addOption(new TclStringOption(kOutputArg, 1, nullptr));
-  addOption(new TclSwitchOption("-R"));
-  addOption(new TclSwitchOption("-Cc"));
-  addOption(new TclSwitchOption("-Cg"));
-}
+  _config_list.push_back(std::make_pair("-spef_file", ValueType::kString));
+  _config_list.push_back(std::make_pair("-output_dir", ValueType::kString));
+  _config_list.push_back(std::make_pair("-net", ValueType::kString));
+  _config_list.push_back(std::make_pair("-dbu", ValueType::kInt));
+  _config_list.push_back(std::make_pair("-cores", ValueType::kInt));
+  _config_list.push_back(std::make_pair("-output_edge_gds", ValueType::kInt));
+  _config_list.push_back(std::make_pair("-output_resistance", ValueType::kInt));
+  _config_list.push_back(std::make_pair("-output_coupling_cap", ValueType::kInt));
+  _config_list.push_back(std::make_pair("-output_ground_cap", ValueType::kInt));
 
-unsigned TclPlotSpef::check()
-{
-  if (getStringValue(getOptionOrArg(kSpefArg)) == nullptr || getStringValue(getOptionOrArg(kOutputArg)) == nullptr) {
-    LOG_ERROR << "plot_spef requires spef and output arguments.";
-    return 0;
-  }
-  return 1;
+  TclUtil::addOption(this, _config_list);
 }
 
 unsigned TclPlotSpef::exec()
@@ -71,15 +42,11 @@ unsigned TclPlotSpef::exec()
   if (!check()) {
     return 0;
   }
-
-  ircx::plot_spef::Config config;
-  config.spef_file = getStringValue(getOptionOrArg(kSpefArg));
-  config.output_file = getStringValue(getOptionOrArg(kOutputArg));
-  config.output_resistance = isOptionSet(getOptionOrArg("-R"));
-  config.output_coupling_cap = isOptionSet(getOptionOrArg("-Cc"));
-  config.output_ground_cap = isOptionSet(getOptionOrArg("-Cg"));
-
-  return RCX_API_INST.plot_spef(std::move(config)) ? 1U : 0U;
+  std::map<std::string, std::any> config_map = TclUtil::getConfigMap(this, _config_list);
+  RCXI.plotSpef(config_map);
+  return 1;
 }
+
+// private
 
 }  // namespace tcl

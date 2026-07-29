@@ -12,7 +12,6 @@ add_subdirectory(py_icts)
 add_subdirectory(py_idrc)
 add_subdirectory(py_ifp)
 add_subdirectory(py_instance)
-add_subdirectory(py_ipdn)
 add_subdirectory(py_irt)
 add_subdirectory(py_ircx)
 # add_subdirectory(py_ista)
@@ -39,7 +38,6 @@ target_link_libraries(ecc_py
         py_idrc
         py_ifp
         py_inst
-        py_ipdn
         py_irt
         py_ircx
         # py_ista
@@ -52,9 +50,13 @@ target_link_libraries(ecc_py
         py_imp
 )
 
+set_target_properties(ecc_py PROPERTIES
+    INSTALL_RPATH "$ORIGIN/lib"
+)
+
 install(TARGETS ecc_py
- DESTINATION ${CMAKE_INSTALL_PREFIX}
-    )
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/ecc_tools_bin
+)
 
 get_target_property(DEPENDENCIES ecc_py INTERFACE_LINK_LIBRARIES)
 message(STATUS "ecc_py install prefix: ${CMAKE_INSTALL_PREFIX}")

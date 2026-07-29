@@ -40,6 +40,8 @@
 
 namespace idb {
 
+bool Lib::_silent_output = false;
+
 namespace {
 
 bool shouldTraceLibCheckLookup()
@@ -216,9 +218,10 @@ LibTable& LibTable::operator=(LibTable&& rhs) noexcept
 Vector<std::unique_ptr<LibAxis>>& LibTable::get_axes()
 {
   if (_axes.empty()) {
-    auto* table_template = get_table_template();
-    auto& template_table_axes = table_template->get_axes();
-    return template_table_axes;
+    LibLutTableTemplate* table_template = get_table_template();
+    if (table_template != nullptr) {
+      return table_template->get_axes();
+    }
   }
   return _axes;
 }
@@ -288,7 +291,7 @@ double LibTable::findValue(double slew, double constrain_slew_or_load)
     auto min_val = getAxis(axis_index)[0];
     auto max_val = getAxis(axis_index)[num_val - 1];
 
-    if ((val < min_val) || (val > max_val)) {
+    if (!Lib::isSilentOutput() && ((val < min_val) || (val > max_val))) {
       LOG_ERROR_FIRST_N(10) << "Warning: val outside table ranges:  "
                             << "val = " << val << "; min_val = " << min_val << "; max_val = " << max_val << std::endl;
     }
@@ -1103,6 +1106,7 @@ LibArc::LibArc(LibArc&& other) noexcept
       _timing_sense(other._timing_sense),
       _timing_type(other._timing_type),
       _when(std::move(other._when)),
+      _sdf_cond(std::move(other._sdf_cond)),
       _table_model(std::move(other._table_model))
 {
   other._table_model = nullptr;
@@ -1117,11 +1121,13 @@ LibArc& LibArc::operator=(LibArc&& rhs) noexcept
     _timing_sense = rhs._timing_sense;
     _timing_type = rhs._timing_type;
     _when = std::move(rhs._when);
+    _sdf_cond = std::move(rhs._sdf_cond);
     _table_model = std::move(rhs._table_model);
 
     rhs._src_port = nullptr;
     rhs._snk_port = nullptr;
     rhs._when.clear();
+    rhs._sdf_cond.clear();
     rhs._table_model = nullptr;
   }
 
@@ -1214,6 +1220,11 @@ unsigned LibArc::isDelayArc()
 unsigned LibArc::isMpwArc()
 {
   return _timing_type == TimingType::kMinPulseWidth;
+}
+
+unsigned LibArc::isCheckTableArc()
+{
+  return isCheckArc() || isMpwArc() || _timing_type == TimingType::kMinimunPeriod;
 }
 
 /**

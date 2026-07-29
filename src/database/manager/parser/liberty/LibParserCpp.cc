@@ -28,6 +28,12 @@
 #include "LibParserCpp.hh"
 #include "log/Log.hh"
 
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 namespace idb {
 namespace {
 
@@ -91,7 +97,6 @@ std::vector<std::unique_ptr<LibAttrValue>> convertRawAxisValues(
 }
 
 }  // namespace
-
 
 /**
  * @brief liberty expr builder.
@@ -307,6 +312,10 @@ unsigned LibertyReader::visitSimpleAttri(LibertySimpleAttrStmt* attri) {
     double default_fanout_load_val = attri_value_handle->value;
     current_lib->set_default_fanout_load(default_fanout_load_val);
     liberty_free_float_value(attri_value_handle);
+  } else if (is_attri("default_operating_conditions")) {
+    auto* attri_value_handle = liberty_convert_string_value(attri_value);
+    current_lib->set_default_operating_conditions(attri_value_handle->value);
+    liberty_free_string_value(attri_value_handle);
   } else if (is_attri("default_wire_load")) {
     auto* attri_value_handle = liberty_convert_string_value(attri_value);
     const char* default_wire_load = attri_value_handle->value;
@@ -445,6 +454,15 @@ unsigned LibertyReader::visitSimpleAttri(LibertySimpleAttrStmt* attri) {
                LibBuilder::LibertyOwnPgOrWhenType::kPowerArc) {
       if (lib_power_arc) {
         lib_power_arc->set_when(when);
+      }
+    }
+    liberty_free_string_value(attri_value_handle);
+  } else if (is_attri("sdf_cond")) {
+    auto* attri_value_handle = liberty_convert_string_value(attri_value);
+    const char* sdf_cond = attri_value_handle->value;
+    if (own_port_type == LibBuilder::LibertyOwnPortType::kTimingArc) {
+      if (lib_arc) {
+        lib_arc->set_sdf_cond(sdf_cond);
       }
     }
     liberty_free_string_value(attri_value_handle);
@@ -697,7 +715,7 @@ unsigned LibertyReader::visitComplexAttri(
   } else if (Str::startWith(attri_name, "index") ||
              Str::equal(attri_name, "values")) {
     is_ok = visitAxisOrValues(attri);
-  } else {
+  } else if (!Lib::isSilentOutput()) {
     LOG_INFO_EVERY_N(10) << "unkown attri name: " << attri_name << " in "
                          << attri->file_name << " line no " << attri->line_no;
   }
@@ -887,7 +905,7 @@ unsigned LibertyReader::visitComplexAttri(
   } else if (Str::startWith(attri_name, "index") ||
              Str::equal(attri_name, "values")) {
     is_ok = visitAxisOrValues(attri);
-  } else {
+  } else if (!Lib::isSilentOutput()) {
     LOG_INFO_EVERY_N(10) << "unkown attri name: " << attri_name << " in "
                          << attri->getSourceFile() << " line no "
                          << attri->getSourceLine();
@@ -1353,7 +1371,7 @@ unsigned LibertyReader::visitTable(LibertyGroupStmt* group) {
   std::unique_ptr<LibTableModel> table_model;
 
   if (!lib_model) {
-    if (lib_arc->isCheckArc()) {
+    if (lib_arc->isCheckTableArc()) {
       table_model = std::make_unique<LibCheckTableModel>();
     } else {
       table_model = std::make_unique<LibDelayTableModel>();
@@ -1478,7 +1496,7 @@ unsigned LibertyReader::visitGroup(LibertyGroupStmt* group) {
     is_ok = visitTable(group);
   } else if (power_table_names.contains(group_name)) {
     is_ok = visitPowerTable(group);
-  } else {
+  } else if (!Lib::isSilentOutput()) {
     DLOG_INFO_EVERY_N(100000) << "group " << group_name << " is not supported.";
   }
 
@@ -1838,7 +1856,7 @@ unsigned LibertyReader::visitTable(liberty_ast::LibGroup* group) {
   std::unique_ptr<LibTableModel> table_model;
 
   if (!lib_model) {
-    if (lib_arc->isCheckArc()) {
+    if (lib_arc->isCheckTableArc()) {
       table_model = std::make_unique<LibCheckTableModel>();
     } else {
       table_model = std::make_unique<LibDelayTableModel>();
@@ -1945,7 +1963,7 @@ unsigned LibertyReader::visitGroup(liberty_ast::LibGroup* group) {
     is_ok = visitTable(group);
   } else if (power_table_names.contains(group_name)) {
     is_ok = visitPowerTable(group);
-  } else {
+  } else if (!Lib::isSilentOutput()) {
     DLOG_INFO_EVERY_N(100000) << "group " << group_name << " is not supported.";
   }
 
@@ -1979,7 +1997,9 @@ unsigned LibertyReader::readLib() {
  * @return unsigned
  */
 unsigned LibertyReader::linkLib() {
-  LOG_INFO << "link liberty file " << _file_name << " start.";
+  if (!Lib::isSilentOutput()) {
+    LOG_INFO << "link liberty file " << _file_name << " start.";
+  }
   if (_lib_file) {
     auto* driver = reinterpret_cast<liberty_ast::LibertyDriver*>(_lib_file);
     auto* lib_group = driver ? driver->getParseResult() : nullptr;
@@ -1989,7 +2009,9 @@ unsigned LibertyReader::linkLib() {
     liberty_free_lib_group(_lib_file);
     _lib_file = nullptr;
 
-    LOG_INFO << "link liberty file " << _file_name << " success.";
+    if (!Lib::isSilentOutput()) {
+      LOG_INFO << "link liberty file " << _file_name << " success.";
+    }
     return result;
   }
 

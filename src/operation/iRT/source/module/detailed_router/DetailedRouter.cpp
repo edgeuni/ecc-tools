@@ -839,6 +839,7 @@ void DetailedRouter::buildNetShadowMap(DRBox& dr_box)
 void DetailedRouter::exemptPinShape(DRModel& dr_model, DRBox& dr_box)
 {
   int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   std::vector<DRNet>& dr_net_list = dr_model.get_dr_net_list();
   ScaleAxis& box_track_axis = dr_box.get_box_track_axis();
   std::vector<GridMap<DRNode>>& layer_node_map = dr_box.get_layer_node_map();
@@ -896,8 +897,10 @@ void DetailedRouter::exemptPinShape(DRModel& dr_model, DRBox& dr_box)
             if (within_shape) {
               continue;
             }
+            bool prefer_horizontal = routing_layer_list[dr_node.get_layer_idx()].isPreferH();
             for (auto& [orient, net_set] : dr_node.get_orient_fixed_rect_map()) {
-              if (orient == Orientation::kEast || orient == Orientation::kWest || orient == Orientation::kSouth || orient == Orientation::kNorth) {
+              if ((prefer_horizontal && (orient == Orientation::kEast || orient == Orientation::kWest))
+                  || (!prefer_horizontal && (orient == Orientation::kSouth || orient == Orientation::kNorth))) {
                 net_set.erase(-1);
               }
             }

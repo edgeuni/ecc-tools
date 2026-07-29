@@ -18,6 +18,7 @@
 
 #include "db_fm/file_soc.h"
 #include <idm.h>
+#include "view_json_io.h"
 
 namespace python_interface {
 
@@ -50,6 +51,30 @@ bool initVerilog(const std::string& verilog_path, const std::string& top_module)
   return dmInst->readVerilog(verilog_path, top_module);
 }
 
+bool initLib(const std::vector<std::string>& lib_paths)
+{
+  dmInst->get_config().set_lib_paths(lib_paths);
+  return dmInst->readLib(lib_paths);
+}
+
+bool initSdc(const std::string& sdc_path)
+{
+  dmInst->get_config().set_sdc_path(sdc_path);
+  return true;
+}
+
+bool initSpef(const std::string& spef_path)
+{
+  dmInst->get_config().set_spef_path(spef_path);
+  return dmInst->readSpef(spef_path);
+}
+
+bool initVcd(const std::string& vcd_path)
+{
+  dmInst->get_config().set_vcd_path(vcd_path);
+  return dmInst->readVcd(vcd_path);
+}
+
 bool saveDef(const std::string& def_name)
 {
   return dmInst->saveDef(def_name);
@@ -79,14 +104,20 @@ bool saveJson(const std::string& path)
   return dmInst->saveJSON(path, options);
 }
 
-bool saveViewJson(const std::string& output_dir)
+bool saveViewJson(const std::string& output_dir, const std::string& json_format, bool compress)
 {
-  return dmInst->saveViewJson(output_dir);
+  idb::ViewJsonWriteOptions options;
+  if (!idb::parseViewJsonFormat(json_format, options.format)) {
+    std::cout << "Save view json failed: unsupported json_format `" << json_format << "`, expected `pretty` or `compact`." << std::endl;
+    return false;
+  }
+  options.compress = compress;
+  return dmInst->saveViewJson(output_dir, options);
 }
 
-bool applyViewJsonEdits(const std::string& edits_path)
+bool applyViewJsonEdits(const std::string& edits_path, bool compress)
 {
-  return dmInst->applyViewJsonEdits(edits_path);
+  return dmInst->applyViewJsonEdits(edits_path, compress);
 }
 
 bool saveData(const std::string& path)

@@ -29,12 +29,16 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "../../database/interaction/ids.hpp"
 #include "IdbDesign.h"
 #include "IdbLayout.h"
+#include "liberty/LibParserCpp.hh"
+#include "spef/SpefParser.hh"
+#include "vcd/VcdParser.hh"
 #include "builder.h"
 #include "config/dm_config.h"
 #include "def_service.h"
@@ -74,8 +78,14 @@ class DataManager
   void set_idb_lef_service(IdbLefService* idb_lef_service) { _idb_lef_service = idb_lef_service; }
 
   IdbDesign* get_idb_design() { return _idb_def_service != nullptr ? _idb_def_service->get_design() : nullptr; }
+  // TODO: Return independent views after IDB supports concurrent logical and physical designs.
+  IdbDesign* get_netlist_idb_design() { return get_idb_design(); }
+  IdbDesign* get_def_idb_design() { return get_idb_design(); }
   IdbLayout* get_idb_layout() { return _idb_lef_service != nullptr ? _idb_lef_service->get_layout() : nullptr; }
   bool is_def_read() { return _idb_def_service != nullptr ? true : false; }
+  vector<LibertyReader>& get_lib_readers() { return _lib_readers; }
+  spef::SpefReader* get_spef_reader() { return _spef_reader.get(); }
+  vcd::VcdReader* get_vcd_reader() { return _vcd_reader.get(); }
 
   int get_routing_layer_1st();
 
@@ -90,6 +100,9 @@ class DataManager
   bool readLef(vector<string> lef_paths, bool b_techlef = false);
   bool readDef(string path);
   bool readVerilog(string path, string top_module = "");
+  bool readLib(vector<string> lib_paths);
+  bool readSpef(string spef_path);
+  bool readVcd(string vcd_path);
 
   /// iDB save
   bool save(string name, string def_path = "");
@@ -99,8 +112,8 @@ class DataManager
   void saveVerilog(string verilog_path, std::set<std::string>&& exclude_cell_names = {}, bool is_add_space_for_escape_name = false);
   bool saveGDSII(string path, bool is_hardened = false);
   bool saveJSON(string path, string options);
-  bool saveViewJson(string output_dir);
-  bool applyViewJsonEdits(string edits_path);
+  bool saveViewJson(string output_dir, ViewJsonWriteOptions options = {});
+  bool applyViewJsonEdits(string edits_path, bool compressed_hint = false);
   bool saveData(string data_path);
   bool loadData(string data_path);
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -237,6 +250,9 @@ class DataManager
   IdbLefService* _idb_lef_service = nullptr;
   IdbDesign* _design = nullptr;
   IdbLayout* _layout = nullptr;
+  vector<LibertyReader> _lib_readers;
+  std::unique_ptr<spef::SpefReader> _spef_reader;
+  std::unique_ptr<vcd::VcdReader> _vcd_reader;
   // pa
   // std::map<std::string, std::map<std::string, std::vector<ids::AccessPoint>>> _master_access_point_map;
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -252,6 +268,9 @@ class DataManager
   bool initLef(vector<string> lef_paths, bool b_techlef = false);
   bool initDef(string def_path);
   bool initVerilog(string verilog_path, string top_module);
+  bool initLib(vector<string> lib_paths);
+  bool initSpef(string spef_path);
+  bool initVcd(string vcd_path);
 
   /// iDB save
   // bool saveDef(string def_path);
