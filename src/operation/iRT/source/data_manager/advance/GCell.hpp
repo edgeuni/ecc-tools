@@ -16,34 +16,19 @@
 // ***************************************************************************************
 #pragma once
 
-#include <array>
-
-#include <boost/container/flat_map.hpp>
-
 #include "AccessPoint.hpp"
-#include "Violation.hpp"
 
 namespace irt {
 
 class GCell : public PlanarRect
 {
  public:
-  using NetFixedRectMap = boost::container::flat_map<int32_t, std::vector<EXTLayerRect*>>;
-  using LayerNetFixedRectMap = boost::container::flat_map<int32_t, NetFixedRectMap>;
-  using TypeLayerNetFixedRectMap = std::array<LayerNetFixedRectMap, 2>;
-
   GCell() = default;
   ~GCell() = default;
   // getter
-  TypeLayerNetFixedRectMap& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::map<int32_t, std::vector<AccessPoint*>>& get_net_access_point_map() { return _net_access_point_map; }
   std::map<int32_t, std::set<Segment<LayerCoord>*>>& get_net_global_result_map() { return _net_global_result_map; }
-  std::set<Violation*, CmpViolation>& get_violation_set() { return _violation_set; }
   // setter
-  void set_type_layer_net_fixed_rect_map(const TypeLayerNetFixedRectMap& type_layer_net_fixed_rect_map)
-  {
-    _type_layer_net_fixed_rect_map = type_layer_net_fixed_rect_map;
-  }
   void set_net_access_point_map(const std::map<int32_t, std::vector<AccessPoint*>>& net_access_point_map)
   {
     _net_access_point_map = net_access_point_map;
@@ -52,18 +37,13 @@ class GCell : public PlanarRect
   {
     _net_global_result_map = net_global_result_map;
   }
-  void set_violation_set(const std::set<Violation*, CmpViolation>& violation_set) { _violation_set = violation_set; }
   // function
 
  private:
-  // obstacle & pin_shape
-  TypeLayerNetFixedRectMap _type_layer_net_fixed_rect_map;
   // access point
   std::map<int32_t, std::vector<AccessPoint*>> _net_access_point_map;
   // global routing result
   std::map<int32_t, std::set<Segment<LayerCoord>*>> _net_global_result_map;
-  // violation
-  std::set<Violation*, CmpViolation> _violation_set;
 };
 
 }  // namespace irt

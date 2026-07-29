@@ -107,11 +107,11 @@ void ViolationReporter::uploadViolation(VRModel& vr_model)
 
   Die& die = RTDM.getDatabase().get_die();
 
-  for (Violation* violation : RTDM.getViolationSet(die)) {
-    RTDM.updateViolationToGCellMap(ChangeType::kDel, violation);
+  for (const Violation& violation : RTDM.getViolationList(die)) {
+    RTDM.updateViolationToRTree(ChangeType::kDel, violation);
   }
   for (Violation violation : getViolationList(vr_model)) {
-    RTDM.updateViolationToGCellMap(ChangeType::kAdd, new Violation(violation));
+    RTDM.updateViolationToRTree(ChangeType::kAdd, violation);
   }
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -126,17 +126,15 @@ std::vector<Violation> ViolationReporter::getViolationList(VRModel& vr_model)
     std::string top_name = RTUTIL.getString("vr_model");
     std::vector<std::pair<EXTLayerRect*, bool>> env_shape_list;
     std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>> net_pin_shape_map;
-    for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap()) {
-      for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
-        for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
+    auto& type_layer_fixed_rect_rtree_map = RTDM.getDatabase().get_type_layer_fixed_rect_rtree_map();
+    for (bool is_routing : {false, true}) {
+      for (auto& [layer_idx, fixed_rect_rtree] : type_layer_fixed_rect_rtree_map[is_routing]) {
+        for (const auto& [rect, net_fixed_rect] : fixed_rect_rtree) {
+          auto [net_idx, fixed_rect] = net_fixed_rect;
           if (net_idx == -1) {
-            for (auto& fixed_rect : fixed_rect_set) {
-              env_shape_list.emplace_back(fixed_rect, is_routing);
-            }
+            env_shape_list.emplace_back(fixed_rect, is_routing);
           } else {
-            for (auto& fixed_rect : fixed_rect_set) {
-              net_pin_shape_map[net_idx].emplace_back(fixed_rect, is_routing);
-            }
+            net_pin_shape_map[net_idx].emplace_back(fixed_rect, is_routing);
           }
         }
       }
@@ -240,22 +238,22 @@ void ViolationReporter::updateSummary(VRModel& vr_model)
       total_patch_num++;
     }
   }
-  for (Violation* violation : RTDM.getViolationSet(die)) {
-    if (violation->get_violation_net_set().size() >= 2) {
+  for (const Violation& violation : RTDM.getViolationList(die)) {
+    if (violation.get_violation_net_set().size() >= 2) {
       continue;
     }
-    within_net_routing_violation_type_num_map[violation->get_violation_shape().get_layer_idx()][GetViolationTypeName()(violation->get_violation_type())]++;
-    within_net_violation_type_num_map[GetViolationTypeName()(violation->get_violation_type())]++;
-    within_net_routing_violation_num_map[violation->get_violation_shape().get_layer_idx()]++;
+    within_net_routing_violation_type_num_map[violation.get_violation_shape().get_layer_idx()][GetViolationTypeName()(violation.get_violation_type())]++;
+    within_net_violation_type_num_map[GetViolationTypeName()(violation.get_violation_type())]++;
+    within_net_routing_violation_num_map[violation.get_violation_shape().get_layer_idx()]++;
     within_net_total_violation_num++;
   }
-  for (Violation* violation : RTDM.getViolationSet(die)) {
-    if (violation->get_violation_net_set().size() < 2) {
+  for (const Violation& violation : RTDM.getViolationList(die)) {
+    if (violation.get_violation_net_set().size() < 2) {
       continue;
     }
-    among_net_routing_violation_type_num_map[violation->get_violation_shape().get_layer_idx()][GetViolationTypeName()(violation->get_violation_type())]++;
-    among_net_violation_type_num_map[GetViolationTypeName()(violation->get_violation_type())]++;
-    among_net_routing_violation_num_map[violation->get_violation_shape().get_layer_idx()]++;
+    among_net_routing_violation_type_num_map[violation.get_violation_shape().get_layer_idx()][GetViolationTypeName()(violation.get_violation_type())]++;
+    among_net_violation_type_num_map[GetViolationTypeName()(violation.get_violation_type())]++;
+    among_net_routing_violation_num_map[violation.get_violation_shape().get_layer_idx()]++;
     among_net_total_violation_num++;
   }
   if (enable_timing) {
@@ -486,10 +484,11 @@ void ViolationReporter::outputViolationCSV(VRModel& vr_model)
   for (GridMap<int32_t>& violation_map : layer_violation_map) {
     violation_map.init(gcell_map.get_x_size(), gcell_map.get_y_size());
   }
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      for (Violation* violation : gcell_map[x][y].get_violation_set()) {
-        layer_violation_map[violation->get_violation_shape().get_layer_idx()][x][y]++;
+  for (const Violation& violation : RTDM.getViolationList(RTDM.getDatabase().get_die())) {
+    const PlanarRect& grid_rect = violation.get_violation_shape().get_grid_rect();
+    for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+      for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
+        layer_violation_map[violation.get_violation_shape().get_layer_idx()][x][y]++;
       }
     }
   }
@@ -571,15 +570,15 @@ std::string ViolationReporter::outputViolationJson(VRModel& vr_model)
   std::string& vr_temp_directory_path = RTDM.getConfig().vr_temp_directory_path;
 
   std::vector<nlohmann::json> violation_json_list;
-  for (Violation* violation : RTDM.getViolationSet(die)) {
-    EXTLayerRect& violation_shape = violation->get_violation_shape();
+  for (const Violation& violation : RTDM.getViolationList(die)) {
+    const EXTLayerRect& violation_shape = violation.get_violation_shape();
 
     nlohmann::json violation_json;
-    violation_json["type"] = GetViolationTypeName()(violation->get_violation_type());
+    violation_json["type"] = GetViolationTypeName()(violation.get_violation_type());
     violation_json["shape"]
         = {violation_shape.get_real_rect().get_ll_x(), violation_shape.get_real_rect().get_ll_y(), violation_shape.get_real_rect().get_ur_x(),
            violation_shape.get_real_rect().get_ur_y(), routing_layer_list[violation_shape.get_layer_idx()].get_layer_name()};
-    for (int32_t net_idx : violation->get_violation_net_set()) {
+    for (int32_t net_idx : violation.get_violation_net_set()) {
       if (net_idx != -1) {
         violation_json["net"].push_back(net_list[net_idx].get_net_name());
       } else {
@@ -720,21 +719,20 @@ void ViolationReporter::debugPlotVRModel(VRModel& vr_model, std::string flag)
   }
 
   // fixed_rect
-  for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap()) {
-    for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
-      for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
-        GPStruct fixed_rect_struct(RTUTIL.getString("fixed_rect(net_", net_idx, ")"));
-        for (auto& fixed_rect : fixed_rect_set) {
-          GPBoundary gp_boundary;
-          gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kShape));
-          gp_boundary.set_rect(fixed_rect->get_real_rect());
-          if (is_routing) {
-            gp_boundary.set_layer_idx(RTGP.getGDSIdxByRouting(layer_idx));
-          } else {
-            gp_boundary.set_layer_idx(RTGP.getGDSIdxByCut(layer_idx));
-          }
-          fixed_rect_struct.push(gp_boundary);
-        }
+  auto& type_layer_fixed_rect_rtree_map = RTDM.getDatabase().get_type_layer_fixed_rect_rtree_map();
+  for (bool is_routing : {false, true}) {
+    for (auto& [layer_idx, fixed_rect_rtree] : type_layer_fixed_rect_rtree_map[is_routing]) {
+      std::map<int32_t, GPStruct> net_fixed_rect_struct_map;
+      for (const auto& [rect, net_fixed_rect] : fixed_rect_rtree) {
+        auto [net_idx, fixed_rect] = net_fixed_rect;
+        auto struct_iter = net_fixed_rect_struct_map.try_emplace(net_idx, RTUTIL.getString("fixed_rect(net_", net_idx, ")")).first;
+        GPBoundary gp_boundary;
+        gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kShape));
+        gp_boundary.set_rect(fixed_rect->get_real_rect());
+        gp_boundary.set_layer_idx(is_routing ? RTGP.getGDSIdxByRouting(layer_idx) : RTGP.getGDSIdxByCut(layer_idx));
+        struct_iter->second.push(gp_boundary);
+      }
+      for (auto& [net_idx, fixed_rect_struct] : net_fixed_rect_struct_map) {
         gp_gds.addStruct(fixed_rect_struct);
       }
     }
@@ -809,17 +807,17 @@ void ViolationReporter::debugPlotVRModel(VRModel& vr_model, std::string flag)
 
   // violation
   {
-    for (Violation* violation : RTDM.getViolationSet(die)) {
-      if (violation->get_violation_net_set().size() >= 2) {
+    for (const Violation& violation : RTDM.getViolationList(die)) {
+      if (violation.get_violation_net_set().size() >= 2) {
         continue;
       }
-      GPStruct within_net_violation_struct(RTUTIL.getString("within_net_violation_", GetViolationTypeName()(violation->get_violation_type())));
-      EXTLayerRect& violation_shape = violation->get_violation_shape();
+      GPStruct within_net_violation_struct(RTUTIL.getString("within_net_violation_", GetViolationTypeName()(violation.get_violation_type())));
+      const EXTLayerRect& violation_shape = violation.get_violation_shape();
 
       GPBoundary gp_boundary;
       gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kPatchViolation));
       gp_boundary.set_rect(violation_shape.get_real_rect());
-      if (violation->get_is_routing()) {
+      if (violation.get_is_routing()) {
         gp_boundary.set_layer_idx(RTGP.getGDSIdxByRouting(violation_shape.get_layer_idx()));
       } else {
         gp_boundary.set_layer_idx(RTGP.getGDSIdxByCut(violation_shape.get_layer_idx()));
@@ -827,17 +825,17 @@ void ViolationReporter::debugPlotVRModel(VRModel& vr_model, std::string flag)
       within_net_violation_struct.push(gp_boundary);
       gp_gds.addStruct(within_net_violation_struct);
     }
-    for (Violation* violation : RTDM.getViolationSet(die)) {
-      if (violation->get_violation_net_set().size() < 2) {
+    for (const Violation& violation : RTDM.getViolationList(die)) {
+      if (violation.get_violation_net_set().size() < 2) {
         continue;
       }
-      GPStruct among_net_violation_struct(RTUTIL.getString("among_net_violation_", GetViolationTypeName()(violation->get_violation_type())));
-      EXTLayerRect& violation_shape = violation->get_violation_shape();
+      GPStruct among_net_violation_struct(RTUTIL.getString("among_net_violation_", GetViolationTypeName()(violation.get_violation_type())));
+      const EXTLayerRect& violation_shape = violation.get_violation_shape();
 
       GPBoundary gp_boundary;
       gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kPatchViolation));
       gp_boundary.set_rect(violation_shape.get_real_rect());
-      if (violation->get_is_routing()) {
+      if (violation.get_is_routing()) {
         gp_boundary.set_layer_idx(RTGP.getGDSIdxByRouting(violation_shape.get_layer_idx()));
       } else {
         gp_boundary.set_layer_idx(RTGP.getGDSIdxByCut(violation_shape.get_layer_idx()));

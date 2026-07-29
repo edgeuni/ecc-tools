@@ -141,7 +141,6 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
 
   std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
   std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
 
   using DetailedRTree = bgi::rtree<std::pair<BGRectInt, int32_t>, bgi::quadratic<16>>;
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
@@ -208,22 +207,10 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
 
       std::vector<PlanarRect> obs_rect_list;
       {
-        std::vector<EXTLayerRect*> fixed_rect_list;
-        for (int32_t x = search_rect.get_grid_ll_x(); x <= search_rect.get_grid_ur_x(); x++) {
-          for (int32_t y = search_rect.get_grid_ll_y(); y <= search_rect.get_grid_ur_y(); y++) {
-            GCell& gcell = gcell_map[x][y];
-            GCell::LayerNetFixedRectMap& layer_net_fixed_rect_map = gcell.get_type_layer_net_fixed_rect_map()[true];
-            auto layer_net_fixed_rect_iter = layer_net_fixed_rect_map.find(search_rect.get_layer_idx());
-            if (layer_net_fixed_rect_iter != layer_net_fixed_rect_map.end()) {
-              for (auto& [net_idx, fixed_rect_set] : layer_net_fixed_rect_iter->second) {
-                fixed_rect_list.insert(fixed_rect_list.end(), fixed_rect_set.begin(), fixed_rect_set.end());
-              }
-            }
+        for (auto& [net_idx, fixed_rect_set] : RTDM.getNetFixedRectMap(true, search_rect)) {
+          for (EXTLayerRect* fixed_rect : fixed_rect_set) {
+            obs_rect_list.push_back(fixed_rect->get_real_rect());
           }
-        }
-
-        for (EXTLayerRect* fixed_rect : fixed_rect_list) {
-          obs_rect_list.push_back(fixed_rect->get_real_rect());
         }
 
         PlanarRect query_real_rect = RTUTIL.getEnlargedRect(search_rect.get_real_rect(), detection_distance);
@@ -529,21 +516,20 @@ void SupplyAnalyzer::debugPlotSAModel(SAModel& sa_model)
   }
 
   // fixed_rect
-  for (auto& [is_routing, layer_net_fixed_rect_map] : RTDM.getTypeLayerNetFixedRectMap()) {
-    for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
-      for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
-        GPStruct fixed_rect_struct(RTUTIL.getString("fixed_rect(net_", net_idx, ")"));
-        for (auto& fixed_rect : fixed_rect_set) {
-          GPBoundary gp_boundary;
-          gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kShape));
-          gp_boundary.set_rect(fixed_rect->get_real_rect());
-          if (is_routing) {
-            gp_boundary.set_layer_idx(RTGP.getGDSIdxByRouting(layer_idx));
-          } else {
-            gp_boundary.set_layer_idx(RTGP.getGDSIdxByCut(layer_idx));
-          }
-          fixed_rect_struct.push(gp_boundary);
-        }
+  auto& type_layer_fixed_rect_rtree_map = RTDM.getDatabase().get_type_layer_fixed_rect_rtree_map();
+  for (bool is_routing : {false, true}) {
+    for (auto& [layer_idx, fixed_rect_rtree] : type_layer_fixed_rect_rtree_map[is_routing]) {
+      std::map<int32_t, GPStruct> net_fixed_rect_struct_map;
+      for (const auto& [rect, net_fixed_rect] : fixed_rect_rtree) {
+        auto [net_idx, fixed_rect] = net_fixed_rect;
+        auto struct_iter = net_fixed_rect_struct_map.try_emplace(net_idx, RTUTIL.getString("fixed_rect(net_", net_idx, ")")).first;
+        GPBoundary gp_boundary;
+        gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kShape));
+        gp_boundary.set_rect(fixed_rect->get_real_rect());
+        gp_boundary.set_layer_idx(is_routing ? RTGP.getGDSIdxByRouting(layer_idx) : RTGP.getGDSIdxByCut(layer_idx));
+        struct_iter->second.push(gp_boundary);
+      }
+      for (auto& [net_idx, fixed_rect_struct] : net_fixed_rect_struct_map) {
         gp_gds.addStruct(fixed_rect_struct);
       }
     }

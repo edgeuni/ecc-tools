@@ -30,12 +30,16 @@
 #include "Summary.hpp"
 #include "Utility.hpp"
 #include "ViaMaster.hpp"
+#include "Violation.hpp"
 
 namespace irt {
 
 class Database
 {
  public:
+  using FixedRectRTree = bgi::rtree<std::pair<BGRectInt, std::pair<int32_t, EXTLayerRect*>>, bgi::quadratic<16>>;
+  using ViolationRTree = bgi::rtree<std::pair<BGRectInt, Violation>, bgi::quadratic<16>>;
+
   Database() = default;
   ~Database() = default;
   // getter
@@ -70,7 +74,8 @@ class Database
   GridMap<RoutingEdge>& get_planar_routing_v_edge_map() { return _planar_routing_v_edge_map; }
   std::vector<GridMap<RoutingEdge>>& get_routing_h_edge_map() { return _routing_h_edge_map; }
   std::vector<GridMap<RoutingEdge>>& get_routing_v_edge_map() { return _routing_v_edge_map; }
-  std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
+  std::array<std::map<int32_t, FixedRectRTree>, 2>& get_type_layer_fixed_rect_rtree_map() { return _type_layer_fixed_rect_rtree_map; }
+  ViolationRTree& get_violation_rtree() { return _violation_rtree; }
   Summary& get_summary() { return _summary; }
   // setter
   void set_design_name(const std::string& design_name) { _design_name = design_name; }
@@ -113,7 +118,8 @@ class Database
   GridMap<RoutingEdge> _planar_routing_v_edge_map;
   std::vector<GridMap<RoutingEdge>> _routing_h_edge_map;
   std::vector<GridMap<RoutingEdge>> _routing_v_edge_map;
-  std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
+  std::array<std::map<int32_t, FixedRectRTree>, 2> _type_layer_fixed_rect_rtree_map;
+  ViolationRTree _violation_rtree;
   Summary _summary;
 };
 

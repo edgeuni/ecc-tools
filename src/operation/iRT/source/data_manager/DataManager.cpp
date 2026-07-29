@@ -73,41 +73,7 @@ void DataManager::output()
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-#if 1  // 更新GCellMap
-
-void DataManager::updateFixedRectToGCellMap(ChangeType change_type, int32_t net_idx, EXTLayerRect* ext_layer_rect, bool is_routing)
-{
-  ScaleAxis& gcell_axis = _database.get_gcell_axis();
-  Die& die = _database.get_die();
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-  int32_t detection_distance = _database.get_detection_distance();
-  if (detection_distance == -1) {
-    RTLOG.error(Loc::current(), "The detection_distance is not initialize!");
-  }
-  PlanarRect real_rect = RTUTIL.getEnlargedRect(ext_layer_rect->get_real_rect(), detection_distance);
-  if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-    return;
-  }
-  real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
-  PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
-  for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
-    for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
-      auto& net_fixed_rect_map = gcell_map[x][y].get_type_layer_net_fixed_rect_map()[is_routing][ext_layer_rect->get_layer_idx()];
-      if (change_type == ChangeType::kAdd) {
-        net_fixed_rect_map[net_idx].push_back(ext_layer_rect);
-      } else if (change_type == ChangeType::kDel) {
-        std::vector<EXTLayerRect*>& fixed_rect_list = net_fixed_rect_map[net_idx];
-        fixed_rect_list.erase(std::remove(fixed_rect_list.begin(), fixed_rect_list.end(), ext_layer_rect), fixed_rect_list.end());
-        if (fixed_rect_list.empty()) {
-          net_fixed_rect_map.erase(net_idx);
-        }
-      }
-    }
-  }
-  if (change_type == ChangeType::kDel) {
-    // 由于在database内的obstacle_list引用过来,所以不需要delete,也不能delete
-  }
-}
+#if 1  // 更新Database
 
 void DataManager::updateNetAccessPointToGCellMap(ChangeType change_type, int32_t net_idx, AccessPoint* access_point)
 {
@@ -176,56 +142,92 @@ void DataManager::updateNetGlobalResultToGCellMap(ChangeType change_type, int32_
   }
 }
 
-void DataManager::updateViolationToGCellMap(ChangeType change_type, Violation* violation)
+void DataManager::updateViolationToRTree(ChangeType change_type, const Violation& violation)
 {
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-
-  PlanarRect& grid_rect = violation->get_violation_shape().get_grid_rect();
-
-  for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
-    for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
-      GCell& gcell = gcell_map[x][y];
-      if (change_type == ChangeType::kAdd) {
-        gcell.get_violation_set().insert(violation);
-      } else if (change_type == ChangeType::kDel) {
-        gcell.get_violation_set().erase(violation);
+  Database::ViolationRTree& violation_rtree = _database.get_violation_rtree();
+  Database::ViolationRTree::value_type violation_value(RTUTIL.convertToBGRectInt(violation.get_violation_shape().get_real_rect()), violation);
+  if (change_type == ChangeType::kAdd) {
+    std::vector<Database::ViolationRTree::value_type> value_list;
+    violation_rtree.query(bgi::intersects(violation_value.first), std::back_inserter(value_list));
+    for (auto& [rect, stored_violation] : value_list) {
+      if (stored_violation == violation) {
+        return;
       }
     }
+    violation_rtree.insert(violation_value);
+  } else if (change_type == ChangeType::kDel) {
+    violation_rtree.remove(violation_value);
   }
-  if (change_type == ChangeType::kDel) {
-    delete violation;
-    violation = nullptr;
-  }
-}
-
-const std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& DataManager::getTypeLayerNetFixedRectMap()
-{
-  return _database.get_type_layer_net_fixed_rect_map();
 }
 
 std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> DataManager::getTypeLayerNetFixedRectMap(EXTPlanarRect& region)
 {
-  Die& die = _database.get_die();
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-
-  if (region == die) {
-    return _database.get_type_layer_net_fixed_rect_map();
-  } else {
-    std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> type_layer_net_fixed_rect_map;
-    for (int32_t x = region.get_grid_ll_x(); x <= region.get_grid_ur_x(); x++) {
-      for (int32_t y = region.get_grid_ll_y(); y <= region.get_grid_ur_y(); y++) {
-        for (bool is_routing : {false, true}) {
-          auto& layer_net_fixed_rect_map = gcell_map[x][y].get_type_layer_net_fixed_rect_map()[is_routing];
-          for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
-            for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
-              type_layer_net_fixed_rect_map[is_routing][layer_idx][net_idx].insert(fixed_rect_set.begin(), fixed_rect_set.end());
-            }
-          }
-        }
+  std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> type_layer_net_fixed_rect_map;
+  BGRectInt query_rect = RTUTIL.convertToBGRectInt(RTUTIL.getEnlargedRect(region.get_real_rect(), _database.get_detection_distance()));
+  auto& type_layer_fixed_rect_rtree_map = _database.get_type_layer_fixed_rect_rtree_map();
+  for (bool is_routing : {false, true}) {
+    for (auto& [layer_idx, fixed_rect_rtree] : type_layer_fixed_rect_rtree_map[is_routing]) {
+      std::vector<Database::FixedRectRTree::value_type> value_list;
+      fixed_rect_rtree.query(bgi::intersects(query_rect), std::back_inserter(value_list));
+      for (auto& [rect, net_fixed_rect] : value_list) {
+        type_layer_net_fixed_rect_map[is_routing][layer_idx][net_fixed_rect.first].insert(net_fixed_rect.second);
       }
     }
-    return type_layer_net_fixed_rect_map;
   }
+  return type_layer_net_fixed_rect_map;
+}
+
+std::map<int32_t, std::set<EXTLayerRect*>> DataManager::getNetFixedRectMap(bool is_routing, EXTLayerRect& region)
+{
+  std::map<int32_t, std::set<EXTLayerRect*>> net_fixed_rect_map;
+  auto& layer_fixed_rect_rtree_map = _database.get_type_layer_fixed_rect_rtree_map()[is_routing];
+  auto rtree_iter = layer_fixed_rect_rtree_map.find(region.get_layer_idx());
+  if (rtree_iter == layer_fixed_rect_rtree_map.end()) {
+    return net_fixed_rect_map;
+  }
+  BGRectInt query_rect = RTUTIL.convertToBGRectInt(RTUTIL.getEnlargedRect(region.get_real_rect(), _database.get_detection_distance()));
+  std::vector<Database::FixedRectRTree::value_type> value_list;
+  rtree_iter->second.query(bgi::intersects(query_rect), std::back_inserter(value_list));
+  for (auto& [rect, net_fixed_rect] : value_list) {
+    net_fixed_rect_map[net_fixed_rect.first].insert(net_fixed_rect.second);
+  }
+  return net_fixed_rect_map;
+}
+
+std::vector<Violation> DataManager::getViolationList(EXTPlanarRect& region)
+{
+  std::vector<Violation> violation_list;
+  if (region == _database.get_die()) {
+    violation_list.reserve(_database.get_violation_rtree().size());
+    for (const auto& [rect, violation] : _database.get_violation_rtree()) {
+      violation_list.push_back(violation);
+    }
+    std::sort(violation_list.begin(), violation_list.end(), CmpViolation());
+    return violation_list;
+  }
+  BGRectInt query_rect = RTUTIL.convertToBGRectInt(region.get_real_rect());
+  std::vector<Database::ViolationRTree::value_type> value_list;
+  _database.get_violation_rtree().query(bgi::intersects(query_rect), std::back_inserter(value_list));
+  for (auto& [rect, violation] : value_list) {
+    violation_list.push_back(std::move(violation));
+  }
+  std::sort(violation_list.begin(), violation_list.end(), CmpViolation());
+  return violation_list;
+}
+
+std::vector<Violation> DataManager::getViolationList(EXTLayerRect& region)
+{
+  std::vector<Violation> violation_list;
+  BGRectInt query_rect = RTUTIL.convertToBGRectInt(region.get_real_rect());
+  std::vector<Database::ViolationRTree::value_type> value_list;
+  _database.get_violation_rtree().query(bgi::intersects(query_rect), std::back_inserter(value_list));
+  for (auto& [rect, violation] : value_list) {
+    if (violation.get_violation_shape().get_layer_idx() == region.get_layer_idx()) {
+      violation_list.push_back(std::move(violation));
+    }
+  }
+  std::sort(violation_list.begin(), violation_list.end(), CmpViolation());
+  return violation_list;
 }
 
 std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> DataManager::getNetAccessPointMap(EXTPlanarRect& region)
@@ -315,19 +317,6 @@ std::map<int32_t, std::set<EXTLayerRect*>> DataManager::getNetDetailedPatchMap(E
     }
   }
   return net_detailed_patch_map;
-}
-
-std::set<Violation*, CmpViolation> DataManager::getViolationSet(EXTPlanarRect& region)
-{
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-
-  std::set<Violation*, CmpViolation> violation_set;
-  for (int32_t x = region.get_grid_ll_x(); x <= region.get_grid_ur_x(); x++) {
-    for (int32_t y = region.get_grid_ll_y(); y <= region.get_grid_ur_y(); y++) {
-      violation_set.insert(gcell_map[x][y].get_violation_set().begin(), gcell_map[x][y].get_violation_set().end());
-    }
-  }
-  return violation_set;
 }
 
 #endif
@@ -1329,7 +1318,6 @@ void DataManager::buildGCellMap()
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
   initGCellMap();
-  updateGCellMap();
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -1351,132 +1339,6 @@ void DataManager::initGCellMap()
   }
 }
 
-void DataManager::updateGCellMap()
-{
-  ScaleAxis& gcell_axis = _database.get_gcell_axis();
-  Die& die = _database.get_die();
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-  std::vector<Obstacle>& routing_obstacle_list = _database.get_routing_obstacle_list();
-  std::vector<Obstacle>& cut_obstacle_list = _database.get_cut_obstacle_list();
-  std::vector<Net>& net_list = _database.get_net_list();
-  int32_t detection_distance = _database.get_detection_distance();
-  if (detection_distance == -1) {
-    RTLOG.error(Loc::current(), "The detection_distance is not initialize!");
-  }
-  struct AUXShape
-  {
-    // info
-    int32_t net_idx = -1;
-    EXTLayerRect* rect = nullptr;
-    bool is_routing = true;
-    // process
-    PlanarRect grid_rect;
-    bool is_save = false;
-  };
-  std::vector<AUXShape> aux_shape_list;
-  {
-    size_t total_shape_num = 0;
-    total_shape_num += routing_obstacle_list.size();
-    total_shape_num += cut_obstacle_list.size();
-    for (Net& net : net_list) {
-      for (Pin& pin : net.get_pin_list()) {
-        total_shape_num += pin.get_routing_shape_list().size();
-        total_shape_num += pin.get_cut_shape_list().size();
-      }
-    }
-    aux_shape_list.reserve(total_shape_num);
-  }
-  {
-    for (Obstacle& routing_obstacle : routing_obstacle_list) {
-      aux_shape_list.emplace_back(-1, &routing_obstacle, true);
-    }
-    for (Obstacle& cut_obstacle : cut_obstacle_list) {
-      aux_shape_list.emplace_back(-1, &cut_obstacle, false);
-    }
-    for (Net& net : net_list) {
-      for (Pin& pin : net.get_pin_list()) {
-        for (EXTLayerRect& routing_shape : pin.get_routing_shape_list()) {
-          aux_shape_list.emplace_back(net.get_net_idx(), &routing_shape, true);
-        }
-        for (EXTLayerRect& cut_shape : pin.get_cut_shape_list()) {
-          aux_shape_list.emplace_back(net.get_net_idx(), &cut_shape, false);
-        }
-      }
-    }
-#pragma omp parallel for
-    for (AUXShape& aux_shape : aux_shape_list) {
-      PlanarRect real_rect = RTUTIL.getEnlargedRect(aux_shape.rect->get_real_rect(), detection_distance);
-      if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-        continue;
-      }
-      real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
-      aux_shape.grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
-    }
-  }
-  // 以y方向分割,主要依据为第一层往往是横方向的shape
-  int32_t bucket_length = 6;
-  int32_t die_grid_ll_y = die.get_grid_ll_y();
-  int32_t die_grid_ur_y = die.get_grid_ur_y();
-  if (bucket_length <= (die_grid_ur_y - die_grid_ll_y)) {
-    for (int32_t bucket_start : {0, bucket_length / 2}) {
-      std::vector<std::vector<AUXShape>> aux_shape_list_list;
-      aux_shape_list_list.resize((die_grid_ur_y - bucket_start) / bucket_length + 1);
-
-      for (AUXShape& aux_shape : aux_shape_list) {
-        if (aux_shape.is_save) {
-          continue;
-        }
-        int32_t aux_shape_grid_ll_y = aux_shape.grid_rect.get_ll_y();
-        int32_t aux_shape_grid_ur_y = aux_shape.grid_rect.get_ur_y();
-        int32_t bucket_idx = getBucketIdx(aux_shape_grid_ll_y, aux_shape_grid_ur_y, bucket_start, die_grid_ur_y, bucket_length);
-        if (bucket_idx != -1) {
-          aux_shape_list_list[bucket_idx].push_back(aux_shape);
-          aux_shape.is_save = true;
-        }
-      }
-#pragma omp parallel for
-      for (std::vector<AUXShape>& aux_shape_list : aux_shape_list_list) {
-        for (AUXShape& aux_shape : aux_shape_list) {
-          updateFixedRectToGCellMap(ChangeType::kAdd, aux_shape.net_idx, aux_shape.rect, aux_shape.is_routing);
-        }
-      }
-    }
-  }
-  for (AUXShape& aux_shape : aux_shape_list) {
-    if (aux_shape.is_save) {
-      continue;
-    }
-    updateFixedRectToGCellMap(ChangeType::kAdd, aux_shape.net_idx, aux_shape.rect, aux_shape.is_routing);
-  }
-
-#pragma omp parallel for collapse(2)
-  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
-    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
-      for (GCell::LayerNetFixedRectMap& layer_net_fixed_rect_map : gcell_map[x][y].get_type_layer_net_fixed_rect_map()) {
-        for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
-          for (auto& [net_idx, fixed_rect_list] : net_fixed_rect_map) {
-            std::sort(fixed_rect_list.begin(), fixed_rect_list.end(), std::less<EXTLayerRect*>());
-            fixed_rect_list.erase(std::unique(fixed_rect_list.begin(), fixed_rect_list.end()), fixed_rect_list.end());
-          }
-        }
-      }
-    }
-  }
-}
-
-int32_t DataManager::getBucketIdx(int32_t scale_start, int32_t scale_end, int32_t bucket_start, int32_t bucket_end, int32_t bucket_length)
-{
-  if (scale_start < bucket_start || scale_end > bucket_end) {
-    return -1;
-  }
-  int32_t start_idx = (scale_start - bucket_start) / bucket_length;
-  int32_t end_idx = (scale_end - bucket_start) / bucket_length;
-  if (start_idx != end_idx) {
-    return -1;
-  }
-  return start_idx;
-}
-
 void DataManager::buildFixRectMap()
 {
   Monitor monitor;
@@ -1486,18 +1348,18 @@ void DataManager::buildFixRectMap()
   std::vector<Obstacle>& cut_obstacle_list = _database.get_cut_obstacle_list();
   std::vector<Net>& net_list = _database.get_net_list();
   int32_t detection_distance = _database.get_detection_distance();
-  std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& type_layer_net_fixed_rect_map = _database.get_type_layer_net_fixed_rect_map();
+  std::array<std::map<int32_t, std::vector<Database::FixedRectRTree::value_type>>, 2> type_layer_value_list_map;
 
   for (Obstacle& obstacle : routing_obstacle_list) {
     PlanarRect real_rect = RTUTIL.getEnlargedRect(obstacle.get_real_rect(), detection_distance);
     if (RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-      type_layer_net_fixed_rect_map[true][obstacle.get_layer_idx()][-1].insert(&obstacle);
+      type_layer_value_list_map[true][obstacle.get_layer_idx()].emplace_back(RTUTIL.convertToBGRectInt(obstacle.get_real_rect()), std::make_pair(-1, &obstacle));
     }
   }
   for (Obstacle& obstacle : cut_obstacle_list) {
     PlanarRect real_rect = RTUTIL.getEnlargedRect(obstacle.get_real_rect(), detection_distance);
     if (RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-      type_layer_net_fixed_rect_map[false][obstacle.get_layer_idx()][-1].insert(&obstacle);
+      type_layer_value_list_map[false][obstacle.get_layer_idx()].emplace_back(RTUTIL.convertToBGRectInt(obstacle.get_real_rect()), std::make_pair(-1, &obstacle));
     }
   }
   for (Net& net : net_list) {
@@ -1505,15 +1367,23 @@ void DataManager::buildFixRectMap()
       for (EXTLayerRect& shape : pin.get_routing_shape_list()) {
         PlanarRect real_rect = RTUTIL.getEnlargedRect(shape.get_real_rect(), detection_distance);
         if (RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-          type_layer_net_fixed_rect_map[true][shape.get_layer_idx()][net.get_net_idx()].insert(&shape);
+          type_layer_value_list_map[true][shape.get_layer_idx()].emplace_back(RTUTIL.convertToBGRectInt(shape.get_real_rect()),
+                                                                             std::make_pair(net.get_net_idx(), &shape));
         }
       }
       for (EXTLayerRect& shape : pin.get_cut_shape_list()) {
         PlanarRect real_rect = RTUTIL.getEnlargedRect(shape.get_real_rect(), detection_distance);
         if (RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-          type_layer_net_fixed_rect_map[false][shape.get_layer_idx()][net.get_net_idx()].insert(&shape);
+          type_layer_value_list_map[false][shape.get_layer_idx()].emplace_back(RTUTIL.convertToBGRectInt(shape.get_real_rect()),
+                                                                              std::make_pair(net.get_net_idx(), &shape));
         }
       }
+    }
+  }
+  auto& type_layer_fixed_rect_rtree_map = _database.get_type_layer_fixed_rect_rtree_map();
+  for (bool is_routing : {false, true}) {
+    for (auto& [layer_idx, value_list] : type_layer_value_list_map[is_routing]) {
+      type_layer_fixed_rect_rtree_map[is_routing][layer_idx] = Database::FixedRectRTree(value_list.begin(), value_list.end());
     }
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -1820,9 +1690,7 @@ void DataManager::destroyGCellMap()
   }
   _database.get_net_detailed_result_map().clear();
   _database.get_net_detailed_patch_map().clear();
-  for (Violation* violation : getViolationSet(die)) {
-    RTDM.updateViolationToGCellMap(ChangeType::kDel, violation);
-  }
+  _database.get_violation_rtree().clear();
 }
 
 #endif
