@@ -31,7 +31,6 @@
 #include <vector>
 
 #include "Type.hh"
-#include "Vector.hh"
 #include "io/Wrapper.hh"
 #include "liberty/Lib.hh"
 
