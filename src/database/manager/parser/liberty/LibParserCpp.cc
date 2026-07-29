@@ -26,7 +26,7 @@
 #include "CppLibertyDriver.hh"
 #include "Lib.hh"
 #include "LibParserCpp.hh"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 
 #include <algorithm>
 #include <atomic>

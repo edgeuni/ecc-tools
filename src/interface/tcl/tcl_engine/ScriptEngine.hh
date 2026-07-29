@@ -40,7 +40,7 @@
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 
 namespace ieda {
 

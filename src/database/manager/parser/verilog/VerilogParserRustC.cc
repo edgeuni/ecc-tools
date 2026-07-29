@@ -26,7 +26,7 @@
 
 #include <string_view>
 
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 
 namespace idb {
 

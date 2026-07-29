@@ -4,5 +4,5 @@ add_library(ieda_logger
 
 target_include_directories(ieda_logger
     PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/src
 )

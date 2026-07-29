@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "SpefText.hh"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 
 namespace spef {
 namespace {

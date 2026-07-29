@@ -25,7 +25,7 @@
 #include "timing_io.h"
 
 #include "json/json.hpp"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 #include "timing_api.hh"
 
 namespace ieval {

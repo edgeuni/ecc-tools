@@ -8,7 +8,14 @@ include_directories(
 
 set(EVAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE INTERNAL "Path to eval module headers")
 
-target_link_libraries(eval_io PRIVATE idm ieda_logger)
+target_link_libraries(eval_io
+    PRIVATE
+        idm
+        ieda_logger
+        eval_density_api
+        eval_timing_api
+        eval_wirelength_api
+)
 
 target_include_directories(eval_io PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}

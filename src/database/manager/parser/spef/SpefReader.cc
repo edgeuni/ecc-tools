@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "SpefAnnotationScanner.hh"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 
 int spef_parse(spef::ParserContext* context);
 void spef_restart(FILE* input_file);

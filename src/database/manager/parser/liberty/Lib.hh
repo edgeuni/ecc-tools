@@ -38,7 +38,7 @@
 #include "LibParserCpp.hh"
 #include "Config.hh"
 #include "Type.hh"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 
 namespace idb {
 

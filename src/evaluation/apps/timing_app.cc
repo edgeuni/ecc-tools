@@ -8,7 +8,7 @@
 
 #include "PLAPI.hh"
 #include "idm.h"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 #include "timing_api.hh"
 void TestTiming(const string& db_config_path);
 

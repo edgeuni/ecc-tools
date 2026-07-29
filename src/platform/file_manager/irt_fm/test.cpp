@@ -12,7 +12,7 @@
 #include "EXTPlanarCoord.hpp"
 #include "PlanarRect.hpp"
 #include "WireNode.hpp"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 #include "rt_serialize.hpp"
 #include "serialize.hpp"
 

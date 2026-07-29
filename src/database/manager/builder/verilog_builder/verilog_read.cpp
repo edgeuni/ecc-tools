@@ -87,7 +87,7 @@ void testMakeSingleModule(idb::NetlistReader* nr, string topModuleName) {
 #include <zlib.h>
 
 #include "IdbDesign.h"
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 
 namespace idb {
 

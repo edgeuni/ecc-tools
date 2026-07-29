@@ -68,6 +68,7 @@ target_link_libraries(eval_util_init_ista
         idm
         irt_interface
         salt
+        eval_db
 )
 
 target_include_directories(eval_util_init_ista

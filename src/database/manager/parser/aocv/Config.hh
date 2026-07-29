@@ -41,7 +41,7 @@
 #define Z_NULL nullptr
 #endif
 
-#include "Logger.hpp"
+#include "utility/logger/Logger.hpp"
 #include "ScriptEngine.hh"
 
 namespace idb {
