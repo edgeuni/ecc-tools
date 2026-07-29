@@ -66,6 +66,7 @@ class DetailedRouter
   void splitNetResult(DRModel& dr_model);
   std::set<DRBoxId, CmpDRBoxId> getDRBoxIdSet(DRModel& dr_model, PlanarRect real_rect);
   void routeDRBoxMap(DRModel& dr_model);
+  void freeDRBoxMap(DRModel& dr_model);
   void buildFixedRect(DRBox& dr_box);
   void buildAccessPoint(DRBox& dr_box);
   void buildGlobalResult(DRBox& dr_box);
@@ -74,7 +75,8 @@ class DetailedRouter
                                  Segment<LayerCoord>& segment);
   void addNetPatchToEnvironment(DRModel& dr_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx,
                                 EXTLayerRect& patch);
-  void initDRTaskList(DRModel& dr_model, DRBox& dr_box);
+  void initDRTaskList(DRModel& dr_model, DRBox& dr_box, const std::set<int32_t>& violation_net_set);
+  void buildNetTaskList(DRModel& dr_model, DRBox& dr_box, int32_t net_idx);
   void buildRouteViolation(DRModel& dr_model, DRBox& dr_box);
   bool needRouting(DRBox& dr_box);
   void buildBoxTrackAxis(DRBox& dr_box);
@@ -85,8 +87,11 @@ class DetailedRouter
   void buildNetShadowMap(DRBox& dr_box);
   void exemptPinShape(DRModel& dr_model, DRBox& dr_box);
   void routeDRBox(DRBox& dr_box);
-  std::vector<DRTask*> initTaskSchedule(DRBox& dr_box);
-  void updateGraph(DRBox& dr_box, DRTask* dr_task);
+  std::vector<int32_t> initTaskSchedule(DRBox& dr_box);
+  void updateGraph(DRBox& dr_box, ChangeType change_type, int32_t net_idx, std::vector<Segment<LayerCoord>>& segment_list,
+                   std::vector<EXTLayerRect>& patch_list);
+  void routeDRNet(DRBox& dr_box, int32_t net_idx);
+  void routeDRRegionalRepair(DRBox& dr_box);
   void routeDRTask(DRBox& dr_box, DRTask* dr_task);
   void initSingleRouteTask(DRBox& dr_box, DRTask* dr_task);
   void buildGuidePenaltyMap(DRBox& dr_box, DRTask* dr_task);
@@ -134,7 +139,7 @@ class DetailedRouter
   void updateRouteViolationList(DRBox& dr_box);
   std::vector<Violation> getRouteViolationList(DRBox& dr_box);
   void updateBestResult(DRBox& dr_box);
-  void updateTaskSchedule(DRBox& dr_box, std::vector<DRTask*>& routing_task_list);
+  void updateTaskSchedule(DRBox& dr_box, std::vector<int32_t>& routing_net_list);
   void selectBestResult(DRBox& dr_box);
   void freeDRBox(DRBox& dr_box);
   void updateDRModel(DRModel& dr_model);

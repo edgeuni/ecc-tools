@@ -48,6 +48,10 @@ class DRBox
   std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_net_task_detailed_result_map() { return _net_task_detailed_result_map; }
   std::map<int32_t, std::vector<EXTLayerRect*>>& get_net_detailed_patch_map() { return _net_detailed_patch_map; }
   std::map<int32_t, std::vector<EXTLayerRect>>& get_net_task_detailed_patch_map() { return _net_task_detailed_patch_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_component_result_map() { return _net_component_result_map; }
+  std::map<int32_t, int32_t>& get_net_routed_times_map() { return _net_routed_times_map; }
+  std::set<int32_t>& get_direct_repair_net_set() { return _direct_repair_net_set; }
+  std::set<int32_t>& get_regional_repair_net_set() { return _regional_repair_net_set; }
   std::vector<DRTask*>& get_dr_task_list() { return _dr_task_list; }
   std::vector<Violation>& get_route_violation_list() { return _route_violation_list; }
   ScaleAxis& get_box_track_axis() { return _box_track_axis; }
@@ -165,6 +169,10 @@ class DRBox
   std::map<int32_t, std::vector<Segment<LayerCoord>>> _net_task_detailed_result_map;
   std::map<int32_t, std::vector<EXTLayerRect*>> _net_detailed_patch_map;
   std::map<int32_t, std::vector<EXTLayerRect>> _net_task_detailed_patch_map;
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_component_result_map;
+  std::map<int32_t, int32_t> _net_routed_times_map;
+  std::set<int32_t> _direct_repair_net_set;
+  std::set<int32_t> _regional_repair_net_set;
   std::vector<DRTask*> _dr_task_list;
   std::vector<Violation> _route_violation_list;
   ScaleAxis _box_track_axis;

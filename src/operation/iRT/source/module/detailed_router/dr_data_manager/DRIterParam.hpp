@@ -55,6 +55,8 @@ class DRIterParam
   double get_violation_unit() const { return _violation_unit; }
   int32_t get_max_routed_times() const { return _max_routed_times; }
   int32_t get_max_candidate_patch_num() const { return _max_candidate_patch_num; }
+  int32_t get_regional_repair_violation_threshold() const { return _regional_repair_violation_threshold; }
+  bool get_regional_repair() const { return _regional_repair; }
   // setter
   void set_prefer_wire_unit(const double prefer_wire_unit) { _prefer_wire_unit = prefer_wire_unit; }
   void set_non_prefer_wire_unit(const double non_prefer_wire_unit) { _non_prefer_wire_unit = non_prefer_wire_unit; }
@@ -69,6 +71,11 @@ class DRIterParam
   void set_violation_unit(const double violation_unit) { _violation_unit = violation_unit; }
   void set_max_routed_times(const int32_t max_routed_times) { _max_routed_times = max_routed_times; }
   void set_max_candidate_patch_num(const int32_t max_candidate_patch_num) { _max_candidate_patch_num = max_candidate_patch_num; }
+  void set_regional_repair_violation_threshold(const int32_t regional_repair_violation_threshold)
+  {
+    _regional_repair_violation_threshold = regional_repair_violation_threshold;
+  }
+  void set_regional_repair(const bool regional_repair) { _regional_repair = regional_repair; }
 
  private:
   double _prefer_wire_unit = 0;
@@ -84,6 +91,8 @@ class DRIterParam
   double _violation_unit = 0;
   int32_t _max_routed_times = 0;
   int32_t _max_candidate_patch_num = 0;
+  int32_t _regional_repair_violation_threshold = 100;
+  bool _regional_repair = false;
 };
 
 }  // namespace irt
