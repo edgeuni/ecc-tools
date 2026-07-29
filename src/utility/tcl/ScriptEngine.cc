@@ -186,103 +186,148 @@ TclStringListListOption::TclStringListListOption(const char* option_name, unsign
 {
 }
 
-template <char c>
-inline int IgnoreNext(const char val[], int pos = 0)
-{
-  static_assert(c != '\0');
-  for (; val[pos] == c; ++pos)
-    ;
-  return pos;
-}
-
-template <char c>
-inline int FindNext(const char val[], int pos = 0)
-{
-  for (; val[pos] != c; ++pos)
-    if (val[pos] == '\0')
-      break;
-  return pos;
-}
-
-template <char c0, char c1, class Itr = std::string::iterator>
-inline Itr IgnoreNext(Itr start)
-{
-  for (; *start == c0 || *start == c1; ++start)
-    ;
-  return start;
-}
-
-template <char c, class Itr = std::string::iterator>
-inline Itr FindNext(Itr start, Itr end)
-{
-  for (; *start != c; ++start)
-    if (start == end)
-      break;
-  return start;
-}
-
-inline std::vector<std::pair<int, int>> GetStrListPosLen(const char val[])
-{
-  std::vector<std::pair<int, int>> pos_len_list;
-  int pos = 0;
-  while (val[pos] != '\0') {
-    int start = FindNext<'{'>(val, pos);
-    int end = FindNext<'}'>(val, start);
-    start = IgnoreNext<' '>(val, start + 1);
-    pos = IgnoreNext<' '>(val, end + 1);
-    pos_len_list.emplace_back(start, end - start);
-  }
-  return pos_len_list;
-}
-
-template <char delim0, char delim1>
-inline TclStringListListOption::StrList Split(const char* val, int len)
-{
-  TclStringListListOption::StrList str_list;
-  std::string str(val, len);
-  auto substr_begin = str.begin();
-  auto substr_end = str.begin();
-  while (substr_end != str.end()) {
-    switch (*substr_end) {
-      case '\"':
-        substr_begin = ++substr_end;
-        substr_end = FindNext<'\"'>(substr_end, str.end());
-        *substr_end = ' ';
-
-      case delim0:
-      case delim1:
-        str_list.emplace_back(substr_begin, substr_end);
-        substr_begin = substr_end = IgnoreNext<delim0, delim1>(substr_end);
-        break;
-
-      default:
-        ++substr_end;
-        break;
-    }
-  }
-  if (substr_begin != substr_end) {
-    str_list.emplace_back(substr_begin, substr_end);
-  }
-  return str_list;
-}
-
-/**
- * @brief set string list val.
- *
- * @param val
- */
 void TclStringListListOption::setVal(const char* val)
 {
-  val += IgnoreNext<' '>(val);
-
-  if (*val == '{') {
-    auto pos_len_list = GetStrListPosLen(val);
-    for (auto& [pos, len] : pos_len_list) {
-      _val.emplace_back(Split<' ', ','>(val + pos, len));
-    }
-  } else {
-    _val.emplace_back(Str::split(val, " "));
+  const char* first_char = val;
+  while (*first_char == ' ') {
+    first_char++;
   }
+  if (*first_char != '{') {
+    _val.push_back(Str::split(val, " "));
+    _is_set_val = 1;
+    return;
+  }
+
+  int outer_count = 0;
+  const char** outer_value_list = nullptr;
+  if (Tcl_SplitList(nullptr, val, &outer_count, &outer_value_list) != TCL_OK) {
+    return;
+  }
+
+  for (int outer_idx = 0; outer_idx < outer_count; outer_idx++) {
+    int inner_count = 0;
+    const char** inner_value_list = nullptr;
+    if (Tcl_SplitList(nullptr, outer_value_list[outer_idx], &inner_count, &inner_value_list) != TCL_OK) {
+      Tcl_Free(reinterpret_cast<char*>(outer_value_list));
+      return;
+    }
+
+    StrList value_list;
+    for (int inner_idx = 0; inner_idx < inner_count; inner_idx++) {
+      value_list.emplace_back(inner_value_list[inner_idx]);
+    }
+    Tcl_Free(reinterpret_cast<char*>(inner_value_list));
+    _val.push_back(value_list);
+  }
+  Tcl_Free(reinterpret_cast<char*>(outer_value_list));
+
+  _is_set_val = 1;
+}
+
+TclStringListListListOption::TclStringListListListOption(const char* option_name, unsigned is_arg,
+                                                         std::vector<StrListList>&& default_val)
+    : TclOption(option_name, is_arg), _default_val(std::move(default_val))
+{
+}
+
+void TclStringListListListOption::setVal(const char* val)
+{
+  int outer_count = 0;
+  const char** outer_value_list = nullptr;
+  if (Tcl_SplitList(nullptr, val, &outer_count, &outer_value_list) != TCL_OK) {
+    return;
+  }
+
+  for (int outer_idx = 0; outer_idx < outer_count; outer_idx++) {
+    int middle_count = 0;
+    const char** middle_value_list = nullptr;
+    if (Tcl_SplitList(nullptr, outer_value_list[outer_idx], &middle_count, &middle_value_list) != TCL_OK) {
+      Tcl_Free(reinterpret_cast<char*>(outer_value_list));
+      return;
+    }
+
+    StrListList value_list;
+    for (int middle_idx = 0; middle_idx < middle_count; middle_idx++) {
+      int inner_count = 0;
+      const char** inner_value_list = nullptr;
+      if (Tcl_SplitList(nullptr, middle_value_list[middle_idx], &inner_count, &inner_value_list) != TCL_OK) {
+        Tcl_Free(reinterpret_cast<char*>(middle_value_list));
+        Tcl_Free(reinterpret_cast<char*>(outer_value_list));
+        return;
+      }
+
+      StrList inner_value;
+      for (int inner_idx = 0; inner_idx < inner_count; inner_idx++) {
+        inner_value.emplace_back(inner_value_list[inner_idx]);
+      }
+      Tcl_Free(reinterpret_cast<char*>(inner_value_list));
+      value_list.push_back(inner_value);
+    }
+    Tcl_Free(reinterpret_cast<char*>(middle_value_list));
+    _val.push_back(value_list);
+  }
+  Tcl_Free(reinterpret_cast<char*>(outer_value_list));
+
+  _is_set_val = 1;
+}
+
+TclStringListListListListOption::TclStringListListListListOption(const char* option_name, unsigned is_arg,
+                                                                 std::vector<StrListListList>&& default_val)
+    : TclOption(option_name, is_arg), _default_val(std::move(default_val))
+{
+}
+
+void TclStringListListListListOption::setVal(const char* val)
+{
+  int outer_count = 0;
+  const char** outer_value_list = nullptr;
+  if (Tcl_SplitList(nullptr, val, &outer_count, &outer_value_list) != TCL_OK) {
+    return;
+  }
+
+  for (int outer_idx = 0; outer_idx < outer_count; outer_idx++) {
+    int middle_count = 0;
+    const char** middle_value_list = nullptr;
+    if (Tcl_SplitList(nullptr, outer_value_list[outer_idx], &middle_count, &middle_value_list) != TCL_OK) {
+      Tcl_Free(reinterpret_cast<char*>(outer_value_list));
+      return;
+    }
+
+    StrListListList value_list;
+    for (int middle_idx = 0; middle_idx < middle_count; middle_idx++) {
+      int inner_count = 0;
+      const char** inner_string_list = nullptr;
+      if (Tcl_SplitList(nullptr, middle_value_list[middle_idx], &inner_count, &inner_string_list) != TCL_OK) {
+        Tcl_Free(reinterpret_cast<char*>(middle_value_list));
+        Tcl_Free(reinterpret_cast<char*>(outer_value_list));
+        return;
+      }
+
+      StrListList inner_value_list;
+      for (int inner_idx = 0; inner_idx < inner_count; inner_idx++) {
+        int leaf_count = 0;
+        const char** leaf_value_list = nullptr;
+        if (Tcl_SplitList(nullptr, inner_string_list[inner_idx], &leaf_count, &leaf_value_list) != TCL_OK) {
+          Tcl_Free(reinterpret_cast<char*>(inner_string_list));
+          Tcl_Free(reinterpret_cast<char*>(middle_value_list));
+          Tcl_Free(reinterpret_cast<char*>(outer_value_list));
+          return;
+        }
+
+        StrList leaf_value;
+        for (int leaf_idx = 0; leaf_idx < leaf_count; leaf_idx++) {
+          leaf_value.emplace_back(leaf_value_list[leaf_idx]);
+        }
+        Tcl_Free(reinterpret_cast<char*>(leaf_value_list));
+        inner_value_list.push_back(leaf_value);
+      }
+      Tcl_Free(reinterpret_cast<char*>(inner_string_list));
+      value_list.push_back(inner_value_list);
+    }
+    Tcl_Free(reinterpret_cast<char*>(middle_value_list));
+    _val.push_back(value_list);
+  }
+  Tcl_Free(reinterpret_cast<char*>(outer_value_list));
 
   _is_set_val = 1;
 }

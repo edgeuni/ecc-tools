@@ -100,6 +100,8 @@ class TclOption
   virtual unsigned isIntListOption() { return 0; }
 
   virtual unsigned isStringListListOption() { return 0; }
+  virtual unsigned isStringListListListOption() { return 0; }
+  virtual unsigned isStringListListListListOption() { return 0; }
 
   virtual double getDoubleVal()
   {
@@ -188,6 +190,30 @@ class TclOption
   virtual std::vector<std::vector<std::string>> getDefaultStringListList()
   {
     LOG_FATAL << "The option do not has string list list.";
+    return {};
+  }
+
+  virtual std::vector<std::vector<std::vector<std::string>>> getStringListListList()
+  {
+    LOG_FATAL << "The option do not has string list list list.";
+    return {};
+  }
+
+  virtual std::vector<std::vector<std::vector<std::string>>> getDefaultStringListListList()
+  {
+    LOG_FATAL << "The option do not has string list list list.";
+    return {};
+  }
+
+  virtual std::vector<std::vector<std::vector<std::vector<std::string>>>> getStringListListListList()
+  {
+    LOG_FATAL << "The option do not has string list list list list.";
+    return {};
+  }
+
+  virtual std::vector<std::vector<std::vector<std::vector<std::string>>>> getDefaultStringListListListList()
+  {
+    LOG_FATAL << "The option do not has string list list list list.";
     return {};
   }
 
@@ -432,6 +458,65 @@ class TclStringListListOption : public TclOption
  private:
   std::vector<StrList> _default_val;
   std::vector<StrList> _val;
+};
+
+/**
+ * @brief The tcl string list list list option.
+ *
+ */
+class TclStringListListListOption : public TclOption
+{
+ public:
+  using StrList = std::vector<std::string>;
+  using StrListList = std::vector<StrList>;
+  TclStringListListListOption(const char* option_name, unsigned is_arg, std::vector<StrListList>&& default_val = {});
+  ~TclStringListListListOption() override = default;
+
+  unsigned isStringListListListOption() override { return 1; }
+
+  void setVal(const char* val) override;
+  void resetVal() override
+  {
+    std::vector<StrListList>().swap(_val);
+    _is_set_val = 0;
+  }
+
+  std::vector<StrListList> getStringListListList() override { return _is_set_val ? _val : _default_val; }
+  std::vector<StrListList> getDefaultStringListListList() override { return _default_val; }
+
+ private:
+  std::vector<StrListList> _default_val;
+  std::vector<StrListList> _val;
+};
+
+/**
+ * @brief The tcl string list list list list option.
+ *
+ */
+class TclStringListListListListOption : public TclOption
+{
+ public:
+  using StrList = std::vector<std::string>;
+  using StrListList = std::vector<StrList>;
+  using StrListListList = std::vector<StrListList>;
+  TclStringListListListListOption(const char* option_name, unsigned is_arg, std::vector<StrListListList>&& default_val = {});
+  ~TclStringListListListListOption() override = default;
+
+  unsigned isStringListListListListOption() override { return 1; }
+
+  void setVal(const char* val) override;
+  void resetVal() override
+  {
+    std::vector<StrListListList>().swap(_val);
+    _is_set_val = 0;
+  }
+
+  std::vector<StrListListList> getStringListListListList() override { return _is_set_val ? _val : _default_val; }
+  std::vector<StrListListList> getDefaultStringListListListList() override { return _default_val; }
+
+ private:
+  std::vector<StrListListList> _default_val;
+  std::vector<StrListListList> _val;
 };
 
 /**
