@@ -73,6 +73,7 @@ class PinAccessor
   void buildBoxSchedule(PAModel& pa_model);
   void splitPAResult(PAModel& pa_model);
   void routePABoxMap(PAModel& pa_model);
+  void freePABoxMap(PAModel& pa_model);
   void buildPAEnvironment(PAModel& pa_model, const std::vector<PABoxId>& pa_box_id_list);
   void addPAResultToEnvironment(PAModel& pa_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx, int32_t pin_idx,
                                 Segment<LayerCoord>& segment);
@@ -81,7 +82,8 @@ class PinAccessor
   void buildFixedRect(PABox& pa_box);
   void buildAccessPoint(PAModel& pa_model, PABox& pa_box);
   void initPATaskList(PAModel& pa_model, PABox& pa_box);
-  void buildRouteViolation(PAModel& pa_model, PABox& pa_box);
+  void buildRouteViolation(PAModel& pa_model, const std::vector<PABoxId>& pa_box_id_list);
+  void updateRouteViolation(PAModel& pa_model, std::vector<std::vector<Violation>>& stage_violation_list_list);
   bool needRouting(PABox& pa_box);
   void buildBoxTrackAxis(PABox& pa_box);
   void buildLayerNodeMap(PABox& pa_box);

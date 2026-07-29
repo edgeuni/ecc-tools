@@ -16,6 +16,7 @@
 // ***************************************************************************************
 #pragma once
 
+#include "LayerCoord.hpp"
 #include "RTHeader.hpp"
 
 namespace irt {

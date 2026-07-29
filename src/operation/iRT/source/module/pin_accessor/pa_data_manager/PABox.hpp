@@ -42,12 +42,12 @@ class PABox
   bool get_initial_routing() const { return _initial_routing; }
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>>& get_net_access_point_map() { return _net_access_point_map; }
-  std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& get_net_pin_access_result_map() { return _net_pin_access_result_map; }
-  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_pin_task_access_result_map() { return _net_pin_task_access_result_map; }
-  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_task_access_result_map() { return _net_task_access_result_map; }
-  std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& get_net_pin_access_patch_map() { return _net_pin_access_patch_map; }
-  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_net_pin_task_access_patch_map() { return _net_pin_task_access_patch_map; }
-  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_net_task_access_patch_map() { return _net_task_access_patch_map; }
+  std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& get_net_pin_env_result_map() { return _net_pin_env_result_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_pin_own_result_map() { return _net_pin_own_result_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_task_tmp_result_map() { return _net_task_tmp_result_map; }
+  std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& get_net_pin_env_patch_map() { return _net_pin_env_patch_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_net_pin_own_patch_map() { return _net_pin_own_patch_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_net_task_tmp_patch_map() { return _net_task_tmp_patch_map; }
   std::vector<PATask*>& get_pa_task_list() { return _pa_task_list; }
   std::vector<Violation>& get_route_violation_list() { return _route_violation_list; }
   ScaleAxis& get_box_track_axis() { return _box_track_axis; }
@@ -55,8 +55,8 @@ class PABox
   std::vector<PAShadow>& get_layer_shadow_map() { return _layer_shadow_map; }
   std::map<int32_t, std::pair<std::set<int32_t>, std::set<int32_t>>>& get_layer_axis_map() { return _layer_axis_map; }
   std::map<PAPin*, AccessPoint>& get_pin_access_point_map() { return _pin_access_point_map; }
-  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_best_net_task_access_result_map() { return _best_net_task_access_result_map; }
-  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_best_net_task_access_patch_map() { return _best_net_task_access_patch_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_best_net_task_tmp_result_map() { return _best_net_task_tmp_result_map; }
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_best_net_task_tmp_patch_map() { return _best_net_task_tmp_patch_map; }
   std::map<PAPin*, AccessPoint>& get_best_pin_access_point_map() { return _best_pin_access_point_map; }
   std::vector<Violation>& get_best_route_violation_list() { return _best_route_violation_list; }
   // setter
@@ -72,21 +72,21 @@ class PABox
   {
     _net_access_point_map = net_access_point_map;
   }
-  void set_net_pin_access_result_map(const std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& net_pin_access_result_map)
+  void set_net_pin_env_result_map(const std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& net_pin_env_result_map)
   {
-    _net_pin_access_result_map = net_pin_access_result_map;
+    _net_pin_env_result_map = net_pin_env_result_map;
   }
-  void set_net_task_access_result_map(const std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& net_task_access_result_map)
+  void set_net_task_tmp_result_map(const std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& net_task_tmp_result_map)
   {
-    _net_task_access_result_map = net_task_access_result_map;
+    _net_task_tmp_result_map = net_task_tmp_result_map;
   }
-  void set_net_pin_access_patch_map(const std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& net_pin_access_patch_map)
+  void set_net_pin_env_patch_map(const std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& net_pin_env_patch_map)
   {
-    _net_pin_access_patch_map = net_pin_access_patch_map;
+    _net_pin_env_patch_map = net_pin_env_patch_map;
   }
-  void set_net_task_access_patch_map(const std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& net_task_access_patch_map)
+  void set_net_task_tmp_patch_map(const std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& net_task_tmp_patch_map)
   {
-    _net_task_access_patch_map = net_task_access_patch_map;
+    _net_task_tmp_patch_map = net_task_tmp_patch_map;
   }
   void set_pa_task_list(const std::vector<PATask*>& pa_task_list) { _pa_task_list = pa_task_list; }
   void set_route_violation_list(const std::vector<Violation>& route_violation_list) { _route_violation_list = route_violation_list; }
@@ -95,13 +95,13 @@ class PABox
   void set_layer_shadow_map(const std::vector<PAShadow>& layer_shadow_map) { _layer_shadow_map = layer_shadow_map; }
   void set_layer_axis_map(const std::map<int32_t, std::pair<std::set<int32_t>, std::set<int32_t>>>& layer_axis_map) { _layer_axis_map = layer_axis_map; }
   void set_pin_access_point_map(const std::map<PAPin*, AccessPoint>& pin_access_point_map) { _pin_access_point_map = pin_access_point_map; }
-  void set_best_net_task_access_result_map(const std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& best_net_task_access_result_map)
+  void set_best_net_task_tmp_result_map(const std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& best_net_task_tmp_result_map)
   {
-    _best_net_task_access_result_map = best_net_task_access_result_map;
+    _best_net_task_tmp_result_map = best_net_task_tmp_result_map;
   }
-  void set_best_net_task_access_patch_map(const std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& best_net_task_access_patch_map)
+  void set_best_net_task_tmp_patch_map(const std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& best_net_task_tmp_patch_map)
   {
-    _best_net_task_access_patch_map = best_net_task_access_patch_map;
+    _best_net_task_tmp_patch_map = best_net_task_tmp_patch_map;
   }
   void set_best_pin_access_point_map(const std::map<PAPin*, AccessPoint>& best_pin_access_point_map) { _best_pin_access_point_map = best_pin_access_point_map; }
   void set_best_route_violation_list(const std::vector<Violation>& best_route_violation_list) { _best_route_violation_list = best_route_violation_list; }
@@ -158,12 +158,12 @@ class PABox
   bool _initial_routing = true;
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> _net_access_point_map;
-  std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> _net_pin_access_result_map;
-  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_pin_task_access_result_map;
-  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_task_access_result_map;
-  std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>> _net_pin_access_patch_map;
-  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _net_pin_task_access_patch_map;
-  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _net_task_access_patch_map;
+  std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> _net_pin_env_result_map;
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_pin_own_result_map;
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_task_tmp_result_map;
+  std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>> _net_pin_env_patch_map;
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _net_pin_own_patch_map;
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _net_task_tmp_patch_map;
   std::vector<PATask*> _pa_task_list;
   std::vector<Violation> _route_violation_list;
   ScaleAxis _box_track_axis;
@@ -171,8 +171,8 @@ class PABox
   std::vector<PAShadow> _layer_shadow_map;
   std::map<int32_t, std::pair<std::set<int32_t>, std::set<int32_t>>> _layer_axis_map;
   std::map<PAPin*, AccessPoint> _pin_access_point_map;
-  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _best_net_task_access_result_map;
-  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _best_net_task_access_patch_map;
+  std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _best_net_task_tmp_result_map;
+  std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _best_net_task_tmp_patch_map;
   std::map<PAPin*, AccessPoint> _best_pin_access_point_map;
   std::vector<Violation> _best_route_violation_list;
 #if 1  // astar
