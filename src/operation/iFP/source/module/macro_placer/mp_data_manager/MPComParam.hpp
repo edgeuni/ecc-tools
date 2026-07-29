@@ -16,35 +16,28 @@
 // ***************************************************************************************
 #pragma once
 
-#include "LVSHeader.hpp"
-#include "Shape.hpp"
+#include "FPHeader.hpp"
 
-namespace ilvs {
+namespace ifp {
 
-class SupplyRouteShape
+class MPComParam
 {
  public:
-  SupplyRouteShape() = default;
-  ~SupplyRouteShape() = default;
+  MPComParam() = default;
+  ~MPComParam() = default;
   // getter
-  std::string& get_net_name() { return _net_name; }
-  int32_t get_component_id() const { return _component_id; }
-  int32_t get_layer_order() const { return _layer_order; }
-  Shape& get_shape() { return _shape; }
-  // const getter
-  const std::string& get_net_name() const { return _net_name; }
-  const Shape& get_shape() const { return _shape; }
+  double get_placement_halo_micron() const { return _placement_halo_micron; }
+  double get_routing_halo_micron() const { return _routing_halo_micron; }
+
   // setter
-  void set_net_name(const std::string& net_name) { _net_name = net_name; }
-  void set_component_id(const int32_t component_id) { _component_id = component_id; }
-  void set_layer_order(const int32_t layer_order) { _layer_order = layer_order; }
-  void set_shape(const Shape& shape) { _shape = shape; }
+  void set_placement_halo_micron(double placement_halo_micron) { _placement_halo_micron = placement_halo_micron; }
+  void set_routing_halo_micron(double routing_halo_micron) { _routing_halo_micron = routing_halo_micron; }
+
+  // function
 
  private:
-  std::string _net_name;
-  int32_t _component_id = -1;
-  int32_t _layer_order = -1;
-  Shape _shape;
+  double _placement_halo_micron = -1.0;
+  double _routing_halo_micron = -1.0;
 };
 
-}  // namespace ilvs
+}  // namespace ifp

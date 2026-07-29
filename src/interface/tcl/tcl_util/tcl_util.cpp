@@ -48,6 +48,15 @@ void TclUtil::addOption(TclCmd* tcl_ptr, std::string config_name, ValueType type
     case ValueType::kStringList:
       tcl_ptr->addOption(new TclStringListOption(config_name.c_str(), 0));
       break;
+    case ValueType::kStringListList:
+      tcl_ptr->addOption(new TclStringListListOption(config_name.c_str(), 0));
+      break;
+    case ValueType::kStringListListList:
+      tcl_ptr->addOption(new TclStringListListListOption(config_name.c_str(), 0));
+      break;
+    case ValueType::kStringListListListList:
+      tcl_ptr->addOption(new TclStringListListListListOption(config_name.c_str(), 0));
+      break;
     case ValueType::kStringDoubleMap:
       tcl_ptr->addOption(new TclStringListOption(config_name.c_str(), 0));
       break;
@@ -95,6 +104,15 @@ std::any TclUtil::getValue(TclCmd* tcl_ptr, std::string config_name, ValueType t
       break;
     case ValueType::kStringList:
       config_value = option->getStringList();
+      break;
+    case ValueType::kStringListList:
+      config_value = option->getStringListList();
+      break;
+    case ValueType::kStringListListList:
+      config_value = option->getStringListListList();
+      break;
+    case ValueType::kStringListListListList:
+      config_value = option->getStringListListListList();
       break;
     case ValueType::kStringDoubleMap: {
       std::map<std::string, double> string_double_map;
