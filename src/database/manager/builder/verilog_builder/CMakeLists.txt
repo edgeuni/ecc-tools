@@ -23,6 +23,7 @@ target_link_libraries(verilog_builder
         verilog 
         def_service 
         idb
+        ieda_logger
     PUBLIC
         ZLIB::ZLIB
 )

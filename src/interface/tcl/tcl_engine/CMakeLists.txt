@@ -24,11 +24,10 @@ else()
   add_library(tcl SHARED ${SRC})
 endif()
 
-target_link_libraries(tcl PUBLIC ${LINK_tcl} absl::inlined_vector log)
+target_link_libraries(tcl PUBLIC ${LINK_tcl} absl::inlined_vector ieda_logger)
 
 target_include_directories(tcl
     PUBLIC
-        ${HOME_UTILITY}/stdBase/include
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

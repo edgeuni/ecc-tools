@@ -41,22 +41,10 @@
 #define Z_NULL nullptr
 #endif
 
-#include "FlatMap.hh"
-#include "FlatSet.hh"
-#include "BTreeMap.hh"
-#include "BTreeSet.hh"
-#include "Vector.hh"
-#include "log/Log.hh"
-#include "tcl/ScriptEngine.hh"
+#include "Logger.hpp"
+#include "ScriptEngine.hh"
 
 namespace idb {
-using ieda::FlatMap;
-using ieda::FlatSet;
-using ieda::Log;
-using ieda::BTreeMap;
-using ieda::Multimap;
-using ieda::BTreeSet;
-using ieda::Vector;
 
 // slew, delay, arrive time together.
 #define INTEGRATION_FWD 1

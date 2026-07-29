@@ -87,7 +87,7 @@ void testMakeSingleModule(idb::NetlistReader* nr, string topModuleName) {
 #include <zlib.h>
 
 #include "IdbDesign.h"
-#include "log/Log.hh"
+#include "Logger.hpp"
 
 namespace idb {
 
@@ -132,7 +132,7 @@ std::optional<std::string> decompressGzipVerilog(const std::string& gzip_file)
 {
   auto temp_file = createTempVerilogFile();
   if (!temp_file) {
-    LOG_ERROR << "Create temporary verilog file failed for " << gzip_file;
+    IEDALOG.warn(ieda::Loc::current(), "Create temporary verilog file failed for ", gzip_file);
     return std::nullopt;
   }
 
@@ -141,7 +141,7 @@ std::optional<std::string> decompressGzipVerilog(const std::string& gzip_file)
   if (gzip_stream == nullptr) {
     close(temp_fd);
     std::filesystem::remove(temp_path);
-    LOG_ERROR << "Open gzip verilog file failed: " << gzip_file;
+    IEDALOG.warn(ieda::Loc::current(), "Open gzip verilog file failed: ", gzip_file);
     return std::nullopt;
   }
 
@@ -151,24 +151,24 @@ std::optional<std::string> decompressGzipVerilog(const std::string& gzip_file)
   while ((read_size = gzread(gzip_stream, buffer.data(), static_cast<unsigned int>(buffer.size()))) > 0) {
     if (!writeAll(temp_fd, buffer.data(), static_cast<size_t>(read_size))) {
       success = false;
-      LOG_ERROR << "Write temporary verilog file failed: " << temp_path;
+      IEDALOG.warn(ieda::Loc::current(), "Write temporary verilog file failed: ", temp_path);
       break;
     }
   }
 
   if (read_size < 0) {
     success = false;
-    LOG_ERROR << "Read gzip verilog file failed: " << gzip_file;
+    IEDALOG.warn(ieda::Loc::current(), "Read gzip verilog file failed: ", gzip_file);
   }
 
   if (gzclose(gzip_stream) != Z_OK) {
     success = false;
-    LOG_ERROR << "Close gzip verilog file failed: " << gzip_file;
+    IEDALOG.warn(ieda::Loc::current(), "Close gzip verilog file failed: ", gzip_file);
   }
 
   if (close(temp_fd) != 0) {
     success = false;
-    LOG_ERROR << "Close temporary verilog file failed: " << temp_path;
+    IEDALOG.warn(ieda::Loc::current(), "Close temporary verilog file failed: ", temp_path);
   }
 
   if (!success) {
@@ -633,11 +633,11 @@ int32_t RustVerilogRead::build_assign()
               // assign net = input_port;
               idb_design->connectPinToNet(the_right_io_pin, the_left_idb_net);
             } else {
-              LOG_WARNING << "assign " << left_net_name << " = " << right_net_name << " is not processed.";
+              IEDALOG.warn(ieda::Loc::current(), "assign ", left_net_name, " = ", right_net_name, " is not processed.");
               bool has_b0 = (right_net_name.find("1'b0") != std::string::npos);
               bool has_b1 = (right_net_name.find("1'b1") != std::string::npos);
               if (has_b0 || has_b1) {
-                LOG_ERROR << "constant net should connect to tie cell.";
+                IEDALOG.warn(ieda::Loc::current(), "constant net should connect to tie cell.");
               }
             }
           } else if (the_right_idb_net) {
@@ -645,7 +645,7 @@ int32_t RustVerilogRead::build_assign()
                // assign output_port = net;
               idb_design->connectPinToNet(the_left_io_pin, the_right_idb_net);
             } else {
-              LOG_WARNING << "assign " << left_net_name << " = " << right_net_name << " is not processed.";
+              IEDALOG.warn(ieda::Loc::current(), "assign ", left_net_name, " = ", right_net_name, " is not processed.");
             }
           } else if (!the_left_idb_net && !the_right_idb_net && the_right_io_pin) {
             // assign output_port = input_port;
@@ -662,10 +662,10 @@ int32_t RustVerilogRead::build_assign()
             if (the_left_io_pin && the_left_io_pin->is_io_pin()) {
               idb_design->connectPinToNet(the_left_io_pin, idb_net);
             } else {
-              LOG_WARNING << "assign " << left_net_name << " = " << right_net_name << " is not processed.";
+              IEDALOG.warn(ieda::Loc::current(), "assign ", left_net_name, " = ", right_net_name, " is not processed.");
             }
           } else {
-            LOG_WARNING << "assign " << left_net_name << " = " << right_net_name << " is not processed.";
+            IEDALOG.warn(ieda::Loc::current(), "assign ", left_net_name, " = ", right_net_name, " is not processed.");
           }
         };
 
@@ -715,7 +715,7 @@ int32_t RustVerilogRead::build_assign()
             id_net_name = slice_net_id->base_id;
             base_id_index = slice_net_id->range_base;
           } else {
-            LOG_FATAL << "left net id should be id or bus slice id";
+            IEDALOG.error(ieda::Loc::current(), "left net id should be id or bus slice id");
           }
 
           auto verilog_id_concat = rust_convert_verilog_net_concat_expr(concat_net_expr)->verilog_id_concat;
@@ -832,7 +832,7 @@ int32_t RustVerilogRead::build_assign()
         }
 
       } else {
-        LOG_FATAL << "assign declaration's lhs/rhs is not VerilogNetIDExpr class.";
+        IEDALOG.error(ieda::Loc::current(), "assign declaration's lhs/rhs is not VerilogNetIDExpr class.");
       }
     }
   }
@@ -980,12 +980,12 @@ int32_t RustVerilogRead::build_components()
 
       auto* cell_master = idb_master_list->find_cell_master(cell_master_name);
       if (cell_master == nullptr) {
-        LOG_ERROR << "Error : can not find cell master = " << cell_master_name;
+        IEDALOG.warn(ieda::Loc::current(), "Error : can not find cell master = ", cell_master_name);
         continue;
       }
       IdbInstance* idb_instance = idb_design->createInstance(inst_name, cell_master->get_name());
       if (idb_instance == nullptr) {
-        LOG_ERROR << "Error : can not create instance = " << inst_name;
+        IEDALOG.warn(ieda::Loc::current(), "Error : can not create instance = ", inst_name);
         continue;
       }
 

@@ -30,6 +30,7 @@
   #include <tcl.h>
 #endif
 
+#include <cassert>
 #include <cstdlib>
 #include <map>
 #include <memory>
@@ -38,8 +39,8 @@
 #include <string>
 #include <vector>
 
-#include "Vector.hh"
-#include "log/Log.hh"
+#include "absl/container/inlined_vector.h"
+#include "Logger.hpp"
 
 namespace ieda {
 
@@ -108,121 +109,121 @@ class TclOption
 
   virtual double getDoubleVal()
   {
-    LOG_FATAL << "The option do not has float val.";
+    IEDALOG.error(Loc::current(), "The option do not has float val.");
     return 0.0;
   }
 
   virtual double getDefaultDoubleVal()
   {
-    LOG_FATAL << "The option do not has float val.";
+    IEDALOG.error(Loc::current(), "The option do not has float val.");
     return 0.0;
   }
 
   virtual const char* getStringVal()
   {
-    LOG_FATAL << "The option do not has string val";
+    IEDALOG.error(Loc::current(), "The option do not has string val");
     return nullptr;
   }
 
   virtual const char* getDefaultStringVal()
   {
-    LOG_FATAL << "The option do not has string val.";
+    IEDALOG.error(Loc::current(), "The option do not has string val.");
     return nullptr;
   }
 
   virtual bool getSwitchVal()
   {
-    LOG_FATAL << "The option do not has switch val.";
+    IEDALOG.error(Loc::current(), "The option do not has switch val.");
     return 0;
   }
 
   virtual int getIntVal()
   {
-    LOG_FATAL << "The option do not has int val.";
+    IEDALOG.error(Loc::current(), "The option do not has int val.");
     return 0;
   }
 
   virtual int getDefaultIntVal()
   {
-    LOG_FATAL << "The option do not has int val.";
+    IEDALOG.error(Loc::current(), "The option do not has int val.");
     return 0;
   }
 
   virtual std::vector<int> getIntList()
   {
-    LOG_FATAL << "The option do not has int list.";
+    IEDALOG.error(Loc::current(), "The option do not has int list.");
     return {};
   }
 
   virtual std::vector<int> getDefaultIntList()
   {
-    LOG_FATAL << "The option do not has int list.";
+    IEDALOG.error(Loc::current(), "The option do not has int list.");
     return {};
   }
 
   virtual std::vector<double> getDoubleList()
   {
-    LOG_FATAL << "The option do not has double list.";
+    IEDALOG.error(Loc::current(), "The option do not has double list.");
     return {};
   }
 
   virtual std::vector<double> getDefaultDoubleList()
   {
-    LOG_FATAL << "The option do not has double list.";
+    IEDALOG.error(Loc::current(), "The option do not has double list.");
     return {};
   }
 
   virtual std::vector<std::string> getStringList()
   {
-    LOG_FATAL << "The option do not has string list.";
+    IEDALOG.error(Loc::current(), "The option do not has string list.");
     return {};
   }
 
   virtual std::vector<std::string> getDefaultStringList()
   {
-    LOG_FATAL << "The option do not has string list.";
+    IEDALOG.error(Loc::current(), "The option do not has string list.");
     return {};
   }
 
   virtual std::vector<std::vector<std::string>> getStringListList()
   {
-    LOG_FATAL << "The option do not has string list list.";
+    IEDALOG.error(Loc::current(), "The option do not has string list list.");
     return {};
   }
 
   virtual std::vector<std::vector<std::string>> getDefaultStringListList()
   {
-    LOG_FATAL << "The option do not has string list list.";
+    IEDALOG.error(Loc::current(), "The option do not has string list list.");
     return {};
   }
 
   virtual std::vector<std::vector<std::vector<std::string>>> getStringListListList()
   {
-    LOG_FATAL << "The option do not has string list list list.";
+    IEDALOG.error(Loc::current(), "The option do not has string list list list.");
     return {};
   }
 
   virtual std::vector<std::vector<std::vector<std::string>>> getDefaultStringListListList()
   {
-    LOG_FATAL << "The option do not has string list list list.";
+    IEDALOG.error(Loc::current(), "The option do not has string list list list.");
     return {};
   }
 
   virtual std::vector<std::vector<std::vector<std::vector<std::string>>>> getStringListListListList()
   {
-    LOG_FATAL << "The option do not has string list list list list.";
+    IEDALOG.error(Loc::current(), "The option do not has string list list list list.");
     return {};
   }
 
   virtual std::vector<std::vector<std::vector<std::vector<std::string>>>> getDefaultStringListListListList()
   {
-    LOG_FATAL << "The option do not has string list list list list.";
+    IEDALOG.error(Loc::current(), "The option do not has string list list list list.");
     return {};
   }
 
-  virtual void setVal(const char* /*val*/) { LOG_FATAL << "The option can not set float val."; }
+  virtual void setVal(const char* /*val*/) { IEDALOG.error(Loc::current(), "The option can not set float val."); }
 
-  virtual void resetVal() { LOG_FATAL << "The option has not reset value."; }
+  virtual void resetVal() { IEDALOG.error(Loc::current(), "The option has not reset value."); }
 
   unsigned is_set_val() { return _is_set_val; }
 
@@ -235,6 +236,8 @@ class TclOption
   std::string _option_name;
   unsigned _is_arg;
 };
+
+void checkTclOption(TclOption* option, const char* option_name, Loc location = Loc::current());
 
 /**
  * @brief The tcl switch option.
@@ -564,18 +567,18 @@ class TclCmd
   void resetOptionArgValue();
 
   virtual unsigned printHelp() {
-    LOG_FATAL << "This cmd has not define print help body.";
+    IEDALOG.error(Loc::current(), "This cmd has not define print help body.");
     return 0;
   }
 
   virtual unsigned check()
   {
-    LOG_FATAL << "This cmd has not define check body.";
+    IEDALOG.error(Loc::current(), "This cmd has not define check body.");
     return 0;
   }
   virtual unsigned exec()
   {
-    LOG_FATAL << "This cmd has not define exe body.";
+    IEDALOG.error(Loc::current(), "This cmd has not define exe body.");
     return 0;
   }
 
@@ -587,7 +590,7 @@ class TclCmd
     for (auto it = _options.begin(); it != _options.end(); ++it) {
       if (matchWildcardWithtarget(option_name, it->second.get()->get_option_name())) {
         if (++match_times > 1) {
-          LOG_ERROR << "invalid option wildcard(s), multiple options matched.";
+          IEDALOG.warn(Loc::current(), "invalid option wildcard(s), multiple options matched.");
           assert(0);
         }
         res = it;
@@ -597,7 +600,7 @@ class TclCmd
   }
   std::string _cmd_name;
   std::map<std::string, std::unique_ptr<TclOption>> _options;  //!< The tcl option do not need keep order.
-  Vector<TclOption*> _args;                     //!< The tcl arg need keep order.
+  absl::InlinedVector<TclOption*, 64> _args;  //!< The tcl arg need keep order.
 };
 
 /**

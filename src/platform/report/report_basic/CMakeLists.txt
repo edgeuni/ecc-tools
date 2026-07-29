@@ -5,7 +5,6 @@ add_library(report_basic
 target_link_libraries(report_basic 
     PUBLIC
         report_table
-        log
         idm
         tool_manager
         def_service

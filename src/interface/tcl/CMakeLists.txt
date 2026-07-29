@@ -1,3 +1,4 @@
+add_subdirectory(tcl_engine)
 add_subdirectory(tcl_util)
 add_subdirectory(tcl_config)
 add_subdirectory(tcl_idb)
@@ -43,7 +44,7 @@ target_include_directories(ieda_tcl
     PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}
 
-    ${HOME_UTILITY}/tcl
+    ${CMAKE_CURRENT_SOURCE_DIR}/tcl_engine
 
     ${HOME_PLATFORM}/flow
     ${HOME_PLATFORM}/data_manager

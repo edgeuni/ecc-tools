@@ -12,7 +12,6 @@ TARGET_INCLUDE_DIRECTORIES(aocv-parser
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${HOME_UTILITY}
-        ${HOME_UTILITY}/stdBase/include
 )
 
-TARGET_LINK_LIBRARIES(aocv-parser PUBLIC absl::btree)
+TARGET_LINK_LIBRARIES(aocv-parser PUBLIC absl::btree ieda_logger tcl)

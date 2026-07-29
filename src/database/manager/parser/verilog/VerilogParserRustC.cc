@@ -26,7 +26,7 @@
 
 #include <string_view>
 
-#include "log/Log.hh"
+#include "Logger.hpp"
 
 namespace idb {
 
@@ -39,7 +39,7 @@ namespace idb {
 unsigned RustVerilogReader::readVerilog(const char* verilog_file_path)
 {
   unsigned is_ok = 1;
-  LOG_INFO << "load verilog file " << verilog_file_path;
+  IEDALOG.info(ieda::Loc::current(), "load verilog file ", verilog_file_path);
   _verilog_file_ptr = rust_parse_verilog(verilog_file_path);
 
   if (_verilog_file_ptr) {
@@ -65,7 +65,7 @@ unsigned RustVerilogReader::readVerilog(const char* verilog_file_path)
  */
 bool RustVerilogReader::autoTopModule()
 {
-  LOG_INFO << "auto set top module ";
+  IEDALOG.info(ieda::Loc::current(), "auto set top module ");
   if (_verilog_file_ptr == nullptr)
     return false;
   RustVerilogFile* rust_verilog_file = rust_convert_verilog_file(_verilog_file_ptr);

@@ -156,6 +156,13 @@ TclOption::TclOption(const char* option_name, unsigned is_arg) : _option_name(op
 
 TclOption::~TclOption() = default;
 
+void checkTclOption(TclOption* option, const char* option_name, Loc location)
+{
+  if (option == nullptr) {
+    IEDALOG.error(location, "The Tcl option '", option_name, "' is null.");
+  }
+}
+
 std::vector<std::string> TclOption::splitList(const char* val)
 {
   int value_count = 0;
@@ -407,7 +414,7 @@ int CmdProc(ClientData clientData, Tcl_Interp* interp, int objc, struct Tcl_Obj*
         TclOption* arg = cmd->getArg(arg_index);
         ++arg_index;
         if (!arg) {
-          LOG_ERROR << "The cmd " << cmd->get_cmd_name() << " syntax has error.";
+          IEDALOG.warn(Loc::current(), "The cmd ", cmd->get_cmd_name(), " syntax has error.");
           return TCL_ERROR;
         }
 
@@ -420,7 +427,7 @@ int CmdProc(ClientData clientData, Tcl_Interp* interp, int objc, struct Tcl_Obj*
   }
 
   if (next_is_option_val) {
-    LOG_ERROR << "The cmd syntax has error " << curr_option->get_option_name() << " need val.";
+    IEDALOG.warn(Loc::current(), "The cmd syntax has error ", curr_option->get_option_name(), " need val.");
   }
 
   unsigned result = cmd->exec();

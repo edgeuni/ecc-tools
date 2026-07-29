@@ -25,7 +25,7 @@
 #pragma once
 #include <iostream>
 
-#include "tcl/ScriptEngine.hh"
+#include "ScriptEngine.hh"
 
 namespace ieda {
 /**

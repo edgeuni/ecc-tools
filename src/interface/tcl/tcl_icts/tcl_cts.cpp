@@ -31,9 +31,9 @@ CmdCTSAutoRun::CmdCTSAutoRun(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdCTSAutoRun::check()
 {
   TclOption* file_name_option = getOptionOrArg(TCL_CONFIG);
-  LOG_FATAL_IF(!file_name_option);
+  ieda::checkTclOption(file_name_option, TCL_CONFIG);
   TclOption* dir_name_option = getOptionOrArg(TCL_WORK_DIR);
-  LOG_FATAL_IF(!dir_name_option);
+  ieda::checkTclOption(dir_name_option, TCL_WORK_DIR);
   return 1;
 }
 
@@ -55,9 +55,11 @@ unsigned CmdCTSAutoRun::exec()
     cts_status = CTS_API_INST.runCTS(config_path, dir_path);
   }
 
-  LOG_FATAL_IF(!cts_status.ok()) << "iCTS run failed: " << cts_status.message << std::endl;
+  if (!cts_status.ok()) {
+    IEDALOG.error(ieda::Loc::current(), "iCTS run failed: ", cts_status.message);
+  }
 
-  LOG_INFO << "iCTS run successfully." << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "iCTS run successfully.");
   return 1;
 }
 
@@ -75,10 +77,10 @@ CmdCTSReport::CmdCTSReport(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdCTSReport::check()
 {
   TclOption* option = getOptionOrArg(TCL_NAME);
-  LOG_FATAL_IF(!option);
+  ieda::checkTclOption(option, TCL_NAME);
 
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   return 1;
 }
 
@@ -94,7 +96,7 @@ unsigned CmdCTSReport::exec()
     if (CTS_API_INST.report(name).ok()) {
       return 1;
     }
-    LOG_FATAL << "iCTS report failed." << std::endl;
+    IEDALOG.error(ieda::Loc::current(), "iCTS report failed.");
   }
 
   TclOption* def_path = getOptionOrArg(TCL_PATH);
@@ -103,7 +105,7 @@ unsigned CmdCTSReport::exec()
     if (CTS_API_INST.report(str_path).ok()) {
       return 1;
     }
-    LOG_FATAL << "iCTS report failed." << std::endl;
+    IEDALOG.error(ieda::Loc::current(), "iCTS report failed.");
   }
 
   return 1;

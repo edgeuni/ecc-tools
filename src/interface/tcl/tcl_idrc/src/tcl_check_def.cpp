@@ -47,8 +47,8 @@ unsigned CmdDRCAutoRun::check()
 {
   TclOption* file_name_option = getOptionOrArg(TCL_CONFIG);
   TclOption* file_path_option = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!file_name_option);
-  LOG_FATAL_IF(!file_path_option);
+  ieda::checkTclOption(file_name_option, TCL_CONFIG);
+  ieda::checkTclOption(file_path_option, TCL_PATH);
   return 1;
 }
 
@@ -77,7 +77,7 @@ CmdDRCSaveDetailFile::CmdDRCSaveDetailFile(const char* cmd_name) : TclCmd(cmd_na
 unsigned CmdDRCSaveDetailFile::check()
 {
   TclOption* file_path_option = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!file_path_option);
+  ieda::checkTclOption(file_path_option, TCL_PATH);
   return 1;
 }
 

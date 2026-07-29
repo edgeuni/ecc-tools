@@ -279,7 +279,8 @@ bool LibClassifyCell::compareFunction(LibCell* the_cell1, LibCell* the_cell2)
  * @param the_lib
  * @param hash_to_cells
  */
-void LibClassifyCell::classifyOneLibCell(LibLibrary* the_lib, std::unordered_map<u_int64_t, Vector<LibCell*>>& hash_to_cells)
+void LibClassifyCell::classifyOneLibCell(LibLibrary* the_lib,
+                                         std::unordered_map<std::size_t, absl::InlinedVector<LibCell*, 64>>& hash_to_cells)
 {
   LibCell* cell;
   FOREACH_LIB_CELL(the_lib, cell)
@@ -310,7 +311,7 @@ void LibClassifyCell::classifyOneLibCell(LibLibrary* the_lib, std::unordered_map
  */
 void LibClassifyCell::classifyLibCell(std::vector<LibLibrary*>& the_libs)
 {
-  std::unordered_map<std::size_t, Vector<LibCell*>> hash_to_cells;
+  std::unordered_map<std::size_t, absl::InlinedVector<LibCell*, 64>> hash_to_cells;
   for (auto* the_lib : the_libs) {
     classifyOneLibCell(the_lib, hash_to_cells);
   }

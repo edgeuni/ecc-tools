@@ -135,14 +135,14 @@ bool TclUtil::alterJsonConfig(std::string json_path, std::map<std::string, std::
 {
   ordered_json config;
   if(json_path.empty()){
-    LOG_ERROR << "Failed: There is no json_path to be found.";
+    IEDALOG.warn(ieda::Loc::current(), "Failed: There is no json_path to be found.");
     return 0;
   }
 
   // 从json_path先读入json
   std::ifstream file(json_path);
   if (!file.is_open()) {
-    LOG_ERROR << "Failed to open JSON file for reading.";
+    IEDALOG.warn(ieda::Loc::current(), "Failed to open JSON file for reading.");
     return 0;
   }
   file >> config;
@@ -168,7 +168,7 @@ bool TclUtil::alterJsonConfig(std::string json_path, std::map<std::string, std::
 
   std::ofstream ofs(json_path);
   if (!ofs.is_open()) {
-    LOG_ERROR << "Failed to open JSON file for writing.";
+    IEDALOG.warn(ieda::Loc::current(), "Failed to open JSON file for writing.");
     return 0;
   }
   ofs << std::setw(4) << config;

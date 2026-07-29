@@ -431,7 +431,9 @@ void writeDelayTable(FILE* stream, LibLibrary* lib, const char* table_name,
   }
 
   auto& table_values = table->get_table_values();
-  LOG_FATAL_IF(table_values.size() > 1);
+  if (table_values.size() > 1) {
+    IEDALOG.error(ieda::Loc::current(), "Liberty scalar table has more than one value.");
+  }
   auto float_value
       = dynamic_cast<LibFloatValue*>(table_values.front().get())->getFloatValue();
   fprintf(stream, "                        %s(scalar) {\n", table_name);
@@ -462,7 +464,9 @@ void writeCheckTable(FILE* stream, LibLibrary* lib, const char* table_name,
   }
 
   auto& table_values = table->get_table_values();
-  LOG_FATAL_IF(table_values.size() > 1);
+  if (table_values.size() > 1) {
+    IEDALOG.error(ieda::Loc::current(), "Liberty scalar table has more than one value.");
+  }
   auto float_value
       = dynamic_cast<LibFloatValue*>(table_values.front().get())->getFloatValue();
   fprintf(stream, "                       %s(scalar) {\n", table_name);
@@ -813,11 +817,11 @@ void LibLibrary::printLibertyLibrary(const char* lib_file_name)
 {
   FILE* stream = std::fopen(lib_file_name, "w");
   if (!stream) {
-    LOG_ERROR << "File " << lib_file_name << " NotWritable";
+    IEDALOG.warn(ieda::Loc::current(), "File ", lib_file_name, " NotWritable");
     return;
   }
 
-  LOG_INFO << "start write liberty file " << lib_file_name;
+  IEDALOG.info(ieda::Loc::current(), "start write liberty file ", lib_file_name);
 
   fprintf(stream, "library (%s) {\n", get_lib_name().c_str());
 
@@ -900,7 +904,7 @@ void LibLibrary::printLibertyLibrary(const char* lib_file_name)
   }
   fprintf(stream, "}\n");
 
-  LOG_INFO << "finish write liberty file " << lib_file_name;
+  IEDALOG.info(ieda::Loc::current(), "finish write liberty file ", lib_file_name);
   std::fclose(stream);
 }
 
@@ -926,12 +930,12 @@ void LibLibrary::printLibertyLibraryJson(const char* json_file_name)
 
   std::ofstream json_file(json_file_name);
   if (json_file.is_open()) {
-    LOG_INFO << "start write liberty into json file: " << json_file_name;
+    IEDALOG.info(ieda::Loc::current(), "start write liberty into json file: ", json_file_name);
     json_file << json_data.dump(1);
     json_file.close();
-    LOG_INFO << "success write liberty into json file: " << json_file_name;
+    IEDALOG.info(ieda::Loc::current(), "success write liberty into json file: ", json_file_name);
   } else {
-    LOG_INFO << "fail write liberty into json file: " << json_file_name;
+    IEDALOG.info(ieda::Loc::current(), "fail write liberty into json file: ", json_file_name);
   }
 }
 

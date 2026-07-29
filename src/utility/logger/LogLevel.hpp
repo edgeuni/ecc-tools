@@ -16,23 +16,14 @@
 // ***************************************************************************************
 #pragma once
 
-#include "../../tcl_definition.h"
-#include "report_manager.h"
-#include "ScriptEngine.hh"
+namespace ieda {
 
-namespace tcl {
-
-using ieda::TclCmd;
-using ieda::TclOption;
-using ieda::TclStringOption;
-
-class CmdReportRoute : public TclCmd
+enum class LogLevel
 {
- public:
-  explicit CmdReportRoute(const char* cmd_name);
-  ~CmdReportRoute() override = default;
-
-  unsigned check() override { return 1; };
-  unsigned exec() override;
+  kNone = 0,
+  kInfo = 1,
+  kWarn = 2,
+  kError = 3
 };
-}  // namespace tcl
+
+}  // namespace ieda

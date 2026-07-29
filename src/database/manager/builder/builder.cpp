@@ -43,7 +43,7 @@
 #include "design_write.h"
 #include "layout_read.h"
 #include "layout_write.h"
-#include "log/Log.hh"
+#include "Logger.hpp"
 
 using std::cout;
 using std::endl;
@@ -164,7 +164,7 @@ IdbDefService* IdbBuilder::buildDef(string file)
 
   std::shared_ptr<DefRead> def_read = std::make_shared<DefRead>(_def_service);
   if (const auto ret = def_read->createDb(file.c_str()); !ret) {
-    LOG_FATAL << "Def file read failed..." << endl;
+    IEDALOG.error(ieda::Loc::current(), "Def file read failed...");
   }
 
   buildNet();
@@ -193,7 +193,7 @@ IdbDefService* IdbBuilder::buildDefGzip(string gzip_file)
 
   std::shared_ptr<DefRead> def_read = std::make_shared<DefRead>(_def_service);
   if (const auto ret = def_read->createDbGzip(gzip_file.c_str()); !ret) {
-    LOG_FATAL << "Def file read failed..." << endl;
+    IEDALOG.error(ieda::Loc::current(), "Def file read failed...");
   }
 
   buildNet();

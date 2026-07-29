@@ -25,6 +25,7 @@
 #include "Lib.hh"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -188,7 +189,7 @@ LibTable& LibTable::operator=(LibTable&& rhs) noexcept
  * @Brief : get axes or template axes.
  * @return auto&
  */
-Vector<std::unique_ptr<LibAxis>>& LibTable::get_axes()
+absl::InlinedVector<std::unique_ptr<LibAxis>, 64>& LibTable::get_axes()
 {
   if (_axes.empty()) {
     LibLutTableTemplate* table_template = get_table_template();
@@ -232,8 +233,10 @@ double LibTable::findValue(double slew, double constrain_slew_or_load)
     // power
     case LibLutTableTemplate::Variable::INPUT_TRANSITION_TIME:
       if (auto variable2 = table_template->get_template_variable2(); variable2) {
-        LOG_FATAL_IF(*variable2 != LibLutTableTemplate::Variable::TOTAL_OUTPUT_NET_CAPACITANCE
-                     && *variable2 != LibLutTableTemplate::Variable::CONSTRAINED_PIN_TRANSITION);
+        if (*variable2 != LibLutTableTemplate::Variable::TOTAL_OUTPUT_NET_CAPACITANCE
+            && *variable2 != LibLutTableTemplate::Variable::CONSTRAINED_PIN_TRANSITION) {
+          IEDALOG.error(ieda::Loc::current(), "Invalid liberty delay table variable.");
+        }
       }
 
       val1 = slew;
@@ -243,9 +246,11 @@ double LibTable::findValue(double slew, double constrain_slew_or_load)
     case LibLutTableTemplate::Variable::TOTAL_OUTPUT_NET_CAPACITANCE:
     case LibLutTableTemplate::Variable::CONSTRAINED_PIN_TRANSITION:
       if (auto variable2 = table_template->get_template_variable2(); variable2) {
-        LOG_FATAL_IF(*variable2 != LibLutTableTemplate::Variable::INPUT_NET_TRANSITION
-                     && *variable2 != LibLutTableTemplate::Variable::RELATED_PIN_TRANSITION
-                     && *variable2 != LibLutTableTemplate::Variable::INPUT_TRANSITION_TIME);
+        if (*variable2 != LibLutTableTemplate::Variable::INPUT_NET_TRANSITION
+            && *variable2 != LibLutTableTemplate::Variable::RELATED_PIN_TRANSITION
+            && *variable2 != LibLutTableTemplate::Variable::INPUT_TRANSITION_TIME) {
+          IEDALOG.error(ieda::Loc::current(), "Invalid liberty delay table variable.");
+        }
       }
 
       val1 = constrain_slew_or_load;
@@ -253,7 +258,7 @@ double LibTable::findValue(double slew, double constrain_slew_or_load)
       break;
 
     default:
-      LOG_FATAL << "lut table " << get_file_name() << " " << get_line_no() << " invalid delay lut template variable";
+      IEDALOG.error(ieda::Loc::current(), "lut table ", get_file_name(), " ", get_line_no(), " invalid delay lut template variable");
       break;
   }
 
@@ -265,8 +270,11 @@ double LibTable::findValue(double slew, double constrain_slew_or_load)
     auto max_val = getAxis(axis_index)[num_val - 1];
 
     if (!Lib::isSilentOutput() && ((val < min_val) || (val > max_val))) {
-      LOG_ERROR_FIRST_N(10) << "Warning: val outside table ranges:  "
-                            << "val = " << val << "; min_val = " << min_val << "; max_val = " << max_val << std::endl;
+      static std::atomic<int32_t> warning_count = 0;
+      if (warning_count.fetch_add(1, std::memory_order_relaxed) < 10) {
+        IEDALOG.warn(ieda::Loc::current(), "Warning: val outside table ranges: val = ", val, "; min_val = ", min_val,
+                     "; max_val = ", max_val);
+      }
     }
     return num_val;
   };
@@ -297,7 +305,9 @@ double LibTable::findValue(double slew, double constrain_slew_or_load)
 
   auto get_table_value = [this](auto index) -> double {
     auto& table_values = get_table_values();
-    LOG_FATAL_IF(index >= table_values.size()) << "index " << index << " beyond table value size " << table_values.size();
+    if (index >= table_values.size()) {
+      IEDALOG.error(ieda::Loc::current(), "index ", index, " beyond table value size ", table_values.size());
+    }
     return table_values[index]->getFloatValue();
   };
 
@@ -431,7 +441,9 @@ std::vector<double> LibVectorTable::getOutputCurrent(std::optional<LibCurrentSim
       }
       ++start_index;
     }
-    LOG_FATAL_IF(start_index >= axis_size) << "start index beyond axis size.";
+    if (start_index >= axis_size) {
+      IEDALOG.error(ieda::Loc::current(), "start index beyond axis size.");
+    }
     return start_index;
   };
 
@@ -455,7 +467,9 @@ std::vector<double> LibVectorTable::getOutputCurrent(std::optional<LibCurrentSim
     output_currents.push_back(output_current);
   }
 
-  LOG_FATAL_IF(simu_info->_num_sim_point != output_currents.size()) << "output currents size is not equal sim point num.";
+  if (simu_info->_num_sim_point != output_currents.size()) {
+    IEDALOG.error(ieda::Loc::current(), "output currents size is not equal sim point num.");
+  }
 
   return output_currents;
 }
@@ -473,7 +487,7 @@ LibCurrentData::LibCurrentData(LibVectorTable* low_low, LibVectorTable* low_high
  */
 std::tuple<double, int> LibCurrentData::getSimulationTotalTimeAndNumPoints()
 {
-  BTreeMap<double, int> total_simulation_times;
+  absl::btree_map<double, int> total_simulation_times;
 
   for (auto* table : {_low_low, _low_high, _high_low, _high_high}) {
     auto [total_time, num_point] = table->getSimulationTotalTimeAndNumPoints();
@@ -1031,13 +1045,13 @@ LibLeakagePower& LibLeakagePower::operator=(LibLeakagePower&& rhs) noexcept
   return *this;
 }
 
-BTreeMap<std::string, LibArc::TimingType> LibArc::_str_to_type = {{"setup_rising", TimingType::kSetupRising},
-                                                                  {"hold_rising", TimingType::kHoldRising},
-                                                                  {"recovery_rising", TimingType::kRecoveryRising},
-                                                                  {"removal_rising", TimingType::kRemovalRising},
-                                                                  {"rising_edge", TimingType::kRisingEdge},
-                                                                  {"preset", TimingType::kPreset},
-                                                                  {"clear", TimingType::kClear},
+absl::btree_map<std::string, LibArc::TimingType> LibArc::_str_to_type = {{"setup_rising", TimingType::kSetupRising},
+                                                                          {"hold_rising", TimingType::kHoldRising},
+                                                                          {"recovery_rising", TimingType::kRecoveryRising},
+                                                                          {"removal_rising", TimingType::kRemovalRising},
+                                                                          {"rising_edge", TimingType::kRisingEdge},
+                                                                          {"preset", TimingType::kPreset},
+                                                                          {"clear", TimingType::kClear},
                                                                   {"three_state_enable", TimingType::kThreeStateEnable},
                                                                   {"three_state_enable_rise", TimingType::kThreeStateEnableRise},
                                                                   {"three_state_enable_fall", TimingType::kThreeStateEnableFall},
@@ -1213,9 +1227,13 @@ unsigned LibArc::isClockGateCheckArc()
   const char* src_port_name = this->get_src_port();
   const char* snk_port_name = this->get_snk_port();
   auto* src_port = _owner_cell->get_cell_port_or_port_bus(src_port_name);
-  LOG_FATAL_IF(!src_port) << "src port " << src_port_name << " is not found.";
+  if (!src_port) {
+    IEDALOG.error(ieda::Loc::current(), "src port ", src_port_name, " is not found.");
+  }
   auto* snk_port = _owner_cell->get_cell_port_or_port_bus(snk_port_name);
-  LOG_FATAL_IF(!snk_port) << "snk port " << snk_port_name << " is not found.";
+  if (!snk_port) {
+    IEDALOG.error(ieda::Loc::current(), "snk port ", snk_port_name, " is not found.");
+  }
 
   return (_owner_cell->get_is_clock_gating_integrated_cell() && src_port->get_clock_gate_clock_pin()
           && snk_port->get_clock_gate_enable_pin());
@@ -1261,16 +1279,13 @@ double LibArc::getDelayOrConstrainCheckNs(TransType trans_type, double slew, dou
       const char* src_port = get_src_port();
       const char* snk_port = get_snk_port();
       if (libCheckTraceMatchesFilter(cell_name, src_port, snk_port)) {
-        LOG_INFO_FIRST_N(40)
-            << "[lib_check_lookup] cell=" << cell_name << " arc=" << src_port
-            << "->" << snk_port << " trans="
-            << (trans_type == TransType::kRise ? "rise" : "fall")
-            << " raw_arg1=" << slew << " raw_arg2="
-            << load_or_constrain_slew << " converted_arg1=" << arg1
-            << " converted_arg2=" << arg2 << " liberty_time_unit="
-            << (liberty_time_unit == TimeUnit::kPS
-                    ? "ps"
-                    : (liberty_time_unit == TimeUnit::kFS ? "fs" : "ns"));
+        static std::atomic<int32_t> trace_count = 0;
+        if (trace_count.fetch_add(1, std::memory_order_relaxed) < 40) {
+          IEDALOG.info(ieda::Loc::current(), "[lib_check_lookup] cell=", cell_name, " arc=", src_port, "->", snk_port,
+                       " trans=", (trans_type == TransType::kRise ? "rise" : "fall"), " raw_arg1=", slew, " raw_arg2=",
+                       load_or_constrain_slew, " converted_arg1=", arg1, " converted_arg2=", arg2, " liberty_time_unit=",
+                       (liberty_time_unit == TimeUnit::kPS ? "ps" : (liberty_time_unit == TimeUnit::kFS ? "fs" : "ns")));
+        }
       }
     }
     found_delay = _table_model->gateCheckConstrain(trans_type, arg1, arg2);
@@ -1340,7 +1355,7 @@ double LibArc::getDelaySigma(AnalysisMode mode, TransType trans_type, double sle
 double LibArc::getSlewNs(TransType trans_type, double slew, double load)
 {
   if (!isDelayArc()) {
-    LOG_FATAL << "check arc has not output slew.";
+    IEDALOG.error(ieda::Loc::current(), "check arc has not output slew.");
   }
 
   // set/get time units in liberty
@@ -1381,7 +1396,7 @@ double LibArc::getSlewNs(TransType trans_type, double slew, double load)
 double LibArc::getSlewSigma(AnalysisMode mode, TransType trans_type, double slew, double load)
 {
   if (!isDelayArc()) {
-    LOG_FATAL << "check arc has not output slew.";
+    IEDALOG.error(ieda::Loc::current(), "check arc has not output slew.");
   }
 
   // set/get time units in liberty
@@ -1423,7 +1438,7 @@ double LibArc::getSlewSigma(AnalysisMode mode, TransType trans_type, double slew
 std::unique_ptr<LibCurrentData> LibArc::getOutputCurrent(TransType trans_type, double slew, double load)
 {
   if (!isDelayArc()) {
-    LOG_FATAL << "check arc has not output current.";
+    IEDALOG.error(ieda::Loc::current(), "check arc has not output current.");
   }
   auto current_data = _table_model->gateOutputCurrent(trans_type, slew, load);
   return current_data;
@@ -1486,7 +1501,9 @@ std::vector<double> LibArcSet::getDelayOrConstrainCheckNs(TransType input_trans_
   // sort by descending.
   std::ranges::sort(values, std::greater<double>());
 
-  LOG_FATAL_IF(values.empty()) << "No arc found for find table value.";
+  if (values.empty()) {
+    IEDALOG.error(ieda::Loc::current(), "No arc found for find table value.");
+  }
 
   return values;
 }
@@ -1530,7 +1547,9 @@ std::vector<double> LibArcSet::getSlewNs(TransType input_trans_type, TransType o
   // sort by descending.
   std::ranges::sort(values, std::greater<double>());
 
-  LOG_FATAL_IF(values.empty()) << "No arc found for find table value.";
+  if (values.empty()) {
+    IEDALOG.error(ieda::Loc::current(), "No arc found for find table value.");
+  }
 
   return values;
 }
@@ -2094,7 +2113,9 @@ LibertyReader Lib::loadLibertyWithCppParser(const char* file_name)
 
   LibertyReader liberty_reader(file_name);
   unsigned is_success = liberty_reader.readLib();
-  LOG_FATAL_IF(!is_success) << "read lib " << file_name << " failed.";
+  if (!is_success) {
+    IEDALOG.error(ieda::Loc::current(), "read lib ", file_name, " failed.");
+  }
 
   // LOG_INFO << "Load lib " << file_name << " finish.";
   return liberty_reader;

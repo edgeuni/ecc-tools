@@ -14,25 +14,37 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#pragma once
+#include "Logger.hpp"
 
-#include "../../tcl_definition.h"
-#include "report_manager.h"
-#include "ScriptEngine.hh"
+namespace ieda {
 
-namespace tcl {
+// public
 
-using ieda::TclCmd;
-using ieda::TclOption;
-using ieda::TclStringOption;
-
-class CmdReportRoute : public TclCmd
+void Logger::initInst()
 {
- public:
-  explicit CmdReportRoute(const char* cmd_name);
-  ~CmdReportRoute() override = default;
+  if (_log_instance == nullptr) {
+    _log_instance = new Logger();
+  }
+}
 
-  unsigned check() override { return 1; };
-  unsigned exec() override;
-};
-}  // namespace tcl
+Logger& Logger::getInst()
+{
+  if (_log_instance == nullptr) {
+    initInst();
+  }
+  return *_log_instance;
+}
+
+void Logger::destroyInst()
+{
+  if (_log_instance != nullptr) {
+    delete _log_instance;
+    _log_instance = nullptr;
+  }
+}
+
+// private
+
+Logger* Logger::_log_instance = nullptr;
+
+}  // namespace ieda
