@@ -233,7 +233,7 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
       }
       supply = std::min(supply, static_cast<int32_t>(wire_list.size()) - static_cast<int32_t>(ignore_net_set.size()));
       supply = std::max(0, supply);
-      supply -= 1;
+      supply = static_cast<int32_t>(supply * 0.9);
       routing_edge.set_supply(supply);
     }
     analyzed_pair_num += grid_pair_list.size();

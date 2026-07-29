@@ -62,67 +62,28 @@ struct CmpLANet
 {
   bool operator()(const LANet* a, const LANet* b) const
   {
-    SortStatus sort_status = SortStatus::kEqual;
-    // 时钟线网优先
-    if (sort_status == SortStatus::kEqual) {
-      ConnectType a_connect_type = a->get_connect_type();
-      ConnectType b_connect_type = b->get_connect_type();
-      if (a_connect_type == ConnectType::kClock && b_connect_type != ConnectType::kClock) {
-        sort_status = SortStatus::kTrue;
-      } else if (a_connect_type != ConnectType::kClock && b_connect_type == ConnectType::kClock) {
-        sort_status = SortStatus::kFalse;
-      } else {
-        sort_status = SortStatus::kEqual;
-      }
+    bool a_is_clock = a->get_connect_type() == ConnectType::kClock;
+    bool b_is_clock = b->get_connect_type() == ConnectType::kClock;
+    if (a_is_clock != b_is_clock) {
+      return a_is_clock;
     }
-    // BoundingBox 大小升序
-    if (sort_status == SortStatus::kEqual) {
-      double a_total_size = a->get_bounding_box().getTotalSize();
-      double b_total_size = b->get_bounding_box().getTotalSize();
-      if (a_total_size < b_total_size) {
-        sort_status = SortStatus::kTrue;
-      } else if (a_total_size == b_total_size) {
-        sort_status = SortStatus::kEqual;
-      } else {
-        sort_status = SortStatus::kFalse;
-      }
+    double a_total_size = a->get_bounding_box().getTotalSize();
+    double b_total_size = b->get_bounding_box().getTotalSize();
+    if (a_total_size != b_total_size) {
+      return a_total_size < b_total_size;
     }
-    // 长宽比 降序
-    if (sort_status == SortStatus::kEqual) {
-      double a_length_width_ratio = a->get_bounding_box().getXSize() / 1.0 / a->get_bounding_box().getYSize();
-      if (a_length_width_ratio < 1) {
-        a_length_width_ratio = 1 / a_length_width_ratio;
-      }
-      double b_length_width_ratio = b->get_bounding_box().getXSize() / 1.0 / b->get_bounding_box().getYSize();
-      if (b_length_width_ratio < 1) {
-        b_length_width_ratio = 1 / b_length_width_ratio;
-      }
-      if (a_length_width_ratio > b_length_width_ratio) {
-        sort_status = SortStatus::kTrue;
-      } else if (a_length_width_ratio == b_length_width_ratio) {
-        sort_status = SortStatus::kEqual;
-      } else {
-        sort_status = SortStatus::kFalse;
-      }
+    double a_length_width_ratio = a->get_bounding_box().getXSize() / 1.0 / a->get_bounding_box().getYSize();
+    if (a_length_width_ratio < 1) {
+      a_length_width_ratio = 1 / a_length_width_ratio;
     }
-    // PinNum 降序
-    if (sort_status == SortStatus::kEqual) {
-      int32_t a_pin_num = static_cast<int32_t>(a->get_la_pin_list().size());
-      int32_t b_pin_num = static_cast<int32_t>(b->get_la_pin_list().size());
-      if (a_pin_num > b_pin_num) {
-        sort_status = SortStatus::kTrue;
-      } else if (a_pin_num == b_pin_num) {
-        sort_status = SortStatus::kEqual;
-      } else {
-        sort_status = SortStatus::kFalse;
-      }
+    double b_length_width_ratio = b->get_bounding_box().getXSize() / 1.0 / b->get_bounding_box().getYSize();
+    if (b_length_width_ratio < 1) {
+      b_length_width_ratio = 1 / b_length_width_ratio;
     }
-    if (sort_status == SortStatus::kTrue) {
-      return true;
-    } else if (sort_status == SortStatus::kFalse) {
-      return false;
+    if (a_length_width_ratio != b_length_width_ratio) {
+      return a_length_width_ratio > b_length_width_ratio;
     }
-    return false;
+    return a->get_la_pin_list().size() > b->get_la_pin_list().size();
   }
 };
 

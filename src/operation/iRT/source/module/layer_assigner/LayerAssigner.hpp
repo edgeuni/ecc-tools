@@ -47,6 +47,7 @@ class LayerAssigner
     int32_t max_overflow = 0;
     bool is_split = false;
   };
+  using RoutingSegmentList = std::vector<Segment<TNode<LayerCoord>*>>;
   // self
   static LayerAssigner* _la_instance;
 
@@ -75,10 +76,9 @@ class LayerAssigner
   void splitPlaneTreeByOverflow(LAModel& la_model, std::vector<LAOverflowSegment>& overflow_segment_list);
   // layer assignment
   void buildPillarTree(LAModel& la_model);
-  LAPillar convertLAPillar(LayerCoord& layer_coord, std::map<PlanarCoord, std::set<int32_t>, CmpPlanarCoordByXASC>& coord_pin_layer_map);
   void assignPillarTree(LAModel& la_model);
   void buildSubtreeCost(LAModel& la_model);
-  std::vector<int32_t> getCandidateLayerList(LAModel& la_model, LAPackage& la_package);
+  std::vector<int32_t> getCandidateLayerList(LAPackage& la_package);
   double getPillarViaCost(LAModel& la_model, const std::set<int32_t>& layer_idx_set);
   double getSegmentCost(LAModel& la_model, LAPackage& la_package, int32_t candidate_layer_idx);
   void assignLayer(LAModel& la_model);
@@ -86,11 +86,11 @@ class LayerAssigner
   void buildRoutingTree(LAModel& la_model);
   std::vector<Segment<LayerCoord>> getRoutingSegmentList(LAModel& la_model);
   MTree<LayerCoord> getCoordTree(LAModel& la_model, std::vector<Segment<LayerCoord>>& routing_segment_list);
-  void uploadNetResult(LAModel& la_model);
+  void uploadNetResult(LAModel& la_model, const RoutingSegmentList& routing_segment_list);
   void resetSingleTask(LAModel& la_model);
 
   // environment
-  void updateRoutingTreeToGraph(LAModel& la_model, ChangeType change_type);
+  void updateRoutingTreeToGraph(LAModel& la_model, const RoutingSegmentList& routing_segment_list, ChangeType change_type);
   // exhibit
   void updateSummary(LAModel& la_model);
   void printSummary(LAModel& la_model);
