@@ -10,7 +10,6 @@ include_directories(${HOME_OPERATION}/iSTA/source/module)
 include_directories(${HOME_OPERATION}/iSTA/source/module/include)
 
 include_directories(SYSTEM ${HOME_THIRDPARTY})
-include_directories(SYSTEM ${HOME_THIRDPARTY}/yaml-cpp/include)
 
 # set(CMAKE_BUILD_TYPE Release)
 

@@ -12,12 +12,10 @@
       tcl,
       boost,
       eigen,
-      yaml-cpp,
       libunwind,
       glog,
       gtest,
       gflags,
-      metis,
       gmp,
       curl,
       tbb_2022,
@@ -78,12 +76,10 @@
         tcl
         boost
         eigen
-        yaml-cpp
         libunwind
         glog
         gtest
         gflags
-        metis
         gmp
         curl
         tbb_2022
