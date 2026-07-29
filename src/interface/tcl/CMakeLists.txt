@@ -48,5 +48,4 @@ target_include_directories(ieda_tcl
     ${HOME_PLATFORM}/flow
     ${HOME_PLATFORM}/data_manager
     ${HOME_PLATFORM}/tool_manager
-    ${HOME_PLATFORM}/tool_manager/tool_api
 )

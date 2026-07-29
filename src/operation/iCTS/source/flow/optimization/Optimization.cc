@@ -177,7 +177,6 @@ auto Optimization::run(const OptimizationInput& input) -> OptimizationSummary
   auto& characterization_library = *input.characterization_library;
   (void) characterization_library;
   OptimizationSummary optimization_summary;
-  auto runtime = reporter.beginRuntimeMetric("optimization");
   auto stage = reporter.beginStage("Optimization", "Optimize synthesized CTS buffers with CTS fast STA", {},
                                    StageReportOptions{.emit_success_summary = false});
   reporter.emitSection("## Optimization Overview");
@@ -188,7 +187,6 @@ auto Optimization::run(const OptimizationInput& input) -> OptimizationSummary
     optimization_summary.success = false;
     optimization_summary.status = "failed";
     optimization_summary.reason = "invalid_optimizer_options";
-    (void) runtime.failed();
     stage.failed({{"reason", "invalid_optimizer_options"}});
     return optimization_summary;
   }
@@ -204,7 +202,6 @@ auto Optimization::run(const OptimizationInput& input) -> OptimizationSummary
   if (master_infos.empty()) {
     LOG_WARNING << "Optimization: skip because no legal buffer sizing candidates are available.";
     optimization_summary.reason = "no_sizing_candidates";
-    (void) runtime.finish("skipped");
     stage.skip({{"reason", "no_sizing_candidates"}});
     return optimization_summary;
   }
@@ -314,7 +311,6 @@ auto Optimization::run(const OptimizationInput& input) -> OptimizationSummary
       optimization_summary.success = false;
       optimization_summary.status = "failed";
       optimization_summary.reason = "accepted_edit_apply_failed";
-      (void) runtime.failed();
       stage.failed({{"reason", "accepted_edit_apply_failed"}});
       return optimization_summary;
     }
@@ -348,12 +344,10 @@ auto Optimization::run(const OptimizationInput& input) -> OptimizationSummary
            << optimization_summary.optimized_clock_count << " clocks.";
   if (optimization_summary.optimized) {
     optimization_summary.status = "optimized";
-    (void) runtime.finished();
     stage.finished({{"accepted_edit_count", std::to_string(optimization_summary.accepted_edit_count)}});
   } else {
     optimization_summary.status = "no_op";
     optimization_summary.reason = no_op_reason;
-    (void) runtime.finish("no_op");
     stage.skip({{"reason", no_op_reason}});
   }
   return optimization_summary;

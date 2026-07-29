@@ -15,6 +15,7 @@ target_include_directories(verilog_builder
              ${HOME_DATABASE}/manager/service/def_service
              ${HOME_DATABASE}/manager/service/lef_service
              ${HOME_DATABASE}/manager/parser
+             ${HOME_UTILITY}
 )
 
 target_link_libraries(verilog_builder 
@@ -22,7 +23,6 @@ target_link_libraries(verilog_builder
         verilog 
         def_service 
         idb
-        time
     PUBLIC
         ZLIB::ZLIB
 )

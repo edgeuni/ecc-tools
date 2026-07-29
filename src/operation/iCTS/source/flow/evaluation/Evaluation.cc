@@ -38,7 +38,6 @@ auto Evaluation::run(EvaluationState evaluation_state, const EvaluationInput& in
 {
   LOG_FATAL_IF(input.reporter == nullptr) << "Evaluation requires reporter.";
   auto& reporter = *input.reporter;
-  auto runtime = reporter.beginRuntimeMetric("evaluation");
   auto evaluation_stage
       = reporter.beginStage("Evaluation", "Evaluate CTS clock tree", {}, StageReportOptions{.emit_success_summary = false});
   reporter.emitSection("## Evaluation Overview");
@@ -46,10 +45,8 @@ auto Evaluation::run(EvaluationState evaluation_state, const EvaluationInput& in
   evaluate(evaluation_state, input);
   const bool evaluation_ready = isEvaluationReady(evaluation_state);
   if (evaluation_ready) {
-    (void) runtime.finished();
     evaluation_stage.finished();
   } else {
-    (void) runtime.failed();
     evaluation_stage.failed();
   }
   return EvaluationBuild{

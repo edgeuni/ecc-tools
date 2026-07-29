@@ -1,5 +1,3 @@
-include(${HOME_CMAKE}/operation/idb.cmake)
-
 add_subdirectory(report_basic)
 add_subdirectory(report_db)
 add_subdirectory(report_evaluator)

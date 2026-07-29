@@ -124,7 +124,7 @@ class Flow
   auto runOptimization() -> OptimizationSummary;
   auto instantiateClockTree() -> InstantiationSummary;
   auto evaluateClockTree() -> EvaluationBuild;
-  auto emitKeyResults(double elapsed_time_s, double peak_vmem_delta_mb) const -> void;
+  auto emitKeyResults() const -> void;
 
   CTSRuntime& _runtime;
   SynthesisTraceSummary _run_summary;

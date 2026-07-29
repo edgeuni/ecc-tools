@@ -36,7 +36,6 @@
 #include "idm.h"
 #include "io/Wrapper.hh"
 #include "logger/Schema.hh"
-#include "time/Time.hh"
 
 namespace icts {
 namespace {
@@ -60,8 +59,6 @@ auto Setup::initializeRuntime(const SetupInput& input) -> SetupSummary
   auto& config = *input.config;
   auto& wrapper = *input.wrapper;
   auto& reporter = *input.reporter;
-  const std::string generated_on = ieda::Time::getNowWallTime();
-
   const bool config_loaded = config.init(input.config_file);
   const auto dir_str = input.work_dir.empty() ? config.get_work_dir() : input.work_dir;
   auto dir = std::filesystem::path(dir_str);
@@ -82,7 +79,6 @@ auto Setup::initializeRuntime(const SetupInput& input) -> SetupSummary
                     {"config_file", input.config_file},
                     {"work_dir", dir.string()},
                 });
-  LOG_INFO << "Generate the report at " << generated_on;
   if (!config_loaded) {
     reporter.emitSection("## Runtime Setup");
     reporter.emitKeyValueTable("CTS Setup Overview", {

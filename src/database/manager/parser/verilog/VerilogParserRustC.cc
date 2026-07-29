@@ -24,8 +24,9 @@
  */
 #include "VerilogParserRustC.hh"
 
+#include <string_view>
+
 #include "log/Log.hh"
-#include "string/Str.hh"
 
 namespace idb {
 
@@ -107,7 +108,7 @@ unsigned RustVerilogReader::flattenModule(const char* top_module_name)
   {
     void* verilog_module_ptr = rust_convert_rc_ref_cell_module(verilog_module);
     RustVerilogModule* rust_verilog_module = rust_convert_raw_verilog_module(verilog_module_ptr);
-    if (ieda::Str::equal(rust_verilog_module->module_name, top_module_name)) {
+    if (std::string_view(rust_verilog_module->module_name) == top_module_name) {
       _top_module = rust_verilog_module;
       break;
     }

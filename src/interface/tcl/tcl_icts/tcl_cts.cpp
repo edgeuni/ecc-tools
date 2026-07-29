@@ -16,7 +16,7 @@
 // ***************************************************************************************
 #include "tcl_cts.h"
 
-#include "tool_manager.h"
+#include "CTSAPI.hh"
 
 namespace tcl {
 
@@ -48,14 +48,14 @@ unsigned CmdCTSAutoRun::exec()
 
   TclOption* dir_option = getOptionOrArg(TCL_WORK_DIR);
   auto dir_path = dir_option->getStringVal();
-  bool is_ok = false;
+  icts::CTSStatus cts_status;
   if (dir_path == nullptr) {
-    is_ok = iplf::tmInst->autoRunCTS(config_path);
+    cts_status = CTS_API_INST.runCTS(config_path);
   } else {
-    is_ok = iplf::tmInst->autoRunCTS(config_path, dir_path);
+    cts_status = CTS_API_INST.runCTS(config_path, dir_path);
   }
 
-  LOG_FATAL_IF(!is_ok) << "iCTS run failed." << std::endl;
+  LOG_FATAL_IF(!cts_status.ok()) << "iCTS run failed: " << cts_status.message << std::endl;
 
   LOG_INFO << "iCTS run successfully." << std::endl;
   return 1;
@@ -91,7 +91,7 @@ unsigned CmdCTSReport::exec()
   TclOption* option = getOptionOrArg(TCL_NAME);
   auto name = option->getStringVal();
   if (name != nullptr) {
-    if (iplf::tmInst->reportCTS(name)) {
+    if (CTS_API_INST.report(name).ok()) {
       return 1;
     }
     LOG_FATAL << "iCTS report failed." << std::endl;
@@ -100,7 +100,7 @@ unsigned CmdCTSReport::exec()
   TclOption* def_path = getOptionOrArg(TCL_PATH);
   auto str_path = def_path->getStringVal();
   if (str_path != nullptr) {
-    if (iplf::tmInst->reportCTS(str_path)) {
+    if (CTS_API_INST.report(str_path).ok()) {
       return 1;
     }
     LOG_FATAL << "iCTS report failed." << std::endl;
@@ -108,21 +108,4 @@ unsigned CmdCTSReport::exec()
 
   return 1;
 }
-
-/////////////////////////////////////////////////////////////
-CmdCTSSaveTree::CmdCTSSaveTree(const char* cmd_name) : TclCmd(cmd_name)
-{
-  addOption(new TclStringOption(TCL_PATH, 1, nullptr));
-}
-unsigned CmdCTSSaveTree::check()
-{
-  if (not getOptionOrArg(TCL_PATH)->getStringVal()) {
-    (std::cerr << "Please specify the clock tree data path by : cts_save_tree "
-                  "-path $file ")
-        .flush();
-    return 0;
-  }
-  return 1;
-}
-CMD_CLASS_DEFAULT_EXEC(CmdCTSSaveTree, iplf::tmInst->saveClockTree(getOptionOrArg(TCL_PATH)->getStringVal()))
 }  // namespace tcl

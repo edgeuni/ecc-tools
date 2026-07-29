@@ -8,4 +8,11 @@ AUX_SOURCE_DIRECTORY(./ SRC)
 
 ADD_LIBRARY(aocv-parser STATIC ${SRC})
 
+TARGET_INCLUDE_DIRECTORIES(aocv-parser
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${HOME_UTILITY}
+        ${HOME_UTILITY}/stdBase/include
+)
+
 TARGET_LINK_LIBRARIES(aocv-parser PUBLIC absl::btree)

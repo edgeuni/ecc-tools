@@ -43,8 +43,6 @@
 #include "config/dm_config.h"
 #include "def_service.h"
 #include "lef_service.h"
-#include "string/Str.hh"
-#include "usage/usage.hh"
 
 using std::string;
 using std::vector;

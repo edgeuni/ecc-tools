@@ -62,6 +62,7 @@ class CTSAPI
   }
 
   // CTS CLI
+  static auto runCTS(const std::string& config_file, const std::string& work_dir = "") -> CTSStatus;
   static auto runCTS() -> CTSStatus;
   static auto report(const std::string& save_dir) -> CTSStatus;
 

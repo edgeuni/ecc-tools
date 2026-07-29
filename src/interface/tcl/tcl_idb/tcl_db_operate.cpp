@@ -206,7 +206,7 @@ CmdIdbCreateInstance::CmdIdbCreateInstance(const char* name) : TclCmd(name)
 unsigned CmdIdbCreateInstance::check()
 {
   for (const auto* opt : {INST_NAME_OPT, CELL_MASTER_OPT}) {
-    if (char* val = getOptionOrArg(opt)->getStringVal(); val == nullptr || val[0] == '\0') {
+    if (const char* val = getOptionOrArg(opt)->getStringVal(); val == nullptr || val[0] == '\0') {
       std::cout << "should specify option " << opt << std::endl;
       return 0;
     }

@@ -25,7 +25,6 @@
 
 #include <chrono>
 #include <cstddef>
-#include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -35,7 +34,6 @@
 #include "Log.hh"
 #include "LogFormat.hh"
 #include "Schema.hh"
-#include "usage.hh"
 
 namespace icts {
 namespace {
@@ -43,14 +41,6 @@ namespace {
 constexpr const char* kStatusFinished = "finished";
 constexpr const char* kStatusFailed = "failed";
 constexpr const char* kStatusSkipped = "skipped";
-
-auto NormalizeStatus(const std::string& status) -> std::string
-{
-  if (status == "success") {
-    return kStatusFinished;
-  }
-  return status;
-}
 
 auto StageMarkerForStatus(const std::string& status) -> std::string
 {
@@ -88,122 +78,6 @@ auto FlattenFields(const KeyValueFields& fields) -> std::string
 }
 
 }  // namespace
-
-SchemaWriter::RuntimeMetricScope::RuntimeMetricScope(SchemaWriter& writer, std::string stage)
-    : _writer(&writer), _stage(std::move(stage)), _stats(std::make_unique<ieda::Stats>())
-{
-}
-
-SchemaWriter::RuntimeMetricScope::RuntimeMetricScope(RuntimeMetricScope&& other) noexcept
-    : _writer(other._writer), _stage(std::move(other._stage)), _stats(std::move(other._stats)), _finished(other._finished)
-{
-  other._writer = nullptr;
-  other._finished = true;
-}
-
-auto SchemaWriter::RuntimeMetricScope::operator=(RuntimeMetricScope&& other) noexcept -> RuntimeMetricScope&
-{
-  if (this == &other) {
-    return *this;
-  }
-  _writer = other._writer;
-  _stage = std::move(other._stage);
-  _stats = std::move(other._stats);
-  _finished = other._finished;
-  other._writer = nullptr;
-  other._finished = true;
-  return *this;
-}
-
-SchemaWriter::RuntimeMetricScope::~RuntimeMetricScope() = default;
-
-auto SchemaWriter::RuntimeMetricScope::finish(const std::string& status) -> RuntimeMetricRecord
-{
-  const auto metric_record = measure();
-  if (!_finished && _writer != nullptr) {
-    _writer->recordRuntimeMetric(_stage, NormalizeStatus(status), metric_record);
-    _finished = true;
-  }
-  return metric_record;
-}
-
-auto SchemaWriter::RuntimeMetricScope::finished() -> RuntimeMetricRecord
-{
-  return finish(kStatusFinished);
-}
-
-auto SchemaWriter::RuntimeMetricScope::failed() -> RuntimeMetricRecord
-{
-  return finish(kStatusFailed);
-}
-
-auto SchemaWriter::RuntimeMetricScope::measure() const -> RuntimeMetricRecord
-{
-  if (_stats == nullptr) {
-    return {};
-  }
-  return RuntimeMetricRecord{
-      .elapsed_time_s = _stats->elapsedRunTime(),
-      .peak_vmem_delta_mb = _stats->memoryDelta(),
-  };
-}
-
-auto SchemaWriter::resetRuntimeMetrics() -> void
-{
-  const std::scoped_lock lock(_mutex);
-  _runtime_metrics.clear();
-}
-
-auto SchemaWriter::beginRuntimeMetric(std::string stage) -> RuntimeMetricScope
-{
-  return RuntimeMetricScope(*this, std::move(stage));
-}
-
-auto SchemaWriter::recordRuntimeMetric(std::string stage, std::string status, const RuntimeMetricRecord& metric_record) -> void
-{
-  const std::scoped_lock lock(_mutex);
-  _runtime_metrics.push_back(RuntimeMetric{
-      .stage = std::move(stage),
-      .status = std::move(status),
-      .elapsed_time_s = metric_record.elapsed_time_s,
-      .peak_vmem_delta_mb = metric_record.peak_vmem_delta_mb,
-  });
-}
-
-auto SchemaWriter::emitRuntimeSummary(const std::string& title) -> void
-{
-  TableRows rows;
-  {
-    const std::scoped_lock lock(_mutex);
-    rows.reserve(_runtime_metrics.size());
-    for (const auto& metric : _runtime_metrics) {
-      rows.push_back({
-          metric.stage,
-          metric.status,
-          logformat::FormatFixed(metric.elapsed_time_s, 3),
-          logformat::FormatFixed(metric.peak_vmem_delta_mb, 3),
-      });
-    }
-  }
-  if (!rows.empty()) {
-    EmitTable(*this, title, {"Stage", "Status", "Elapsed Time (s)", "Peak VMem Delta (MB)"}, rows);
-  }
-}
-
-auto SchemaWriter::emitRuntimeMetricTable(const std::string& title, const std::string& stage, const std::string& status,
-                                          const RuntimeMetricRecord& metric_record) -> void
-{
-  const std::string normalized_status = NormalizeStatus(status);
-  const std::vector<std::string> headers = {"Stage", "Status", "Elapsed Time (s)", "Peak VMem Delta (MB)"};
-  const TableRows rows = {
-      {stage, normalized_status, logformat::FormatFixed(metric_record.elapsed_time_s, 3),
-       logformat::FormatFixed(metric_record.peak_vmem_delta_mb, 3)},
-  };
-
-  LOG_INFO << "";
-  LOG_INFO << logformat::MakeTitledTable(title, headers, rows);
-  emitTable(title, headers, rows);
-}
 
 auto SchemaWriter::beginStage(std::string module, std::string stage, const KeyValueFields& start_fields) -> StageScope
 {

@@ -30,13 +30,16 @@
   #include <tcl.h>
 #endif
 
+#include <cstdlib>
+#include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "Vector.hh"
 #include "log/Log.hh"
-#include "string/Str.hh"
-#include "string/StrMap.hh"
 
 namespace ieda {
 
@@ -87,7 +90,7 @@ class TclOption
   TclOption(const char* option_name, unsigned is_arg);
   virtual ~TclOption();
 
-  const char* get_option_name() { return _option_name; }
+  const char* get_option_name() const { return _option_name.c_str(); }
   unsigned is_arg() const { return _is_arg; }
 
   virtual unsigned isSwitchOption() { return 0; }
@@ -115,13 +118,13 @@ class TclOption
     return 0.0;
   }
 
-  virtual char* getStringVal()
+  virtual const char* getStringVal()
   {
     LOG_FATAL << "The option do not has string val";
     return nullptr;
   }
 
-  virtual char* getDefaultStringVal()
+  virtual const char* getDefaultStringVal()
   {
     LOG_FATAL << "The option do not has string val.";
     return nullptr;
@@ -224,10 +227,12 @@ class TclOption
   unsigned is_set_val() { return _is_set_val; }
 
  protected:
+  std::vector<std::string> splitList(const char* val);
+
   unsigned _is_set_val = 0;
 
  private:
-  const char* _option_name;
+  std::string _option_name;
   unsigned _is_arg;
 };
 
@@ -263,7 +268,7 @@ class TclDoubleOption : public TclOption
   double getDoubleVal() override { return _is_set_val ? _val : _default_val; }
   void setVal(const char* val) override
   {
-    _val = Str::toDouble(val);
+    _val = std::strtod(val, nullptr);
     _is_set_val = 1;
   }
   double getDefaultDoubleVal() override { return _default_val; }
@@ -287,17 +292,17 @@ class TclStringOption : public TclOption
 
   unsigned isStringOption() override { return 1; }
 
-  char* getStringVal() override { return _is_set_val ? (char*) (_val.c_str()) : _default_val; }
+  const char* getStringVal() override { return _is_set_val ? _val.c_str() : (_default_val ? _default_val->c_str() : nullptr); }
   void setVal(const char* val) override
   {
     _val = val;
     _is_set_val = 1;
   }
   void resetVal() override { _is_set_val = 0; }
-  char* getDefaultStringVal() override { return _default_val; }
+  const char* getDefaultStringVal() override { return _default_val ? _default_val->c_str() : nullptr; }
 
  private:
-  char* _default_val = nullptr;
+  std::optional<std::string> _default_val;
   std::string _val;
 };
 
@@ -316,7 +321,7 @@ class TclIntOption : public TclOption
   int getIntVal() override { return _is_set_val ? _val : _default_val; }
   void setVal(const char* val) override
   {
-    _val = Str::toInt(val);
+    _val = std::atoi(val);
     _is_set_val = 1;
   }
   void resetVal() override { _is_set_val = 0; }
@@ -345,7 +350,10 @@ class TclIntListOption : public TclOption
   std::vector<int> getIntList() override { return _is_set_val ? _val : _default_val; }
   void setVal(const char* val) override
   {
-    _val = Str::splitInt(val, " ");
+    _val.clear();
+    for (const std::string& item : splitList(val)) {
+      _val.push_back(std::atoi(item.c_str()));
+    }
     _is_set_val = 1;
   }
   void resetVal() override
@@ -378,7 +386,7 @@ class TclStringListOption : public TclOption
   std::vector<std::string> getStringList() override { return _is_set_val ? _val : _default_val; }
   void setVal(const char* val) override
   {
-    _val = Str::split(val, " ");
+    _val = splitList(val);
     _is_set_val = 1;
   }
   void resetVal() override
@@ -412,11 +420,10 @@ class TclDoubleListOption : public TclOption
   std::vector<double> getDoubleList() override { return _is_set_val ? _val : _default_val; }
   void setVal(const char* val) override
   {
-    while (*val == '{' || *val == ' ') {
-      val++;
+    _val.clear();
+    for (const std::string& item : splitList(val)) {
+      _val.push_back(std::strtod(item.c_str(), nullptr));
     }
-
-    _val = Str::splitDouble(val, " ");
     _is_set_val = 1;
   }
   void resetVal() override
@@ -529,7 +536,7 @@ class TclCmd
   explicit TclCmd(const char* cmd_name);
   virtual ~TclCmd();
 
-  const char* get_cmd_name() { return _cmd_name; }
+  const char* get_cmd_name() const { return _cmd_name.c_str(); }
   TclOption* getOptionOrArg(const char* option_name)
   {
     if (containWildcard(option_name)) {
@@ -588,8 +595,8 @@ class TclCmd
     }
     return res == _options.end() ? nullptr : res->second.get();
   }
-  const char* _cmd_name;
-  StrMap<std::unique_ptr<TclOption>> _options;  //!< The tcl option do not need keep order.
+  std::string _cmd_name;
+  std::map<std::string, std::unique_ptr<TclOption>> _options;  //!< The tcl option do not need keep order.
   Vector<TclOption*> _args;                     //!< The tcl arg need keep order.
 };
 
@@ -604,7 +611,7 @@ class TclCmds
   static TclCmd* getTclCmd(const char* cmd_name);
 
  private:
-  static StrMap<std::unique_ptr<TclCmd>> _cmds;
+  static std::map<std::string, std::unique_ptr<TclCmd>> _cmds;
 };
 
 /**
@@ -614,7 +621,7 @@ class TclCmds
 class TclEncodeResult
 {
  public:
-  static char* encode(void* pointer);
+  static std::string encode(void* pointer);
   static void* decode(const char* encode_str);
   static const char* get_encode_preamble() { return _encode_preamble; }
 

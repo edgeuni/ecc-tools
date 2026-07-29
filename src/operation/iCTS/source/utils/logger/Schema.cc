@@ -281,7 +281,6 @@ auto SchemaWriter::reset() -> void
   _detail_path.clear();
   _detail_has_content = false;
   _suspended_writers.clear();
-  _runtime_metrics.clear();
 }
 
 auto SchemaWriter::restoreSuspendedWriterLocked() -> void

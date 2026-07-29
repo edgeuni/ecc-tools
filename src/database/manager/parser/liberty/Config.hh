@@ -47,11 +47,7 @@
 #include "BTreeSet.hh"
 #include "Vector.hh"
 #include "log/Log.hh"
-#include "string/Str.hh"
-#include "string/StrMap.hh"
 #include "tcl/ScriptEngine.hh"
-#include "time/Time.hh"
-#include "usage/usage.hh"
 
 namespace idb {
 using ieda::FlatMap;
@@ -60,9 +56,6 @@ using ieda::Log;
 using ieda::BTreeMap;
 using ieda::Multimap;
 using ieda::BTreeSet;
-using ieda::Str;
-using ieda::StrMap;
-using ieda::Time;
 using ieda::Vector;
 
 // slew, delay, arrive time together.

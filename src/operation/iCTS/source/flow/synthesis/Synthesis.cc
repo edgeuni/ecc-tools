@@ -322,7 +322,6 @@ auto Synthesis::run(const SynthesisInput& input) -> SynthesisTraceSummary
   auto& clock_layout = *input.clock_layout;
   auto& char_library = *input.characterization_library;
 
-  auto runtime = reporter.beginRuntimeMetric("synthesis");
   auto flow_stage = reporter.beginStage("CTSFlow", "Run CTS synthesis flow", {}, StageReportOptions{.emit_success_summary = false});
   reporter.emitSection("## Synthesis Overview");
 
@@ -400,13 +399,10 @@ auto Synthesis::run(const SynthesisInput& input) -> SynthesisTraceSummary
   emitSynthesisOverview(reporter, summary, rows);
 
   if (summary.outcome == SynthesisOutcome::kFinished) {
-    (void) runtime.finished();
     flow_stage.finished();
   } else if (summary.outcome == SynthesisOutcome::kNoOp) {
-    (void) runtime.finish("no_op");
     flow_stage.skip({{"reason", summary.no_op_reason}});
   } else {
-    (void) runtime.failed();
     flow_stage.failed();
   }
   return summary;

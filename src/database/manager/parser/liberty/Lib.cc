@@ -32,17 +32,39 @@
 #include <map>
 #include <sstream>
 #include <set>
+#include <string_view>
 #include <utility>
 
 #include "json/json.hpp"
 #include "Interpolation.hh"
-#include "string/StrMap.hh"
 
 namespace idb {
 
 bool Lib::_silent_output = false;
 
 namespace {
+
+bool isEqual(std::string_view lhs, std::string_view rhs)
+{
+  return lhs == rhs;
+}
+
+std::pair<std::string, std::optional<int>> splitPortName(const char* port_name)
+{
+  std::string_view name(port_name);
+  if (!name.ends_with("]")) {
+    return {std::string(name), std::nullopt};
+  }
+
+  size_t left_bracket_idx = name.find('[');
+  size_t right_bracket_idx = name.find(']', left_bracket_idx);
+  if (left_bracket_idx == std::string_view::npos || right_bracket_idx == std::string_view::npos) {
+    return {std::string(name), std::nullopt};
+  }
+
+  int index = std::atoi(std::string(name.substr(left_bracket_idx + 1, right_bracket_idx - left_bracket_idx - 1)).c_str());
+  return {std::string(name.substr(0, left_bracket_idx)), index};
+}
 
 bool shouldTraceLibCheckLookup()
 {
@@ -970,7 +992,7 @@ bool LibPort::isSeqDataIn()
   for (auto& liberty_arc_set : liberty_cell->get_cell_arcs()) {
     auto& lib_arc = liberty_arc_set->get_arcs().front();
     if (lib_arc->isClearPresetArc()) {
-      if (Str::equal(lib_arc->get_src_port(), get_port_name())) {
+      if (isEqual(lib_arc->get_src_port(), get_port_name())) {
         return false;
       }
     }
@@ -1092,9 +1114,9 @@ LibArc& LibArc::operator=(LibArc&& rhs) noexcept
  */
 void LibArc::set_timing_sense(const char* timing_sense)
 {
-  if (Str::equal(timing_sense, "positive_unate")) {
+  if (isEqual(timing_sense, "positive_unate")) {
     _timing_sense = TimingSense::kPositiveUnate;
-  } else if (Str::equal(timing_sense, "negative_unate")) {
+  } else if (isEqual(timing_sense, "negative_unate")) {
     _timing_sense = TimingSense::kNegativeUnate;
   } else {
     _timing_sense = TimingSense::kNonUnate;
@@ -1715,7 +1737,7 @@ LibPort* LibCell::get_cell_port_or_port_bus(const char* port_name)
   }
 
   // find the port bus.
-  auto [bus_name, index] = Str::matchBusName(port_name);
+  auto [bus_name, index] = splitPortName(port_name);
 
   if (auto p = _str2portbuses.find(bus_name.c_str()); p != _str2portbuses.end()) {
     if (!index) {
@@ -1741,7 +1763,7 @@ std::optional<LibArcSet*> LibCell::findLibertyArcSet(const char* from_port_name,
   for (auto& cell_arc_set : _cell_arcs) {
     auto* cell_arc = cell_arc_set->front();
 
-    if (Str::equal(from_port_name, cell_arc->get_src_port()) && Str::equal(to_port_name, cell_arc->get_snk_port())
+    if (isEqual(from_port_name, cell_arc->get_src_port()) && isEqual(to_port_name, cell_arc->get_snk_port())
         && (timing_type == cell_arc->get_timing_type())) {
       return cell_arc_set.get();
     }
@@ -1762,7 +1784,7 @@ std::optional<LibArcSet*> LibCell::findLibertyArcSet(const char* from_port_name,
   for (auto& cell_arc_set : _cell_arcs) {
     auto* cell_arc = cell_arc_set->front();
 
-    if (Str::equal(from_port_name, cell_arc->get_src_port()) && Str::equal(to_port_name, cell_arc->get_snk_port())) {
+    if (isEqual(from_port_name, cell_arc->get_src_port()) && isEqual(to_port_name, cell_arc->get_snk_port())) {
       return cell_arc_set.get();
     }
   }
@@ -1782,7 +1804,7 @@ std::vector<LibArcSet*> LibCell::findLibertyArcSet(const char* to_port_name)
   for (auto& cell_arc_set : _cell_arcs) {
     auto* cell_arc = cell_arc_set->front();
 
-    if (Str::equal(to_port_name, cell_arc->get_snk_port())) {
+    if (isEqual(to_port_name, cell_arc->get_snk_port())) {
       ret_value.emplace_back(cell_arc_set.get());
     }
   }
@@ -1802,7 +1824,7 @@ std::optional<LibPowerArcSet*> LibCell::findLibertyPowerArcSet(const char* from_
   for (auto& cell_power_arc_set : _cell_power_arcs) {
     auto* cell_power_arc = cell_power_arc_set->front();
 
-    if (Str::equal(from_port_name, cell_power_arc->get_src_port()) && Str::equal(to_port_name, cell_power_arc->get_snk_port())) {
+    if (isEqual(from_port_name, cell_power_arc->get_src_port()) && isEqual(to_port_name, cell_power_arc->get_snk_port())) {
       return cell_power_arc_set.get();
     }
   }

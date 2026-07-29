@@ -56,7 +56,6 @@ auto Report::run(const ReportInput& input) -> ReportSummary
   auto& evaluation_state = *input.evaluation_state;
   LOG_FATAL_IF(config.get_work_dir().empty()) << "CTS report requires initialized CTS run setup.";
 
-  auto runtime = reporter.beginRuntimeMetric("report");
   auto report_stage = reporter.beginStage("Report", "Emit CTS statistics and visualization reports", {},
                                           StageReportOptions{.emit_success_summary = false});
   const auto paths = ReportExport::resolvePaths(config, input.save_dir);
@@ -86,8 +85,6 @@ auto Report::run(const ReportInput& input) -> ReportSummary
                                                                             .clock_layout = input.clock_layout},
                                                          VisualizationConfig{});
   const bool report_success = statistics_success && visualization_summary.success;
-  const auto report_metric = report_success ? runtime.finished() : runtime.failed();
-  reporter.emitRuntimeMetricTable("CTS Report Runtime", "report", report_success ? "finished" : "failed", report_metric);
   if (report_success) {
     report_stage.finished({{"statistics_status", statistics_success ? "finished" : "failed"},
                            {"visualization_status", visualization_summary.svg_success ? "finished" : "failed"},

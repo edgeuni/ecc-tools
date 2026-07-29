@@ -17,11 +17,8 @@
 #include <set>
 
 #include "DRCInterface.hpp"
-#include "flow_config.h"
 #include "tcl_drc.h"
 #include "tcl_util.h"
-#include "tool_manager.h"
-#include "usage/usage.hh"
 
 namespace tcl {
 
@@ -61,15 +58,8 @@ unsigned CmdDRCAutoRun::exec()
     return 0;
   }
 
-  TclOption* option = getOptionOrArg(TCL_CONFIG);
-  auto data_config = option->getStringVal();
-
-  TclOption* path_option = getOptionOrArg(TCL_PATH);
-  auto data_path = path_option->getStringVal();
-
-  if (iplf::tmInst->autoRunDRC(data_config, data_path, true)) {
-    std::cout << "iDRC run successfully." << std::endl;
-  }
+  DRCI.runDRC();
+  std::cout << "iDRC run successfully." << std::endl;
 
   return 1;
 }
@@ -100,7 +90,7 @@ unsigned CmdDRCSaveDetailFile::exec()
   TclOption* path_option = getOptionOrArg(TCL_PATH);
   auto data_path = path_option->getStringVal();
 
-  if (iplf::tmInst->saveDrcDetailToFile(data_path)) {
+  if (DRCI.saveDRC(data_path)) {
     std::cout << "iDRC save detail drc to file success. path = " << data_path << std::endl;
   }
 

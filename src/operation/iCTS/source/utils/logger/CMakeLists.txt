@@ -15,7 +15,6 @@ target_link_libraries(
   icts_source_utils_logger
   PRIVATE
   log
-  usage
 )
 
 if(DEBUG_ICTS_SOURCE_UTILS_LOGGER)

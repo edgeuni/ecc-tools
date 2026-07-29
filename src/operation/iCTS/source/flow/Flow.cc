@@ -93,8 +93,6 @@ auto buildCompletedRunStatus(const SynthesisTraceSummary& run_summary, const Ins
 
 auto Flow::runCTS() -> FlowRunStatus
 {
-  _runtime.reporter.resetRuntimeMetrics();
-  auto total_runtime = _runtime.reporter.beginRuntimeMetric("total");
   auto run_stage
       = _runtime.reporter.beginStage("CTS", "Clock tree synthesis API flow", {}, StageReportOptions{.emit_success_summary = false});
 
@@ -103,10 +101,7 @@ auto Flow::runCTS() -> FlowRunStatus
     _run_summary.success = false;
     _run_summary.outcome = SynthesisOutcome::kFailed;
     run_stage.failed({{"reason", "setup_failed"}});
-    const auto total_metric = total_runtime.failed();
-    _runtime.reporter.emitSection("## Runtime Overview");
-    _runtime.reporter.emitRuntimeSummary("CTS Runtime Overview");
-    emitKeyResults(total_metric.elapsed_time_s, total_metric.peak_vmem_delta_mb);
+    emitKeyResults();
     return FlowRunStatus{.code = FlowRunStatusCode::kSetupNotReady, .step = "setup", .message = "CTS setup is not ready."};
   }
 
@@ -116,10 +111,7 @@ auto Flow::runCTS() -> FlowRunStatus
     _run_summary.success = false;
     _run_summary.outcome = SynthesisOutcome::kFailed;
     run_stage.failed({{"reason", clock_data_read_summary.reason}});
-    const auto total_metric = total_runtime.failed();
-    _runtime.reporter.emitSection("## Runtime Overview");
-    _runtime.reporter.emitRuntimeSummary("CTS Runtime Overview");
-    emitKeyResults(total_metric.elapsed_time_s, total_metric.peak_vmem_delta_mb);
+    emitKeyResults();
     return FlowRunStatus{.code = FlowRunStatusCode::kReadDataFailed, .step = "read_data", .message = clock_data_read_summary.reason};
   }
   (void) runSynthesis();
@@ -129,14 +121,6 @@ auto Flow::runCTS() -> FlowRunStatus
 
   const bool run_success = _run_summary.outcome == SynthesisOutcome::kFinished && _run_summary.success && _instantiation_summary.success;
   const bool run_no_op = _run_summary.outcome == SynthesisOutcome::kNoOp;
-  SchemaWriter::RuntimeMetricRecord total_metric;
-  if (run_success) {
-    total_metric = total_runtime.finished();
-  } else if (run_no_op) {
-    total_metric = total_runtime.finish("no_op");
-  } else {
-    total_metric = total_runtime.failed();
-  }
   run_stage.markRunning("Main CTS flow finished");
   if (run_success) {
     run_stage.finished();
@@ -146,9 +130,7 @@ auto Flow::runCTS() -> FlowRunStatus
     run_stage.failed();
   }
 
-  _runtime.reporter.emitSection("## Runtime Overview");
-  _runtime.reporter.emitRuntimeSummary("CTS Runtime Overview");
-  emitKeyResults(total_metric.elapsed_time_s, total_metric.peak_vmem_delta_mb);
+  emitKeyResults();
   return buildCompletedRunStatus(_run_summary, _instantiation_summary);
 }
 
@@ -161,7 +143,6 @@ auto Flow::readClockData() -> Flow::ClockDataReadSummary
   _instantiation_summary = InstantiationSummary{};
   _evaluation_ready = false;
 
-  auto runtime = _runtime.reporter.beginRuntimeMetric("read_data");
   auto read_stage
       = _runtime.reporter.beginStage("CTSReadData", "Read CTS clock data", {}, StageReportOptions{.emit_success_summary = false});
   _runtime.reporter.emitSection("## CTS Clock Data Overview");
@@ -173,11 +154,9 @@ auto Flow::readClockData() -> Flow::ClockDataReadSummary
       .reporter = &_runtime.reporter,
   });
   if (read_data_ready) {
-    (void) runtime.finished();
     read_stage.finished();
     return ClockDataReadSummary{.reason = "n/a", .success = true};
   } else {
-    (void) runtime.failed();
     read_stage.failed({{"reason", "sdc_clock_resolution_failed"}});
     return ClockDataReadSummary{.reason = "read_data_failed", .success = false};
   }
@@ -302,7 +281,7 @@ auto Flow::outputRuntimeSetup() -> void
   });
 }
 
-auto Flow::emitKeyResults(double elapsed_time_s, double peak_vmem_delta_mb) const -> void
+auto Flow::emitKeyResults() const -> void
 {
   const auto evaluation_summary = outputSummary();
   const std::size_t sink_count = _run_summary.hard_macro_sinks + _run_summary.regular_sinks;
@@ -327,8 +306,6 @@ auto Flow::emitKeyResults(double elapsed_time_s, double peak_vmem_delta_mb) cons
                      formatValueWithUnit(logformat::FormatFixed(evaluation_summary.max_clock_net_wirelength_um, 3), "um")},
                     {"total_clock_network_wirelength",
                      formatValueWithUnit(logformat::FormatFixed(evaluation_summary.total_clock_network_wirelength_um, 3), "um")},
-                    {"elapsed_time", formatValueWithUnit(logformat::FormatFixed(elapsed_time_s, 3), "s")},
-                    {"peak_vmem_delta", formatValueWithUnit(logformat::FormatFixed(peak_vmem_delta_mb, 3), "MB")},
                 });
 
   _runtime.reporter.emitSection("## Run Results");

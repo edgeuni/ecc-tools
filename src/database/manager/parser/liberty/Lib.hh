@@ -29,6 +29,7 @@
 #include <optional>
 #include <queue>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -41,8 +42,6 @@
 #include "Config.hh"
 #include "Type.hh"
 #include "log/Log.hh"
-#include "string/Str.hh"
-#include "string/StrMap.hh"
 
 namespace idb {
 
@@ -599,9 +598,9 @@ class LibPort : public LibObject
 
   void set_port_type(const char* port_type)
   {
-    if (Str::equal(port_type, "input")) {
+    if (std::string_view(port_type) == "input") {
       _port_type = LibertyPortType::kInput;
-    } else if (Str::equal(port_type, "output")) {
+    } else if (std::string_view(port_type) == "output") {
       _port_type = LibertyPortType::kOutput;
     } else {
       _port_type = LibertyPortType::kInOut;
@@ -1154,9 +1153,9 @@ class LibCell : public LibObject
   bool _is_clock_gating_integrated_cell = false;                      //!< The flag of the clock gate cell.
   std::vector<std::unique_ptr<LibLeakagePower>> _leakage_power_list;  //!< All leakage powers of the cell.
   std::vector<std::unique_ptr<LibPort>> _cell_ports;
-  StrMap<LibPort*> _str2ports;  //!< The cell ports.
+  std::map<std::string, LibPort*> _str2ports;  //!< The cell ports.
   std::vector<std::unique_ptr<LibPortBus>> _cell_port_buses;
-  StrMap<LibPortBus*> _str2portbuses;                             //!< The cell port buses.
+  std::map<std::string, LibPortBus*> _str2portbuses;              //!< The cell port buses.
   std::vector<std::unique_ptr<LibArcSet>> _cell_arcs;             //!< All timing arcs of the cell.
   std::vector<std::unique_ptr<LibPowerArcSet>> _cell_power_arcs;  //!< All power arcs of the cell.
 
@@ -1642,19 +1641,19 @@ class LibLibrary : public LibObject
  private:
   std::string _lib_name;
   std::vector<std::unique_ptr<LibCell>> _cells;  //!< The liberty cell, perserve the cell read order.
-  StrMap<LibCell*> _str2cell;
+  std::map<std::string, LibCell*> _str2cell;
 
   Vector<std::unique_ptr<LibLutTableTemplate>> _lut_templates;  //!< The timing table lut template, preserve the
                                                                 //!< template order.
 
-  StrMap<LibLutTableTemplate*> _str2template;
+  std::map<std::string, LibLutTableTemplate*> _str2template;
 
   Vector<std::unique_ptr<LibWireLoad>> _wire_loads;  //!< The wire load models.
-  StrMap<LibWireLoad*> _str2wireLoad;
+  std::map<std::string, LibWireLoad*> _str2wireLoad;
 
   Vector<std::unique_ptr<LibType>> _types;  //!< The lib type
 
-  StrMap<LibType*> _str2type;
+  std::map<std::string, LibType*> _str2type;
 
   std::optional<std::string> _comment;
   std::optional<bool> _simulation;

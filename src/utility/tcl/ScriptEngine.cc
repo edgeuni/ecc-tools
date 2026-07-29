@@ -24,7 +24,10 @@
 
 #include "ScriptEngine.hh"
 
+#include <cstdlib>
 #include <cstring>
+#include <sstream>
+#include <string_view>
 #include <utility>
 
 namespace ieda {
@@ -119,7 +122,7 @@ unsigned ScriptEngine::getTclLineNo()
 {
   evalString("set lineNum [dict get [info frame 2] line]");
   const char* line_no = Tcl_GetVar(_interp, "lineNum", 0);
-  return Str::toUnsigned(line_no);
+  return static_cast<unsigned>(std::atoi(line_no));
 }
 
 void ScriptEngine::setResult(char* result)
@@ -147,14 +150,27 @@ const char* ScriptEngine::getResult()
   return Tcl_GetStringResult(_interp);
 }
 
-TclOption::TclOption(const char* option_name, unsigned is_arg) : _option_name(Str::copy(option_name)), _is_arg(is_arg)
+TclOption::TclOption(const char* option_name, unsigned is_arg) : _option_name(option_name), _is_arg(is_arg)
 {
 }
 
-TclOption::~TclOption()
+TclOption::~TclOption() = default;
+
+std::vector<std::string> TclOption::splitList(const char* val)
 {
-  Str::free(_option_name);
-  _option_name = nullptr;
+  int value_count = 0;
+  const char** value_list = nullptr;
+  if (Tcl_SplitList(nullptr, val, &value_count, &value_list) != TCL_OK) {
+    return {};
+  }
+
+  std::vector<std::string> result;
+  result.reserve(value_count);
+  for (int value_idx = 0; value_idx < value_count; value_idx++) {
+    result.emplace_back(value_list[value_idx]);
+  }
+  Tcl_Free(reinterpret_cast<char*>(value_list));
+  return result;
 }
 
 TclSwitchOption::TclSwitchOption(const char* option_name) : TclOption(option_name, 0)
@@ -171,15 +187,14 @@ TclDoubleOption::TclDoubleOption(const char* option_name, unsigned is_arg, float
 TclDoubleOption::~TclDoubleOption() = default;
 
 TclStringOption::TclStringOption(const char* option_name, unsigned is_arg, const char* default_val)
-    : TclOption(option_name, is_arg), _default_val(Str::copy(default_val))
+    : TclOption(option_name, is_arg)
 {
+  if (default_val != nullptr) {
+    _default_val = default_val;
+  }
 }
 
-TclStringOption::~TclStringOption()
-{
-  Str::free(_default_val);
-  _default_val = nullptr;
-}
+TclStringOption::~TclStringOption() = default;
 
 TclStringListListOption::TclStringListListOption(const char* option_name, unsigned is_arg, std::vector<StrList>&& default_val)
     : TclOption(option_name, is_arg), _default_val(std::move(default_val))
@@ -193,7 +208,7 @@ void TclStringListListOption::setVal(const char* val)
     first_char++;
   }
   if (*first_char != '{') {
-    _val.push_back(Str::split(val, " "));
+    _val.push_back(splitList(val));
     _is_set_val = 1;
     return;
   }
@@ -332,15 +347,11 @@ void TclStringListListListListOption::setVal(const char* val)
   _is_set_val = 1;
 }
 
-TclCmd::TclCmd(const char* cmd_name) : _cmd_name(Str::copy(cmd_name))
+TclCmd::TclCmd(const char* cmd_name) : _cmd_name(cmd_name)
 {
 }
 
-TclCmd::~TclCmd()
-{
-  Str::free(_cmd_name);
-  _cmd_name = nullptr;
-}
+TclCmd::~TclCmd() = default;
 
 /**
  * @brief Reset the option and arg value.
@@ -353,7 +364,7 @@ void TclCmd::resetOptionArgValue()
   }
 }
 
-StrMap<std::unique_ptr<TclCmd>> TclCmds::_cmds;
+std::map<std::string, std::unique_ptr<TclCmd>> TclCmds::_cmds;
 
 /**
  * @brief The tcl cmd process callback function.
@@ -446,9 +457,11 @@ TclCmd* TclCmds::getTclCmd(const char* cmd_name)
  * @param pointer
  * @return char*
  */
-char* TclEncodeResult::encode(void* pointer)
+std::string TclEncodeResult::encode(void* pointer)
 {
-  return Str::printf("%s%p", _encode_preamble, pointer);
+  std::ostringstream stream;
+  stream << _encode_preamble << pointer;
+  return stream.str();
 }
 
 /**
@@ -458,9 +471,12 @@ char* TclEncodeResult::encode(void* pointer)
  */
 void* TclEncodeResult::decode(const char* encode_str)
 {
-  std::string pointer_str = Str::stripPrefix(encode_str, _encode_preamble);
+  std::string_view pointer_str(encode_str);
+  if (pointer_str.starts_with(_encode_preamble)) {
+    pointer_str.remove_prefix(std::strlen(_encode_preamble));
+  }
   const int hex = 16;
-  auto pointer_address = static_cast<uintptr_t>(std::stoull(pointer_str, nullptr, hex));
+  auto pointer_address = static_cast<uintptr_t>(std::stoull(std::string(pointer_str), nullptr, hex));
   return reinterpret_cast<void*>(pointer_address);
 }
 

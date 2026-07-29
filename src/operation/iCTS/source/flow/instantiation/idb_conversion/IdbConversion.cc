@@ -47,7 +47,6 @@ auto IdbConversion::run(const IdbConversionInput& input) -> IdbConversionSummary
   auto& reporter = *input.reporter;
   (void) wrapper;
 
-  auto runtime = reporter.beginRuntimeMetric("instantiation");
   auto instantiation_stage = reporter.beginStage("Instantiation", "Instantiate synthesized CTS topology into iDB", {},
                                                  StageReportOptions{.emit_success_summary = false});
   reporter.emitSection("### iDB Conversion");
@@ -90,10 +89,8 @@ auto IdbConversion::run(const IdbConversionInput& input) -> IdbConversionSummary
   EmitKeyValueTable(reporter, "CTS Instantiation Overview", overview_fields);
 
   if (summary.success) {
-    (void) runtime.finished();
     instantiation_stage.finished({{"clock_count", std::to_string(summary.clock_count)}});
   } else {
-    (void) runtime.failed();
     instantiation_stage.failed({{"clock_count", std::to_string(summary.clock_count)}});
   }
   return summary;

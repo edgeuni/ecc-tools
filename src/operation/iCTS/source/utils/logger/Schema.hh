@@ -26,17 +26,12 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <memory>
 #include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "LogFormat.hh"
-
-namespace ieda {
-class Stats;
-}  // namespace ieda
 
 namespace icts {
 
@@ -69,39 +64,8 @@ struct StageReportOptions
 class SchemaWriter
 {
  public:
-  struct RuntimeMetricRecord
-  {
-    double elapsed_time_s = 0.0;
-    double peak_vmem_delta_mb = 0.0;
-  };
-
   SchemaWriter() = default;
   ~SchemaWriter() = default;
-
-  class RuntimeMetricScope
-  {
-   public:
-    RuntimeMetricScope(const RuntimeMetricScope&) = delete;
-    RuntimeMetricScope(RuntimeMetricScope&& other) noexcept;
-    auto operator=(const RuntimeMetricScope&) -> RuntimeMetricScope& = delete;
-    auto operator=(RuntimeMetricScope&& other) noexcept -> RuntimeMetricScope&;
-    ~RuntimeMetricScope();
-
-    auto finish(const std::string& status) -> RuntimeMetricRecord;
-    auto finished() -> RuntimeMetricRecord;
-    auto failed() -> RuntimeMetricRecord;
-    auto measure() const -> RuntimeMetricRecord;
-
-   private:
-    friend class SchemaWriter;
-
-    RuntimeMetricScope(SchemaWriter& writer, std::string stage);
-
-    SchemaWriter* _writer = nullptr;
-    std::string _stage;
-    std::unique_ptr<ieda::Stats> _stats;
-    bool _finished = false;
-  };
 
   class StageScope
   {
@@ -136,7 +100,7 @@ class SchemaWriter
   auto open(const std::filesystem::path& path, const std::string& run_title, const KeyValueFields& metadata = {}) -> void;
   // Close the active output and restore any suspended nested writer.
   auto close() -> void;
-  // API teardown: close output, drop nested writer state, and clear run metrics.
+  // API teardown: close output and drop nested writer state.
   auto reset() -> void;
   auto isOpen() const -> bool;
   auto getActivePath() const -> std::filesystem::path;
@@ -154,11 +118,6 @@ class SchemaWriter
       -> void;
   auto emitArtifact(const std::string& label, const std::filesystem::path& path, const std::string& detail = {}) -> void;
   auto emitArtifactTo(const std::string& label, const std::filesystem::path& path, const std::string& detail, ReportSink sink) -> void;
-  auto resetRuntimeMetrics() -> void;
-  auto beginRuntimeMetric(std::string stage) -> RuntimeMetricScope;
-  auto emitRuntimeSummary(const std::string& title = "Runtime Summary") -> void;
-  auto emitRuntimeMetricTable(const std::string& title, const std::string& stage, const std::string& status,
-                              const RuntimeMetricRecord& metric_record) -> void;
   auto beginStage(std::string module, std::string stage, const KeyValueFields& start_fields = {}) -> StageScope;
   auto beginStage(std::string module, std::string stage, const KeyValueFields& start_fields, StageReportOptions report_options)
       -> StageScope;
@@ -181,17 +140,8 @@ class SchemaWriter
     bool detail_has_content = false;
   };
 
-  struct RuntimeMetric
-  {
-    std::string stage;
-    std::string status;
-    double elapsed_time_s = 0.0;
-    double peak_vmem_delta_mb = 0.0;
-  };
-
   auto writeBlockLocked(const std::string& block, ReportSink sink = ReportSink::kDefault) -> void;
   static auto writeBlockToStream(std::ofstream& stream, bool& has_content, const std::string& block) -> void;
-  auto recordRuntimeMetric(std::string stage, std::string status, const RuntimeMetricRecord& metric_record) -> void;
   auto restoreSuspendedWriterLocked() -> void;
   static auto appendStandaloneBlock(const std::filesystem::path& path, const std::string& run_title, const std::string& block) -> void;
 
@@ -203,7 +153,6 @@ class SchemaWriter
   std::filesystem::path _detail_path;
   bool _detail_has_content = false;
   std::vector<SuspendedWriter> _suspended_writers;
-  std::vector<RuntimeMetric> _runtime_metrics;
 };
 
 auto EmitTable(SchemaWriter& writer, const std::string& title, const std::vector<std::string>& headers, const TableRows& rows) -> void;

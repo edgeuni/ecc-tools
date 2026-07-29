@@ -81,6 +81,7 @@ void testMakeSingleModule(idb::NetlistReader* nr, string topModuleName) {
 #include <filesystem>
 #include <optional>
 #include <regex>
+#include <string_view>
 #include <vector>
 #include <unistd.h>
 #include <zlib.h>
@@ -178,13 +179,45 @@ std::optional<std::string> decompressGzipVerilog(const std::string& gzip_file)
   return temp_path;
 }
 
+std::pair<std::string, std::optional<int>> splitBusName(const char* name)
+{
+  std::string_view name_view(name);
+  if (!name_view.ends_with("]")) {
+    return {std::string(name_view), std::nullopt};
+  }
+
+  size_t left_bracket_idx = name_view.find('[');
+  size_t right_bracket_idx = name_view.find(']', left_bracket_idx);
+  if (left_bracket_idx == std::string_view::npos || right_bracket_idx == std::string_view::npos) {
+    return {std::string(name_view), std::nullopt};
+  }
+
+  int index = std::atoi(std::string(name_view.substr(left_bracket_idx + 1, right_bracket_idx - left_bracket_idx - 1)).c_str());
+  return {std::string(name_view.substr(0, left_bracket_idx)), index};
+}
+
+std::string makeIndexedName(std::string_view name, int index)
+{
+  return std::string(name) + "[" + std::to_string(index) + "]";
+}
+
+std::string normalizeEscapedName(std::string name)
+{
+  while (!name.empty() && name.back() == '\n') {
+    name.pop_back();
+  }
+  std::erase(name, '\\');
+  std::erase(name, ' ');
+  return name;
+}
+
 class ScopedReadableVerilogFile
 {
  public:
   explicit ScopedReadableVerilogFile(const std::string& file)
       : _read_file(file)
   {
-    if (ieda::Str::contain(file.c_str(), ".gz")) {
+    if (file.find(".gz") != std::string::npos) {
       auto temp_file = decompressGzipVerilog(file);
       if (temp_file) {
         _temp_file = *temp_file;
@@ -377,8 +410,8 @@ int32_t RustVerilogRead::build_pins()
       auto bus_range = std::make_pair(dcl_range.start, dcl_range.end);
       for (int index = bus_range.second; index <= bus_range.first; index++) {
         // for port or wire bus, we split to one bye one port.
-        const char* one_name = ieda::Str::printf("%s[%d]", dcl_name, index);
-        auto io_pin = dcl_process(dcl_type, one_name);
+        std::string one_name = makeIndexedName(dcl_name, index);
+        auto io_pin = dcl_process(dcl_type, one_name.c_str());
         if (io_pin) {
           if (index == bus_range.second) {
             IdbBus io_pin_bus(dcl_name, bus_range.first, bus_range.second);
@@ -471,8 +504,8 @@ int32_t RustVerilogRead::build_nets()
       if (!dcl_range.has_value) {
         auto* idb_net = add_wire_net(net_name);
 
-        if (!ieda::Str::contain(dcl_name, "\\[")) {
-          auto [bus_name, bus_index] = ieda::Str::matchBusName(net_name.c_str());
+        if (std::string_view(dcl_name).find("\\[") == std::string_view::npos) {
+          auto [bus_name, bus_index] = splitBusName(net_name.c_str());
           if (bus_index) {
             if (auto found_pin_bus = idb_design->get_bus_list()->findBus(bus_name); !found_pin_bus) {
               IdbBus io_pin_bus(bus_name, bus_index.value(), 0);
@@ -490,7 +523,7 @@ int32_t RustVerilogRead::build_nets()
         auto bus_range = std::make_pair(dcl_range.start, dcl_range.end);
         for (int index = bus_range.second; index <= bus_range.first; index++) {
           // for port or wire bus, we split to one bye one port.
-          const char* one_name = ieda::Str::printf("%s[%d]", net_name.c_str(), index);
+          std::string one_name = makeIndexedName(net_name, index);
           auto idb_net = add_wire_net(one_name);
           if (index == bus_range.second) {
             IdbBus io_pin_bus(net_name, bus_range.first, bus_range.second);
@@ -552,13 +585,8 @@ int32_t RustVerilogRead::build_assign()
 
   auto process_one_to_one_net
       = [idb_design, idb_io_pin_list, idb_net_list, &remove_to_merge_nets](std::string left_net_name, std::string right_net_name) {
-          left_net_name = ieda::Str::trimmed(left_net_name.c_str());
-          right_net_name = ieda::Str::trimmed(right_net_name.c_str());
-
-          left_net_name = ieda::Str::replace(left_net_name, R"(\\)", "");
-          left_net_name = ieda::Str::replace(left_net_name, R"( )", "");
-          right_net_name = ieda::Str::replace(right_net_name, R"(\\)", "");
-          right_net_name = ieda::Str::replace(right_net_name, R"( )", "");
+          left_net_name = normalizeEscapedName(std::move(left_net_name));
+          right_net_name = normalizeEscapedName(std::move(right_net_name));
 
           // according to assign's lhs/rhs to connect port to net.
 
@@ -857,9 +885,9 @@ int32_t RustVerilogRead::build_components()
 
         // judge whether contain bus index name, if bus name contain \\[, should
         // not treat as bus.
-        if (!ieda::Str::contain(net_name.c_str(), "\\[")) {
+        if (net_name.find("\\[") == std::string::npos) {
           // is bus index net.
-          auto [bus_name, bus_index] = ieda::Str::matchBusName(net_name.c_str());
+          auto [bus_name, bus_index] = splitBusName(net_name.c_str());
           if (bus_index) {
             if (auto found_net_bus = idb_design->get_bus_list()->findBus(bus_name); !found_net_bus) {
               // not found net bus, create it.
@@ -878,7 +906,7 @@ int32_t RustVerilogRead::build_components()
       } else {
         // existed bus net, get one net of bus.
         std::string pin_name = idb_pin->get_pin_name();
-        auto [pin_bus_name, pin_bus_index] = ieda::Str::matchBusName(pin_name.c_str());
+        auto [pin_bus_name, pin_bus_index] = splitBusName(pin_name.c_str());
         if (!pin_bus_index) {
           // if net bus only exist one net, get the bus index directly.
           if ((*net_bus).get().get_left() == (*net_bus).get().get_right()) {
@@ -1037,7 +1065,7 @@ int32_t RustVerilogRead::build_components()
               }
             }
 
-            std::string bus_name = ieda::Str::printf("%s/%s", inst_name.c_str(), cell_port_name);
+            std::string bus_name = inst_name + "/" + cell_port_name;
             for (int i = 0; auto* idb_bus_pin : bus_pins) {
               if (i == 0) {
                 create_or_found_bus(bus_name, idb_bus_pin, max_bus_bit - 1, true);
@@ -1051,7 +1079,8 @@ int32_t RustVerilogRead::build_components()
             // exist idb pin, add to net.
             if (!rust_is_constant(net_expr)) {
               // const char* net_name = net_expr->get_verilog_id()->getName();
-              const char* net_name;
+              std::string generated_net_name;
+              const char* net_name = nullptr;
               void* net_id;
               if (rust_is_id_expr(net_expr)) {
                 net_id = const_cast<void*>(rust_convert_verilog_net_id_expr(net_expr)->verilog_id);
@@ -1066,7 +1095,8 @@ int32_t RustVerilogRead::build_components()
                 net_name = rust_convert_verilog_slice_id(net_id)->id;
               } else {
                 static int index = 0;
-                net_name = ieda::Str::printf("IEDA_CONST_%d", index++);
+                generated_net_name = "IEDA_CONST_" + std::to_string(index++);
+                net_name = generated_net_name.c_str();
               }
               add_pin(net_name, idb_pin);
             }
@@ -1078,12 +1108,12 @@ int32_t RustVerilogRead::build_components()
           std::vector<void*> verilog_id_concat_vec;
           flatten_concat_net_expr(net_concat_expr, verilog_id_concat_vec);
 
-          std::string bus_name = ieda::Str::printf("%s/%s", inst_name.c_str(), cell_port_name);
+          std::string bus_name = inst_name + "/" + cell_port_name;
 
           // found pin bus size.
           std::vector<IdbPin*> bus_pin_vec;
           for (int i = 0;; ++i) {
-            std::string pin_name = ieda::Str::printf("%s[%d]", cell_port_name, i);
+            std::string pin_name = makeIndexedName(cell_port_name, i);
             auto* idb_pin = idb_instance->get_pin(pin_name);
             if (!idb_pin) {
               break;
@@ -1151,7 +1181,7 @@ int32_t RustVerilogRead::build_components()
               }
 
               for (int j = bus_left; j >= bus_right; --j) {
-                const char* bus_one_net_name = ieda::Str::printf("%s[%d]", net_name, j);
+                std::string bus_one_net_name = makeIndexedName(net_name, j);
                 auto* idb_net = idb_net_list->find_net(bus_one_net_name);
                 assert(idb_net);
                 add_pin(bus_one_net_name, idb_pin);
