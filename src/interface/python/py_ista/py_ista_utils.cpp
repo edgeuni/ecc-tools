@@ -61,6 +61,18 @@ bool initStaConfigMapByJSON(const std::string& config, std::map<std::string, std
   if (!value.empty()) {
     config_map.insert(std::make_pair("-max_paths", std::stoi(value)));
   }
+  value = ieda::getJsonData(json, {"STA", "-nworst"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-nworst", std::stoi(value)));
+  }
+  value = ieda::getJsonData(json, {"STA", "-slack_lesser_than"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-slack_lesser_than", std::stod(value)));
+  }
+  value = ieda::getJsonData(json, {"STA", "-slack_greater_than"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-slack_greater_than", std::stod(value)));
+  }
   value = ieda::getJsonData(json, {"STA", "-max_path"});
   if (!value.empty()) {
     config_map.insert(std::make_pair("-max_path", std::stoi(value)));
@@ -102,6 +114,15 @@ void initStaConfigMapByDict(std::map<std::string, std::string>& config_dict, std
   }
   if (config_dict.count("-max_paths") > 0 && !config_dict["-max_paths"].empty()) {
     config_map["-max_paths"] = std::stoi(config_dict["-max_paths"]);
+  }
+  if (config_dict.count("-nworst") > 0 && !config_dict["-nworst"].empty()) {
+    config_map["-nworst"] = std::stoi(config_dict["-nworst"]);
+  }
+  if (config_dict.count("-slack_lesser_than") > 0 && !config_dict["-slack_lesser_than"].empty()) {
+    config_map["-slack_lesser_than"] = std::stod(config_dict["-slack_lesser_than"]);
+  }
+  if (config_dict.count("-slack_greater_than") > 0 && !config_dict["-slack_greater_than"].empty()) {
+    config_map["-slack_greater_than"] = std::stod(config_dict["-slack_greater_than"]);
   }
   if (config_dict.count("-max_path") > 0 && !config_dict["-max_path"].empty()) {
     config_map["-max_path"] = std::stoi(config_dict["-max_path"]);
