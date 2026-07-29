@@ -26,7 +26,6 @@
 #include "NotificationUtility.h"
 #include "PinAccessor.hpp"
 #include "RTInterface.hpp"
-#include "SpaceRouter.hpp"
 #include "SupplyAnalyzer.hpp"
 #include "TOPOBuilder.hpp"
 #include "PlanarRouter.hpp"
