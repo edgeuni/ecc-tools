@@ -30,8 +30,6 @@
 #include "RTInterface.hpp"
 #include "idm.h"
 #include "json/json.hpp"
-#include "salt/base/flute.h"
-#include "salt/salt.h"
 #include "timing_db.hh"
 
 namespace ieval {

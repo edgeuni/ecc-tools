@@ -18,7 +18,6 @@ target_link_libraries(
   icts_source_module_routing_helper
   icts_source_utils_geometry
   log
-  lemon
 )
 
 target_include_directories(
