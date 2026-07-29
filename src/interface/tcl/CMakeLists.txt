@@ -1,11 +1,9 @@
 add_subdirectory(tcl_util)
-add_subdirectory(tcl_workspace)
 add_subdirectory(tcl_config)
 add_subdirectory(tcl_idb)
 add_subdirectory(tcl_flow)
 add_subdirectory(tcl_icts)
 add_subdirectory(tcl_idrc)
-add_subdirectory(tcl_instance)
 add_subdirectory(tcl_irt)
 add_subdirectory(tcl_ilvs)
 add_subdirectory(tcl_ista)
@@ -15,12 +13,6 @@ add_subdirectory(tcl_izh)
 add_subdirectory(tcl_ircx)
 add_subdirectory(tcl_report)
 add_subdirectory(tcl_feature)
-add_subdirectory(tcl_eval)
-add_subdirectory(tcl_notification)
-
-if(CONTEST)
-add_subdirectory(tcl_contest)
-endif()
 
 AUX_SOURCE_DIRECTORY(./ SRC)
 
@@ -31,7 +23,6 @@ target_link_libraries(ieda_tcl
         flow 
         tool_manager
         tcl 
-        tcl_workspace
         tcl_config
         tcl_idb
         tcl_flow
@@ -44,17 +35,13 @@ target_link_libraries(ieda_tcl
         tcl_iemir
         tcl_izh
         tcl_ircx 
-        tcl_inst 
         tcl_report
         tcl_feature
-        tcl_eval
-        tcl_notification
 )
 
 target_include_directories(ieda_tcl 
     PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/tcl_workspace
 
     ${HOME_UTILITY}/tcl
 
@@ -63,12 +50,3 @@ target_include_directories(ieda_tcl
     ${HOME_PLATFORM}/tool_manager
     ${HOME_PLATFORM}/tool_manager/tool_api
 )
-
-if(CONTEST)
-  target_link_libraries(ieda_tcl PUBLIC tcl_contest)
-
-  target_include_directories(ieda_tcl 
-    PUBLIC 
-    ${HOME_INTERFACE}/tcl/tcl_contest
-  )
-endif()

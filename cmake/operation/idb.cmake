@@ -2,9 +2,6 @@ include_directories(
     ##basic
     ${HOME_DATABASE}/basic/geometry
     ## iDB
-    ${HOME_DATABASE}/tool_db/design
-    ${HOME_DATABASE}/tool_db/design/db_design
-    ${HOME_DATABASE}/tool_db/design/db_layout
     ##builder
     ${HOME_DATABASE}/manager/builder
     ${HOME_DATABASE}/manager/builder/def_builder

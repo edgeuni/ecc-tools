@@ -51,7 +51,6 @@ else()
 endif()
 option(USE_PROFILER "Enable performance profiling (default OFF)" OFF)
 option(SANITIZER "Enable address sanitizer (default OFF)" OFF)
-option(USE_GPU "Enable GPU acceleration (default OFF)" OFF)
 option(COMPATIBILITY_MODE "Enable compatibility mode (disable aggressive optimizations)" OFF)
 
 
@@ -133,8 +132,6 @@ if(NOT COMPATIBILITY_MODE)
     set(CMAKE_AR "gcc-ar")
     set(CMAKE_RANLIB "gcc-ranlib")
     
-    # diable use gpu for lto confilct with cuda
-    set(USE_GPU OFF)
 endif()
 
 if(USE_PROFILER)
@@ -150,18 +147,12 @@ if(SANITIZER)
     message("address sanitizer load")
 endif()
 
-if (USE_GPU)
-    add_definitions(-DUSE_GPU)
-    include(cmake/cuda.cmake)
-endif()
-
 include(cmake/setting.cmake)
 include(cmake/third_party.cmake)
 include(cmake/rust.cmake)
 
 add_subdirectory(src/third_party)
 add_subdirectory(src/utility)
-add_subdirectory(src/workspace)
 add_subdirectory(src/apps)
 add_subdirectory(src/database)
 add_subdirectory(src/interface)

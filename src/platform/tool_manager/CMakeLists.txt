@@ -32,7 +32,6 @@ target_include_directories(tool_manager
     ${HOME_PLATFORM}/data_manager
     ${HOME_PLATFORM}/data_manager/config
     ${HOME_PLATFORM}/flow/config
-    ${HOME_PLATFORM}/evaluation
     ${HOME_UTILITY}/json
     ${HOME_OPERATION}
 )

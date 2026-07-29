@@ -7,7 +7,6 @@ include_directories(${HOME_UTILITY})
 include_directories(${HOME_OPERATION}/iSTA)
 include_directories(${HOME_OPERATION}/iSTA/source)
 include_directories(${HOME_OPERATION}/iSTA/source/module)
-include_directories(${HOME_OPERATION}/iSTA/source/module/include)
 
 include_directories(SYSTEM ${HOME_THIRDPARTY})
 

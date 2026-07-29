@@ -41,7 +41,6 @@ CMAKE_OPTIONS=(
   # "-DCOMPATIBILITY_MODE=${COMPATIBILITY_MODE:-OFF}"
   # "-DUSE_PROFILER=${USE_PROFILER:-OFF}"
   # "-DSANITIZER=${SANITIZER:-OFF}"
-  # "-DUSE_GPU=${USE_GPU:-OFF}"
 G_BUILD_GENERATOR=""
 
 # pretty print
@@ -58,7 +57,7 @@ help_msg_exit()
 echo -e "build.sh: Build iEDA executable binary"
 echo -e "Usage:"
 echo -e "  ${bold}bash build.sh${clear} [-h] [-n] [-r] [-b] [-d] [-i] [-p] "
-echo -e "                [-g] [-s] [-P] [-G] [-C] [-D] [-y] [-M]"
+echo -e "                [-g] [-s] [-P] [-C] [-D] [-y] [-M]"
 echo -e "                [-b ${underline}binary path${clear}] [-j ${underline}num${clear}] [-i apt|docker]"
 echo -e "Options:"
 echo -e "  ${bold}-h${clear} display this help and exit"
@@ -72,7 +71,6 @@ echo -e "  ${bold}-p${clear} build ECOS (default OFF)"
 echo -e "  ${bold}-g${clear} enable GUI components (default OFF)"
 echo -e "  ${bold}-s${clear} enable address sanitizer (default OFF)"
 echo -e "  ${bold}-P${clear} enable performance profiling (default OFF)"
-echo -e "  ${bold}-G${clear} enable GPU acceleration (default OFF)"
 echo -e "  ${bold}-C${clear} enable compatibility mode (disable optimizations, default OFF)"
 echo -e "  ${bold}-M${clear} set CMAKE_BUILD_TYPE to Debug (default Release)"
 echo -e "  ${bold}-l${clear} select linker type (default/lld/mold)"
@@ -392,7 +390,7 @@ if [[ $1 != "" ]] && [[ $1 != -* ]]; then
   help_msg_exit 1
 fi
 
-while getopts j:b:t:i:l:rndDypgsPGChM opt; do
+while getopts j:b:t:i:l:rndDypgsPChM opt; do
   case "${opt}" in
     j) opt_thread_num "$OPTARG"   ;;
     b) opt_binary_dir "$OPTARG"   ;;
@@ -407,7 +405,6 @@ while getopts j:b:t:i:l:rndDypgsPGChM opt; do
     g) CMAKE_OPTIONS+=("-DBUILD_GUI=ON")    ;;
     s) CMAKE_OPTIONS+=("-DSANITIZER=ON")    ;;
     P) CMAKE_OPTIONS+=("-DUSE_PROFILER=ON") ;;
-    G) CMAKE_OPTIONS+=("-DUSE_GPU=ON")      ;;
     C) CMAKE_OPTIONS+=("-DCOMPATIBILITY_MODE=ON") ;;
     M) opt_debug_build            ;;
     l) CMAKE_OPTIONS+=("-DLINKER=${OPTARG}") ;;
