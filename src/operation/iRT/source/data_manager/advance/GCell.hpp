@@ -37,8 +37,6 @@ class GCell : public PlanarRect
   // getter
   TypeLayerNetFixedRectMap& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::map<int32_t, std::vector<AccessPoint*>>& get_net_access_point_map() { return _net_access_point_map; }
-  std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& get_net_pin_access_result_map() { return _net_pin_access_result_map; }
-  std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& get_net_pin_access_patch_map() { return _net_pin_access_patch_map; }
   std::map<int32_t, std::set<Segment<LayerCoord>*>>& get_net_global_result_map() { return _net_global_result_map; }
   std::map<int32_t, std::set<Segment<LayerCoord>*>>& get_net_detailed_result_map() { return _net_detailed_result_map; }
   std::map<int32_t, std::set<EXTLayerRect*>>& get_net_detailed_patch_map() { return _net_detailed_patch_map; }
@@ -51,14 +49,6 @@ class GCell : public PlanarRect
   void set_net_access_point_map(const std::map<int32_t, std::vector<AccessPoint*>>& net_access_point_map)
   {
     _net_access_point_map = net_access_point_map;
-  }
-  void set_net_pin_access_result_map(const std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& net_pin_access_result_map)
-  {
-    _net_pin_access_result_map = net_pin_access_result_map;
-  }
-  void set_net_pin_access_patch_map(const std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>& net_pin_access_patch_map)
-  {
-    _net_pin_access_patch_map = net_pin_access_patch_map;
   }
   void set_net_global_result_map(const std::map<int32_t, std::set<Segment<LayerCoord>*>>& net_global_result_map)
   {
@@ -80,10 +70,6 @@ class GCell : public PlanarRect
   TypeLayerNetFixedRectMap _type_layer_net_fixed_rect_map;
   // access point
   std::map<int32_t, std::vector<AccessPoint*>> _net_access_point_map;
-  // access routing result
-  std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> _net_pin_access_result_map;
-  // access routing patch
-  std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>> _net_pin_access_patch_map;
   // global routing result
   std::map<int32_t, std::set<Segment<LayerCoord>*>> _net_global_result_map;
   // detailed routing result

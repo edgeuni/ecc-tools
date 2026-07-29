@@ -143,82 +143,6 @@ void DataManager::updateNetAccessPointToGCellMap(ChangeType change_type, int32_t
   }
 }
 
-void DataManager::updateNetPinAccessResultToGCellMap(ChangeType change_type, int32_t net_idx, int32_t pin_idx, Segment<LayerCoord>* segment)
-{
-  ScaleAxis& gcell_axis = _database.get_gcell_axis();
-  Die& die = _database.get_die();
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-  int32_t detection_distance = _database.get_detection_distance();
-  if (detection_distance == -1) {
-    RTLOG.error(Loc::current(), "The detection_distance is not initialize!");
-  }
-  for (NetShape& net_shape : getNetDetailedShapeList(net_idx, *segment)) {
-    PlanarRect real_rect = RTUTIL.getEnlargedRect(net_shape, detection_distance);
-    if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-      continue;
-    }
-    real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
-    PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
-    for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
-      for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
-        auto& net_pin_access_result_map = gcell_map[x][y].get_net_pin_access_result_map();
-        if (change_type == ChangeType::kAdd) {
-          net_pin_access_result_map[net_idx][pin_idx].insert(segment);
-        } else if (change_type == ChangeType::kDel) {
-          net_pin_access_result_map[net_idx][pin_idx].erase(segment);
-          if (net_pin_access_result_map[net_idx][pin_idx].empty()) {
-            net_pin_access_result_map[net_idx].erase(pin_idx);
-          }
-          if (net_pin_access_result_map[net_idx].empty()) {
-            net_pin_access_result_map.erase(net_idx);
-          }
-        }
-      }
-    }
-  }
-  if (change_type == ChangeType::kDel) {
-    delete segment;
-    segment = nullptr;
-  }
-}
-
-void DataManager::updateNetPinAccessPatchToGCellMap(ChangeType change_type, int32_t net_idx, int32_t pin_idx, EXTLayerRect* ext_layer_rect)
-{
-  ScaleAxis& gcell_axis = _database.get_gcell_axis();
-  Die& die = _database.get_die();
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-  int32_t detection_distance = _database.get_detection_distance();
-  if (detection_distance == -1) {
-    RTLOG.error(Loc::current(), "The detection_distance is not initialize!");
-  }
-  PlanarRect real_rect = RTUTIL.getEnlargedRect(ext_layer_rect->get_real_rect(), detection_distance);
-  if (!RTUTIL.hasRegularRect(real_rect, die.get_real_rect())) {
-    return;
-  }
-  real_rect = RTUTIL.getRegularRect(real_rect, die.get_real_rect());
-  PlanarRect grid_rect = RTUTIL.getClosedGCellGridRect(real_rect, gcell_axis);
-  for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
-    for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
-      auto& net_pin_access_patch_map = gcell_map[x][y].get_net_pin_access_patch_map();
-      if (change_type == ChangeType::kAdd) {
-        net_pin_access_patch_map[net_idx][pin_idx].insert(ext_layer_rect);
-      } else if (change_type == ChangeType::kDel) {
-        net_pin_access_patch_map[net_idx][pin_idx].erase(ext_layer_rect);
-        if (net_pin_access_patch_map[net_idx][pin_idx].empty()) {
-          net_pin_access_patch_map[net_idx].erase(pin_idx);
-        }
-        if (net_pin_access_patch_map[net_idx].empty()) {
-          net_pin_access_patch_map.erase(net_idx);
-        }
-      }
-    }
-  }
-  if (change_type == ChangeType::kDel) {
-    delete ext_layer_rect;
-    ext_layer_rect = nullptr;
-  }
-}
-
 void DataManager::updateNetGlobalResultToGCellMap(ChangeType change_type, int32_t net_idx, Segment<LayerCoord>* segment)
 {
   GridMap<GCell>& gcell_map = _database.get_gcell_map();
@@ -390,40 +314,6 @@ std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> DataManager::getNetAcc
     }
   }
   return net_access_point_map;
-}
-
-std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> DataManager::getNetPinAccessResultMap(EXTPlanarRect& region)
-{
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-
-  std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> net_pin_access_result_map;
-  for (int32_t x = region.get_grid_ll_x(); x <= region.get_grid_ur_x(); x++) {
-    for (int32_t y = region.get_grid_ll_y(); y <= region.get_grid_ur_y(); y++) {
-      for (auto& [net_idx, pin_access_result_map] : gcell_map[x][y].get_net_pin_access_result_map()) {
-        for (auto& [pin_idx, segment_set] : pin_access_result_map) {
-          net_pin_access_result_map[net_idx][pin_idx].insert(segment_set.begin(), segment_set.end());
-        }
-      }
-    }
-  }
-  return net_pin_access_result_map;
-}
-
-std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>> DataManager::getNetPinAccessPatchMap(EXTPlanarRect& region)
-{
-  GridMap<GCell>& gcell_map = _database.get_gcell_map();
-
-  std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>> net_pin_access_patch_map;
-  for (int32_t x = region.get_grid_ll_x(); x <= region.get_grid_ur_x(); x++) {
-    for (int32_t y = region.get_grid_ll_y(); y <= region.get_grid_ur_y(); y++) {
-      for (auto& [net_idx, pin_access_patch_map] : gcell_map[x][y].get_net_pin_access_patch_map()) {
-        for (auto& [pin_idx, patch_set] : pin_access_patch_map) {
-          net_pin_access_patch_map[net_idx][pin_idx].insert(patch_set.begin(), patch_set.end());
-        }
-      }
-    }
-  }
-  return net_pin_access_patch_map;
 }
 
 std::map<int32_t, std::set<Segment<LayerCoord>*>> DataManager::getNetGlobalResultMap(EXTPlanarRect& region)
@@ -1967,20 +1857,6 @@ void DataManager::destroyGCellMap()
 {
   Die& die = _database.get_die();
 
-  for (auto& [net_idx, pin_access_result_map] : getNetPinAccessResultMap(die)) {
-    for (auto& [pin_idx, segment_set] : pin_access_result_map) {
-      for (Segment<LayerCoord>* segment : segment_set) {
-        RTDM.updateNetPinAccessResultToGCellMap(ChangeType::kDel, net_idx, pin_idx, segment);
-      }
-    }
-  }
-  for (auto& [net_idx, pin_access_patch_map] : getNetPinAccessPatchMap(die)) {
-    for (auto& [pin_idx, patch_set] : pin_access_patch_map) {
-      for (EXTLayerRect* patch : patch_set) {
-        RTDM.updateNetPinAccessPatchToGCellMap(ChangeType::kDel, net_idx, pin_idx, patch);
-      }
-    }
-  }
   for (auto& [net_idx, segment_set] : getNetGlobalResultMap(die)) {
     for (Segment<LayerCoord>* segment : segment_set) {
       RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
