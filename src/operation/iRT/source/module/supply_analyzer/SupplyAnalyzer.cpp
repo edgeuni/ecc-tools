@@ -15,6 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #include "SupplyAnalyzer.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <utility>
@@ -81,7 +82,7 @@ SAModel SupplyAnalyzer::initSAModel()
 
 void SupplyAnalyzer::initRoutingEdgeMap()
 {
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
   std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
@@ -160,8 +161,7 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
         }
         int32_t layer_idx = net_shape.get_layer_idx();
         std::vector<std::pair<int32_t, PlanarRect>>& detailed_shape_list = layer_detailed_shape_list[layer_idx];
-        layer_rtree_value_list[layer_idx].emplace_back(RTUTIL.convertToBGRectInt(real_rect),
-                                                      static_cast<int32_t>(detailed_shape_list.size()));
+        layer_rtree_value_list[layer_idx].emplace_back(RTUTIL.convertToBGRectInt(real_rect), static_cast<int32_t>(detailed_shape_list.size()));
         detailed_shape_list.emplace_back(net_idx, net_shape);
       }
     }
@@ -174,8 +174,7 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
       }
       int32_t layer_idx = patch.get_layer_idx();
       std::vector<std::pair<int32_t, PlanarRect>>& detailed_shape_list = layer_detailed_shape_list[layer_idx];
-      layer_rtree_value_list[layer_idx].emplace_back(RTUTIL.convertToBGRectInt(real_rect),
-                                                    static_cast<int32_t>(detailed_shape_list.size()));
+      layer_rtree_value_list[layer_idx].emplace_back(RTUTIL.convertToBGRectInt(real_rect), static_cast<int32_t>(detailed_shape_list.size()));
       detailed_shape_list.emplace_back(net_idx, patch.get_real_rect());
     }
   }
@@ -232,7 +231,7 @@ void SupplyAnalyzer::analyzeSupply(SAModel& sa_model)
           supply++;
         }
       }
-      supply = std::min(supply, (int32_t)wire_list.size() - (int32_t)ignore_net_set.size());
+      supply = std::min(supply, (int32_t) wire_list.size() - (int32_t) ignore_net_set.size());
       supply = std::max(0, supply);
       supply *= 0.9;
       routing_edge.set_supply(supply);
@@ -451,7 +450,7 @@ void SupplyAnalyzer::debugPlotSAModel(SAModel& sa_model)
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
   Die& die = RTDM.getDatabase().get_die();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
   std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
   std::string& sa_temp_directory_path = RTDM.getConfig().sa_temp_directory_path;

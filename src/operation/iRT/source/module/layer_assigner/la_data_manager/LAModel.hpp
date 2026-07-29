@@ -31,6 +31,7 @@ class LAModel
   LAComParam& get_la_com_param() { return _la_com_param; }
   std::vector<LANet*>& get_la_task_list() { return _la_task_list; }
   MTree<LayerCoord>& get_routing_tree() { return _routing_tree; }
+  std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_net_global_result_map() { return _net_global_result_map; }
   // setter
   void set_la_net_list(std::vector<LANet>&& la_net_list) { _la_net_list = std::move(la_net_list); }
   void set_la_com_param(const LAComParam& la_com_param) { _la_com_param = la_com_param; }
@@ -45,6 +46,7 @@ class LAModel
   LAComParam _la_com_param;
   std::vector<LANet*> _la_task_list;
   MTree<LayerCoord> _routing_tree;
+  std::map<int32_t, std::vector<Segment<LayerCoord>>> _net_global_result_map;
   LANet* _curr_la_task = nullptr;
 };
 

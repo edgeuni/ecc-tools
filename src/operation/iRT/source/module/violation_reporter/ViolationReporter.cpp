@@ -406,7 +406,7 @@ void ViolationReporter::printSummary(VRModel& vr_model)
 void ViolationReporter::outputNetCSV(VRModel& vr_model)
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::string& vr_temp_directory_path = RTDM.getConfig().vr_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
   if (!output_inter_result) {
@@ -470,7 +470,7 @@ void ViolationReporter::outputNetCSV(VRModel& vr_model)
 void ViolationReporter::outputViolationCSV(VRModel& vr_model)
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::string& vr_temp_directory_path = RTDM.getConfig().vr_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
   if (!output_inter_result) {
@@ -757,7 +757,8 @@ void ViolationReporter::debugPlotVRModel(VRModel& vr_model, std::string flag)
   // routing result
   for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
     GPStruct global_result_struct(RTUTIL.getString("global_result(net_", net_idx, ")"));
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       for (NetShape& net_shape : RTDM.getNetGlobalShapeList(net_idx, *segment)) {
         GPBoundary gp_boundary;
         gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kGlobalPath));

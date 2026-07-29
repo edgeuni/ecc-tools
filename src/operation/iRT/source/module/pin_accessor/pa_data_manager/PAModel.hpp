@@ -28,6 +28,8 @@ namespace irt {
 class PAModel
 {
  public:
+  using AccessPointRTree = bgi::rtree<std::pair<BGRectInt, std::pair<int32_t, AccessPoint*>>, bgi::quadratic<16>>;
+
   PAModel() = default;
   ~PAModel() = default;
   // getter
@@ -40,6 +42,7 @@ class PAModel
   std::vector<std::vector<PABoxId>>& get_pa_box_id_list_list() { return _pa_box_id_list_list; }
   std::vector<int32_t>& get_gcell_x_box_idx_list() { return _gcell_x_box_idx_list; }
   std::vector<int32_t>& get_gcell_y_box_idx_list() { return _gcell_y_box_idx_list; }
+  AccessPointRTree& get_access_point_rtree() { return _access_point_rtree; }
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>>& get_net_pin_access_result_map() { return _net_pin_access_result_map; }
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>>& get_net_pin_access_patch_map() { return _net_pin_access_patch_map; }
   std::vector<Violation>& get_route_violation_list() { return _route_violation_list; }
@@ -76,6 +79,7 @@ class PAModel
   std::vector<std::vector<PABoxId>> _pa_box_id_list_list;
   std::vector<int32_t> _gcell_x_box_idx_list;
   std::vector<int32_t> _gcell_y_box_idx_list;
+  AccessPointRTree _access_point_rtree;
   std::map<int32_t, std::map<int32_t, std::vector<Segment<LayerCoord>>>> _net_pin_access_result_map;
   std::map<int32_t, std::map<int32_t, std::vector<EXTLayerRect>>> _net_pin_access_patch_map;
   std::vector<Violation> _route_violation_list;

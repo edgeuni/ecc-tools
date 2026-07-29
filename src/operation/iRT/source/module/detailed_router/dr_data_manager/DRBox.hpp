@@ -43,7 +43,7 @@ class DRBox
   bool get_initial_routing() const { return _initial_routing; }
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>>& get_net_access_point_map() { return _net_access_point_map; }
-  std::map<int32_t, std::set<Segment<LayerCoord>*>>& get_net_global_result_map() { return _net_global_result_map; }
+  std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_net_global_result_map() { return _net_global_result_map; }
   std::map<int32_t, std::vector<Segment<LayerCoord>*>>& get_net_detailed_result_map() { return _net_detailed_result_map; }
   std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_net_task_detailed_result_map() { return _net_task_detailed_result_map; }
   std::map<int32_t, std::vector<EXTLayerRect*>>& get_net_detailed_patch_map() { return _net_detailed_patch_map; }
@@ -76,7 +76,7 @@ class DRBox
   {
     _net_access_point_map = net_access_point_map;
   }
-  void set_net_global_result_map(const std::map<int32_t, std::set<Segment<LayerCoord>*>>& net_global_result_map)
+  void set_net_global_result_map(const std::map<int32_t, std::vector<Segment<LayerCoord>>>& net_global_result_map)
   {
     _net_global_result_map = net_global_result_map;
   }
@@ -164,7 +164,7 @@ class DRBox
   bool _initial_routing = true;
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> _net_access_point_map;
-  std::map<int32_t, std::set<Segment<LayerCoord>*>> _net_global_result_map;
+  std::map<int32_t, std::vector<Segment<LayerCoord>>> _net_global_result_map;
   std::map<int32_t, std::vector<Segment<LayerCoord>*>> _net_detailed_result_map;
   std::map<int32_t, std::vector<Segment<LayerCoord>>> _net_task_detailed_result_map;
   std::map<int32_t, std::vector<EXTLayerRect*>> _net_detailed_patch_map;

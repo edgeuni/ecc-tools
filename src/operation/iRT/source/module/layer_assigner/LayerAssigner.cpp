@@ -68,6 +68,8 @@ void LayerAssigner::assign()
   outputNetCSV(la_model);
   outputOverflowCSV(la_model);
   outputJson(la_model);
+  RTDM.getDatabase().get_net_global_result_map() = std::move(la_model.get_net_global_result_map());
+  RTDM.rebuildGlobalResultRTree();
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -98,6 +100,7 @@ LAModel LayerAssigner::initLAModel()
 
   LAModel la_model;
   la_model.set_la_net_list(convertToLANetList(net_list));
+  la_model.get_net_global_result_map() = RTDM.getDatabase().get_net_global_result_map();
   return la_model;
 }
 
@@ -178,10 +181,8 @@ void LayerAssigner::buildPlaneTree(LAModel& la_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  Die& die = RTDM.getDatabase().get_die();
-
   std::vector<LANet>& la_net_list = la_model.get_la_net_list();
-  const std::map<int32_t, std::set<Segment<LayerCoord>*>> net_global_result_map = RTDM.getNetGlobalResultMap(die);
+  const auto& net_global_result_map = la_model.get_net_global_result_map();
 
 #pragma omp parallel for schedule(dynamic, 1)
   for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(la_net_list.size()); net_idx++) {
@@ -189,10 +190,7 @@ void LayerAssigner::buildPlaneTree(LAModel& la_model)
     std::vector<Segment<LayerCoord>> routing_segment_list;
     auto result_iter = net_global_result_map.find(la_net.get_net_idx());
     if (result_iter != net_global_result_map.end()) {
-      routing_segment_list.reserve(result_iter->second.size());
-      for (Segment<LayerCoord>* segment : result_iter->second) {
-        routing_segment_list.push_back(*segment);
-      }
+      routing_segment_list = result_iter->second;
     }
     std::vector<LayerCoord> candidate_root_coord_list;
     std::map<LayerCoord, std::set<int32_t>, CmpLayerCoordByXASC> key_coord_pin_map;
@@ -205,11 +203,7 @@ void LayerAssigner::buildPlaneTree(LAModel& la_model)
     }
     la_net.set_planar_tree(RTUTIL.getTreeByFullFlow(candidate_root_coord_list, routing_segment_list, key_coord_pin_map));
   }
-  for (auto& [net_idx, segment_set] : net_global_result_map) {
-    for (Segment<LayerCoord>* segment : segment_set) {
-      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
-    }
-  }
+  la_model.get_net_global_result_map().clear();
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -321,8 +315,7 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
         if (step_y < 0) {
           edge_y--;
         }
-        RoutingEdge& routing_edge = is_horizontal ? routing_edge_map[edge_x][parent_coord.get_y()]
-                                                   : routing_edge_map[parent_coord.get_x()][edge_y];
+        RoutingEdge& routing_edge = is_horizontal ? routing_edge_map[edge_x][parent_coord.get_y()] : routing_edge_map[parent_coord.get_x()][edge_y];
         int32_t overflow = routing_edge.get_ignore_net_set().count(curr_net_idx) ? 0 : routing_edge.get_overflow();
         overflow_list.push_back(overflow);
         overflow_segment.total_overflow += overflow;
@@ -350,10 +343,8 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
         overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * split_offset, parent_coord.get_y() + step_y * split_offset);
       } else if (refine_level == 2) {
         int32_t first_split_offset = std::clamp(hotspot_first_offset, min_subsegment_length, segment_length - 2 * min_subsegment_length);
-        int32_t second_split_offset
-            = std::clamp(hotspot_second_offset + 1, first_split_offset + min_subsegment_length, segment_length - min_subsegment_length);
-        overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * first_split_offset,
-                                                       parent_coord.get_y() + step_y * first_split_offset);
+        int32_t second_split_offset = std::clamp(hotspot_second_offset + 1, first_split_offset + min_subsegment_length, segment_length - min_subsegment_length);
+        overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * first_split_offset, parent_coord.get_y() + step_y * first_split_offset);
         overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * second_split_offset,
                                                        parent_coord.get_y() + step_y * second_split_offset);
       } else {
@@ -516,8 +507,7 @@ void LayerAssigner::buildSubtreeCost(LAModel& la_model)
             for (size_t high_idx = low_idx; high_idx < boundary_layer_idx_list.size(); high_idx++) {
               int32_t low_layer_idx = boundary_layer_idx_list[low_idx];
               int32_t high_layer_idx = boundary_layer_idx_list[high_idx];
-              if (!base_layer_idx_set.empty()
-                  && (low_layer_idx > *base_layer_idx_set.begin() || high_layer_idx < *base_layer_idx_set.rbegin())) {
+              if (!base_layer_idx_set.empty() && (low_layer_idx > *base_layer_idx_set.begin() || high_layer_idx < *base_layer_idx_set.rbegin())) {
                 continue;
               }
 
@@ -722,8 +712,8 @@ MTree<LayerCoord> LayerAssigner::getCoordTree(LAModel& la_model, std::vector<Seg
 void LayerAssigner::uploadNetResult(LAModel& la_model)
 {
   for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(la_model.get_routing_tree())) {
-    Segment<LayerCoord>* segment = new Segment<LayerCoord>(coord_segment.get_first()->value(), coord_segment.get_second()->value());
-    RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, la_model.get_curr_la_task()->get_net_idx(), segment);
+    la_model.get_net_global_result_map()[la_model.get_curr_la_task()->get_net_idx()].emplace_back(coord_segment.get_first()->value(),
+                                                                                                  coord_segment.get_second()->value());
   }
 }
 
@@ -770,8 +760,7 @@ void LayerAssigner::updateRoutingTreeToGraph(LAModel& la_model, ChangeType chang
     bool is_horizontal = RTUTIL.isHorizontal(first_coord, second_coord);
     int32_t edge_num = is_horizontal ? second_x - first_x : second_y - first_y;
     for (int32_t i = 0; i < edge_num; i++) {
-      RoutingEdge& routing_edge
-          = is_horizontal ? routing_h_edge_map[layer_idx][first_x + i][first_y] : routing_v_edge_map[layer_idx][first_x][first_y + i];
+      RoutingEdge& routing_edge = is_horizontal ? routing_h_edge_map[layer_idx][first_x + i][first_y] : routing_v_edge_map[layer_idx][first_x][first_y + i];
       if (routing_edge.get_ignore_net_set().count(curr_net_idx)) {
         continue;
       }
@@ -789,8 +778,7 @@ void LayerAssigner::updateSummary(LAModel& la_model)
 {
   int32_t micron_dbu = RTDM.getDatabase().get_micron_dbu();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  Die& die = RTDM.getDatabase().get_die();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<std::vector<ViaMaster>>& layer_via_master_list = RTDM.getDatabase().get_layer_via_master_list();
   Summary& summary = RTDM.getDatabase().get_summary();
   int32_t enable_timing = RTDM.getConfig().enable_timing;
@@ -837,16 +825,17 @@ void LayerAssigner::updateSummary(LAModel& la_model)
     routing_overflow_map[layer_idx] = routing_overflow;
     total_overflow += routing_overflow;
   }
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-    for (Segment<LayerCoord>* segment : segment_set) {
+  for (auto& [net_idx, segment_set] : la_model.get_net_global_result_map()) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       LayerCoord& first_coord = segment->get_first();
       int32_t first_layer_idx = first_coord.get_layer_idx();
       LayerCoord& second_coord = segment->get_second();
       int32_t second_layer_idx = second_coord.get_layer_idx();
 
       if (first_layer_idx == second_layer_idx) {
-        GCell& first_gcell = gcell_map[first_coord.get_x()][first_coord.get_y()];
-        GCell& second_gcell = gcell_map[second_coord.get_x()][second_coord.get_y()];
+        PlanarRect& first_gcell = gcell_map[first_coord.get_x()][first_coord.get_y()];
+        PlanarRect& second_gcell = gcell_map[second_coord.get_x()][second_coord.get_y()];
         double wire_length = RTUTIL.getManhattanDistance(first_gcell.getMidPoint(), second_gcell.getMidPoint()) / 1.0 / micron_dbu;
         routing_wire_length_map[first_layer_idx] += wire_length;
         total_wire_length += wire_length;
@@ -871,8 +860,9 @@ void LayerAssigner::updateSummary(LAModel& la_model)
                                                                                           layer_coord.get_layer_idx());
       }
     }
-    for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-      for (Segment<LayerCoord>* segment : segment_set) {
+    for (auto& [net_idx, segment_set] : la_model.get_net_global_result_map()) {
+      for (Segment<LayerCoord>& segment_value : segment_set) {
+        Segment<LayerCoord>* segment = &segment_value;
         LayerCoord first_layer_coord = segment->get_first();
         LayerCoord first_real_coord(RTUTIL.getRealRectByGCell(first_layer_coord, gcell_axis).getMidPoint(), first_layer_coord.get_layer_idx());
         LayerCoord second_layer_coord = segment->get_second();
@@ -969,7 +959,6 @@ void LayerAssigner::outputGuide(LAModel& la_model)
 {
   int32_t micron_dbu = RTDM.getDatabase().get_micron_dbu();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  Die& die = RTDM.getDatabase().get_die();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   std::string& la_temp_directory_path = RTDM.getConfig().la_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
@@ -990,7 +979,7 @@ void LayerAssigner::outputGuide(LAModel& la_model)
   RTUTIL.pushStream(guide_file_stream, "wire grid1_x grid1_y grid2_x grid2_y real1_x real1_y real2_x real2_y layer\n");
   RTUTIL.pushStream(guide_file_stream, "via grid_x grid_y real_x real_y layer1 layer2\n");
 
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+  for (auto& [net_idx, segment_set] : la_model.get_net_global_result_map()) {
     LANet& la_net = la_net_list[net_idx];
     RTUTIL.pushStream(guide_file_stream, "guide ", la_net.get_origin_net()->get_net_name(), "\n");
 
@@ -1009,7 +998,8 @@ void LayerAssigner::outputGuide(LAModel& la_model)
       }
       RTUTIL.pushStream(guide_file_stream, "pin ", grid_x, " ", grid_y, " ", real_x, " ", real_y, " ", layer, " ", connnect, " ", la_pin.get_pin_name(), "\n");
     }
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       LayerCoord first_layer_coord = segment->get_first();
       double grid1_x = first_layer_coord.get_x();
       double grid1_y = first_layer_coord.get_y();
@@ -1117,7 +1107,6 @@ void LayerAssigner::outputJson(LAModel& la_model)
 
 std::string LayerAssigner::outputNetJson(LAModel& la_model)
 {
-  Die& die = RTDM.getDatabase().get_die();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
@@ -1126,9 +1115,10 @@ std::string LayerAssigner::outputNetJson(LAModel& la_model)
   std::vector<nlohmann::json> net_json_list;
   {
     nlohmann::json result_shape_json;
-    for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+    for (auto& [net_idx, segment_set] : la_model.get_net_global_result_map()) {
       std::string net_name = net_list[net_idx].get_net_name();
-      for (Segment<LayerCoord>* segment : segment_set) {
+      for (Segment<LayerCoord>& segment_value : segment_set) {
+        Segment<LayerCoord>* segment = &segment_value;
         PlanarRect first_gcell = RTUTIL.getRealRectByGCell(segment->get_first(), gcell_axis);
         PlanarRect second_gcell = RTUTIL.getRealRectByGCell(segment->get_second(), gcell_axis);
         if (segment->get_first().get_layer_idx() != segment->get_second().get_layer_idx()) {
@@ -1173,8 +1163,8 @@ std::string LayerAssigner::outputOverflowJson(LAModel& la_model)
         PlanarCoord second_grid_coord = is_horizontal ? PlanarCoord(x + 1, y) : PlanarCoord(x, y + 1);
         PlanarRect second_gcell = RTUTIL.getRealRectByGCell(second_grid_coord, gcell_axis);
         PlanarRect edge_rect = RTUTIL.getBoundingBox({first_gcell, second_gcell});
-        overflow_json_list.push_back({edge_rect.get_ll_x(), edge_rect.get_ll_y(), edge_rect.get_ur_x(), edge_rect.get_ur_y(),
-                                      routing_layer.get_layer_name(), routing_edge_map[x][y].get_overflow()});
+        overflow_json_list.push_back({edge_rect.get_ll_x(), edge_rect.get_ll_y(), edge_rect.get_ur_x(), edge_rect.get_ur_y(), routing_layer.get_layer_name(),
+                                      routing_edge_map[x][y].get_overflow()});
       }
     }
   }
@@ -1337,9 +1327,10 @@ void LayerAssigner::debugPlotLAModel(LAModel& la_model, std::string flag)
   }
 
   // routing result
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+  for (auto& [net_idx, segment_set] : la_model.get_net_global_result_map()) {
     GPStruct global_result_struct(RTUTIL.getString("global_result(net_", net_idx, ")"));
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       for (NetShape& net_shape : RTDM.getNetGlobalShapeList(net_idx, *segment)) {
         GPBoundary gp_boundary;
         gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kGlobalPath));
@@ -1401,14 +1392,14 @@ void LayerAssigner::debugPlotLAModel(LAModel& la_model, std::string flag)
           RoutingEdge& routing_edge = routing_edge_map[x][y];
           PlanarCoord first_grid_coord(x, y);
           PlanarCoord second_grid_coord = is_horizontal ? PlanarCoord(x + 1, y) : PlanarCoord(x, y + 1);
-          PlanarRect edge_rect = RTUTIL.getBoundingBox(
-              {RTUTIL.getRealRectByGCell(first_grid_coord, gcell_axis), RTUTIL.getRealRectByGCell(second_grid_coord, gcell_axis)});
+          PlanarRect edge_rect
+              = RTUTIL.getBoundingBox({RTUTIL.getRealRectByGCell(first_grid_coord, gcell_axis), RTUTIL.getRealRectByGCell(second_grid_coord, gcell_axis)});
           int32_t y_reduced_span = std::max(1, edge_rect.getYSpan() / 12);
           int32_t text_y = edge_rect.get_ur_y();
 
           std::vector<std::string> message_list;
-          message_list.push_back(RTUTIL.getString("grid: (", first_grid_coord.get_x(), " , ", first_grid_coord.get_y(), ")-(",
-                                                  second_grid_coord.get_x(), " , ", second_grid_coord.get_y(), ")"));
+          message_list.push_back(RTUTIL.getString("grid: (", first_grid_coord.get_x(), " , ", first_grid_coord.get_y(), ")-(", second_grid_coord.get_x(), " , ",
+                                                  second_grid_coord.get_y(), ")"));
           message_list.push_back(
               RTUTIL.getString("supply: ", routing_edge.get_supply(), ", demand: ", routing_edge.get_demand(), ", overflow: ", routing_edge.get_overflow()));
 

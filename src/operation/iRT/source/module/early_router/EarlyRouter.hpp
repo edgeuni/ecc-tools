@@ -124,12 +124,12 @@ class EarlyRouter
   void initERPanelMap(ERModel& er_model);
   void buildPanelSchedule(ERModel& er_model);
   void assignTrack(ERModel& er_model);
-  void routeERPanel(ERPanel& er_panel);
+  void routeERPanel(ERModel& er_model, ERPanel& er_panel);
   void initERBoxMap(ERModel& er_model);
   void buildBoxSchedule(ERModel& er_model);
   void routeDetailed(ERModel& er_model);
   void addNetResultToERBoxTask(ERModel& er_model, int32_t net_idx, Segment<LayerCoord>& segment);
-  void routeERBox(ERBox& er_box);
+  void routeERBox(ERModel& er_model, ERBox& er_box);
   void updateNetResult(ERModel& er_model);
   void updateNetPatch(ERModel& er_model);
   void cleanTempResult(ERModel& er_model);

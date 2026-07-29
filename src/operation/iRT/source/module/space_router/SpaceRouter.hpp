@@ -60,7 +60,6 @@ class SpaceRouter
   void buildBoxSchedule(SRModel& sr_model);
   void splitNetResult(SRModel& sr_model);
   void routeSRBoxMap(SRModel& sr_model);
-  void buildNetResult(SRBox& sr_box);
   void initSRTaskList(SRModel& sr_model, SRBox& sr_box);
   void buildOverflow(SRModel& sr_model, SRBox& sr_box);
   bool needRouting(SRModel& sr_model, SRBox& sr_box);
@@ -100,7 +99,6 @@ class SpaceRouter
   void updateBestResult(SRBox& sr_box);
   void updateTaskSchedule(SRBox& sr_box, std::vector<SRTask*>& routing_task_list);
   void selectBestResult(SRBox& sr_box);
-  void uploadBestResult(SRBox& sr_box);
   void freeSRBox(SRBox& sr_box);
   double getOverflow(SRModel& sr_model);
   void uploadNetResult(SRModel& sr_model);
@@ -110,7 +108,7 @@ class SpaceRouter
   void uploadBestResult(SRModel& sr_model);
 
 #if 1  // update env
-  void updateDemandToGraph(SRModel& sr_model, ChangeType change_type, int32_t net_idx, std::set<Segment<LayerCoord>*>& segment_set);
+  void updateDemandToGraph(SRModel& sr_model, ChangeType change_type, int32_t net_idx, std::vector<Segment<LayerCoord>>& segment_list);
   void updateDemandToGraph(SRBox& sr_box, ChangeType change_type, int32_t net_idx, std::vector<Segment<LayerCoord>>& segment_list);
 #endif
 

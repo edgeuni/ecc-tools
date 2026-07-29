@@ -122,8 +122,8 @@ class PlanarRouter
 
   // routing edge
   PREdgeCost getRoutingEdgeCost(const RoutingEdge& routing_edge, double overflow_unit, int32_t demand_offset);
-  void updateRoutingSegmentListToGraph(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list,
-                                       ChangeType change_type, std::unordered_set<RoutingEdge*>& routing_edge_set);
+  void updateRoutingSegmentListToGraph(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list, ChangeType change_type,
+                                       std::unordered_set<RoutingEdge*>& routing_edge_set);
 
   // routing flow
   void runRouteFlow(PRModel& pr_model);
@@ -142,13 +142,12 @@ class PlanarRouter
 
   // A* route
   std::vector<Segment<PlanarCoord>> getRoutingSegmentListByAStar(PRModel& pr_model, const Segment<PlanarCoord>& planar_topo,
-                                                                const std::vector<Segment<PlanarCoord>>& routed_segment_list);
+                                                                 const std::vector<Segment<PlanarCoord>>& routed_segment_list);
   bool prepareAStarWorkspace(const PlanarRect& workspace_rect, PRAStarWorkspace& workspace);
   int32_t getAStarStateIndex(const PRAStarWorkspace& workspace, const PlanarCoord& coord, bool is_horizontal);
   PlanarCoord getAStarStateCoord(const PRAStarWorkspace& workspace, int32_t state_idx);
   PRAStarState& getAStarState(PRAStarWorkspace& workspace, int32_t state_idx);
-  int32_t getAStarEstimatedCost(const PRAStarWorkspace& workspace, const PlanarCoord& coord, const PlanarCoord& end_coord,
-                                bool has_owned_edge);
+  int32_t getAStarEstimatedCost(const PRAStarWorkspace& workspace, const PlanarCoord& coord, const PlanarCoord& end_coord, bool has_owned_edge);
   bool searchRoutingSegmentByAStar(PRModel& pr_model, const PlanarCoord& start_coord, const PlanarCoord& end_coord, PRAStarWorkspace& workspace,
                                    std::vector<Segment<PlanarCoord>>& routing_segment_list);
   PlanarRect getAStarBaseRect(const Segment<PlanarCoord>& planar_topo);
@@ -167,7 +166,7 @@ class PlanarRouter
 
   // result
   MTree<PlanarCoord> getCoordTree(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list);
-  void uploadNetResult(PRNet& pr_net);
+  void uploadNetResult(PRModel& pr_model, PRNet& pr_net);
 
   // exhibit
   void updateSummary(PRModel& pr_model);

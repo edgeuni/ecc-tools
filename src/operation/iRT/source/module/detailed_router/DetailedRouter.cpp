@@ -271,7 +271,7 @@ void DetailedRouter::initDRBoxMap(DRModel& dr_model)
     }
   }
 
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<int32_t> gcell_x_box_idx_list(gcell_map.get_x_size(), -1);
   std::vector<int32_t> gcell_y_box_idx_list(gcell_map.get_y_size(), -1);
   for (int32_t x = 0; x < dr_box_map.get_x_size(); x++) {
@@ -1461,8 +1461,7 @@ void DetailedRouter::buildGuidePenaltyMap(DRBox& dr_box, DRTask* dr_task)
 {
   std::vector<GridMap<double>>& layer_guide_penalty_map = dr_box.get_layer_guide_penalty_map();
   layer_guide_penalty_map.clear();
-  if (dr_box.get_dr_iter_param()->get_guide_ratio() <= 0 || !dr_box.get_initial_routing()
-      || dr_box.get_net_routed_times_map()[dr_task->get_net_idx()] > 0) {
+  if (dr_box.get_dr_iter_param()->get_guide_ratio() <= 0 || !dr_box.get_initial_routing() || dr_box.get_net_routed_times_map()[dr_task->get_net_idx()] > 0) {
     return;
   }
 
@@ -1480,7 +1479,8 @@ void DetailedRouter::buildGuidePenaltyMap(DRBox& dr_box, DRTask* dr_task)
   int32_t layer_num = static_cast<int32_t>(RTDM.getDatabase().get_routing_layer_list().size());
 
   std::vector<LayerCoord> guide_coord_list;
-  for (Segment<LayerCoord>* segment : global_result_iter->second) {
+  for (Segment<LayerCoord>& segment_value : global_result_iter->second) {
+    Segment<LayerCoord>* segment = &segment_value;
     LayerCoord& first = segment->get_first();
     LayerCoord& second = segment->get_second();
     if (first.get_layer_idx() == second.get_layer_idx()) {
@@ -2377,8 +2377,7 @@ std::vector<DRPatch> DetailedRouter::getCandidatePatchList(DRBox& dr_box)
           }
         }
         if (is_initial_sample && (h_position_num - 1) % sample_step != 0) {
-          PlanarRect h_real_rect
-              = RTUTIL.getEnlargedRect(PlanarCoord(v_cutting_rect.get_ll_x(), y), 0, 0, h_wire_length, wire_width);
+          PlanarRect h_real_rect = RTUTIL.getEnlargedRect(PlanarCoord(v_cutting_rect.get_ll_x(), y), 0, 0, h_wire_length, wire_width);
           if (RTUTIL.isInside(die.get_real_rect(), h_real_rect)) {
             dr_patch_list.emplace_back(h_real_rect, violation_layer_idx);
           }
@@ -2395,8 +2394,7 @@ std::vector<DRPatch> DetailedRouter::getCandidatePatchList(DRBox& dr_box)
           }
         }
         if (is_initial_sample && (v_position_num - 1) % sample_step != 0) {
-          PlanarRect v_real_rect
-              = RTUTIL.getEnlargedRect(PlanarCoord(x, h_cutting_rect.get_ll_y()), 0, 0, wire_width, v_wire_length);
+          PlanarRect v_real_rect = RTUTIL.getEnlargedRect(PlanarCoord(x, h_cutting_rect.get_ll_y()), 0, 0, wire_width, v_wire_length);
           if (RTUTIL.isInside(die.get_real_rect(), v_real_rect)) {
             dr_patch_list.emplace_back(v_real_rect, violation_layer_idx);
           }
@@ -3838,7 +3836,7 @@ void DetailedRouter::outputNetCSV(DRModel& dr_model)
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   Die& die = RTDM.getDatabase().get_die();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::string& dr_temp_directory_path = RTDM.getConfig().dr_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
   if (!output_inter_result) {
@@ -3905,7 +3903,7 @@ void DetailedRouter::outputNetCSV(DRModel& dr_model)
 void DetailedRouter::outputViolationCSV(DRModel& dr_model)
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::string& dr_temp_directory_path = RTDM.getConfig().dr_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
   if (!output_inter_result) {
@@ -4186,7 +4184,8 @@ void DetailedRouter::debugPlotDRModel(DRModel& dr_model, std::string flag)
   // routing result
   for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
     GPStruct global_result_struct(RTUTIL.getString("global_result(net_", net_idx, ")"));
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       for (NetShape& net_shape : RTDM.getNetGlobalShapeList(net_idx, *segment)) {
         GPBoundary gp_boundary;
         gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kGlobalPath));

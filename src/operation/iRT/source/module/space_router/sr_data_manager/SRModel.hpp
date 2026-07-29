@@ -36,6 +36,7 @@ class SRModel
   SRIterParam& get_sr_iter_param() { return _sr_iter_param; }
   GridMap<SRBox>& get_sr_box_map() { return _sr_box_map; }
   std::vector<std::vector<SRBoxId>>& get_sr_box_id_list_list() { return _sr_box_id_list_list; }
+  std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_net_global_result_map() { return _net_global_result_map; }
   std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_best_net_task_global_result_map() { return _best_net_task_global_result_map; }
   double get_best_overflow() const { return _best_overflow; }
   // setter
@@ -60,6 +61,7 @@ class SRModel
   SRIterParam _sr_iter_param;
   GridMap<SRBox> _sr_box_map;
   std::vector<std::vector<SRBoxId>> _sr_box_id_list_list;
+  std::map<int32_t, std::vector<Segment<LayerCoord>>> _net_global_result_map;
   std::map<int32_t, std::vector<Segment<LayerCoord>>> _best_net_task_global_result_map;
   double _best_overflow = 0;
 };

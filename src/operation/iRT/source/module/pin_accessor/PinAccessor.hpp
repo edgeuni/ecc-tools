@@ -62,7 +62,7 @@ class PinAccessor
   std::vector<PlanarRect> getPlanarLegalRectList(PAModel& pa_model, int32_t curr_net_idx, PAPin* pa_pin, std::vector<EXTLayerRect>& pin_shape_list);
   std::vector<AccessPoint> getAccessPointList(PAModel& pa_model, int32_t pin_idx, std::vector<LayerRect>& legal_shape_list);
   void uniformSampleCoordList(PAModel& pa_model, std::vector<LayerCoord>& layer_coord_list);
-  void uploadAccessPointList(PAModel& pa_model);
+  void buildAccessPointRTree(PAModel& pa_model);
   void routePAModel(PAModel& pa_model);
   void initRoutingState(PAModel& pa_model);
   void setPAIterParam(PAModel& pa_model, int32_t iter, PAIterParam& pa_iter_param);
@@ -79,7 +79,7 @@ class PinAccessor
   void addPAPatchToEnvironment(PAModel& pa_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx, int32_t pin_idx,
                                EXTLayerRect& patch);
   void buildFixedRect(PABox& pa_box);
-  void buildAccessPoint(PABox& pa_box);
+  void buildAccessPoint(PAModel& pa_model, PABox& pa_box);
   void initPATaskList(PAModel& pa_model, PABox& pa_box);
   void buildRouteViolation(PAModel& pa_model, PABox& pa_box);
   bool needRouting(PABox& pa_box);

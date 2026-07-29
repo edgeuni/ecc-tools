@@ -382,7 +382,8 @@ void TrackAssigner::initTATaskList(TAModel& ta_model, TAPanel& ta_panel)
 
   for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(ta_panel.get_panel_rect())) {
     TANet& ta_net = ta_net_list[net_idx];
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       LayerCoord& first_coord = segment->get_first();
       LayerCoord& second_coord = segment->get_second();
       if (first_coord.get_layer_idx() != second_coord.get_layer_idx()) {
@@ -1565,7 +1566,7 @@ void TrackAssigner::printSummary(TAModel& ta_model)
 void TrackAssigner::outputNetCSV(TAModel& ta_model)
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::string& ta_temp_directory_path = RTDM.getConfig().ta_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
   if (!output_inter_result) {
@@ -1615,7 +1616,7 @@ void TrackAssigner::outputNetCSV(TAModel& ta_model)
 void TrackAssigner::outputViolationCSV(TAModel& ta_model)
 {
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::string& ta_temp_directory_path = RTDM.getConfig().ta_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
   if (!output_inter_result) {
@@ -1878,7 +1879,8 @@ void TrackAssigner::debugPlotTAModel(TAModel& ta_model, std::string flag)
   // routing result
   for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
     GPStruct global_result_struct(RTUTIL.getString("global_result(net_", net_idx, ")"));
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       for (NetShape& net_shape : RTDM.getNetGlobalShapeList(net_idx, *segment)) {
         GPBoundary gp_boundary;
         gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kGlobalPath));

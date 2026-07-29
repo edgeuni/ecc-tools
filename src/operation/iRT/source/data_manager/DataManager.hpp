@@ -39,13 +39,13 @@ class DataManager
   void output();
 
 #if 1  // 更新Database
-  void updateNetAccessPointToGCellMap(ChangeType change_type, int32_t net_idx, AccessPoint* access_point);
-  void updateNetGlobalResultToGCellMap(ChangeType change_type, int32_t net_idx, Segment<LayerCoord>* segment);
+  void rebuildAccessPointRTree();
+  void rebuildGlobalResultRTree();
   void updateViolationToRTree(ChangeType change_type, const Violation& violation);
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> getTypeLayerNetFixedRectMap(EXTPlanarRect& region);
   std::map<int32_t, std::set<EXTLayerRect*>> getNetFixedRectMap(bool is_routing, EXTLayerRect& region);
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> getNetAccessPointMap(EXTPlanarRect& region);
-  std::map<int32_t, std::set<Segment<LayerCoord>*>> getNetGlobalResultMap(EXTPlanarRect& region);
+  std::map<int32_t, std::vector<Segment<LayerCoord>>> getNetGlobalResultMap(EXTPlanarRect& region);
   std::map<int32_t, std::set<Segment<LayerCoord>*>> getNetDetailedResultMap(EXTPlanarRect& region);
   std::map<int32_t, std::set<EXTLayerRect*>> getNetDetailedPatchMap(EXTPlanarRect& region);
   std::vector<Violation> getViolationList(EXTPlanarRect& region);
@@ -130,7 +130,7 @@ class DataManager
 #endif
 
 #if 1  // destroy
-  void destroyGCellMap();
+  void destroyDatabaseResult();
 #endif
 };
 

@@ -58,6 +58,8 @@ void SpaceRouter::route()
   buildOrientSupply(sr_model);
   reviseNodeDemand(sr_model);
   routeSRModel(sr_model);
+  RTDM.getDatabase().get_net_global_result_map() = std::move(sr_model.get_net_global_result_map());
+  RTDM.rebuildGlobalResultRTree();
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -71,6 +73,7 @@ SRModel SpaceRouter::initSRModel()
 
   SRModel sr_model;
   sr_model.set_sr_net_list(convertToSRNetList(net_list));
+  sr_model.get_net_global_result_map() = RTDM.getDatabase().get_net_global_result_map();
   return sr_model;
 }
 
@@ -101,7 +104,7 @@ void SpaceRouter::buildLayerNodeMap(SRModel& sr_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
 
   std::vector<GridMap<SRNode>>& layer_node_map = sr_model.get_layer_node_map();
@@ -127,7 +130,7 @@ void SpaceRouter::buildOrientSupply(SRModel& sr_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<GridMap<SRNode>>& layer_node_map = sr_model.get_layer_node_map();
 
 #pragma omp parallel for collapse(2)
@@ -144,8 +147,7 @@ void SpaceRouter::buildOrientSupply(SRModel& sr_model)
 
 void SpaceRouter::reviseNodeDemand(SRModel& sr_model)
 {
-  Die& die = RTDM.getDatabase().get_die();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
 
   std::vector<GridMap<SRNode>>& layer_node_map = sr_model.get_layer_node_map();
 
@@ -157,8 +159,8 @@ void SpaceRouter::reviseNodeDemand(SRModel& sr_model)
       }
     }
   }
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-    updateDemandToGraph(sr_model, ChangeType::kAdd, net_idx, segment_set);
+  for (auto& [net_idx, segment_list] : sr_model.get_net_global_result_map()) {
+    updateDemandToGraph(sr_model, ChangeType::kAdd, net_idx, segment_list);
   }
 }
 
@@ -330,8 +332,6 @@ void SpaceRouter::splitNetResult(SRModel& sr_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  Die& die = RTDM.getDatabase().get_die();
-
   std::vector<ScaleGrid> box_x_grid_list;
   std::vector<ScaleGrid> box_y_grid_list;
   {
@@ -355,13 +355,13 @@ void SpaceRouter::splitNetResult(SRModel& sr_model)
     box_y_grid_list = RTUTIL.makeScaleGridList(box_y_scale_list);
   }
 
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-    std::set<Segment<LayerCoord>*> del_segment_set;
+  for (auto& [net_idx, segment_list] : sr_model.get_net_global_result_map()) {
     std::vector<Segment<LayerCoord>> new_segment_list;
-    for (Segment<LayerCoord>* segment : segment_set) {
-      LayerCoord& first_coord = segment->get_first();
-      LayerCoord& second_coord = segment->get_second();
+    for (Segment<LayerCoord>& segment : segment_list) {
+      LayerCoord& first_coord = segment.get_first();
+      LayerCoord& second_coord = segment.get_second();
       if (first_coord.get_layer_idx() != second_coord.get_layer_idx()) {
+        new_segment_list.push_back(segment);
         continue;
       }
       if (RTUTIL.isHorizontal(first_coord, second_coord)) {
@@ -375,6 +375,7 @@ void SpaceRouter::splitNetResult(SRModel& sr_model)
         x_mid_set.erase(first_x);
         x_mid_set.erase(second_x);
         if (x_mid_set.empty()) {
+          new_segment_list.push_back(segment);
           continue;
         }
         std::vector<int32_t> x_scale_list;
@@ -383,7 +384,6 @@ void SpaceRouter::splitNetResult(SRModel& sr_model)
           x_scale_list.push_back(x_scale);
         }
         x_scale_list.push_back(second_x);
-        del_segment_set.insert(segment);
         for (size_t i = 1; i < x_scale_list.size(); i++) {
           new_segment_list.emplace_back(LayerCoord(x_scale_list[i - 1], first_coord.get_y(), first_coord.get_layer_idx()),
                                         LayerCoord(x_scale_list[i], first_coord.get_y(), first_coord.get_layer_idx()));
@@ -399,6 +399,7 @@ void SpaceRouter::splitNetResult(SRModel& sr_model)
         y_mid_set.erase(first_y);
         y_mid_set.erase(second_y);
         if (y_mid_set.empty()) {
+          new_segment_list.push_back(segment);
           continue;
         }
         std::vector<int32_t> y_scale_list;
@@ -407,18 +408,34 @@ void SpaceRouter::splitNetResult(SRModel& sr_model)
           y_scale_list.push_back(y_scale);
         }
         y_scale_list.push_back(second_y);
-        del_segment_set.insert(segment);
         for (size_t i = 1; i < y_scale_list.size(); i++) {
           new_segment_list.emplace_back(LayerCoord(first_coord.get_x(), y_scale_list[i - 1], first_coord.get_layer_idx()),
                                         LayerCoord(first_coord.get_x(), y_scale_list[i], first_coord.get_layer_idx()));
         }
+      } else {
+        new_segment_list.push_back(segment);
       }
     }
-    for (Segment<LayerCoord>* del_segment : del_segment_set) {
-      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, del_segment);
-    }
-    for (Segment<LayerCoord>& new_segment : new_segment_list) {
-      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(new_segment));
+    segment_list = std::move(new_segment_list);
+  }
+  GridMap<SRBox>& sr_box_map = sr_model.get_sr_box_map();
+  for (int32_t x = 0; x < sr_box_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < sr_box_map.get_y_size(); y++) {
+      SRBox& sr_box = sr_box_map[x][y];
+      PlanarRect& box_grid_rect = sr_box.get_box_rect().get_grid_rect();
+      for (auto& [net_idx, segment_list] : sr_model.get_net_global_result_map()) {
+        auto iter = segment_list.begin();
+        while (iter != segment_list.end()) {
+          bool inside = RTUTIL.isInside(box_grid_rect, iter->get_first()) && RTUTIL.isInside(box_grid_rect, iter->get_second());
+          bool owner = RTUTIL.isInside(box_grid_rect, iter->get_first(), false) || RTUTIL.isInside(box_grid_rect, iter->get_second(), false);
+          if (inside && owner) {
+            sr_box.get_net_task_global_result_map()[net_idx].push_back(*iter);
+            iter = segment_list.erase(iter);
+          } else {
+            iter++;
+          }
+        }
+      }
     }
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -442,7 +459,6 @@ void SpaceRouter::routeSRBoxMap(SRModel& sr_model)
 #pragma omp parallel for
     for (SRBoxId& sr_box_id : sr_box_id_list) {
       SRBox& sr_box = sr_box_map[sr_box_id.get_x()][sr_box_id.get_y()];
-      buildNetResult(sr_box);
       initSRTaskList(sr_model, sr_box);
       buildOverflow(sr_model, sr_box);
       if (needRouting(sr_model, sr_box)) {
@@ -459,33 +475,19 @@ void SpaceRouter::routeSRBoxMap(SRModel& sr_model)
       selectBestResult(sr_box);
       freeSRBox(sr_box);
     }
+    for (SRBoxId& sr_box_id : sr_box_id_list) {
+      SRBox& sr_box = sr_box_map[sr_box_id.get_x()][sr_box_id.get_y()];
+      for (auto& [net_idx, segment_list] : sr_box.get_best_net_task_global_result_map()) {
+        auto& model_segment_list = sr_model.get_net_global_result_map()[net_idx];
+        model_segment_list.insert(model_segment_list.end(), segment_list.begin(), segment_list.end());
+      }
+    }
     routed_box_num += sr_box_id_list.size();
     RTLOG.info(Loc::current(), "Routed ", routed_box_num, "/", total_box_num, "(", RTUTIL.getPercentage(routed_box_num, total_box_num), ") boxes",
                stage_monitor.getStatsInfo());
   }
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
-}
-
-void SpaceRouter::buildNetResult(SRBox& sr_box)
-{
-  PlanarRect& box_grid_rect = sr_box.get_box_rect().get_grid_rect();
-
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(sr_box.get_box_rect())) {
-    for (Segment<LayerCoord>* segment : segment_set) {
-      bool least_one_coord_in_box = false;
-      if (RTUTIL.isInside(box_grid_rect, segment->get_first()) && RTUTIL.isInside(box_grid_rect, segment->get_second())) {
-        if (RTUTIL.isInside(box_grid_rect, segment->get_first(), false) || RTUTIL.isInside(box_grid_rect, segment->get_second(), false)) {
-          // 线段在box_grid_rect内,但不贴边的
-          least_one_coord_in_box = true;
-        }
-      }
-      if (least_one_coord_in_box) {
-        sr_box.get_net_task_global_result_map()[net_idx].push_back(*segment);
-        RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
-      }
-    }
-  }
 }
 
 void SpaceRouter::initSRTaskList(SRModel& sr_model, SRBox& sr_box)
@@ -1243,16 +1245,6 @@ void SpaceRouter::updateTaskSchedule(SRBox& sr_box, std::vector<SRTask*>& routin
 void SpaceRouter::selectBestResult(SRBox& sr_box)
 {
   updateBestResult(sr_box);
-  uploadBestResult(sr_box);
-}
-
-void SpaceRouter::uploadBestResult(SRBox& sr_box)
-{
-  for (auto& [net_idx, segment_list] : sr_box.get_best_net_task_global_result_map()) {
-    for (Segment<LayerCoord>& segment : segment_list) {
-      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(segment));
-    }
-  }
 }
 
 void SpaceRouter::freeSRBox(SRBox& sr_box)
@@ -1286,35 +1278,22 @@ void SpaceRouter::uploadNetResult(SRModel& sr_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  Die& die = RTDM.getDatabase().get_die();
   std::vector<SRNet>& sr_net_list = sr_model.get_sr_net_list();
 
-  // global result
-  {
-    std::map<int32_t, std::set<Segment<LayerCoord>*>> net_global_result_map = RTDM.getNetGlobalResultMap(die);
-    for (auto& [net_idx, segment_set] : net_global_result_map) {
-      std::vector<Segment<LayerCoord>> routing_segment_list;
-      for (Segment<LayerCoord>* segment : segment_set) {
-        routing_segment_list.emplace_back(segment->get_first(), segment->get_second());
-      }
-      std::vector<LayerCoord> candidate_root_coord_list;
-      std::map<LayerCoord, std::set<int32_t>, CmpLayerCoordByXASC> key_coord_pin_map;
-      std::vector<SRPin>& sr_pin_list = sr_net_list[net_idx].get_sr_pin_list();
-      for (size_t i = 0; i < sr_pin_list.size(); i++) {
-        LayerCoord coord = sr_pin_list[i].get_access_point().getGridLayerCoord();
-        candidate_root_coord_list.push_back(coord);
-        key_coord_pin_map[coord].insert(static_cast<int32_t>(i));
-      }
-      MTree<LayerCoord> coord_tree = RTUTIL.getTreeByFullFlow(candidate_root_coord_list, routing_segment_list, key_coord_pin_map);
-      for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
-        RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, net_idx,
-                                             new Segment<LayerCoord>(coord_segment.get_first()->value(), coord_segment.get_second()->value()));
-      }
+  for (auto& [net_idx, segment_list] : sr_model.get_net_global_result_map()) {
+    std::vector<Segment<LayerCoord>> routing_segment_list = segment_list;
+    std::vector<LayerCoord> candidate_root_coord_list;
+    std::map<LayerCoord, std::set<int32_t>, CmpLayerCoordByXASC> key_coord_pin_map;
+    std::vector<SRPin>& sr_pin_list = sr_net_list[net_idx].get_sr_pin_list();
+    for (size_t i = 0; i < sr_pin_list.size(); i++) {
+      LayerCoord coord = sr_pin_list[i].get_access_point().getGridLayerCoord();
+      candidate_root_coord_list.push_back(coord);
+      key_coord_pin_map[coord].insert(static_cast<int32_t>(i));
     }
-    for (auto& [net_idx, segment_set] : net_global_result_map) {
-      for (Segment<LayerCoord>* segment : segment_set) {
-        RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
-      }
+    MTree<LayerCoord> coord_tree = RTUTIL.getTreeByFullFlow(candidate_root_coord_list, routing_segment_list, key_coord_pin_map);
+    segment_list.clear();
+    for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
+      segment_list.emplace_back(coord_segment.get_first()->value(), coord_segment.get_second()->value());
     }
   }
 
@@ -1326,8 +1305,6 @@ void SpaceRouter::updateBestResult(SRModel& sr_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  Die& die = RTDM.getDatabase().get_die();
-
   std::map<int32_t, std::vector<Segment<LayerCoord>>>& best_net_task_global_result_map = sr_model.get_best_net_task_global_result_map();
   double best_overflow = sr_model.get_best_overflow();
 
@@ -1337,12 +1314,7 @@ void SpaceRouter::updateBestResult(SRModel& sr_model)
       return;
     }
   }
-  best_net_task_global_result_map.clear();
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-    for (Segment<LayerCoord>* segment : segment_set) {
-      best_net_task_global_result_map[net_idx].push_back(*segment);
-    }
-  }
+  best_net_task_global_result_map = sr_model.get_net_global_result_map();
   sr_model.set_best_overflow(curr_overflow);
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -1377,28 +1349,17 @@ void SpaceRouter::selectBestResult(SRModel& sr_model)
 
 void SpaceRouter::uploadBestResult(SRModel& sr_model)
 {
-  Die& die = RTDM.getDatabase().get_die();
-
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-    for (Segment<LayerCoord>* segment : segment_set) {
-      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
-    }
-  }
-  for (auto& [net_idx, segment_list] : sr_model.get_best_net_task_global_result_map()) {
-    for (Segment<LayerCoord>& segment : segment_list) {
-      RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, net_idx, new Segment<LayerCoord>(segment));
-    }
-  }
+  sr_model.get_net_global_result_map() = sr_model.get_best_net_task_global_result_map();
 }
 
 #if 1  // update env
 
-void SpaceRouter::updateDemandToGraph(SRModel& sr_model, ChangeType change_type, int32_t net_idx, std::set<Segment<LayerCoord>*>& segment_set)
+void SpaceRouter::updateDemandToGraph(SRModel& sr_model, ChangeType change_type, int32_t net_idx, std::vector<Segment<LayerCoord>>& segment_list)
 {
   std::map<LayerCoord, std::set<Orientation>, CmpLayerCoordByXASC> usage_map;
-  for (Segment<LayerCoord>* segment : segment_set) {
-    LayerCoord& first_coord = segment->get_first();
-    LayerCoord& second_coord = segment->get_second();
+  for (Segment<LayerCoord>& segment : segment_list) {
+    LayerCoord& first_coord = segment.get_first();
+    LayerCoord& second_coord = segment.get_second();
 
     Orientation orientation = RTUTIL.getOrientation(first_coord, second_coord);
     if (orientation == Orientation::kNone || orientation == Orientation::kOblique) {
@@ -1492,8 +1453,7 @@ void SpaceRouter::updateSummary(SRModel& sr_model)
 {
   int32_t micron_dbu = RTDM.getDatabase().get_micron_dbu();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  Die& die = RTDM.getDatabase().get_die();
-  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<std::vector<ViaMaster>>& layer_via_master_list = RTDM.getDatabase().get_layer_via_master_list();
   Summary& summary = RTDM.getDatabase().get_summary();
   int32_t enable_timing = RTDM.getConfig().enable_timing;
@@ -1534,16 +1494,17 @@ void SpaceRouter::updateSummary(SRModel& sr_model)
       }
     }
   }
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-    for (Segment<LayerCoord>* segment : segment_set) {
+  for (auto& [net_idx, segment_set] : sr_model.get_net_global_result_map()) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       LayerCoord& first_coord = segment->get_first();
       int32_t first_layer_idx = first_coord.get_layer_idx();
       LayerCoord& second_coord = segment->get_second();
       int32_t second_layer_idx = second_coord.get_layer_idx();
 
       if (first_layer_idx == second_layer_idx) {
-        GCell& first_gcell = gcell_map[first_coord.get_x()][first_coord.get_y()];
-        GCell& second_gcell = gcell_map[second_coord.get_x()][second_coord.get_y()];
+        PlanarRect& first_gcell = gcell_map[first_coord.get_x()][first_coord.get_y()];
+        PlanarRect& second_gcell = gcell_map[second_coord.get_x()][second_coord.get_y()];
         double wire_length = RTUTIL.getManhattanDistance(first_gcell.getMidPoint(), second_gcell.getMidPoint()) / 1.0 / micron_dbu;
         routing_wire_length_map[first_layer_idx] += wire_length;
         total_wire_length += wire_length;
@@ -1568,8 +1529,9 @@ void SpaceRouter::updateSummary(SRModel& sr_model)
                                                                                           layer_coord.get_layer_idx());
       }
     }
-    for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-      for (Segment<LayerCoord>* segment : segment_set) {
+    for (auto& [net_idx, segment_set] : sr_model.get_net_global_result_map()) {
+      for (Segment<LayerCoord>& segment_value : segment_set) {
+        Segment<LayerCoord>* segment = &segment_value;
         LayerCoord first_layer_coord = segment->get_first();
         LayerCoord first_real_coord(RTUTIL.getRealRectByGCell(first_layer_coord, gcell_axis).getMidPoint(), first_layer_coord.get_layer_idx());
         LayerCoord second_layer_coord = segment->get_second();
@@ -1666,7 +1628,6 @@ void SpaceRouter::outputGuide(SRModel& sr_model)
 {
   int32_t micron_dbu = RTDM.getDatabase().get_micron_dbu();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  Die& die = RTDM.getDatabase().get_die();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   std::string& sr_temp_directory_path = RTDM.getConfig().sr_temp_directory_path;
   int32_t output_inter_result = RTDM.getConfig().output_inter_result;
@@ -1687,7 +1648,7 @@ void SpaceRouter::outputGuide(SRModel& sr_model)
   RTUTIL.pushStream(guide_file_stream, "wire grid1_x grid1_y grid2_x grid2_y real1_x real1_y real2_x real2_y layer\n");
   RTUTIL.pushStream(guide_file_stream, "via grid_x grid_y real_x real_y layer1 layer2\n");
 
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+  for (auto& [net_idx, segment_set] : sr_model.get_net_global_result_map()) {
     SRNet& sr_net = sr_net_list[net_idx];
     RTUTIL.pushStream(guide_file_stream, "guide ", sr_net.get_origin_net()->get_net_name(), "\n");
 
@@ -1706,7 +1667,8 @@ void SpaceRouter::outputGuide(SRModel& sr_model)
       }
       RTUTIL.pushStream(guide_file_stream, "pin ", grid_x, " ", grid_y, " ", real_x, " ", real_y, " ", layer, " ", connnect, " ", sr_pin.get_pin_name(), "\n");
     }
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       LayerCoord first_layer_coord = segment->get_first();
       double grid1_x = first_layer_coord.get_x();
       double grid1_y = first_layer_coord.get_y();
@@ -1811,7 +1773,6 @@ void SpaceRouter::outputJson(SRModel& sr_model)
 
 std::string SpaceRouter::outputNetJson(SRModel& sr_model)
 {
-  Die& die = RTDM.getDatabase().get_die();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
   std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
@@ -1820,9 +1781,10 @@ std::string SpaceRouter::outputNetJson(SRModel& sr_model)
   std::vector<nlohmann::json> net_json_list;
   {
     nlohmann::json result_shape_json;
-    for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+    for (auto& [net_idx, segment_set] : sr_model.get_net_global_result_map()) {
       std::string net_name = net_list[net_idx].get_net_name();
-      for (Segment<LayerCoord>* segment : segment_set) {
+      for (Segment<LayerCoord>& segment_value : segment_set) {
+        Segment<LayerCoord>* segment = &segment_value;
         PlanarRect first_gcell = RTUTIL.getRealRectByGCell(segment->get_first(), gcell_axis);
         PlanarRect second_gcell = RTUTIL.getRealRectByGCell(segment->get_second(), gcell_axis);
         if (segment->get_first().get_layer_idx() != segment->get_second().get_layer_idx()) {
@@ -2029,9 +1991,10 @@ void SpaceRouter::debugPlotSRModel(SRModel& sr_model, std::string flag)
   }
 
   // routing result
-  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
+  for (auto& [net_idx, segment_set] : sr_model.get_net_global_result_map()) {
     GPStruct global_result_struct(RTUTIL.getString("global_result(net_", net_idx, ")"));
-    for (Segment<LayerCoord>* segment : segment_set) {
+    for (Segment<LayerCoord>& segment_value : segment_set) {
+      Segment<LayerCoord>* segment = &segment_value;
       for (NetShape& net_shape : RTDM.getNetGlobalShapeList(net_idx, *segment)) {
         GPBoundary gp_boundary;
         gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kGlobalPath));
