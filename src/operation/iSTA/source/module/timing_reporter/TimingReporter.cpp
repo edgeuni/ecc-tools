@@ -93,6 +93,59 @@ std::string stableTimingPathId(const std::string& value)
   return stream.str();
 }
 
+std::string normalizeTimingReportOption(std::string value)
+{
+  std::transform(value.begin(), value.end(), value.begin(),
+                 [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+  std::replace(value.begin(), value.end(), '-', '_');
+  return value;
+}
+
+std::vector<DelayType> getReportDelayTypeList()
+{
+  const std::string delay_type = normalizeTimingReportOption(STADM.getConfig().timing_report_delay_type);
+  if (delay_type == "max" || delay_type == "setup" || delay_type.empty()) {
+    return {DelayType::kMax};
+  }
+  if (delay_type == "min" || delay_type == "hold") {
+    return {DelayType::kMin};
+  }
+  if (delay_type == "max_min" || delay_type == "min_max" || delay_type == "all") {
+    return {DelayType::kMax, DelayType::kMin};
+  }
+
+  STALOG.warn(Loc::current(), "Unrecognized timing report delay_type='", STADM.getConfig().timing_report_delay_type,
+              "', use default 'max'.");
+  return {DelayType::kMax};
+}
+
+std::vector<StartEndType> getReportStartEndTypeList()
+{
+  const std::string start_end_type = normalizeTimingReportOption(STADM.getConfig().timing_report_start_end_type);
+  if (start_end_type.empty() || start_end_type == "all" || start_end_type == "none") {
+    return {StartEndType::kNone};
+  }
+  if (start_end_type == "all_separate" || start_end_type == "separate") {
+    return {StartEndType::kInToOut, StartEndType::kInToReg, StartEndType::kRegToOut, StartEndType::kRegToReg};
+  }
+  if (start_end_type == "in_to_out" || start_end_type == "in2out") {
+    return {StartEndType::kInToOut};
+  }
+  if (start_end_type == "in_to_reg" || start_end_type == "in2reg") {
+    return {StartEndType::kInToReg};
+  }
+  if (start_end_type == "reg_to_out" || start_end_type == "reg2out") {
+    return {StartEndType::kRegToOut};
+  }
+  if (start_end_type == "reg_to_reg" || start_end_type == "reg2reg") {
+    return {StartEndType::kRegToReg};
+  }
+
+  STALOG.warn(Loc::current(), "Unrecognized timing report start_end_type='",
+              STADM.getConfig().timing_report_start_end_type, "', use default 'all'.");
+  return {StartEndType::kNone};
+}
+
 }  // namespace
 
 // public
@@ -146,14 +199,11 @@ void TimingReporter::outputTimingReportList()
   const bool output_reports = STADM.getConfig().output_timing_reports != 0;
   const bool output_features = STADM.getConfig().output_timing_features != 0;
   if (output_reports) {
-    outputTimingReport(DelayType::kMax, StartEndType::kInToOut);
-    outputTimingReport(DelayType::kMax, StartEndType::kInToReg);
-    outputTimingReport(DelayType::kMax, StartEndType::kRegToOut);
-    outputTimingReport(DelayType::kMax, StartEndType::kRegToReg);
-    outputTimingReport(DelayType::kMin, StartEndType::kInToOut);
-    outputTimingReport(DelayType::kMin, StartEndType::kInToReg);
-    outputTimingReport(DelayType::kMin, StartEndType::kRegToOut);
-    outputTimingReport(DelayType::kMin, StartEndType::kRegToReg);
+    for (DelayType delay_type : getReportDelayTypeList()) {
+      for (StartEndType start_end_type : getReportStartEndTypeList()) {
+        outputTimingReport(delay_type, start_end_type);
+      }
+    }
   }
   if (output_reports || output_features) {
     outputQorSummaryReport();
@@ -175,6 +225,9 @@ void TimingReporter::outputTimingReport(DelayType delay_type, StartEndType start
 
 std::string TimingReporter::getReportFilePath(DelayType delay_type, StartEndType start_end_type)
 {
+  if (start_end_type == StartEndType::kNone) {
+    return STAUTIL.getString(STADM.getConfig().tr_temp_directory_path, "timing_", GetDelayTypeName()(delay_type), ".rpt");
+  }
   return STAUTIL.getString(STADM.getConfig().tr_temp_directory_path, "timing_", GetDelayTypeName()(delay_type), "_",
                            GetStartEndTypeReportName()(start_end_type), ".rpt");
 }
@@ -185,7 +238,8 @@ void TimingReporter::outputReportHeader(std::ofstream* report_file, DelayType de
   (*report_file) << "****************************************\n";
   (*report_file) << "Design : " << database.get_design_name() << "\n";
   (*report_file) << "DelayType : " << GetDelayTypeName()(delay_type) << "\n";
-  (*report_file) << "StartEndType : " << GetStartEndTypeName()(start_end_type) << "\n";
+  (*report_file) << "StartEndType : "
+                 << (start_end_type == StartEndType::kNone ? "all" : GetStartEndTypeName()(start_end_type)) << "\n";
   (*report_file) << "MaxSlack : 1000\n";
   (*report_file) << "MaxPaths : " << STADM.getConfig().path_report_number << "\n";
   (*report_file) << "SortBy : slack\n";
@@ -779,6 +833,9 @@ bool TimingReporter::isMatchAnalysisType(TimingPath& timing_path, DelayType dela
 
 bool TimingReporter::isMatchStartEndType(TimingPath& timing_path, StartEndType start_end_type)
 {
+  if (start_end_type == StartEndType::kNone) {
+    return true;
+  }
   bool start_is_port = isPort(timing_path.get_start_point());
   bool end_is_port = isPort(timing_path.get_end_point());
   if (start_end_type == StartEndType::kInToOut) {
