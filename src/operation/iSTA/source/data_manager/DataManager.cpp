@@ -83,7 +83,8 @@ void DataManager::buildConfig()
   _config.temp_directory_path = std::filesystem::absolute(_config.temp_directory_path);
   _config.temp_directory_path += "/";
   _config.log_file_path = _config.temp_directory_path + "sta.log";
-  _config.path_report_number = 10000;
+  _config.path_report_number = std::max(_config.path_report_number, 1);
+  _config.timing_path_limit = std::max(_config.timing_path_limit, 0);
   // **********    DataManager    ********** //
   _config.dm_temp_directory_path = _config.temp_directory_path + "data_manager/";
   // **********   GraphBuilder    ********** //
@@ -953,6 +954,16 @@ void DataManager::printConfig()
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.thread_number);
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "path_report_number");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.path_report_number);
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "timing_report_delay_type");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.timing_report_delay_type);
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "timing_report_start_end_type");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.timing_report_start_end_type);
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "output_timing_reports");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.output_timing_reports);
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "output_timing_features");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.output_timing_features);
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "timing_path_limit");
+  STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(2), _config.timing_path_limit);
   // **********        STA        ********** //
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(0), "STA_CONFIG_BUILD");
   STALOG.info(Loc::current(), STAUTIL.getSpaceByTabNum(1), "log_file_path");

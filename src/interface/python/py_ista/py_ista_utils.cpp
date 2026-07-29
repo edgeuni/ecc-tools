@@ -57,6 +57,26 @@ bool initStaConfigMapByJSON(const std::string& config, std::map<std::string, std
   if (!value.empty()) {
     config_map.insert(std::make_pair("-timing_corner", value));
   }
+  value = ieda::getJsonData(json, {"STA", "-max_paths"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-max_paths", std::stoi(value)));
+  }
+  value = ieda::getJsonData(json, {"STA", "-max_path"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-max_path", std::stoi(value)));
+  }
+  value = ieda::getJsonData(json, {"STA", "-path_report_number"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-path_report_number", std::stoi(value)));
+  }
+  value = ieda::getJsonData(json, {"STA", "-delay_type"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-delay_type", value));
+  }
+  value = ieda::getJsonData(json, {"STA", "-start_end_type"});
+  if (!value.empty()) {
+    config_map.insert(std::make_pair("-start_end_type", value));
+  }
   return true;
 }
 
@@ -79,6 +99,21 @@ void initStaConfigMapByDict(std::map<std::string, std::string>& config_dict, std
   }
   if (config_dict.count("-timing_corner") > 0 && !config_dict["-timing_corner"].empty()) {
     config_map["-timing_corner"] = config_dict["-timing_corner"];
+  }
+  if (config_dict.count("-max_paths") > 0 && !config_dict["-max_paths"].empty()) {
+    config_map["-max_paths"] = std::stoi(config_dict["-max_paths"]);
+  }
+  if (config_dict.count("-max_path") > 0 && !config_dict["-max_path"].empty()) {
+    config_map["-max_path"] = std::stoi(config_dict["-max_path"]);
+  }
+  if (config_dict.count("-path_report_number") > 0 && !config_dict["-path_report_number"].empty()) {
+    config_map["-path_report_number"] = std::stoi(config_dict["-path_report_number"]);
+  }
+  if (config_dict.count("-delay_type") > 0 && !config_dict["-delay_type"].empty()) {
+    config_map["-delay_type"] = config_dict["-delay_type"];
+  }
+  if (config_dict.count("-start_end_type") > 0 && !config_dict["-start_end_type"].empty()) {
+    config_map["-start_end_type"] = config_dict["-start_end_type"];
   }
 }
 

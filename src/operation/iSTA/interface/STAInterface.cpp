@@ -217,6 +217,15 @@ void STAInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   STADM.getConfig().output_timing_features = STAUTIL.getConfigValue<int32_t>(config_map, "-output_timing_features", 1);
   STADM.getConfig().timing_path_limit = STAUTIL.getConfigValue<int32_t>(config_map, "-timing_path_limit", 20);
   STADM.getConfig().timing_corner = STAUTIL.getConfigValue<std::string>(config_map, "-timing_corner", "");
+  STADM.getConfig().path_report_number = STAUTIL.getConfigValue<int32_t>(config_map, "-max_paths", 1);
+  if (STAUTIL.exist(config_map, std::string("-max_path"))) {
+    STADM.getConfig().path_report_number = std::any_cast<int32_t>(config_map["-max_path"]);
+  }
+  if (STAUTIL.exist(config_map, std::string("-path_report_number"))) {
+    STADM.getConfig().path_report_number = std::any_cast<int32_t>(config_map["-path_report_number"]);
+  }
+  STADM.getConfig().timing_report_delay_type = STAUTIL.getConfigValue<std::string>(config_map, "-delay_type", "max");
+  STADM.getConfig().timing_report_start_end_type = STAUTIL.getConfigValue<std::string>(config_map, "-start_end_type", "all");
   omp_set_num_threads(std::max(STADM.getConfig().thread_number, 1));
   /////////////////////////////////////////////
 }

@@ -29,11 +29,13 @@ class Config
   // **********        STA        ********** //
   std::string temp_directory_path;  // required
   int32_t thread_number;            // optional
-  int32_t path_report_number;       // optional
+  int32_t path_report_number = 1;   // optional
   int32_t output_timing_reports = 1;
   int32_t output_timing_features = 1;
   int32_t timing_path_limit = 20;
   std::string timing_corner;
+  std::string timing_report_delay_type = "max";
+  std::string timing_report_start_end_type = "all";
   /////////////////////////////////////////////
   // **********        STA        ********** //
   std::string log_file_path;  // building
