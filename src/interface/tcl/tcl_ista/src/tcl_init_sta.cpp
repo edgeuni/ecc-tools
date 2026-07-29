@@ -38,6 +38,12 @@ TclInitSTA::TclInitSTA(const char* cmd_name) : TclCmd(cmd_name)
   _config_list.push_back(std::make_pair("-timing_corner", ValueType::kString));
   // int32_t max_paths;                 // optional
   _config_list.push_back(std::make_pair("-max_paths", ValueType::kInt));
+  // int32_t nworst;                    // optional
+  _config_list.push_back(std::make_pair("-nworst", ValueType::kInt));
+  // double slack_lesser_than;          // optional
+  _config_list.push_back(std::make_pair("-slack_lesser_than", ValueType::kDouble));
+  // double slack_greater_than;         // optional
+  _config_list.push_back(std::make_pair("-slack_greater_than", ValueType::kDouble));
   // compatibility aliases
   _config_list.push_back(std::make_pair("-max_path", ValueType::kInt));
   _config_list.push_back(std::make_pair("-path_report_number", ValueType::kInt));
