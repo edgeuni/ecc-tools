@@ -1,0 +1,15 @@
+{"file": ".trellis/spec/project-constraints.md", "reason": "Verify final scope, file conventions, hygiene, and full iCTS validation."}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify exact outer directory alignment, facade placement, orchestration, target ownership, and CMake structure."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify runtime ownership, adapter containment, state lifetime, and commit atomicity."}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Verify one iRT-style cts.log, Logger/Monitor semantics, SchemaWriter/detail removal, and complete no-glog convergence."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify terminal Error and recoverable typed failure mappings."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify naming, includes, dependency visibility, scans, and quality gate."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Review API-to-adapter data flow, units, ownership, validation, and logging across layers."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Review helper/target reuse and prevent duplicated compatibility infrastructure."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/irt-logger-monitor.md", "reason": "Check the final implementation against the evidence-backed iRT observability contract."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/irt-architecture-contract.md", "reason": "Check exact two-level iRT directory alignment, single-log decision, stable architecture rules, and rejected unsafe mechanics."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/icts-current-gap.md", "reason": "Check all quantified migration edges, current compatibility invariants, and acceptance risks."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/global-data-manager-feasibility.md", "reason": "Reject surface-only directory/wrapper changes and verify the global DataManager, local-model, commit, lifecycle, and single-session contracts."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/ownership-business-map.md", "reason": "Verify every stable object, stage mutation, reset dependency, local workspace, and commit authority matches the approved business ownership."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/migration-inventory.md", "reason": "Verify all old logging/runtime/reporter/test/consumer/target edges in the quantified pre-edit inventory were eliminated or migrated."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/baseline/README.md", "reason": "Compare final command, actual artifacts, topology, naming, connectivity, placement, non-log inventory, and QoR against the pre-edit baseline."}

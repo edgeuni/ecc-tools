@@ -1,0 +1,13 @@
+{"file": ".trellis/spec/project-constraints.md", "reason": "Repository-wide iCTS file, process, logging, and validation constraints; approved design will update conflicting clauses first."}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Current iCTS placement authority; update it first to the approved interface/source/test and data_manager/module/toolkit layout."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Runtime ownership, stage contracts, adapter containment, singleton, and commit boundaries."}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Current logging/report authority; replace its glog and structured default/detail clauses with the single iRT-style cts.log contract."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Severity and recoverable-versus-terminal behavior needed for non-mechanical LOG migration."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Naming, include visibility, dependency, facade, and final validation rules."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/irt-logger-monitor.md", "reason": "Code-evidence-backed iRT Logger/Monitor contract and known defects not to copy."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/irt-architecture-contract.md", "reason": "Injection-sized iRT evidence and user-selected final directory/logging mapping; full research remains available for deep review."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/icts-current-gap.md", "reason": "Quantified iCTS migration surface, current invariants, spec conflicts, and validation risks."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/global-data-manager-feasibility.md", "reason": "Evidence and business-level contract for replacing CTSRuntime/Flow with one global DataManager, local module models, and validated commits."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/ownership-business-map.md", "reason": "Authoritative current-to-final ownership, mutation, reset, commit, and end-to-end business call map captured before product edits."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/research/migration-inventory.md", "reason": "Exact pre-edit code, logging, reporter, test-runtime, consumer, target, and external-dependency migration surface."}
+{"file": ".trellis/tasks/07-29-cts-irt-style-refactor/baseline/README.md", "reason": "Exact pre-edit ICS55 command identity, actual output path, retained artifacts, hashes, topology, and QoR baseline."}
