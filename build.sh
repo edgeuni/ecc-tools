@@ -180,7 +180,7 @@ install_dependencies_apt()
     apt-get update && apt-get install -y \
       g++-10 cmake ninja-build \
       tcl-dev libgflags-dev libgoogle-glog-dev libboost-all-dev libgtest-dev flex\
-      libeigen3-dev libunwind-dev libgmp-dev bison rustc cargo\
+      libeigen3-dev libunwind-dev libgmp-dev bison \
       libhwloc-dev libcairo2-dev libcurl4-openssl-dev libtbb-dev git\
       mold lld
     exit 0
