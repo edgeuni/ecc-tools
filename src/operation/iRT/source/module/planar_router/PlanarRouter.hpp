@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include <span>
+
 #include "Config.hpp"
 #include "DataManager.hpp"
 #include "Database.hpp"
@@ -29,18 +31,12 @@ namespace irt {
 
 struct PREdgeCost
 {
-  double usage_cost = 0.0;
-  double saturation_cost = 0.0;
-  double hotspot_cost = 0.0;
-  double overflow_cost = 0.0;
-  double congestion_cost = 0.0;
-  double overflow = 0.0;
-  double max_usage_ratio = 0.0;
+  double unit_cost = 0.0;
   bool is_saturated = false;
   bool is_hotspot = false;
   bool is_overflow = false;
 
-  double getTotalCost() const { return usage_cost + saturation_cost + hotspot_cost + overflow_cost + congestion_cost; }
+  double getTotalCost(double overflow_unit, double congestion_cost) const { return overflow_unit * unit_cost + congestion_cost; }
 };
 
 enum class PRRouteMode
@@ -62,19 +58,18 @@ struct PRAStarQueueNode
 {
   int32_t state_idx = -1;
   double known_cost = 0;
-  double estimated_cost = 0;
-  double getTotalCost() const { return known_cost + estimated_cost; }
+  double total_cost = 0;
 };
 
 struct CmpPRAStarQueueNode
 {
   bool operator()(const PRAStarQueueNode& a, const PRAStarQueueNode& b) const
   {
-    if (a.getTotalCost() != b.getTotalCost()) {
-      return a.getTotalCost() > b.getTotalCost();
+    if (a.total_cost != b.total_cost) {
+      return a.total_cost > b.total_cost;
     }
-    if (a.estimated_cost != b.estimated_cost) {
-      return a.estimated_cost > b.estimated_cost;
+    if (a.known_cost != b.known_cost) {
+      return a.known_cost < b.known_cost;
     }
     return a.state_idx > b.state_idx;
   }
@@ -90,6 +85,24 @@ struct PRAStarWorkspace
   bool has_owned_rect = false;
   std::vector<PRAStarState> state_list;
   std::vector<PRAStarQueueNode> open_heap;
+};
+
+struct PRAStarStats
+{
+  uint64_t search_num = 0;
+  uint64_t success_num = 0;
+  uint64_t retry_num = 0;
+  uint64_t total_expanded_state_num = 0;
+  uint64_t max_expanded_state_num = 0;
+  uint64_t total_workspace_cell_num = 0;
+  uint64_t max_workspace_cell_num = 0;
+  uint64_t max_open_heap_size = 0;
+  uint64_t total_heap_push_num = 0;
+  uint64_t total_heap_pop_num = 0;
+  uint64_t total_stale_pop_num = 0;
+  uint64_t total_dominated_pop_num = 0;
+  uint64_t owned_search_num = 0;
+  uint64_t total_owned_expanded_state_num = 0;
 };
 
 class PlanarRouter
@@ -121,8 +134,8 @@ class PlanarRouter
   void initMacroGridRectList();
 
   // routing edge
-  PREdgeCost getRoutingEdgeCost(const RoutingEdge& routing_edge, double overflow_unit, int32_t demand_offset);
-  void updateRoutingSegmentListToGraph(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list, ChangeType change_type,
+  PREdgeCost getRoutingEdgeCost(const RoutingEdge& routing_edge);
+  void updateRoutingSegmentListToGraph(PRModel& pr_model, std::span<const Segment<PlanarCoord>> routing_segment_list, ChangeType change_type,
                                        std::unordered_set<RoutingEdge*>& routing_edge_set);
 
   // routing flow
@@ -155,18 +168,18 @@ class PlanarRouter
 
   // pattern route
   bool isLongObliqueTopo(PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
-  std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByStraight(Segment<PlanarCoord>& planar_topo);
-  std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByLPattern(Segment<PlanarCoord>& planar_topo);
-  std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByZPattern(Segment<PlanarCoord>& planar_topo);
-  std::vector<int32_t> getMidIndexList(int32_t first_idx, int32_t second_idx);
-  std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByUPattern(PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
-  std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByInner3Bends(Segment<PlanarCoord>& planar_topo);
-  std::vector<std::vector<Segment<PlanarCoord>>> getRoutingSegmentListByOuter3Bends(PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
+  void addPRCandidate(std::vector<PRCandidate>& pr_candidate_list, Segment<PlanarCoord>& planar_topo, std::initializer_list<PlanarCoord> inflection_list);
+  void addPRCandidateListByStraight(std::vector<PRCandidate>& pr_candidate_list, Segment<PlanarCoord>& planar_topo);
+  void addPRCandidateListByLPattern(std::vector<PRCandidate>& pr_candidate_list, Segment<PlanarCoord>& planar_topo);
+  void addPRCandidateListByZPattern(std::vector<PRCandidate>& pr_candidate_list, Segment<PlanarCoord>& planar_topo);
+  void addPRCandidateListByUPattern(std::vector<PRCandidate>& pr_candidate_list, PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
+  void addPRCandidateListByInner3Bends(std::vector<PRCandidate>& pr_candidate_list, Segment<PlanarCoord>& planar_topo);
+  void addPRCandidateListByOuter3Bends(std::vector<PRCandidate>& pr_candidate_list, PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
   void updatePRCandidate(PRModel& pr_model, PRCandidate& pr_candidate);
 
   // result
   MTree<PlanarCoord> getCoordTree(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& routing_segment_list);
-  void uploadNetResult(PRModel& pr_model, PRNet& pr_net);
+  void uploadNetList(PRModel& pr_model, const std::vector<PRNet*>& pr_net_list);
 
   // exhibit
   void updateSummary(PRModel& pr_model);
@@ -185,6 +198,9 @@ class PlanarRouter
 
   // data
   PRAStarWorkspace _astar_workspace;
+  PRAStarStats _astar_stats;
+  GridMap<PREdgeCost> _routing_h_edge_cost_map;
+  GridMap<PREdgeCost> _routing_v_edge_cost_map;
   std::vector<PlanarRect> _macro_grid_rect_list;
 };
 

@@ -15,6 +15,8 @@
 // ***************************************************************************************
 #pragma once
 
+#include <boost/container/small_vector.hpp>
+
 #include "PlanarCoord.hpp"
 #include "RTHeader.hpp"
 #include "Segment.hpp"
@@ -28,7 +30,6 @@ struct PRCandidateCost
   bool is_path_blocked = false;
   bool is_overflow = false;
   double total_cost = 0.0;
-  double max_usage_ratio = 0.0;
   int32_t saturation_edge_num = 0;
   int32_t hotspot_edge_num = 0;
 };
@@ -36,18 +37,18 @@ struct PRCandidateCost
 class PRCandidate
 {
  public:
+  using RoutingSegmentList = boost::container::small_vector<Segment<PlanarCoord>, 4>;
+
   PRCandidate() = default;
-  explicit PRCandidate(const std::vector<Segment<PlanarCoord>>& routing_segment_list) : _routing_segment_list(routing_segment_list) {}
-  explicit PRCandidate(std::vector<Segment<PlanarCoord>>&& routing_segment_list) : _routing_segment_list(std::move(routing_segment_list)) {}
+  explicit PRCandidate(RoutingSegmentList&& routing_segment_list) : _routing_segment_list(std::move(routing_segment_list)) {}
   ~PRCandidate() = default;
   // getter
-  std::vector<Segment<PlanarCoord>>& get_routing_segment_list() { return _routing_segment_list; }
+  RoutingSegmentList& get_routing_segment_list() { return _routing_segment_list; }
   int32_t get_total_corner_num() const { return _total_corner_num; }
   int32_t get_total_wire_length() const { return _total_wire_length; }
   bool get_is_path_blocked() const { return _is_path_blocked; }
   bool get_is_overflow() const { return _is_overflow; }
   double get_total_cost() const { return _total_cost; }
-  double get_max_usage_ratio() const { return _max_usage_ratio; }
   int32_t get_saturation_edge_num() const { return _saturation_edge_num; }
   int32_t get_hotspot_edge_num() const { return _hotspot_edge_num; }
   // setter
@@ -58,19 +59,17 @@ class PRCandidate
     _is_path_blocked = candidate_cost.is_path_blocked;
     _is_overflow = candidate_cost.is_overflow;
     _total_cost = candidate_cost.total_cost;
-    _max_usage_ratio = candidate_cost.max_usage_ratio;
     _saturation_edge_num = candidate_cost.saturation_edge_num;
     _hotspot_edge_num = candidate_cost.hotspot_edge_num;
   }
 
  private:
-  std::vector<Segment<PlanarCoord>> _routing_segment_list;
+  RoutingSegmentList _routing_segment_list;
   int32_t _total_corner_num = 0;
   int32_t _total_wire_length = 0;
   bool _is_path_blocked = false;
   bool _is_overflow = false;
   double _total_cost = 0.0;
-  double _max_usage_ratio = 0.0;
   int32_t _saturation_edge_num = 0;
   int32_t _hotspot_edge_num = 0;
 };
