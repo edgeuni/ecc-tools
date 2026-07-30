@@ -132,8 +132,6 @@ class DataManager
   void printConfig();
   void printDatabase();
   void outputScript();
-  void outputJson();
-  std::string outputEnvJson();
 #endif
 
 #if 1  // destroy

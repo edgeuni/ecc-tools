@@ -17,4 +17,5 @@ target_include_directories(eval_congestion_eval
     PUBLIC
         ${EVAL_MODULE}/congestion
         ${EVAL_DATA}
+        ${EVAL_API}
 )

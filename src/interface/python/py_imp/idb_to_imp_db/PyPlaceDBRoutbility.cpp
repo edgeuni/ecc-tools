@@ -56,42 +56,27 @@ std::string IdbOrientToString(IdbOrient orient)
 
 void PyPlaceDB::init_routability(idm::DataManager* db, std::vector<IdbInstance*> inst_resort_list)
 {
-  // routebilty driven placement
-  // routing information initialized
   routing_grid_xl = xl;
   routing_grid_yl = yl;
   routing_grid_xh = xh;
   routing_grid_yh = yh;
-  // int pitch = db->get_idb_layout()->get_track_grid_list()->get_track_grid_list()[0]->get_track()->get_pitch();
-  // double tarck_width = db->get_idb_layout()->get_track_grid_list()->get_track_grid_list()[0]->;
-  // double tarck_width = db->get_idb_layout()->get_track_grid_list()->get_track_grid_list()[0]->get_track()->get_width();
-
-  // congestion map opt
-
   routing_grids_size_x = std::ceil((routing_grid_xh - routing_grid_xl) / num_routing_grids_x);
   routing_grids_size_y = std::ceil((routing_grid_yh - routing_grid_yl) / num_routing_grids_y);
-  // num_routing_grids_x = std::floor((routing_grid_xh - routing_grid_xl) / routing_grids_size_x);
-  // num_routing_grids_y = std::floor((routing_grid_yh - routing_grid_yl) / routing_grids_size_y);
   routing_grid_xh = routing_grid_xl + num_routing_grids_x * routing_grids_size_x;
   routing_grid_yh = routing_grid_yl + num_routing_grids_y * routing_grids_size_y;
 
-  int track_layer_id = db->get_idb_layout()->get_track_grid_list()->get_track_grid_list()[0]->get_layer_list()[0]->get_id();
   for (index_type layer_idx = 0; layer_idx < db->get_idb_layout()->get_layers()->get_routing_layers_number(); ++layer_idx) {
     auto idb_layer = db->get_idb_layout()->get_layers()->get_routing_layers().at(layer_idx);
     idb::IdbLayerRouting* idb_routing_layer = dynamic_cast<idb::IdbLayerRouting*>(idb_layer);
     if (idb_routing_layer->get_track_grid_list().empty()) {
       continue;
     }
-    double track_ratio = idb_routing_layer->get_track_grid_list().size();
     for (IdbTrackGrid* track_grid : idb_routing_layer->get_track_grid_list()) {
       auto idb_track_grid = track_grid->get_track();
 
-      int track_start = static_cast<int32_t>(idb_track_grid->get_start());
-      int track_pitch = static_cast<int32_t>(idb_track_grid->get_pitch());
       int track_num = track_grid->get_track_num();
       if (idb_track_grid->get_direction() == idb::IdbTrackDirection::kDirectionX) {
         unit_vertical_capacities.append(1. * track_num / routing_grids_size_x);
-        // track_axis.get_x_grid_list().push_back(track_grid);
       } else if (idb_track_grid->get_direction() == idb::IdbTrackDirection::kDirectionY) {
         unit_horizontal_capacities.append(1. * track_num / routing_grids_size_y);
       }
