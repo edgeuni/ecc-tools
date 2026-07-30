@@ -54,13 +54,7 @@ unsigned CmdCTSAutoRun::exec()
   } else {
     cts_status = CTS_API_INST.runCTS(config_path, dir_path);
   }
-
-  if (!cts_status.ok()) {
-    IEDALOG.error(ieda::Loc::current(), "iCTS run failed: ", cts_status.message);
-  }
-
-  IEDALOG.info(ieda::Loc::current(), "iCTS run successfully.");
-  return 1;
+  return cts_status.ok() ? 1U : 0U;
 }
 
 /////////////////////////////////////////////////////////////
@@ -93,21 +87,15 @@ unsigned CmdCTSReport::exec()
   TclOption* option = getOptionOrArg(TCL_NAME);
   auto name = option->getStringVal();
   if (name != nullptr) {
-    if (CTS_API_INST.report(name).ok()) {
-      return 1;
-    }
-    IEDALOG.error(ieda::Loc::current(), "iCTS report failed.");
+    return CTS_API_INST.report(name).ok() ? 1U : 0U;
   }
 
   TclOption* def_path = getOptionOrArg(TCL_PATH);
   auto str_path = def_path->getStringVal();
   if (str_path != nullptr) {
-    if (CTS_API_INST.report(str_path).ok()) {
-      return 1;
-    }
-    IEDALOG.error(ieda::Loc::current(), "iCTS report failed.");
+    return CTS_API_INST.report(str_path).ok() ? 1U : 0U;
   }
 
-  return 1;
+  return 0;
 }
 }  // namespace tcl

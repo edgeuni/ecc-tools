@@ -8,7 +8,7 @@ target_link_libraries(tcl_icts
     PUBLIC
         tcl_util
         tcl
-        icts_api
+        icts_interface
 )
 
 target_include_directories(tcl_icts
