@@ -16,8 +16,9 @@
 // ***************************************************************************************
 #pragma once
 
+#include <algorithm>
 #include <bit>
-#include <boost/container/flat_set.hpp>
+#include <boost/container/vector.hpp>
 #include <limits>
 
 #include "Direction.hpp"
@@ -40,7 +41,7 @@ enum class DRNodeState
 class DRNode : public LayerCoord
 {
  public:
-  using OrientNetSet = boost::container::flat_set<std::pair<Orientation, int32_t>>;
+  using OrientNetList = boost::container::vector<std::pair<Orientation, int32_t>>;
 
   static constexpr std::array<Orientation, 6> kOrientationList
       = {Orientation::kEast, Orientation::kWest, Orientation::kSouth, Orientation::kNorth, Orientation::kAbove, Orientation::kBelow};
@@ -50,8 +51,8 @@ class DRNode : public LayerCoord
   // getter
   int32_t get_neighbor_node_num() const { return _neighbor_node_num; }
   PlanarCoord& get_gcell_coord() { return _gcell_coord; }
-  const OrientNetSet& get_orient_fixed_rect_set() const { return _orient_fixed_rect_set; }
-  const OrientNetSet& get_orient_routed_rect_set() const { return _orient_routed_rect_set; }
+  const OrientNetList& get_orient_fixed_rect_list() const { return _orient_fixed_rect_list; }
+  const OrientNetList& get_orient_routed_rect_list() const { return _orient_routed_rect_list; }
   uint8_t get_direction_mask() const { return _direction_mask; }
   // setter
   void set_gcell_coord(const PlanarCoord& gcell_coord) { _gcell_coord = gcell_coord; }
@@ -76,10 +77,10 @@ class DRNode : public LayerCoord
     curr_neighbor_node = neighbor_node;
   }
   bool hasNeighborNode(Orientation orientation) const { return getNeighborNode(orientation) != nullptr; }
-  void addFixedRectNet(Orientation orientation, int32_t net_idx) { addOrientNet(_orient_fixed_rect_set, _fixed_rect_net_state, orientation, net_idx); }
-  void addRoutedRectNet(Orientation orientation, int32_t net_idx) { addOrientNet(_orient_routed_rect_set, _routed_rect_net_state, orientation, net_idx); }
-  void delFixedRectNet(Orientation orientation, int32_t net_idx) { delOrientNet(_orient_fixed_rect_set, _fixed_rect_net_state, orientation, net_idx); }
-  void delRoutedRectNet(Orientation orientation, int32_t net_idx) { delOrientNet(_orient_routed_rect_set, _routed_rect_net_state, orientation, net_idx); }
+  void addFixedRectNet(Orientation orientation, int32_t net_idx) { addOrientNet(_orient_fixed_rect_list, _fixed_rect_net_state, orientation, net_idx); }
+  void addRoutedRectNet(Orientation orientation, int32_t net_idx) { addOrientNet(_orient_routed_rect_list, _routed_rect_net_state, orientation, net_idx); }
+  void delFixedRectNet(Orientation orientation, int32_t net_idx) { delOrientNet(_orient_fixed_rect_list, _fixed_rect_net_state, orientation, net_idx); }
+  void delRoutedRectNet(Orientation orientation, int32_t net_idx) { delOrientNet(_orient_routed_rect_list, _routed_rect_net_state, orientation, net_idx); }
   bool hasFixedRectOrient(Orientation orientation) const { return _fixed_rect_net_state[getOrientationIdx(orientation)] != kNoOrientNetIdx; }
   double getFixedRectCost(int32_t net_idx, Orientation orientation, double fixed_rect_unit)
   {
@@ -145,36 +146,51 @@ class DRNode : public LayerCoord
   static constexpr int32_t kNoOrientNetIdx = std::numeric_limits<int32_t>::min();
   static constexpr int32_t kManyOrientNetIdx = kNoOrientNetIdx + 1;
   static constexpr size_t getOrientationIdx(Orientation orientation) { return static_cast<size_t>(orientation) - 1; }
-  static void addOrientNet(OrientNetSet& orient_net_set, std::array<int32_t, 6>& orient_net_state_list, Orientation orientation, int32_t net_idx)
+  static void addOrientNet(OrientNetList& orient_net_list, std::array<int32_t, 6>& orient_net_state_list, Orientation orientation, int32_t net_idx)
   {
-    if (!orient_net_set.insert({orientation, net_idx}).second) {
+    int32_t& orient_net_state = orient_net_state_list[getOrientationIdx(orientation)];
+    if (orient_net_state == net_idx) {
       return;
     }
-    int32_t& orient_net_state = orient_net_state_list[getOrientationIdx(orientation)];
+    std::pair<Orientation, int32_t> orient_net = {orientation, net_idx};
+    if (orient_net_state == kManyOrientNetIdx && std::find(orient_net_list.begin(), orient_net_list.end(), orient_net) != orient_net_list.end()) {
+      return;
+    }
+    orient_net_list.push_back(orient_net);
     if (orient_net_state == kNoOrientNetIdx) {
       orient_net_state = net_idx;
-    } else if (orient_net_state != net_idx) {
+    } else {
       orient_net_state = kManyOrientNetIdx;
     }
   }
-  static void delOrientNet(OrientNetSet& orient_net_set, std::array<int32_t, 6>& orient_net_state_list, Orientation orientation, int32_t net_idx)
+  static void delOrientNet(OrientNetList& orient_net_list, std::array<int32_t, 6>& orient_net_state_list, Orientation orientation, int32_t net_idx)
   {
-    if (orient_net_set.erase({orientation, net_idx}) == 0) {
+    int32_t& orient_net_state = orient_net_state_list[getOrientationIdx(orientation)];
+    if (orient_net_state == kNoOrientNetIdx || (orient_net_state != kManyOrientNetIdx && orient_net_state != net_idx)) {
       return;
     }
-    int32_t& orient_net_state = orient_net_state_list[getOrientationIdx(orientation)];
+    auto iter = std::find(orient_net_list.begin(), orient_net_list.end(), std::make_pair(orientation, net_idx));
+    if (iter == orient_net_list.end()) {
+      return;
+    }
+    *iter = orient_net_list.back();
+    orient_net_list.pop_back();
     if (orient_net_state != kManyOrientNetIdx) {
       orient_net_state = kNoOrientNetIdx;
       return;
     }
-    auto iter = orient_net_set.lower_bound({orientation, std::numeric_limits<int32_t>::min()});
-    if (iter == orient_net_set.end() || iter->first != orientation) {
-      orient_net_state = kNoOrientNetIdx;
-      return;
+    orient_net_state = kNoOrientNetIdx;
+    for (const auto& [curr_orientation, curr_net_idx] : orient_net_list) {
+      if (curr_orientation != orientation) {
+        continue;
+      }
+      if (orient_net_state == kNoOrientNetIdx) {
+        orient_net_state = curr_net_idx;
+      } else {
+        orient_net_state = kManyOrientNetIdx;
+        break;
+      }
     }
-    auto next_iter = iter;
-    ++next_iter;
-    orient_net_state = (next_iter == orient_net_set.end() || next_iter->first != orientation) ? iter->second : kManyOrientNetIdx;
   }
   static double getOrientNetCost(const std::array<int32_t, 6>& orient_net_state_list, int32_t net_idx, Orientation orientation, double unit)
   {
@@ -182,29 +198,29 @@ class DRNode : public LayerCoord
     return (orient_net_state == kNoOrientNetIdx || orient_net_state == net_idx) ? 0 : unit;
   }
 
-  std::array<DRNode*, 6> _neighbor_node_list{};
+#if 1  // astar
+  DRNodeState _state = DRNodeState::kNone;
+  uint8_t _direction_mask = 0;
+#endif
   uint8_t _neighbor_node_num = 0;
-  PlanarCoord _gcell_coord;
-  // obstacle & pin_shape
-  OrientNetSet _orient_fixed_rect_set;
+#if 1  // astar
+  int32_t _open_queue_idx = -1;
+  DRNode* _parent_node = nullptr;
+  double _known_cost = 0.0;  // include curr
+  double _estimated_cost = 0.0;
+#endif
+  std::array<DRNode*, 6> _neighbor_node_list{};
+  // obstacle & pin_shape state
   std::array<int32_t, 6> _fixed_rect_net_state
       = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
-  // net_result
-  OrientNetSet _orient_routed_rect_set;
+  // net_result state
   std::array<int32_t, 6> _routed_rect_net_state
       = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
   // violation
   std::array<int32_t, 6> _violation_number_list{};
-#if 1  // astar
-  // single task
-  uint8_t _direction_mask = 0;
-  // single path
-  DRNodeState _state = DRNodeState::kNone;
-  DRNode* _parent_node = nullptr;
-  double _known_cost = 0.0;  // include curr
-  double _estimated_cost = 0.0;
-  int32_t _open_queue_idx = -1;
-#endif
+  PlanarCoord _gcell_coord;
+  OrientNetList _orient_fixed_rect_list;
+  OrientNetList _orient_routed_rect_list;
 };
 
 #if 1  // astar

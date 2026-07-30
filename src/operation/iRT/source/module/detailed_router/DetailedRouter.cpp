@@ -1634,7 +1634,7 @@ void DetailedRouter::expandSearching(DRBox& dr_box)
     if (neighbor_node->isClose()) {
       continue;
     }
-    double known_cost = getKnownCost(dr_box, path_head_node, neighbor_node);
+    double known_cost = getKnownCost(dr_box, path_head_node, neighbor_node, orientation);
     if (neighbor_node->isOpen() && known_cost < neighbor_node->get_known_cost()) {
       neighbor_node->set_known_cost(known_cost);
       neighbor_node->set_parent_node(path_head_node);
@@ -1821,13 +1821,8 @@ DRNode* DetailedRouter::popFromOpenList(DRBox& dr_box)
 
 // calculate known
 
-double DetailedRouter::getKnownCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node)
+double DetailedRouter::getKnownCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node, Orientation orientation)
 {
-  Orientation orientation = RTUTIL.getOrientation(*start_node, *end_node);
-  if (!DRNode::isNeighborOrientation(orientation) || start_node->getNeighborNode(orientation) != end_node) {
-    RTLOG.error(Loc::current(), "The neighbor not exist!");
-  }
-
   double cost = 0;
   cost += start_node->get_known_cost();
   cost += getNodeCost(dr_box, start_node, orientation);
@@ -3329,7 +3324,8 @@ void DetailedRouter::updateRoutingNetShapeToGraph(DRBox& dr_box, ChangeType chan
         for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
           DRNode& node = dr_node_map[x][y];
           for (Orientation orientation : grid_orientation) {
-            if (orientation == Orientation::kAbove || orientation == Orientation::kBelow) {
+            // Each update covers both endpoints, so only visit one direction of a planar edge.
+            if (orientation != Orientation::kEast && orientation != Orientation::kNorth) {
               continue;
             }
             DRNode* neighbor_node = node.getNeighborNode(orientation);
@@ -4551,13 +4547,13 @@ void DetailedRouter::debugPlotDRBox(DRBox& dr_box, std::string flag)
             gp_text_orient_fixed_rect_map.set_presentation(GPTextPresentation::kLeftMiddle);
             dr_node_map_struct.push(gp_text_orient_fixed_rect_map);
 
-            if (!dr_node.get_orient_fixed_rect_set().empty()) {
+            if (!dr_node.get_orient_fixed_rect_list().empty()) {
               y -= y_reduced_span;
               GPText gp_text_orient_fixed_rect_map_info;
               gp_text_orient_fixed_rect_map_info.set_coord(real_rect.get_ll_x(), y);
               gp_text_orient_fixed_rect_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
               std::string orient_fixed_rect_map_info_message = "--";
-              for (auto& [orient, net_idx] : dr_node.get_orient_fixed_rect_set()) {
+              for (auto& [orient, net_idx] : dr_node.get_orient_fixed_rect_list()) {
                 orient_fixed_rect_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient), ",", net_idx, ")");
               }
               gp_text_orient_fixed_rect_map_info.set_message(orient_fixed_rect_map_info_message);
@@ -4575,13 +4571,13 @@ void DetailedRouter::debugPlotDRBox(DRBox& dr_box, std::string flag)
             gp_text_orient_routed_rect_map.set_presentation(GPTextPresentation::kLeftMiddle);
             dr_node_map_struct.push(gp_text_orient_routed_rect_map);
 
-            if (!dr_node.get_orient_routed_rect_set().empty()) {
+            if (!dr_node.get_orient_routed_rect_list().empty()) {
               y -= y_reduced_span;
               GPText gp_text_orient_routed_rect_map_info;
               gp_text_orient_routed_rect_map_info.set_coord(real_rect.get_ll_x(), y);
               gp_text_orient_routed_rect_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
               std::string orient_routed_rect_map_info_message = "--";
-              for (auto& [orient, net_idx] : dr_node.get_orient_routed_rect_set()) {
+              for (auto& [orient, net_idx] : dr_node.get_orient_routed_rect_list()) {
                 orient_routed_rect_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient), ",", net_idx, ")");
               }
               gp_text_orient_routed_rect_map_info.set_message(orient_routed_rect_map_info_message);

@@ -119,7 +119,7 @@ class DetailedRouter
   void resetSingleRouteTask(DRBox& dr_box);
   void pushToOpenList(DRBox& dr_box, DRNode* curr_node);
   DRNode* popFromOpenList(DRBox& dr_box);
-  double getKnownCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node);
+  double getKnownCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node, Orientation orientation);
   double getNodeCost(DRBox& dr_box, DRNode* curr_node, Orientation orientation);
   double getKnownWireCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node);
   double getKnownViaCost(DRBox& dr_box, DRNode* start_node, DRNode* end_node);
