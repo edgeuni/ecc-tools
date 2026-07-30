@@ -1,0 +1,7 @@
+{"file":".trellis/spec/project-constraints.md","reason":"Apply Trellis/spec governance, repository process, file rules, and the current formatting contract."}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"Apply the reviewed data-manager stage-contract placement and verify all iCTS layer/directory boundaries."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Verify DataManager ownership, cross-stage summaries, commits, and external boundaries during implementation and audit."}
+{"file":".trellis/spec/backend/logging-guidelines.md","reason":"Audit the complete iCTS logger, monitor, table, and report-mirroring contract after binary validation."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Audit recoverable and terminal error handling across the full iCTS source scope."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Apply the iCTS quality gate and scope discipline during implementation."}
+{"file":".trellis/tasks/07-30-icts-clang-format/research/clang-format-analysis.md","reason":"Use the verified configuration inventory, resolution behavior, format impact, and repository-integrity finding."}

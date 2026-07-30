@@ -1,0 +1,7 @@
+{"file":".trellis/spec/project-constraints.md","reason":"Verify the final diff respects approved scope, spec governance, and repository rules."}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"Audit interface/source/test, data_manager/module/toolkit, file placement, and CMake boundaries."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Audit DataManager state ownership, stage summaries/commits, and adapter boundaries."}
+{"file":".trellis/spec/backend/logging-guidelines.md","reason":"Audit CTSLOG, Monitor, structured table output, and report mirroring across all iCTS code."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Audit typed status propagation, failure boundaries, and terminal error use."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Run and evaluate the required iCTS build, tests, and full-module quality gate."}
+{"file":".trellis/tasks/07-30-icts-clang-format/research/clang-format-analysis.md","reason":"Check that the implementation matches the reviewed local configuration and nearest-parent discovery design."}
