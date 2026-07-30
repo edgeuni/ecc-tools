@@ -41,7 +41,6 @@ target_link_libraries(ecc_py
         py_report
         py_feature
         py_imp
-        log
 )
 
 set_target_properties(ecc_py PROPERTIES

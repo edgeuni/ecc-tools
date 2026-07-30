@@ -36,8 +36,8 @@ unsigned CmdIdbSetNet::check()
   TclOption* tcl_net_name = getOptionOrArg("-net_name");
   TclOption* tcl_net_type = getOptionOrArg("-type");
 
-  LOG_FATAL_IF(!tcl_net_name);
-  LOG_FATAL_IF(!tcl_net_type);
+  ieda::checkTclOption(tcl_net_name, "-net_name");
+  ieda::checkTclOption(tcl_net_type, "-type");
   return 1;
 }
 
@@ -99,7 +99,7 @@ unsigned CmdIdbClearBlockage::check()
 {
   TclOption* tcl_type = getOptionOrArg("-type");
 
-  LOG_FATAL_IF(!tcl_type);
+  ieda::checkTclOption(tcl_type, "-type");
   return 1;
 }
 
@@ -206,7 +206,7 @@ CmdIdbCreateInstance::CmdIdbCreateInstance(const char* name) : TclCmd(name)
 unsigned CmdIdbCreateInstance::check()
 {
   for (const auto* opt : {INST_NAME_OPT, CELL_MASTER_OPT}) {
-    if (char* val = getOptionOrArg(opt)->getStringVal(); val == nullptr || val[0] == '\0') {
+    if (const char* val = getOptionOrArg(opt)->getStringVal(); val == nullptr || val[0] == '\0') {
       std::cout << "should specify option " << opt << std::endl;
       return 0;
     }

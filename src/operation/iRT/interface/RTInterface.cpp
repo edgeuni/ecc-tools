@@ -125,11 +125,11 @@ void RTInterface::runRT()
   PlanarRouter::initInst();
   RTPR.generate();
   PlanarRouter::destroyInst();
-  
+
   LayerAssigner::initInst();
   RTLA.assign();
   LayerAssigner::destroyInst();
-  
+
   SpaceRouter::initInst();
   RTSR.route();
   SpaceRouter::destroyInst();
