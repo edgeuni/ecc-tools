@@ -22,7 +22,7 @@ routePRNet
     全网模式或局部拓扑不满足两端 anchor：删除全部旧 segment，并由 TopoBuilder 生成 topo
     routePlanarTopoList: 逐条 topo edge 选择 route candidate，并立即更新 planar edge demand
         kLZPattern: 生成 straight/L/Z candidate，全部参与比较
-        kAllPattern: 在 LZPattern 基础上增加 inner/outer 3-bend 和 U candidate
+        kAllPattern: 长度 50~100 的斜 topo 拆为两段，更长的拆为三段；split point 尽量避开 macro，再增加 inner/outer 3-bend 和 U candidate
         kAStar: 生成 A* route
         candidate 优先级: 无 fixed-shape blocked > 无 overflow > 更低 score
     getCoordTree: 将 kept segment 和新 route 合并为无环树

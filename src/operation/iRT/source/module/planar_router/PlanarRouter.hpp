@@ -124,6 +124,8 @@ class PlanarRouter
 
   // routing edge
   PREdgeCost getRoutingEdgeCost(const RoutingEdge& routing_edge);
+  void updateRoutingEdgeToGraph(RoutingEdge& routing_edge, PREdgeCost& edge_cost, int32_t curr_net_idx, ChangeType change_type,
+                                std::unordered_set<RoutingEdge*>& routing_edge_set);
   void updateRoutingSegmentListToGraph(PRModel& pr_model, std::span<const Segment<PlanarCoord>> routing_segment_list, ChangeType change_type,
                                        std::unordered_set<RoutingEdge*>& routing_edge_set);
 
@@ -132,12 +134,13 @@ class PlanarRouter
   void routePRNetList(PRModel& pr_model, const std::vector<PRNet*>& pr_net_list, const char* route_mode, PRRouteMode pr_route_mode,
                       bool is_partial_rip_up = false, int32_t rip_up_guard = 0);
   void routePRNet(PRModel& pr_model, PRNet* pr_net, PRRouteMode pr_route_mode, bool is_partial_rip_up, int32_t rip_up_guard);
-  bool routePlanarTopoList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& planar_topo_list,
-                           std::vector<Segment<PlanarCoord>>& routing_segment_list, PRRouteMode pr_route_mode);
+  void splitLongPlanarTopoList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& planar_topo_list);
+  bool routePlanarTopoList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& planar_topo_list, PRRouteMode pr_route_mode,
+                           std::vector<Segment<PlanarCoord>>& routing_segment_list);
   void updateCongestion(PRModel& pr_model);
   std::vector<PRNet*> getOverflowPRNetList(PRModel& pr_model);
   PROverflowTask getOverflowTask(PRModel& pr_model, int32_t rip_up_guard);
-  bool isBetterCandidate(PRModel& pr_model, PRCandidate& candidate, PRCandidate& current_best);
+  bool isBetterCandidate(PRModel& pr_model, const PRCandidate& candidate, const PRCandidate& best_candidate);
   std::vector<PRCandidate> getPRCandidateListByTopo(PRModel& pr_model, Segment<PlanarCoord>& planar_topo, PRRouteMode pr_route_mode);
   std::vector<Segment<PlanarCoord>> getPlanarTopoList(PRModel& pr_model);
 
@@ -155,7 +158,6 @@ class PlanarRouter
   std::vector<Segment<PlanarCoord>> getRoutingSegmentListByCoordList(const std::vector<PlanarCoord>& coord_list);
 
   // pattern route
-  bool isLongObliqueTopo(PRModel& pr_model, Segment<PlanarCoord>& planar_topo);
   void addPRCandidate(std::vector<PRCandidate>& pr_candidate_list, Segment<PlanarCoord>& planar_topo, std::initializer_list<PlanarCoord> inflection_list);
   void addPRCandidateListByStraight(std::vector<PRCandidate>& pr_candidate_list, Segment<PlanarCoord>& planar_topo);
   void addPRCandidateListByLPattern(std::vector<PRCandidate>& pr_candidate_list, Segment<PlanarCoord>& planar_topo);
