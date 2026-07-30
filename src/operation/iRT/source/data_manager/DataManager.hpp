@@ -53,14 +53,8 @@ class DataManager
 #endif
 
 #if 1  // 获得NetShapeList
-  std::vector<NetShape> getNetGlobalShapeList(int32_t net_idx, std::vector<Segment<LayerCoord>>& segment_list);
   std::vector<NetShape> getNetGlobalShapeList(int32_t net_idx, Segment<LayerCoord>& segment);
-  std::vector<NetShape> getNetGlobalShapeList(int32_t net_idx, MTree<LayerCoord>& coord_tree);
-  std::vector<NetShape> getNetGlobalShapeList(int32_t net_idx, LayerCoord& first_coord, LayerCoord& second_coord);
-  std::vector<NetShape> getNetDetailedShapeList(int32_t net_idx, std::vector<Segment<LayerCoord>>& segment_list);
   std::vector<NetShape> getNetDetailedShapeList(int32_t net_idx, Segment<LayerCoord>& segment);
-  std::vector<NetShape> getNetDetailedShapeList(int32_t net_idx, MTree<LayerCoord>& coord_tree);
-  std::vector<NetShape> getNetDetailedShapeList(int32_t net_idx, LayerCoord& first_coord, LayerCoord& second_coord);
 #endif
 
 #if 1  // 获得唯一的结果
@@ -84,6 +78,9 @@ class DataManager
   ~DataManager() = default;
   DataManager& operator=(const DataManager& other) = delete;
   DataManager& operator=(DataManager&& other) = delete;
+
+  std::vector<NetShape> getNetGlobalShapeList(int32_t net_idx, LayerCoord& first_coord, LayerCoord& second_coord);
+  std::vector<NetShape> getNetDetailedShapeList(int32_t net_idx, LayerCoord& first_coord, LayerCoord& second_coord);
 
 #if 1  // build
   void buildConfig();

@@ -3320,11 +3320,15 @@ void DetailedRouter::updateRoutingNetShapeToGraph(DRBox& dr_box, ChangeType chan
     enlarged_x_size -= 1;
     enlarged_y_size -= 1;
     PlanarRect planar_enlarged_rect = RTUTIL.getEnlargedRect(net_shape.get_rect(), enlarged_x_size, enlarged_y_size, enlarged_x_size, enlarged_y_size);
-    for (auto& [grid, orientation_set] : RTUTIL.getTrackGridOrientationMap(planar_enlarged_rect, dr_box.get_box_track_axis())) {
-      for (int32_t x : *grid.first) {
-        for (int32_t y : *grid.second) {
+    for (const TrackGridOrientation& grid_orientation : RTUTIL.getTrackGridOrientationList(planar_enlarged_rect, dr_box.get_box_track_axis())) {
+      if (!grid_orientation.isValid()) {
+        continue;
+      }
+      const PlanarRect& grid_rect = grid_orientation.grid_rect;
+      for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+        for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
           DRNode& node = dr_node_map[x][y];
-          for (const Orientation& orientation : orientation_set) {
+          for (Orientation orientation : grid_orientation) {
             if (orientation == Orientation::kAbove || orientation == Orientation::kBelow) {
               continue;
             }
@@ -3348,11 +3352,15 @@ void DetailedRouter::updateRoutingNetShapeToGraph(DRBox& dr_box, ChangeType chan
     enlarged_x_size -= 1;
     enlarged_y_size -= 1;
     PlanarRect space_enlarged_rect = RTUTIL.getEnlargedRect(net_shape.get_rect(), enlarged_x_size, enlarged_y_size, enlarged_x_size, enlarged_y_size);
-    for (auto& [grid, orientation_set] : RTUTIL.getTrackGridOrientationMap(space_enlarged_rect, dr_box.get_box_track_axis())) {
-      for (int32_t x : *grid.first) {
-        for (int32_t y : *grid.second) {
+    for (const TrackGridOrientation& grid_orientation : RTUTIL.getTrackGridOrientationList(space_enlarged_rect, dr_box.get_box_track_axis())) {
+      if (!grid_orientation.isValid()) {
+        continue;
+      }
+      const PlanarRect& grid_rect = grid_orientation.grid_rect;
+      for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+        for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
           DRNode& node = dr_node_map[x][y];
-          for (const Orientation& orientation : orientation_set) {
+          for (Orientation orientation : grid_orientation) {
             if (orientation == Orientation::kEast || orientation == Orientation::kWest || orientation == Orientation::kSouth
                 || orientation == Orientation::kNorth) {
               continue;
@@ -3447,12 +3455,14 @@ void DetailedRouter::updateCutNetShapeToGraph(DRBox& dr_box, ChangeType change_t
       enlarged_x_size -= 1;
       enlarged_y_size -= 1;
       PlanarRect space_enlarged_rect = RTUTIL.getEnlargedRect(net_shape.get_rect(), enlarged_x_size, enlarged_y_size, enlarged_x_size, enlarged_y_size);
-      for (auto& [grid, orientation_set] : RTUTIL.getTrackGridOrientationMap(space_enlarged_rect, dr_box.get_box_track_axis())) {
-        for (int32_t x : *grid.first) {
-          for (int32_t y : *grid.second) {
-            if (!RTUTIL.exist(orientation_set, Orientation::kAbove) && !RTUTIL.exist(orientation_set, Orientation::kBelow)) {
-              continue;
-            }
+      for (const TrackGridOrientation& grid_orientation : RTUTIL.getTrackGridOrientationList(space_enlarged_rect, dr_box.get_box_track_axis())) {
+        if (!grid_orientation.isValid() || (!grid_orientation.hasOrientation(Orientation::kAbove)
+                                            && !grid_orientation.hasOrientation(Orientation::kBelow))) {
+          continue;
+        }
+        const PlanarRect& grid_rect = grid_orientation.grid_rect;
+        for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+          for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
             DRNode& below_node = layer_node_map[below_routing_layer_idx][x][y];
             if (below_node.hasNeighborNode(Orientation::kAbove)) {
               updateNodeNetToGraph(below_node, change_type, net_shape.get_net_idx(), Orientation::kAbove, is_fixed);

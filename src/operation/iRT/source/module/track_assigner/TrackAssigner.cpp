@@ -1456,11 +1456,15 @@ void TrackAssigner::updateNetShapeToGraph(TAPanel& ta_panel, ChangeType change_t
     enlarged_x_size -= 1;
     enlarged_y_size -= 1;
     PlanarRect planar_enlarged_rect = RTUTIL.getEnlargedRect(net_shape.get_rect(), enlarged_x_size, enlarged_y_size, enlarged_x_size, enlarged_y_size);
-    for (auto& [grid, orientation_set] : RTUTIL.getTrackGridOrientationMap(planar_enlarged_rect, ta_panel.get_panel_track_axis())) {
-      for (int32_t x : *grid.first) {
-        for (int32_t y : *grid.second) {
+    for (const TrackGridOrientation& grid_orientation : RTUTIL.getTrackGridOrientationList(planar_enlarged_rect, ta_panel.get_panel_track_axis())) {
+      if (!grid_orientation.isValid()) {
+        continue;
+      }
+      const PlanarRect& grid_rect = grid_orientation.grid_rect;
+      for (int32_t x = grid_rect.get_ll_x(); x <= grid_rect.get_ur_x(); x++) {
+        for (int32_t y = grid_rect.get_ll_y(); y <= grid_rect.get_ur_y(); y++) {
           TANode& node = ta_node_map[x][y];
-          for (const Orientation& orientation : orientation_set) {
+          for (Orientation orientation : grid_orientation) {
             TANode* neighbor_node = node.getNeighborNode(orientation);
             if (neighbor_node == nullptr) {
               continue;
