@@ -1551,3 +1551,25 @@ Refactored iCTS to the global DataManager and iRT-style Logger/Monitor architect
 ### Status
 
 [OK] **Completed**
+
+
+## Session 85: Systematize iCTS architecture and formatting
+
+**Date**: 2026-07-30
+**Task**: Systematize iCTS architecture and formatting
+**Branch**: `cts_refactor`
+
+### Summary
+
+Added iRT-aligned local formatting and ecc tooling support; systematized iCTS data, failure, logging/report, directory, and naming contracts; removed unused parameters; passed the build, 22 iCTS tests, exact binary acceptance, and the full ecc check.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `06d13b084` | (see git log) |
+| `24f2a0b09` | (see git log) |
+
+### Status
+
+[OK] **Completed**

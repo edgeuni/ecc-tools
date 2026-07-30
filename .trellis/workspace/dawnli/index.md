@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 84
+- **Total Sessions**: 85
 - **Last Active**: 2026-07-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1553 | Active |
+| `journal-2.md` | ~1575 | Active |
 | `journal-1.md` | ~1991 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 85 | 2026-07-30 | Systematize iCTS architecture and formatting | `06d13b084`, `24f2a0b09` | `cts_refactor` |
 | 84 | 2026-07-30 | iCTS iRT-style systematic refactor | `a9d71dc3a` | `cts_refactor` |
 | 83 | 2026-06-20 | Archive unarchived Trellis tasks | - | `cts_refactor` |
 | 82 | 2026-06-20 | CTS capability alignment cleanup | `c76529151` | `cts_refactor` |
