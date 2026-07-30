@@ -5,47 +5,46 @@
 //
 // iEDA is licensed under Mulan PSL v2.
 // You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of Mulan PSL v2 at:
+// You may obtain a copy of the Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
-//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
-#include "ConnectType.hpp"
-#include "LVSHeader.hpp"
+#include "FPHeader.hpp"
+#include "PGNetType.hpp"
 
-namespace ilvs {
+namespace ifp {
 
-class SupplyTrack
+class PGGlobalConnect
 {
  public:
-  SupplyTrack() = default;
-  ~SupplyTrack() = default;
+  PGGlobalConnect() = default;
+  ~PGGlobalConnect() = default;
   // getter
-  ConnectType get_connect_type() const { return _connect_type; }
   std::string& get_net_name() { return _net_name; }
-  int32_t get_component_id() const { return _component_id; }
-  int32_t get_position() const { return _position; }
+  std::string& get_pin_name() { return _pin_name; }
+  PGNetType get_net_type() const { return _net_type; }
+
   // const getter
   const std::string& get_net_name() const { return _net_name; }
+  const std::string& get_pin_name() const { return _pin_name; }
+
   // setter
-  void set_connect_type(const ConnectType connect_type) { _connect_type = connect_type; }
-  void set_net_name(const std::string& net_name) { _net_name = net_name; }
-  void set_component_id(const int32_t component_id) { _component_id = component_id; }
-  void set_position(const int32_t position) { _position = position; }
+  void set_net_name(std::string net_name) { _net_name = net_name; }
+  void set_pin_name(std::string pin_name) { _pin_name = pin_name; }
+  void set_net_type(PGNetType net_type) { _net_type = net_type; }
+
+  // function
 
  private:
-  ConnectType _connect_type = ConnectType::kNone;
   std::string _net_name;
-  int32_t _component_id = -1;
-  int32_t _position = 0;
+  std::string _pin_name;
+  PGNetType _net_type = PGNetType::kNone;
 };
 
-using SupplyTrackKey = std::tuple<ConnectType, std::string, int32_t, int32_t, int32_t, int32_t>;
-
-}  // namespace ilvs
+}  // namespace ifp

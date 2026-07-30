@@ -12,7 +12,6 @@ add_subdirectory(py_icts)
 add_subdirectory(py_idrc)
 add_subdirectory(py_ifp)
 add_subdirectory(py_instance)
-add_subdirectory(py_ipdn)
 add_subdirectory(py_irt)
 add_subdirectory(py_ircx)
 add_subdirectory(py_ista)
@@ -39,7 +38,6 @@ target_link_libraries(ecc_py
         py_idrc
         py_ifp
         py_inst
-        py_ipdn
         py_irt
         py_ircx
         py_ista
