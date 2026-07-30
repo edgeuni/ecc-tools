@@ -180,7 +180,7 @@ install_dependencies_apt()
     apt-get update && apt-get install -y \
       g++-10 cmake ninja-build \
       tcl-dev libgflags-dev libgoogle-glog-dev libboost-all-dev libgtest-dev flex\
-      libeigen3-dev libunwind-dev libgmp-dev bison rustc cargo\
+      libeigen3-dev libunwind-dev libgmp-dev bison \
       libhwloc-dev libcairo2-dev libcurl4-openssl-dev libtbb-dev git\
       mold lld
     exit 0
@@ -314,19 +314,9 @@ perform_clean()
   echo -e "${yellow}Cleaning all build artifacts...${clear}"
 
   local cmake_build_dir="$BUILD_DIR"
-  local rust_target_dirs=$(find "$IEDA_WORKSPACE/src" -type d -name "target" \
-    -exec test -f "{}/../Cargo.toml" \; -print 2>/dev/null)
-  local rust_tmp_dirs=$(find "$IEDA_WORKSPACE/src" -type d -name "tmp" \
-    -exec test -f "{}/../Cargo.toml" \; -print 2>/dev/null)
 
   local delete_list=()
   [[ -d "$cmake_build_dir" ]] && delete_list+=("$cmake_build_dir (CMake build)")
-  [[ -n "$rust_target_dirs" ]] && while IFS= read -r dir; do
-    delete_list+=("$dir (Rust build)")
-  done <<< "$rust_target_dirs"
-  [[ -n "$rust_tmp_dirs" ]] && while IFS= read -r dir; do
-    delete_list+=("$dir (Rust build)")
-  done <<< "$rust_tmp_dirs"
 
   if [[ ${#delete_list[@]} -eq 0 ]]; then
     echo -e "${green}No build artifacts found, nothing to clean.${clear}"

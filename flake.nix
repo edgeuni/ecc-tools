@@ -6,7 +6,6 @@
     ecc-tools-bin = {
       lib,
       python3Packages,
-      rustPlatform,
       stdenv,
       zlib,
       tcl,
@@ -26,8 +25,6 @@
       bison,
       patchelf,
       pkg-config,
-      cargo,
-      rustc,
     }: python3Packages.buildPythonPackage rec {
       name = "ecc-tools-bin";
       format = "pyproject";
@@ -36,30 +33,11 @@
         root = ./.;
         fileset = unions [
           ./src
-          ./cmake
           ./CMakeLists.txt
           ./pyproject.toml
           ./uv.lock
         ];
       };
-
-      postPatch = lib.pipe {
-        verilog-parser = "src/database/manager/parser/verilog/verilog-rust/verilog-parser";
-      } [
-        (lib.mapAttrsToList (name: path: ''
-          mkdir -p ${path}/.cargo
-          cat <<EOF > ${path}/.cargo/config.toml
-          [source."crates-io"]
-          "replace-with" = "vendored-sources"
-
-          [source."vendored-sources"]
-          "directory" = "${rustPlatform.importCargoLock {
-            lockFile = "${src}/${path}/Cargo.lock";
-          }}"
-          EOF
-        ''))
-        (lib.concatStringsSep "\n")
-      ];
 
       build-system = [
         python3Packages.scikit-build-core
@@ -83,6 +61,7 @@
         curl
         tbb_2022
         qhull
+        flex
       ];
       nativeBuildInputs = [
         cmake
@@ -91,8 +70,6 @@
         bison
         patchelf
         pkg-config
-        cargo
-        rustc
         tcl
       ];
       dontUseCmakeConfigure = true;

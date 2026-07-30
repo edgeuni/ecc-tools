@@ -733,7 +733,19 @@ void FPInterface::outputRowList()
   idb_layout->get_rows()->reset();
   for (Row& row : database.get_new_row_list()) {
     Site& site = database.get_site_map()[row.get_site_name()];
-    int32_t site_num = std::abs(row.get_width()) / site.get_width();
+    int32_t site_width = site.get_width();
+    int32_t row_width = std::abs(row.get_width());
+    if (site_width <= 0) {
+      FPLOG.error(Loc::current(), "The site '", row.get_site_name(), "' has invalid width ", site_width, "!");
+    }
+    if (row_width % site_width != 0) {
+      int32_t aligned_row_width = FPUTIL.alignDown(row_width, site_width);
+      FPLOG.warn(Loc::current(), "The row '", row.get_name(), "' width ", row_width, " is aligned down to ", aligned_row_width, " by site '",
+                 row.get_site_name(), "' width ", site_width, "!");
+      row.set_rect(row.get_ll_x(), row.get_ll_y(), row.get_ll_x() + aligned_row_width, row.get_ur_y());
+      row_width = aligned_row_width;
+    }
+    int32_t site_num = row_width / site_width;
     idb::IdbOrient orient = unwrapPlacementOrientation(row.get_orient());
     dmInst->createRow(row.get_name(), row.get_site_name(), row.get_ll_x(), row.get_y(), orient, site_num, 1, site.get_width(), 0);
   }
