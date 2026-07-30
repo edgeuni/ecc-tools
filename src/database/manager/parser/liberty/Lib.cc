@@ -2102,7 +2102,7 @@ LibCurrentTemplate::LibCurrentTemplate(const char* template_name) : LibLutTableT
 }
 
 /**
- * @brief Load liberty with rust parse API.
+ * @brief Load liberty with C++ parse API.
  *
  * @param file_name
  * @return std::unique_ptr<LibLibrary>
