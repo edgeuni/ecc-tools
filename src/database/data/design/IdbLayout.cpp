@@ -128,7 +128,8 @@ IdbCore* IdbLayout::get_core()
     }
     _core->set_bounding_box(min_x, min_y, max_x, max_y);
   } else {
-    _core->set_bounding_box(_die->get_bounding_box());
+    auto* die_bbox = _die->get_bounding_box();
+    _core->set_bounding_box(die_bbox->get_low_x(), die_bbox->get_low_y(), die_bbox->get_high_x(), die_bbox->get_high_y());
   }
 
   return _core;
