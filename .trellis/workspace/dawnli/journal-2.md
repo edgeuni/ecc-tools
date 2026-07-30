@@ -1530,3 +1530,24 @@ Archived all remaining unarchived task directories under .trellis/tasks/. No act
 ### Next Steps
 
 - None - task complete
+
+
+## Session 84: iCTS iRT-style systematic refactor
+
+**Date**: 2026-07-30
+**Task**: iCTS iRT-style systematic refactor
+**Branch**: `cts_refactor`
+
+### Summary
+
+Refactored iCTS to the global DataManager and iRT-style Logger/Monitor architecture, aligned directory and CMake ownership, restored dense CTS/report tables, and minimized global specs; final iCTS tests, ICS55 binary/QoR acceptance, and ecc dev tools checks passed.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a9d71dc3a` | (see git log) |
+
+### Status
+
+[OK] **Completed**

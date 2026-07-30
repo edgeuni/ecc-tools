@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 83
-- **Last Active**: 2026-06-20
+- **Total Sessions**: 84
+- **Last Active**: 2026-07-30
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1532 | Active |
+| `journal-2.md` | ~1553 | Active |
 | `journal-1.md` | ~1991 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 84 | 2026-07-30 | iCTS iRT-style systematic refactor | `a9d71dc3a` | `cts_refactor` |
 | 83 | 2026-06-20 | Archive unarchived Trellis tasks | - | `cts_refactor` |
 | 82 | 2026-06-20 | CTS capability alignment cleanup | `c76529151` | `cts_refactor` |
 | 81 | 2026-06-16 | Fix small-clock CTS HTree failure | `f22f5cfea`, `1b7b66286` | `cts_refactor` |
