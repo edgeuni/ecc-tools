@@ -1118,10 +1118,17 @@ void read_layout_die(const std::string& folder, IdbLayout* layout)
     }
   }
   std::unique_ptr<IdbRect> rect(read_rect(reader));
-  if (rect != nullptr) {
-    die->IdbObject::set_bounding_box(rect->get_low_x(), rect->get_low_y(), rect->get_high_x(), rect->get_high_y());
-  } else {
+  if (!die->get_points().empty()) {
     die->set_bounding_box();
+    auto* points_rect = die->get_bounding_box();
+    if (rect != nullptr
+        && (rect->get_low_x() != points_rect->get_low_x() || rect->get_low_y() != points_rect->get_low_y()
+            || rect->get_high_x() != points_rect->get_high_x() || rect->get_high_y() != points_rect->get_high_y())) {
+      std::cerr << "[IdbData] Warning: serialized die bounding box does not match DIEAREA points; using points-derived bounding box"
+                << std::endl;
+    }
+  } else if (rect != nullptr) {
+    die->IdbObject::set_bounding_box(rect->get_low_x(), rect->get_low_y(), rect->get_high_x(), rect->get_high_y());
   }
 }
 
