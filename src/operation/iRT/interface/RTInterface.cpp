@@ -23,7 +23,6 @@
 #include "GDSPlotter.hpp"
 #include "LayerAssigner.hpp"
 #include "Monitor.hpp"
-#include "NotificationUtility.h"
 #include "PinAccessor.hpp"
 #include "RTInterface.hpp"
 #include "SpaceRouter.hpp"
@@ -126,11 +125,11 @@ void RTInterface::runRT()
   PlanarRouter::initInst();
   RTPR.generate();
   PlanarRouter::destroyInst();
-  
+
   LayerAssigner::initInst();
   RTLA.assign();
   LayerAssigner::destroyInst();
-  
+
   SpaceRouter::initInst();
   RTSR.route();
   SpaceRouter::destroyInst();
@@ -366,7 +365,6 @@ void RTInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   RTDM.getConfig().bottom_routing_layer = RTUTIL.getConfigValue<std::string>(config_map, "-bottom_routing_layer", "");
   RTDM.getConfig().top_routing_layer = RTUTIL.getConfigValue<std::string>(config_map, "-top_routing_layer", "");
   RTDM.getConfig().output_inter_result = RTUTIL.getConfigValue<int32_t>(config_map, "-output_inter_result", 0);
-  RTDM.getConfig().enable_notification = RTUTIL.getConfigValue<int32_t>(config_map, "-enable_notification", 0);
   RTDM.getConfig().enable_timing = RTUTIL.getConfigValue<int32_t>(config_map, "-enable_timing", 0);
   /////////////////////////////////////////////
 }
@@ -1977,22 +1975,6 @@ void RTInterface::updateTiming(std::vector<std::map<std::string, std::vector<Lay
   });
 #endif
 #endif
-}
-
-#endif
-
-#if 1  // ecos
-
-void RTInterface::sendNotification(std::string stage, int32_t iter, std::map<std::string, std::string> json_path_map)
-{
-  std::map<std::string, std::any> notification;
-  notification["step_name"] = "routing";
-  notification["stage"] = stage;
-  notification["iter"] = std::to_string(iter);
-  notification["json_path_map"] = json_path_map;
-  if (!ieda::NotificationUtility::getInstance().sendNotification("iRT", notification).success) {
-    RTLOG.warn(Loc::current(), "Failed to send notification!");
-  }
 }
 
 #endif

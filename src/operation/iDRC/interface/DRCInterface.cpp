@@ -28,6 +28,7 @@
 #include "SameLayerCutSpacingRule.hpp"
 #include "Utility.hpp"
 #include "feature_manager.h"
+#include "file_drc.h"
 #include "idm.h"
 
 namespace idrc {
@@ -83,6 +84,12 @@ void DRCInterface::initDRC(std::map<std::string, std::any> config_map, bool enab
   DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
 }
 
+void DRCInterface::runDRC()
+{
+  checkDef();
+  destroyDRC();
+}
+
 void DRCInterface::checkDef()
 {
   bool origin_quiet = DRCLOG.isQuiet();
@@ -126,6 +133,16 @@ void DRCInterface::destroyDRC()
   DRCLOG.info(Loc::current(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
   // clang-format on
   Logger::destroyInst();
+}
+
+bool DRCInterface::saveDRC(std::string path)
+{
+  if (path.empty()) {
+    return false;
+  }
+
+  iplf::FileDrcManager file(path, static_cast<int32_t>(iplf::DrcDbId::kDrcDetailInfo));
+  return file.writeFile();
 }
 
 std::vector<ids::Violation> DRCInterface::getViolationList(const std::vector<ids::Shape>& ids_env_shape_list,

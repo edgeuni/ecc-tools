@@ -34,7 +34,7 @@ unsigned CmdInitIdb::check()
 {
   TclOption* option = getOptionOrArg(TCL_CONFIG);
 
-  LOG_FATAL_IF(!option);
+  ieda::checkTclOption(option, TCL_CONFIG);
 
   return 1;
 }
@@ -143,7 +143,7 @@ CmdInitDef::CmdInitDef(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdInitDef::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   return 1;
 }
 
@@ -179,8 +179,8 @@ unsigned CmdInitVerilog::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
   TclOption* top = getOptionOrArg(TCL_VERILOG_TOP);
-  LOG_FATAL_IF(!path);
-  LOG_FATAL_IF(!top);
+  ieda::checkTclOption(path, TCL_PATH);
+  ieda::checkTclOption(top, TCL_VERILOG_TOP);
   return 1;
 }
 
@@ -247,7 +247,7 @@ CmdInitSdc::CmdInitSdc(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdInitSdc::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   return 1;
 }
 
@@ -275,7 +275,7 @@ CmdInitSpef::CmdInitSpef(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdInitSpef::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   return 1;
 }
 
@@ -304,7 +304,7 @@ CmdInitVcd::CmdInitVcd(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdInitVcd::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   return 1;
 }
 
@@ -340,10 +340,10 @@ CmdSaveDef::CmdSaveDef(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdSaveDef::check()
 {
   TclOption* option = getOptionOrArg(TCL_NAME);
-  LOG_FATAL_IF(!option);
+  ieda::checkTclOption(option, TCL_NAME);
 
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   return 1;
 }
 
@@ -385,7 +385,7 @@ CmdSaveLef::CmdSaveLef(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdSaveLef::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   return 1;
 }
 
@@ -427,16 +427,16 @@ CmdSaveNetlist::CmdSaveNetlist(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdSaveNetlist::check()
 {
   TclOption* option = getOptionOrArg(TCL_NAME);
-  LOG_FATAL_IF(!option);
+  ieda::checkTclOption(option, TCL_NAME);
 
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
 
   TclOption* exclude_cell_names = getOptionOrArg(EXCLUDE_CELL_NAMES);
-  LOG_FATAL_IF(!exclude_cell_names);
+  ieda::checkTclOption(exclude_cell_names, EXCLUDE_CELL_NAMES);
 
   TclOption* is_add_space = getOptionOrArg(TCL_ADD_SPACE);
-  LOG_FATAL_IF(!is_add_space);
+  ieda::checkTclOption(is_add_space, TCL_ADD_SPACE);
 
   return 1;
 }
@@ -500,13 +500,13 @@ CmdSaveGDS::CmdSaveGDS(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdSaveGDS::check()
 {
   TclOption* option = getOptionOrArg(TCL_NAME);
-  LOG_FATAL_IF(!option);
+  ieda::checkTclOption(option, TCL_NAME);
 
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
 
   TclOption* harden_option = getOptionOrArg("-harden");
-  LOG_FATAL_IF(!harden_option);
+  ieda::checkTclOption(harden_option, "-harden");
 
   return 1;
 }
@@ -556,7 +556,7 @@ unsigned CmdSaveJSON::check()
   // LOG_FATAL_IF(!discard);
 
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   return 1;
 }
 
@@ -598,11 +598,11 @@ CmdSaveViewJson::CmdSaveViewJson(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdSaveViewJson::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   TclOption* json_format = getOptionOrArg("-json_format");
-  LOG_FATAL_IF(!json_format);
+  ieda::checkTclOption(json_format, "-json_format");
   TclOption* compress = getOptionOrArg("-compress");
-  LOG_FATAL_IF(!compress);
+  ieda::checkTclOption(compress, "-compress");
   return 1;
 }
 
@@ -649,9 +649,9 @@ CmdApplyViewJsonEdits::CmdApplyViewJsonEdits(const char* cmd_name) : TclCmd(cmd_
 unsigned CmdApplyViewJsonEdits::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
   TclOption* compress = getOptionOrArg("-compress");
-  LOG_FATAL_IF(!compress);
+  ieda::checkTclOption(compress, "-compress");
   return 1;
 }
 
@@ -687,10 +687,10 @@ CmdWriteSocJson::CmdWriteSocJson(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdWriteSocJson::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
 
   TclOption* harden_cores = getOptionOrArg("-harden_cores");
-  LOG_FATAL_IF(!harden_cores);
+  ieda::checkTclOption(harden_cores, "-harden_cores");
 
   return 1;
 }
@@ -729,7 +729,7 @@ CmdWriteAbstractLef::CmdWriteAbstractLef(const char* cmd_name) : TclCmd(cmd_name
 unsigned CmdWriteAbstractLef::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
 
   return 1;
 }
@@ -762,7 +762,7 @@ CmdSaveData::CmdSaveData(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdSaveData::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
 
   return 1;
 }
@@ -794,7 +794,7 @@ CmdLoadData::CmdLoadData(const char* cmd_name) : TclCmd(cmd_name)
 unsigned CmdLoadData::check()
 {
   TclOption* path = getOptionOrArg(TCL_PATH);
-  LOG_FATAL_IF(!path);
+  ieda::checkTclOption(path, TCL_PATH);
 
   return 1;
 }
@@ -902,13 +902,13 @@ CmdGenerateMPScript::CmdGenerateMPScript(const char* cmd_name) : TclCmd(cmd_name
 unsigned CmdGenerateMPScript::check()
 {
   TclOption* dir = getOptionOrArg(TCL_DIRECTORY);
-  LOG_FATAL_IF(!dir);
+  ieda::checkTclOption(dir, TCL_DIRECTORY);
 
   TclOption* name = getOptionOrArg(TCL_NAME);
-  LOG_FATAL_IF(!name);
+  ieda::checkTclOption(name, TCL_NAME);
 
   auto* number = new TclIntOption("-number", 0);
-  LOG_FATAL_IF(!number);
+  ieda::checkTclOption(number, "-number");
   return 1;
 }
 /*
