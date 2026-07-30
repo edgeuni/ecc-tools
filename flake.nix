@@ -33,7 +33,6 @@
         root = ./.;
         fileset = unions [
           ./src
-          ./cmake
           ./CMakeLists.txt
           ./pyproject.toml
           ./uv.lock
@@ -62,6 +61,7 @@
         curl
         tbb_2022
         qhull
+        flex
       ];
       nativeBuildInputs = [
         cmake
