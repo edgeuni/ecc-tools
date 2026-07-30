@@ -23,8 +23,6 @@
 
 #include "SALTRouter.hh"
 
-#include <glog/logging.h>
-
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -34,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "Point.hh"
 #include "SaltPinBuilder.hh"
 #include "geometry/Geometry.hh"
@@ -97,16 +95,24 @@ auto SALTRouter::buildTree(const ClockTerminal& driver_terminal, const std::vect
     auto parent_id = ensure_node(salt_node->parent);
     const auto* current_node = clock_tree.get_node(current_id);
     const auto* parent_node = clock_tree.get_node(parent_id);
-    LOG_FATAL_IF(current_node == nullptr || parent_node == nullptr) << "SALT clock routing tree node is null.";
+    if (current_node == nullptr || parent_node == nullptr) {
+      CTSLOG.error(Loc::current(), "SALT clock routing tree node is null.");
+    }
 
     const auto distance = geometry::Manhattan(parent_node->location, current_node->location);
-    LOG_FATAL_IF(distance < 0) << "SALT embedded edge distance is negative.";
+    if (distance < 0) {
+      CTSLOG.error(Loc::current(), "SALT embedded edge distance is negative.");
+    }
     auto edge_id = clock_tree.addEdge(parent_id, current_id, distance, distance);
-    LOG_FATAL_IF(edge_id == ClockSteinerTreeType::kInvalidId) << "Failed to add edge when building SALT ClockSteinerTree.";
+    if (edge_id == ClockSteinerTreeType::kInvalidId) {
+      CTSLOG.error(Loc::current(), "Failed to add edge when building SALT ClockSteinerTree.");
+    }
   };
   salt::TreeNode::preOrder(source, connect_node_func);
 
-  LOG_FATAL_IF(!clock_tree.validate()) << "Constructed SALT ClockSteinerTree is invalid.";
+  if (!clock_tree.validate()) {
+    CTSLOG.error(Loc::current(), "Constructed SALT ClockSteinerTree is invalid.");
+  }
   return clock_tree;
 }
 

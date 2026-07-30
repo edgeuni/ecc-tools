@@ -20,8 +20,6 @@
  * @date 2026-04-11
  * @brief Artifact emission for topology generation tests.
  */
-
-#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include <cstddef>
@@ -32,7 +30,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "Point.hh"
 #include "common/topology/TopologyAnalysis.hh"
 #include "common/visualization/TestVisualization.hh"
@@ -66,13 +64,13 @@ auto WriteArtifacts(const std::filesystem::path& output_dir, const TopologyCase&
   const auto cluster_path = output_dir / cluster_name;
   EXPECT_TRUE(common::visualization::WriteClusterSvg(cluster_path.string(), loads, first_level_cluster_map, first_level_centers))
       << "Failed to write cluster svg: " << cluster_path.string();
-  LOG_INFO << "Cluster svg saved (first-level only): " << cluster_path.string();
+  CTSLOG.info(icts::Loc::current(), "Cluster svg saved (first-level only): ", cluster_path.string());
 
   const std::string topo_name = "topology_" + test_case.name + "_" + std::to_string(test_case.count) + ".svg";
   const auto topo_path = output_dir / topo_name;
   EXPECT_TRUE(common::visualization::WriteTopologySvg(topo_path.string(), tree, loads))
       << "Failed to write topology svg: " << topo_path.string();
-  LOG_INFO << "Topology svg saved: " << topo_path.string();
+  CTSLOG.info(icts::Loc::current(), "Topology svg saved: ", topo_path.string());
 }
 
 }  // namespace icts_test::topology_gen::detail

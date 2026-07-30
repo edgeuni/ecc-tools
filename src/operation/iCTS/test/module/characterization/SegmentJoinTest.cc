@@ -30,9 +30,9 @@
 #include <vector>
 
 #include "characterization/Characterization.hh"
-#include "database/characterization/BufferingPattern.hh"
-#include "database/characterization/PatternId.hh"
-#include "database/characterization/SegmentChar.hh"
+#include "data_manager/characterization/BufferingPattern.hh"
+#include "data_manager/characterization/PatternId.hh"
+#include "data_manager/characterization/SegmentChar.hh"
 #include "module/characterization/fixture/CharacterizationUnitCaseData.hh"
 
 namespace icts_test {

@@ -26,7 +26,6 @@
 #include <string>
 #include <vector>
 
-#include "Flow.hh"
 #include "IdbCellMaster.h"
 #include "IdbDesign.h"
 #include "IdbEnum.h"
@@ -34,13 +33,13 @@
 #include "IdbNet.h"
 #include "IdbPins.h"
 #include "IdbTerm.h"
-#include "common/CTSTestRuntime.hh"
 #include "common/realtech/asset/RealTechAssetLoader.hh"
 #include "common/realtech/setup/RealTechDesignSetup.hh"
-#include "database/design/Inst.hh"
-#include "database/design/Pin.hh"
-#include "database/io/Wrapper.hh"
-#include "database/spatial/Point.hh"
+#include "data_manager/DataManager.hh"
+#include "data_manager/design/Inst.hh"
+#include "data_manager/design/Pin.hh"
+#include "data_manager/io/Wrapper.hh"
+#include "data_manager/spatial/Point.hh"
 #include "idm.h"
 
 namespace icts_test::common::realtech::asset {
@@ -72,7 +71,7 @@ auto TryMakeRealPinCapProbe(idb::IdbPin* idb_pin, const std::string& net_name, b
 
   icts::Inst probe_inst(idb_inst->get_name(), cell_master->get_name(), icts::InstType::kUnknown, icts::Point<int>(-1, -1));
   icts::Pin probe_pin(idb_pin->get_pin_name(), icts::PinType::kIn, icts::Point<int>(-1, -1), &probe_inst);
-  const double pin_cap_pf = std::max(0.0, icts_test::runtime::CurrentRuntime().wrapper.queryPinCapacitance(&probe_pin));
+  const double pin_cap_pf = std::max(0.0, CTSDM.getWrapper().queryPinCapacitance(&probe_pin));
   if (pin_cap_pf <= 0.0) {
     return std::nullopt;
   }

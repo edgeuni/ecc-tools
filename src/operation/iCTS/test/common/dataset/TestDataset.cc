@@ -23,7 +23,7 @@
 
 #include "common/dataset/TestDataset.hh"
 
-#include "database/design/Pin.hh"
+#include "data_manager/design/Pin.hh"
 
 namespace icts_test {
 

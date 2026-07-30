@@ -9,7 +9,7 @@ target_include_directories(tool_api_icts
 
 target_link_libraries(tool_api_icts
     PRIVATE
-        icts_api
+        icts_interface
         flow_config
         file_manager_cts
         idm

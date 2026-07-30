@@ -23,12 +23,8 @@
 
 #include <gtest/gtest.h>
 
-#include <exception>
-#include <filesystem>
-#include <fstream>
 #include <iomanip>
 #include <optional>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -38,54 +34,18 @@
 #include "SegmentChar.hh"
 #include "characterization/Characterization.hh"
 #include "common/io/TestArtifactIO.hh"
-#include "common/logging/LogText.hh"
 #include "common/realtech/setup/RealTechDesignSetup.hh"
-#include "database/design/Design.hh"
-#include "database/design/Inst.hh"
-#include "database/design/Pin.hh"
-#include "database/io/Wrapper.hh"
+#include "data_manager/DataManager.hh"
+#include "data_manager/design/Design.hh"
+#include "data_manager/design/Inst.hh"
+#include "data_manager/design/Pin.hh"
+#include "data_manager/io/Wrapper.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 
 namespace icts_test {
 namespace {
 
 namespace realtech_fixture = characterization::realtech;
-
-auto ReadTextFile(const std::filesystem::path& path) -> std::string
-{
-  std::ifstream input_stream(path);
-  if (!input_stream.is_open()) {
-    return {};
-  }
-
-  std::ostringstream content_stream;
-  content_stream << input_stream.rdbuf();
-  return content_stream.str();
-}
-
-auto ReadSchemaFieldValue(const std::string& content, const std::string& field) -> std::optional<std::string>
-{
-  const std::regex row_regex(R"(\|\s*)" + field + R"(\s*\|\s*([^|\n]+?)\s*\|)");
-  std::smatch match;
-  if (!std::regex_search(content, match, row_regex) || match.size() < 2U) {
-    return std::nullopt;
-  }
-  return match[1].str();
-}
-
-auto ReadSchemaUnsignedFieldValue(const std::string& content, const std::string& field) -> std::optional<unsigned long long>
-{
-  const auto value = ReadSchemaFieldValue(content, field);
-  if (!value.has_value()) {
-    return std::nullopt;
-  }
-
-  try {
-    return std::stoull(*value);
-  } catch (const std::exception&) {
-    return std::nullopt;
-  }
-}
 
 TEST(CharacterizationRealTechLimitResolutionTest, UsesStrongestBufferHeightWhenWirelengthUnitMissing)
 {
@@ -109,36 +69,6 @@ TEST(CharacterizationRealTechLimitResolutionTest, UsesStrongestBufferHeightWhenW
   builder.init(contract.input, contract.config);
   EXPECT_DOUBLE_EQ(builder.get_wirelength_unit_um(), expected_unit_um);
   EXPECT_EQ(builder.get_wirelength_iterations(), realtech_fixture::kRealTechCharWirelengthIterations);
-
-  const auto cts_log_path = common::io::ResolveOutputDir() / "characterization" / "realtech" / "auto_wirelength_unit" / "cts.log";
-  const auto cts_log_content = ReadTextFile(cts_log_path);
-  ASSERT_FALSE(cts_log_content.empty());
-  const auto first_line_break = cts_log_content.find('\n');
-  ASSERT_NE(first_line_break, std::string::npos);
-  EXPECT_EQ(cts_log_content.find("Generate the report at "), first_line_break + 1U);
-  EXPECT_NE(cts_log_content.find("CharBuilder Setup"), std::string::npos);
-  const auto char_builder_setup = common::logging::ExtractTextBlock(cts_log_content, "CharBuilder Setup");
-  ASSERT_FALSE(char_builder_setup.empty());
-  EXPECT_FALSE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*routing_layer\s*\|)")));
-  EXPECT_FALSE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*wire_width\s*\|)")));
-  EXPECT_FALSE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*max_slew\s*\|)")));
-  EXPECT_FALSE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*max_cap\s*\|)")));
-  EXPECT_FALSE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*wirelength_iterations\s*\|)")));
-  EXPECT_TRUE(
-      std::regex_search(char_builder_setup, std::regex(R"(\|\s*resolved_wirelength_unit\s*\|\s*[^|\n]*um\s*\|\s*auto_derived\s*\|)")));
-  EXPECT_TRUE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*wirelength_points\s*\|)")));
-  EXPECT_FALSE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*slew_steps\s*\|)")));
-  EXPECT_FALSE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*cap_steps\s*\|)")));
-  EXPECT_EQ(cts_log_content.find("CharBuilder Runtime Configuration"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("CharBuilder Initialization Parameters"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("CharBuilder Routing / Wire RC"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("Notes"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("Characterization setup lists the resolved limits"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("wirelength_setup_source"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("deduplicated"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("auto_derived"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("strongest buffer"), std::string::npos);
-  EXPECT_TRUE(std::regex_search(char_builder_setup, std::regex(R"(\|\s*routing_rc\s*\|\s*Runtime Routing / Wire RC\s*\|)")));
 }
 
 TEST(CharacterizationRealTechLimitResolutionTest, RepresentativePinCapRemainsStableThroughWrapperQuery)
@@ -163,10 +93,9 @@ TEST(CharacterizationRealTechLimitResolutionTest, RepresentativePinCapRemainsSta
   icts::Inst probe_inst(probe->inst_name, probe->cell_master, icts::InstType::kUnknown, icts::Point<int>(-1, -1));
   icts::Pin probe_pin(probe->pin_name, icts::PinType::kIn, icts::Point<int>(-1, -1), &probe_inst);
 
-  ASSERT_FALSE(icts_test::runtime::CurrentRuntime().design.get_clocks().empty())
-      << "Real-tech setup should materialize at least one SDC-declared clock.";
+  ASSERT_FALSE(CTSDM.getDesign().get_clocks().empty()) << "Real-tech setup should materialize at least one SDC-declared clock.";
 
-  const double wrapper_cap_pf = icts_test::runtime::CurrentRuntime().wrapper.queryPinCapacitance(&probe_pin);
+  const double wrapper_cap_pf = CTSDM.getWrapper().queryPinCapacitance(&probe_pin);
   EXPECT_GT(wrapper_cap_pf, 0.0);
   const double cap_tolerance_pf = probe->pre_timing_cap_pf * 1e-6 + 1e-6;
   EXPECT_NEAR(wrapper_cap_pf, probe->pre_timing_cap_pf, cap_tolerance_pf);
@@ -182,8 +111,8 @@ TEST(CharacterizationRealTechLimitResolutionTest, RepresentativePinCapRemainsSta
   report_stream << "pin_name=" << probe->pin_name << "\n";
   report_stream << "initial_pin_cap_pf=" << probe->pre_timing_cap_pf << "\n";
   report_stream << "wrapper_cap_pf=" << wrapper_cap_pf << "\n";
-  report_stream << "clock_count=" << icts_test::runtime::CurrentRuntime().design.get_clocks().size() << "\n";
-  ASSERT_TRUE(realtech_fixture::WriteScenarioLog("wrapper_pin_cap_probe", "wrapper_pin_cap_probe_report.txt", report_stream.str()));
+  report_stream << "clock_count=" << CTSDM.getDesign().get_clocks().size() << "\n";
+  ASSERT_TRUE(realtech_fixture::WriteScenarioReport("wrapper_pin_cap_probe", "wrapper_pin_cap_probe_report.txt", report_stream.str()));
 }
 
 TEST(CharacterizationRealTechLimitResolutionTest, TableAxisLimitsMatchAvailableAssetCoverage)
@@ -267,7 +196,7 @@ TEST(CharacterizationRealTechLimitResolutionTest, TableAxisLimitsMatchAvailableA
   report_stream << "table_axis_limit_exercised=" << (exercised ? "true" : "false") << "\n";
   report_stream << "limitations=" << realtech_fixture::JoinStrings(limitation_notes) << "\n";
   ASSERT_TRUE(
-      realtech_fixture::WriteScenarioLog("table_axis_limit_resolution", "table_axis_limit_resolution_report.txt", report_stream.str()));
+      realtech_fixture::WriteScenarioReport("table_axis_limit_resolution", "table_axis_limit_resolution_report.txt", report_stream.str()));
 
   if (!exercised) {
     GTEST_SKIP() << "Current real-tech assets cannot directly exercise table-axis-only limit resolution. "
@@ -336,38 +265,6 @@ TEST(CharacterizationRealTechLimitResolutionTest, OverflowSamplesAreSkippedAndRe
   if (saw_driven_cap_overflow) {
     EXPECT_GT(builder.get_max_observed_driven_cap_idx(), builder.get_cap_steps());
   }
-
-  const auto cts_log_path = common::io::ResolveOutputDir() / "characterization" / "realtech" / "overflow_skip_reporting" / "cts.log";
-  const auto cts_log_content = ReadTextFile(cts_log_path);
-  ASSERT_FALSE(cts_log_content.empty());
-  EXPECT_NE(cts_log_content.find("CharBuilder Results"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("Notes"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("Characterization results summarize generated entries"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("executed_sta_samples"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("output_slew_overflow_samples"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("output_slew_overflow_ratio"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("driven_cap_overflow_samples"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("driven_cap_overflow_ratio"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("max_observed_output_slew_idx"), std::string::npos);
-  EXPECT_NE(cts_log_content.find("max_observed_driven_cap_idx"), std::string::npos);
-  EXPECT_EQ(cts_log_content.find("max_configured_slew"), std::string::npos);
-
-  const auto logged_output_overflow_samples = ReadSchemaUnsignedFieldValue(cts_log_content, "output_slew_overflow_samples");
-  const auto logged_driven_cap_overflow_samples = ReadSchemaUnsignedFieldValue(cts_log_content, "driven_cap_overflow_samples");
-  const auto logged_max_output_slew_idx = ReadSchemaUnsignedFieldValue(cts_log_content, "max_observed_output_slew_idx");
-  const auto logged_max_driven_cap_idx = ReadSchemaUnsignedFieldValue(cts_log_content, "max_observed_driven_cap_idx");
-  ASSERT_TRUE(logged_output_overflow_samples.has_value());
-  ASSERT_TRUE(logged_driven_cap_overflow_samples.has_value());
-  ASSERT_TRUE(logged_max_output_slew_idx.has_value());
-  ASSERT_TRUE(logged_max_driven_cap_idx.has_value());
-  const auto logged_output_overflow_samples_value = logged_output_overflow_samples.value_or(0ULL);
-  const auto logged_driven_cap_overflow_samples_value = logged_driven_cap_overflow_samples.value_or(0ULL);
-  const auto logged_max_output_slew_idx_value = logged_max_output_slew_idx.value_or(0ULL);
-  const auto logged_max_driven_cap_idx_value = logged_max_driven_cap_idx.value_or(0ULL);
-  EXPECT_EQ(logged_output_overflow_samples_value, builder.get_output_slew_overflow_samples());
-  EXPECT_EQ(logged_driven_cap_overflow_samples_value, builder.get_driven_cap_overflow_samples());
-  EXPECT_EQ(logged_max_output_slew_idx_value, builder.get_max_observed_output_slew_idx());
-  EXPECT_EQ(logged_max_driven_cap_idx_value, builder.get_max_observed_driven_cap_idx());
 }
 
 TEST(CharacterizationRealTechLimitResolutionTest, RepeatedReducedBuildsRemainUsableWithinOnePreparedFixture)
@@ -416,8 +313,7 @@ TEST(CharacterizationRealTechLimitResolutionTest, RepeatedReducedBuildsRemainUsa
   EXPECT_EQ(first_summary.total_entries, second_summary.total_entries);
   EXPECT_EQ(first_summary.max_length_idx, second_summary.max_length_idx);
   EXPECT_EQ(first_summary.max_input_slew_idx, second_summary.max_input_slew_idx);
-  EXPECT_FALSE(icts_test::runtime::CurrentRuntime().design.get_clocks().empty())
-      << "Clock data should remain materialized after repeated char-only builds.";
+  EXPECT_FALSE(CTSDM.getDesign().get_clocks().empty()) << "Clock data should remain materialized after repeated char-only builds.";
   EXPECT_EQ(first_summary.max_output_slew_idx, second_summary.max_output_slew_idx);
   EXPECT_EQ(first_summary.max_driven_cap_idx, second_summary.max_driven_cap_idx);
   EXPECT_EQ(first_summary.max_load_cap_idx, second_summary.max_load_cap_idx);
@@ -432,7 +328,7 @@ TEST(CharacterizationRealTechLimitResolutionTest, RepeatedReducedBuildsRemainUsa
   report_stream << "second_patterns=" << second_builder.get_buffering_patterns().size() << "\n";
   report_stream << "first_lattice=" << realtech_fixture::FormatSegmentCharLatticeSummary(first_summary, first_builder) << "\n";
   report_stream << "second_lattice=" << realtech_fixture::FormatSegmentCharLatticeSummary(second_summary, second_builder) << "\n";
-  ASSERT_TRUE(realtech_fixture::WriteScenarioLog("repeat_reduced_builds", "repeat_reduced_builds_report.txt", report_stream.str()));
+  ASSERT_TRUE(realtech_fixture::WriteScenarioReport("repeat_reduced_builds", "repeat_reduced_builds_report.txt", report_stream.str()));
 }
 
 }  // namespace

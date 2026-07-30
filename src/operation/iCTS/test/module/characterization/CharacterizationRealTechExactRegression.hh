@@ -32,8 +32,8 @@
 #include <vector>
 
 #include "characterization/Characterization.hh"
-#include "database/characterization/SegmentChar.hh"
-#include "database/characterization/ValueLattice.hh"
+#include "data_manager/characterization/SegmentChar.hh"
+#include "data_manager/characterization/ValueLattice.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 
 namespace icts_test {

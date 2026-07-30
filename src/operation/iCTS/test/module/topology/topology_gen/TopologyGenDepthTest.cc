@@ -30,9 +30,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "database/design/Pin.hh"
-#include "database/spatial/Point.hh"
-#include "database/spatial/Tree.hh"
+#include "data_manager/design/Pin.hh"
+#include "data_manager/spatial/Point.hh"
+#include "data_manager/spatial/Tree.hh"
 #include "geometry/Geometry.hh"
 #include "module/topology/TopologyGen.hh"
 #include "module/topology/config/TopologyConfig.hh"

@@ -10,7 +10,7 @@ target_link_libraries(tcl_icts
         tcl_util
         tcl
         str
-        icts_api
+        icts_interface
         tool_api_icts
 )
 

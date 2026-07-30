@@ -122,7 +122,7 @@ TEST(CharacterizationRealTechExactRegressionTest, IterOneFunctionComposeGapRepor
   AppendFunctionComposeGapStats(report_stream, quadratic_frontier_length_three, grid);
 
   ASSERT_TRUE(
-      realtech_fixture::WriteScenarioLog("iter1_function_compose_gap", "iter1_function_compose_gap_report.txt", report_stream.str()));
+      realtech_fixture::WriteScenarioReport("iter1_function_compose_gap", "iter1_function_compose_gap_report.txt", report_stream.str()));
 }
 
 TEST(CharacterizationRealTechExactRegressionTest, IterOneStructuralCapFunctionComposeGapReport)
@@ -218,8 +218,8 @@ TEST(CharacterizationRealTechExactRegressionTest, IterOneStructuralCapFunctionCo
   AppendFunctionComposeGapStats(report_stream, quadratic_frontier_length_two, grid);
   AppendFunctionComposeGapStats(report_stream, quadratic_frontier_length_three, grid);
 
-  ASSERT_TRUE(realtech_fixture::WriteScenarioLog("iter1_structural_cap_function_compose_gap",
-                                                 "iter1_structural_cap_function_compose_gap_report.txt", report_stream.str()));
+  ASSERT_TRUE(realtech_fixture::WriteScenarioReport("iter1_structural_cap_function_compose_gap",
+                                                    "iter1_structural_cap_function_compose_gap_report.txt", report_stream.str()));
 }
 
 }  // namespace

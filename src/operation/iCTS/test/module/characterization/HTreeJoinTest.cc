@@ -27,8 +27,8 @@
 #include <vector>
 
 #include "characterization/Characterization.hh"
-#include "database/characterization/HTreeTopologyChar.hh"
-#include "database/characterization/PatternId.hh"
+#include "data_manager/characterization/HTreeTopologyChar.hh"
+#include "data_manager/characterization/PatternId.hh"
 #include "module/characterization/fixture/CharacterizationUnitCaseData.hh"
 
 namespace icts_test {

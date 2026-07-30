@@ -20,20 +20,14 @@
  * @date 2026-04-24
  * @brief Boundary-load polish orchestration for fast topology clustering.
  */
-
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <numeric>
 #include <optional>
-#include <ostream>
-#include <string>
 #include <utility>
 #include <vector>
 
-#include "Log.hh"
 #include "cluster_draft/FastClusteringDraft.hh"
 
 namespace icts {
@@ -114,14 +108,10 @@ auto ResolveBoundaryMinMoveCount(std::size_t considered_sources) -> std::size_t
 
 auto PolishBoundaryLoads(std::vector<ClusterDraft>& clusters, const std::vector<LoadEntry>& entries, const ClusterConfig& config) -> void
 {
-  for (std::size_t round = 0; round < kBoundaryPolishRoundCount; ++round) {
-    const auto round_start = SteadyClock::now();
+  for (std::size_t remaining_rounds = kBoundaryPolishRoundCount; remaining_rounds > 0U; --remaining_rounds) {
     bool changed = false;
-    const auto order_start = SteadyClock::now();
     const auto source_order = BuildCapHeavyClusterOrder(clusters);
     const auto neighbor_graph = BuildSpatialNeighborGraph(clusters, kMaxBoundaryNeighborCandidates);
-    const auto order_elapsed_seconds = ElapsedSeconds(order_start);
-    const auto search_start = SteadyClock::now();
     std::size_t considered_sources = 0U;
     std::size_t moved_loads = 0U;
     auto aggregate = CalcDraftAggregate(clusters);
@@ -143,14 +133,7 @@ auto PolishBoundaryLoads(std::vector<ClusterDraft>& clusters, const std::vector<
       ++moved_loads;
       changed = true;
     }
-    const auto search_elapsed_seconds = ElapsedSeconds(search_start);
     const auto min_move_count = ResolveBoundaryMinMoveCount(considered_sources);
-    LOG_INFO << "Fast clustering boundary polish round " << round << ": active_sources=" << source_order.active_count
-             << ", selected_sources=" << source_order.cluster_ids.size() << ", considered_sources=" << considered_sources
-             << ", moved_loads=" << moved_loads << ", min_moves_for_next_round=" << min_move_count
-             << ", changed=" << (changed ? "true" : "false") << ", order_elapsed_time=" << FormatSeconds(order_elapsed_seconds)
-             << " s, search_elapsed_time=" << FormatSeconds(search_elapsed_seconds)
-             << " s, elapsed_time=" << FormatSeconds(ElapsedSeconds(round_start)) << " s";
     if (!changed || moved_loads < min_move_count) {
       break;
     }

@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "common/clustering/metrics/ClusterGeometryMetrics.hh"
-#include "database/spatial/Point.hh"
+#include "data_manager/spatial/Point.hh"
 #include "module/topology/clustering/Clustering.hh"
 
 namespace icts_test::common::clustering {

@@ -4,7 +4,7 @@ add_library(py_icts ${PY_ICTS_SRC})
 
 target_link_libraries(py_icts
     PUBLIC
-        icts_api
+        icts_interface
         tool_manager
         pybind11::pybind11
 )

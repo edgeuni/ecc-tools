@@ -1,73 +1,47 @@
-# Logging Guidelines
+# Logging and Monitoring Guidelines
 
-Logging rules for `src/operation/iCTS/`.
+Runtime logs, resource measurements, dense tables, and report mirroring for iCTS.
 
-## Scope
+## Logger Contract
 
-This document covers iCTS runtime logging, structured report output, log-level meaning, and logging-specific forbidden patterns.
+Use the iRT-style `CTSLOG` singleton from `source/toolkit/logger/`.
 
-## Rules
+| Call | Meaning |
+| --- | --- |
+| `CTSLOG.info(Loc::current(), ...)` | Normal milestones, summaries, and bounded algorithm evidence |
+| `CTSLOG.warn(Loc::current(), ...)` | Recoverable degradation, skip, or typed failure |
+| `CTSLOG.error(Loc::current(), ...)` | Terminal invariant or infrastructure failure; logs, closes the file, and exits |
 
-### Core Rule
+- Do not use glog `LOG_*` macros in iCTS.
+- Do not add a second logger, compatibility macro, detail log, runtime log, or independent report sink for CTS runtime information.
+- Outside the logger implementation, do not write runtime messages with `std::cout`, `std::cerr`, `printf`, or `fprintf`.
+- Pass `Loc::current()` at the call site and include the object, state, or value needed to diagnose the message.
 
-Use the repository `LOG_*` macros for console/runtime logging.
-Use the iCTS structured report helpers for file output such as `cts.log`.
-Do not build new dual-write wrappers that hide both console logging and file writing behind one macro.
+## Lifecycle
 
-### Log Levels
+- `CTSAPI::init` initializes `Logger` before `DataManager`.
+- Logs emitted before the file is opened are buffered.
+- `DataManager::input` opens exactly `<work_dir>/cts.log` after output directories are ready; opening truncates the previous file and flushes buffered startup logs.
+- Logger destruction/reset closes the file. Do not manage the stream from modules.
+- The console may use colored levels; `cts.log` must remain plain text without ANSI sequences.
 
-| Level | Use For |
-|------|---------|
-| `LOG_INFO` | Normal progress, summaries, counters, timing, and status |
-| `LOG_WARNING` | Non-fatal problems, early skips, optional data missing |
-| `LOG_ERROR` | Recoverable errors where the function returns a safe default |
-| `LOG_FATAL` | Unrecoverable state that must terminate |
+## Information Density
 
-Conditional forms are allowed:
-- `LOG_INFO_IF(...)`
-- `LOG_WARNING_IF(...)`
-- `LOG_ERROR_IF(...)`
-- `LOG_FATAL_IF(...)`
+- Log stage start/completion, result summaries, resource usage, recoverable decisions, and the algorithm evidence needed to understand CTS behavior.
+- Use `EmitLogTable(...)` for dense multi-field information such as config, unit/RC data, clock distribution, selected H-tree candidates, optimization evolution, committed results, and report artifacts.
+- Algorithm tables must be bounded and decision-oriented. Do not emit per-net, per-sink, per-sample, or per-trial noise unless it is the bounded candidate set used to make the recorded decision.
+- Do not maintain separate normal/detail semantics. `cts.log` contains the single necessary runtime record.
+- Build rows near the data owner; orchestration facades decide when the table is emitted.
 
-### Usage
+`LogTable` is stateless infrastructure: render with `RenderLogTable(...)`, then emit the rendered text with `EmitLogTableText(...)` or render-and-emit with `EmitLogTable(...)`. It must not own business state, file lifecycle, or another sink.
 
-- Include enough context in the message: object name, value, or expected state.
-- Use `INFO` for milestones and summaries, not for every trivial step.
-- Use `WARNING` when the flow can continue safely.
-- Use `ERROR` when the function must return a safe fallback.
-- Use `FATAL` when continuing would mean corrupted or invalid execution.
-- Do not repeat file paths or line numbers in the message body; the logger prefix already provides call-site context.
-- Prefer titled report tables for dense summaries such as config, RC, and unit metadata.
-- If report-only data is degraded, warn at the decision point and label it explicitly as `degraded` in the emitted summary/report.
-- Avoid the word `fallback` in production logs unless it names a deliberate compatibility concept. For algorithm behavior, prefer explicit policy names such as `auto_derived`, `relaxed_boundary`, `normalized_input`, or fail with `LOG_FATAL` when continuation would hide invalid CTS state.
-- Build report fields near the data owner. API/flow entry layers coordinate stage boundaries and output timing; they should not own low-level field assembly for config, design, or adapter data.
-- Structured runtime and stage report state belongs in a runtime-owned `SchemaWriter`.
-- API, flow, and report boundaries pass `SchemaWriter&`, or a narrower report sink when callers need only a limited emit surface.
-- Do not hide report output behind a global current writer.
+## Report Mirroring
 
-Example:
+When a report table is also runtime evidence, render one canonical table body and use the same body for the `.rpt` file and `CTSLOG`. `cts_report` therefore writes report artifacts and prints their table bodies to both the command line and `cts.log`; do not create independently formatted log/report versions.
 
-```cpp
-LOG_WARNING << "Topology generation skipped: no loads.";
-LOG_ERROR << "iDB design units are not ready.";
-LOG_FATAL_IF(idb_builder == nullptr) << "idb builder is null";
-```
+## Monitor Contract
 
-### Forbidden Patterns
-
-- `std::cout` or `printf`
-- `assert()` for user-visible runtime validation
-- logging the same invariant failure repeatedly in many downstream locations
-
-### Lifecycle
-
-- Initialize structured report output at the API or test-flow entry boundary.
-- Use `LOG_*` for console/runtime diagnostics throughout the codebase.
-- Route structured file output through report helpers such as stage scopes, titled tables, diagnostics, and artifacts.
-- Close structured report resources during the normal API/reset cleanup path.
-
-## Related Docs
-
-- `error-handling.md`
-- `quality-guidelines.md`
-- `../project-constraints.md`
+- Use a stack-local `Monitor` at lifecycle or stage boundaries.
+- Append `monitor.getStatsInfo()` to completion or failure summaries when elapsed time, process CPU time, and peak-memory delta are useful.
+- Each `getStatsInfo()` call advances that monitor's baseline; do not make `Monitor` global or use it as a metrics store.
+- Failure to sample required system statistics is terminal through `CTSLOG.error`.

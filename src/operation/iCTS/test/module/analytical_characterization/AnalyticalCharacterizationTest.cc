@@ -31,11 +31,11 @@
 #include "ClockRouteSegmentRc.hh"
 #include "analytical_characterization/AnalyticalCharacterization.hh"
 #include "analytical_characterization/AnalyticalModel.hh"
-#include "database/characterization/BufferingPattern.hh"
-#include "database/characterization/CharCore.hh"
-#include "database/characterization/PatternId.hh"
-#include "database/characterization/SegmentChar.hh"
-#include "database/characterization/ValueLattice.hh"
+#include "data_manager/characterization/BufferingPattern.hh"
+#include "data_manager/characterization/CharCore.hh"
+#include "data_manager/characterization/PatternId.hh"
+#include "data_manager/characterization/SegmentChar.hh"
+#include "data_manager/characterization/ValueLattice.hh"
 
 namespace icts_test {
 namespace {

@@ -26,8 +26,8 @@
 #include <string>
 #include <vector>
 
-#include "database/characterization/BufferingPattern.hh"
-#include "database/characterization/PatternId.hh"
+#include "data_manager/characterization/BufferingPattern.hh"
+#include "data_manager/characterization/PatternId.hh"
 
 namespace icts_test {
 namespace {

@@ -1,95 +1,36 @@
 # Error Handling
 
-Error-handling rules for `src/operation/iCTS/`.
+Recoverable status propagation and terminal failure rules for `src/operation/iCTS/`.
 
-## Scope
+## Decision Contract
 
-This document covers the no-exception policy, severity decisions, and return-vs-terminate behavior.
+| Condition | Required behavior |
+| --- | --- |
+| Normal or no-op result | Return the appropriate success/no-op status; use `CTSLOG.info` when it is operationally relevant |
+| Recoverable skip, degradation, or stage failure | Use `CTSLOG.warn` and return the owning typed status/summary |
+| Invalid `DataManager` transition or non-committable local result | Return `DataManagerStatus`; do not mutate committed state |
+| Missing invariant where continuation is unsafe or misleading | Use `CTSLOG.error`; it is terminal |
 
-## Rules
+`CTSLOG.error` is `[[noreturn]]`. Do not use it for a path whose caller is expected to recover.
 
-### Core Rules
+Use the existing boundary type that owns the failure:
 
-- iCTS uses logging-based error handling plus structured reports.
-- Do not use exceptions in normal iCTS code.
-- Choose log level based on whether the flow can continue.
-- Return a safe default only when the caller can continue safely.
+- `CTSStatus` / `CTSStatusCode` for public API results.
+- `DataManagerStatus` / `DataManagerStatusCode` for input, state, and commit results.
+- The module's existing outcome or summary type for local stage results.
 
-### Decision Matrix
+Do not replace typed failures with sentinel data, a success-shaped empty object, or a log-only failure. A warning supplies diagnostic context; the returned type carries control flow.
 
-| Situation | Action |
-|-----------|--------|
-| Required pointer/resource is missing and execution cannot continue | `LOG_FATAL` / `LOG_FATAL_IF` |
-| Required resource is missing but the function can return safely | `LOG_ERROR` + safe default |
-| Input is empty, zero, or intentionally skippable | `LOG_WARNING` + early return |
-| Non-critical inconsistency with a fallback path | `LOG_WARNING` / `LOG_WARNING_IF` |
+## Algorithm Preconditions
 
-### CTS Algorithm Unit and RC Preconditions
+Topology, RC, timing, sizing, legality, and QoR decisions require valid DBU, routing-layer, adapter, and Liberty state. Validate these at the first boundary that owns the requirement. Do not mask missing infrastructure with zero RC, `routing_layer = 0`, `dbu = 0`, or denominator clamping.
 
-For CTS algorithm paths that produce topology, RC trees, timing, sizing, legality, or QoR decisions, the following are required preconditions:
+Fallible query helpers may return an unavailable result for report/probe callers; an algorithm caller must convert that result to its typed stage failure or a terminal invariant before using it.
 
-- `DBU-per-micron > 0`
-- RC-producing algorithms have a positive routing layer
-- required `Wrapper`/iDB state is initialized before wire RC or Liberty queries
-- geometry projections such as `ClockLayout` are converted to RC only after the target fast-STA or algorithm context has validated runtime options
+## Exceptions and Termination
 
-Use `LOG_FATAL` / `LOG_FATAL_IF` at the first algorithm boundary when one of these is missing. Do not continue with sentinels such as `dbu = 0`, `routing_layer = 0`, zero RC from unavailable infrastructure, or `std::max(dbu, 1)` masking.
-
-Shared query facades may remain fallible for report/probe paths, but algorithm callers must use required wrappers or immediately translate invalid results into fatal/typed stage failure. `wire_width` may remain optional when the technology/library default width is the intended behavior.
-
-Wrong:
-
-```cpp
-const auto dbu_per_um = std::max(wrapper.queryDbUnit(), 1);
-const auto res = sta_adapter.queryWireResistance(routing_layer, length_um);
-```
-
-Correct:
-
-```cpp
-const auto dbu_per_um = wrapper.queryDbUnit();
-LOG_FATAL_IF(dbu_per_um <= 0) << "CTS stage: DBU-per-micron is unavailable.";
-LOG_FATAL_IF(routing_layer <= 0) << "CTS stage: routing layer is not configured.";
-const auto res = wrapper.queryRequiredWireResistance(routing_layer, length_um, wire_width_um);
-```
-
-### Return vs Terminate
-
-Use `LOG_ERROR` plus a safe return for cases such as:
-- unavailable infrastructure in a query path
-- lookup failures with a defined default result
-- feature paths where the caller already handles failure
-
-Use `LOG_FATAL` for cases such as:
-- null builders or required runtime-owned dependencies
-- missing required database objects that indicate a bug
-- invalid state where any continuation would be misleading or unsafe
-
-### Narrow Exception Rule
-
-The repository rule is no exceptions.
-
-A narrow existing exception may remain in config parsing code when converting JSON values with a default fallback. Do not copy that pattern into normal module code.
-
-### Forbidden Patterns
-
-- `throw`, `try`, or `catch` in normal iCTS implementation code
-- `exit()` or `abort()` instead of `LOG_FATAL`
-- `assert()` as runtime error handling
-- silent failure without logging when the caller needs diagnostic context
-
-## Checklist
-
-Before handoff, verify:
-
-- [ ] Fatal conditions really require termination
-- [ ] Recoverable failures return a safe default
-- [ ] Empty or skippable inputs use warning + early return
-- [ ] No exception-based control flow was introduced
-- [ ] Error messages include enough context to debug the failure
-
-## Related Docs
-
-- `logging-guidelines.md`
-- `quality-guidelines.md`
-- `../project-constraints.md`
+- Do not use exception-based control flow in iCTS.
+- The existing `source/data_manager/config/Config.cc` JSON conversion/parsing catches may remain; do not copy that exception pattern elsewhere.
+- Do not call `exit`, `_Exit`, `abort`, or `terminate` outside the `Logger` implementation.
+- Do not use `assert` for user-visible runtime validation.
+- Log a failure once at the boundary that decides its disposition; downstream callers propagate the status without repeating the same invariant message.

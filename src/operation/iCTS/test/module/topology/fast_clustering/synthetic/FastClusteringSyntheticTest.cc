@@ -22,9 +22,13 @@
  */
 
 #include <gtest/gtest.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cstddef>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <limits>
 #include <set>
 #include <string>
@@ -33,10 +37,11 @@
 #include <vector>
 
 #include "ClockRouteSegmentRc.hh"
+#include "Logger.hh"
 #include "common/data/pin_factory/PinFactory.hh"
 #include "common/dataset/TestDataset.hh"
-#include "database/design/Pin.hh"
-#include "database/spatial/Point.hh"
+#include "data_manager/design/Pin.hh"
+#include "data_manager/spatial/Point.hh"
 #include "module/topology/clustering/Clustering.hh"
 #include "module/topology/config/TopologyConfig.hh"
 #include "module/topology/fast_clustering/FastClustering.hh"
@@ -206,6 +211,38 @@ TEST(FastClusteringSyntheticTest, ClusteringFacadeMatchesFastClusteringFacade)
 
   EXPECT_EQ(topology_result.clusters.size(), clustering_result.clusters.size());
   EXPECT_EQ(CountAssignedLoads(topology_result), CountAssignedLoads(clustering_result));
+}
+
+TEST(FastClusteringSyntheticTest, EmitsBoundedElectricalSummary)
+{
+  auto generated = common::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "log_pin_");
+  icts::ClusterConfig config;
+  config.max_fanout = 8;
+  config.max_cap = 1.0;
+  config.clock_route_segment_rc = MakeSyntheticClockRouteSegmentRc();
+  AddSyntheticLoadPinCaps(generated.loads, config);
+
+  const auto output_dir = std::filesystem::temp_directory_path() / ("icts_fast_clustering_log_test_" + std::to_string(getpid()));
+  std::filesystem::remove_all(output_dir);
+  std::filesystem::create_directories(output_dir);
+  const auto log_path = output_dir / "cts.log";
+  CTSLOG.openLogFileStream(log_path.string());
+  const auto result = icts::FastClustering::run(generated.loads, config);
+  CTSLOG.closeLogFileStream();
+
+  ASSERT_FALSE(result.clusters.empty());
+  std::ifstream log_stream(log_path);
+  const std::string log_text{std::istreambuf_iterator<char>(log_stream), std::istreambuf_iterator<char>()};
+  const auto table_begin = log_text.rfind("CTS Clustering Summary");
+  ASSERT_NE(table_begin, std::string::npos);
+  const auto table_text = log_text.substr(table_begin);
+  EXPECT_NE(table_text.find("| Constraint Maximum Fanout"), std::string::npos);
+  EXPECT_NE(table_text.find("| Exact Clusters"), std::string::npos);
+  EXPECT_NE(table_text.find("| Exact Route Failures"), std::string::npos);
+  EXPECT_NE(table_text.find("| Routed Wirelength (DBU)"), std::string::npos);
+  EXPECT_EQ(table_text.find("CTS Clustering Summary:"), std::string::npos);
+  EXPECT_LE(std::ranges::count(table_text, '\n'), 21);
+  std::filesystem::remove_all(output_dir);
 }
 
 }  // namespace

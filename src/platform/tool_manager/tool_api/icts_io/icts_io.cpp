@@ -16,12 +16,10 @@
 // ***************************************************************************************
 #include "icts_io.h"
 
-#include <glog/logging.h>
-
 #include "builder.h"
 #include "dm_cts_config.h"
 #include "flow_config.h"
-#include "iCTS/api/CTSAPI.hh"
+#include "iCTS/interface/CTSAPI.hh"
 #include "usage/usage.hh"
 
 namespace iplf {
@@ -43,14 +41,12 @@ bool CtsIO::runCTS(std::string config, std::string work_dir)
 
   const auto setup_status = CTS_API_INST.init(config, work_dir);
   if (!setup_status.ok()) {
-    LOG(ERROR) << "iCTS setup failed: " << setup_status.message;
     flowConfigInst->add_status_runtime(stats.elapsedRunTime());
     flowConfigInst->set_status_memmory(stats.memoryDelta());
     return false;
   }
   const auto run_status = CTS_API_INST.runCTS();
   if (!run_status.ok()) {
-    LOG(ERROR) << "iCTS run failed: " << run_status.message;
     flowConfigInst->add_status_runtime(stats.elapsedRunTime());
     flowConfigInst->set_status_memmory(stats.memoryDelta());
     return false;
@@ -69,7 +65,6 @@ bool CtsIO::reportCTS(std::string path)
   }
   const auto report_status = CTS_API_INST.report(path);
   if (!report_status.ok()) {
-    LOG(ERROR) << "iCTS report failed: " << report_status.message;
     return false;
   }
   return true;

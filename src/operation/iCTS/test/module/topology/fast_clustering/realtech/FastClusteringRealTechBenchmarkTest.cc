@@ -30,11 +30,10 @@
 
 #include "Clustering.hh"
 #include "FastClusteringRealTechBenchmarkFixture.hh"
+#include "Logger.hh"
 #include "common/dataset/TestDataset.hh"
 #include "common/io/TestArtifactIO.hh"
-#include "common/logging/ScopedLogFile.hh"
 #include "module/topology/fast_clustering/FastClustering.hh"
-#include "utils/logger/Schema.hh"
 
 namespace icts {
 class Pin;
@@ -45,14 +44,13 @@ namespace {
 
 using common::io::PrepareCleanOutputDir;
 using common::io::ResolveOutputDir;
-using common::io::WriteRawTextLog;
-using common::logging::ScopedLogFile;
+using common::io::WriteTextArtifact;
 
 TEST(FastClusteringRealTechBenchmarkTest, BenchmarkTwentyPlacementCases)
 {
   const auto output_dir = PrepareCleanOutputDir(ResolveOutputDir() / "fast_clustering" / "realtech_benchmark" / "current_run");
   const auto cts_log_path = output_dir / "cts.log";
-  ScopedLogFile scoped_log(cts_log_path, "Fast Clustering RealTech Benchmark");
+  CTSLOG.openLogFileStream(cts_log_path.string());
 
   const auto cases = DiscoverBenchmarkCases();
   const auto assets = ResolveTechAssets();
@@ -93,7 +91,6 @@ TEST(FastClusteringRealTechBenchmarkTest, BenchmarkTwentyPlacementCases)
     std::string cluster_svg;
     if (!svg_path.empty()) {
       cluster_svg = (std::filesystem::path(std::string(kClusterSvgDirName)) / svg_path.filename()).string();
-      icts::EmitArtifact(icts_test::runtime::CurrentRuntime().reporter, "CTS clustering structure svg", svg_path);
     }
 
     loaded.loads.clear();
@@ -106,10 +103,10 @@ TEST(FastClusteringRealTechBenchmarkTest, BenchmarkTwentyPlacementCases)
   auto summary = BuildSummaryReport(results, fast_runtime_ms, fast_score);
   summary += "visualization_svg_dir=" + std::string(kClusterSvgDirName) + "\n";
   summary += "visualization_svg_count=" + std::to_string(results.size()) + "\n";
-  WriteRawTextLog(output_dir / "cts_clustering_cases.csv", BuildCasesCsv(results));
-  WriteRawTextLog(output_dir / "cts_clustering_metrics.csv", BuildMetricsCsv(results));
-  WriteRawTextLog(output_dir / "cts_clustering_visualizations.csv", BuildVisualizationCsv(results));
-  WriteRawTextLog(output_dir / "report.log", summary);
+  WriteTextArtifact(output_dir / "cts_clustering_cases.csv", BuildCasesCsv(results));
+  WriteTextArtifact(output_dir / "cts_clustering_metrics.csv", BuildMetricsCsv(results));
+  WriteTextArtifact(output_dir / "cts_clustering_visualizations.csv", BuildVisualizationCsv(results));
+  WriteTextArtifact(output_dir / "clustering_report.txt", summary);
   common::io::EmitInfoReport(InfoReport{.title = "CTS Clustering Benchmark Summary", .content = summary});
 
   for (const auto& result : results) {

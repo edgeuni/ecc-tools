@@ -28,10 +28,11 @@
 #include <vector>
 
 #include "FastClusteringRealTechBenchmarkFixture.hh"
-#include "database/config/Config.hh"
-#include "database/design/Pin.hh"
-#include "database/io/Wrapper.hh"
-#include "database/spatial/Point.hh"
+#include "data_manager/DataManager.hh"
+#include "data_manager/config/Config.hh"
+#include "data_manager/design/Pin.hh"
+#include "data_manager/io/Wrapper.hh"
+#include "data_manager/spatial/Point.hh"
 #include "module/topology/clustering/Clustering.hh"
 #include "module/topology/config/TopologyConfig.hh"
 #include "module/topology/fast_clustering/FastClustering.hh"
@@ -173,16 +174,14 @@ auto ScoreCluster(const std::vector<icts::Pin*>& cluster, const icts::ClusterEle
 
 auto BuildBenchmarkConfig(const std::vector<icts::Pin*>& loads) -> icts::ClusterConfig
 {
-  auto config = icts::FastClustering::buildElectricalBaseConfig(icts_test::runtime::CurrentRuntime().config.get_max_fanout(),
-                                                                icts_test::runtime::CurrentRuntime().config.get_max_cap());
-  config.clock_route_segment_rc
-      = icts_test::runtime::CurrentRuntime().wrapper.queryConfiguredClockRouteSegmentRc(icts_test::runtime::CurrentRuntime().config);
+  auto config = icts::FastClustering::buildElectricalBaseConfig(CTSDM.getConfig().get_max_fanout(), CTSDM.getConfig().get_max_cap());
+  config.clock_route_segment_rc = CTSDM.getWrapper().queryConfiguredClockRouteSegmentRc(CTSDM.getConfig());
   config.sink_pin_cap_pf_by_pin.reserve(loads.size());
   for (const auto* pin : loads) {
     if (pin == nullptr) {
       continue;
     }
-    config.sink_pin_cap_pf_by_pin.emplace(pin, std::max(0.0, icts_test::runtime::CurrentRuntime().wrapper.queryPinCapacitance(pin)));
+    config.sink_pin_cap_pf_by_pin.emplace(pin, std::max(0.0, CTSDM.getWrapper().queryPinCapacitance(pin)));
   }
   config.enable_exact_cap = false;
   config.always_build_exact_cap = false;

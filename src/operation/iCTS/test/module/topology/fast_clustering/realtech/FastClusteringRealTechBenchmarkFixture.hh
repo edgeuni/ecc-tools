@@ -32,8 +32,8 @@
 #include <utility>
 #include <vector>
 
-#include "database/design/Pin.hh"
-#include "database/spatial/Point.hh"
+#include "data_manager/design/Pin.hh"
+#include "data_manager/spatial/Point.hh"
 #include "module/topology/clustering/Clustering.hh"
 #include "module/topology/config/TopologyConfig.hh"
 

@@ -7,8 +7,7 @@ add_library(
 target_link_libraries(
   icts_test_common_io
   PRIVATE
-  log
-  icts_source_utils_logger
+  icts_source_toolkit_logger
   icts_test_common_dataset
 )
 

@@ -11,87 +11,42 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-/**
- * @file TestArtifactIOTest.cc
- * @author Dawn Li (dawnli619215645@gmail.com)
- * @date 2026-04-16
- * @brief Regression coverage for console-facing report truncation.
- */
 
 #include <gtest/gtest.h>
 
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-#include <string>
 
-#include "common/dataset/TestDataset.hh"
 #include "common/io/TestArtifactIO.hh"
 
 namespace icts_test {
 namespace {
 
-constexpr const char* kExecutableName = "icts_test_common_io_artifact";
-constexpr const char* kSuiteName = "TestArtifactIOTest";
-constexpr const char* kEmitCaseName = "A_LongConsoleTablesKeepShapeAndTruncateValues";
-constexpr const char* kVisiblePrefix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-constexpr const char* kVisibleSuffix = "tail_marker_xyz";
-
-auto ReadTextFile(const std::filesystem::path& path) -> std::string
+TEST(TestArtifactIOTest, WritesExactArtifactWithoutCreatingRuntimeLog)
 {
-  std::ifstream input_stream(path);
-  if (!input_stream.is_open()) {
-    return {};
+  const auto output_dir = common::io::PrepareCleanOutputDir(common::io::ResolveOutputDir() / "artifact_io");
+  ASSERT_FALSE(output_dir.empty());
+  const auto artifact_path = output_dir / "summary.txt";
+  ASSERT_TRUE(common::io::WriteTextArtifact(artifact_path, "clock_count=2\n"));
+
+  std::ifstream input_stream(artifact_path);
+  std::ostringstream content;
+  content << input_stream.rdbuf();
+  EXPECT_EQ(content.str(), "clock_count=2\n");
+  std::size_t regular_file_count = 0U;
+  for (const auto& entry : std::filesystem::directory_iterator(output_dir)) {
+    regular_file_count += entry.is_regular_file() ? 1U : 0U;
   }
-
-  std::ostringstream content_stream;
-  content_stream << input_stream.rdbuf();
-  return content_stream.str();
+  EXPECT_EQ(regular_file_count, 1U);
 }
 
-auto BuildEmitCaseOutputDir() -> std::filesystem::path
+TEST(TestArtifactIOTest, SanitizesArtifactDirectoryComponents)
 {
-  return common::io::ResolveOutputDir() / "gtest" / common::io::SanitizeOutputName(kExecutableName)
-         / common::io::SanitizeOutputName(kSuiteName) / common::io::SanitizeOutputName(kEmitCaseName);
-}
-
-TEST(TestArtifactIOTest, A_LongConsoleTablesKeepShapeAndTruncateValues)
-{
-  std::string long_value = kVisiblePrefix;
-  long_value.append(256U, 'x');
-  long_value += kVisibleSuffix;
-
-  common::io::EmitInfoReport(InfoReport{
-      .title = "console_truncation_probe",
-      .content = "long_field: " + long_value
-                 + "\n"
-                   "detail line without separator should also stay readable: "
-                 + long_value + "\n",
-  });
-
-  const auto cts_log_path = BuildEmitCaseOutputDir() / "cts.log";
-  const auto cts_log_content = ReadTextFile(cts_log_path);
-  EXPECT_NE(cts_log_content.find(long_value), std::string::npos);
-}
-
-TEST(TestArtifactIOTest, B_PreviousCaseTestLogUsesEllipsisForLongValues)
-{
-  const auto test_log_path = BuildEmitCaseOutputDir() / "test.log";
-  const auto test_log_content = ReadTextFile(test_log_path);
-  ASSERT_FALSE(test_log_content.empty()) << "Missing test.log: " << test_log_path.string();
-
-  EXPECT_NE(test_log_content.find("console_truncation_probe"), std::string::npos);
-  EXPECT_NE(test_log_content.find("| Field"), std::string::npos);
-  EXPECT_NE(test_log_content.find("| long_field"), std::string::npos);
-  EXPECT_NE(test_log_content.find("long_field"), std::string::npos);
-  EXPECT_NE(test_log_content.find(std::string(kVisiblePrefix)), std::string::npos);
-  EXPECT_NE(test_log_content.find("..."), std::string::npos);
-  EXPECT_NE(test_log_content.find(kVisibleSuffix), std::string::npos);
-  EXPECT_NE(test_log_content.find("detail line without se...ould also stay readable"), std::string::npos);
-  EXPECT_EQ(test_log_content.find(std::string(256U, 'x')), std::string::npos);
+  EXPECT_EQ(common::io::SanitizeOutputName("Clock / Domain #1"), "clock_domain_1");
+  EXPECT_EQ(common::io::SanitizeOutputName("***"), "unnamed");
 }
 
 }  // namespace

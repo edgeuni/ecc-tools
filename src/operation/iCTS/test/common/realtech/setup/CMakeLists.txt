@@ -9,7 +9,7 @@ target_link_libraries(
   PUBLIC
   icts_test_common_dataset
   PRIVATE
-  log
+  icts_source_toolkit_logger
   icts_test_realtech_base
   icts_test_common_realtech_asset_loader
   icts_test_common_realtech_load_factory

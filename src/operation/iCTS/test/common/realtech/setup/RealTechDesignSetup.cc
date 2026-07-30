@@ -23,8 +23,6 @@
 
 #include "common/realtech/setup/RealTechDesignSetup.hh"
 
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <cctype>
 #include <compare>
@@ -36,18 +34,17 @@
 #include <utility>
 #include <vector>
 
-#include "Flow.hh"
 #include "IdbDesign.h"
 #include "IdbNet.h"
 #include "IdbPins.h"
-#include "Log.hh"
-#include "common/CTSTestRuntime.hh"
+#include "Logger.hh"
 #include "common/dataset/TestDataset.hh"
 #include "common/realtech/asset/RealTechAssetLoader.hh"
 #include "common/realtech/load/RealTechLoadFactory.hh"
-#include "database/design/Clock.hh"
-#include "database/design/Design.hh"
-#include "database/io/Wrapper.hh"
+#include "data_manager/DataManager.hh"
+#include "data_manager/design/Clock.hh"
+#include "data_manager/design/Design.hh"
+#include "data_manager/io/Wrapper.hh"
 #include "idm.h"
 
 namespace icts_test::common::realtech {
@@ -164,16 +161,15 @@ auto SampleLoadsForRealTechClock(const std::vector<icts::Pin*>& loads, std::size
 auto TryMaterializeClockCandidate(const DefClockCandidate& candidate, std::size_t max_count, std::size_t min_required_load_count)
     -> std::optional<RealClockNetSelection>
 {
-  icts_test::runtime::CurrentRuntime().design.reset();
-  auto* requested_clock = icts_test::runtime::CurrentRuntime().design.makeClock("def_clock:" + candidate.net_name, candidate.net_name);
+  CTSDM.getDesign().reset();
+  auto* requested_clock = CTSDM.getDesign().makeClock("def_clock:" + candidate.net_name, candidate.net_name);
   if (requested_clock != nullptr) {
     requested_clock->set_clock_name("def_clock:" + candidate.net_name);
     requested_clock->set_clock_net_name(candidate.net_name);
   }
-  icts_test::runtime::CurrentRuntime().wrapper.read(icts_test::runtime::CurrentRuntime().design,
-                                                    icts_test::runtime::CurrentRuntime().reporter);
+  CTSDM.getWrapper().read(CTSDM.getDesign());
 
-  const auto clocks = icts_test::runtime::CurrentRuntime().design.get_clocks();
+  const auto clocks = CTSDM.getDesign().get_clocks();
   if (clocks.empty() || clocks.front() == nullptr) {
     return std::nullopt;
   }
@@ -204,6 +200,15 @@ auto TryMaterializeClockCandidate(const DefClockCandidate& candidate, std::size_
 auto EnsureRealTechSetup() -> const RealTechSetupState&
 {
   static const RealTechSetupState setup_state = asset::BuildRealTechSetupState();
+  if (setup_state.mode == RealTechMode::kRealTech && setup_state.setup_succeeded && !CTSDM.isInputReady()) {
+    const auto input_status = CTSDM.input(icts::DataManagerInput{
+        .config_file = setup_state.cts_config_path.string(),
+        .work_dir = (setup_state.output_dir / "real_tech_workspace").string(),
+    });
+    if (!input_status.ok()) {
+      CTSLOG.warn(icts::Loc::current(), "RealTechSetup: CTS data input refresh failed: ", input_status.message);
+    }
+  }
   return setup_state;
 }
 
@@ -220,7 +225,7 @@ auto MakeRealTechOrSyntheticLoads(std::size_t target_count, unsigned seed, std::
     if (!real_loads.loads.empty()) {
       return real_loads;
     }
-    LOG_WARNING << "RealTechSetup: real design load extraction failed, use synthetic stand-in.";
+    CTSLOG.warn(icts::Loc::current(), "RealTechSetup: real design load extraction failed, use synthetic stand-in.");
   }
 
   return load::MakeSyntheticLoads(target_count, source_label, seed);

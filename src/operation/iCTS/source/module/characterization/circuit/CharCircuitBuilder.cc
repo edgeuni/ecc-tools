@@ -23,8 +23,6 @@
 
 #include "characterization/circuit/CharCircuitBuilder.hh"
 
-#include <glog/logging.h>
-
 #include <cstddef>
 #include <optional>
 #include <ostream>
@@ -32,7 +30,7 @@
 #include <vector>
 
 #include "FastSta.hh"
-#include "Log.hh"
+#include "Logger.hh"
 #include "characterization/buffer_cell/CharacterizationBufferCell.hh"
 #include "characterization/builder/CharBuilderImpl.hh"
 #include "characterization/builder/CharFeasibilityChecker.hh"
@@ -72,7 +70,7 @@ auto CharCircuitBuilder::createCharCircuit(const TopologyDesc& topo, const std::
     const ::icts::CharacterizationBufferCell* buffer_cell_ptr
         = _impl.feasibilityChecker().findCharacterizationBufferCell(buf_masters.at(bi));
     if (buffer_cell_ptr == nullptr) {
-      LOG_FATAL << "Characterization buffer cell not found for: " << buf_masters.at(bi);
+      CTSLOG.error(Loc::current(), "Characterization buffer cell not found for: ", buf_masters.at(bi));
       return;
     }
     const auto& buffer_cell = *buffer_cell_ptr;
@@ -87,8 +85,12 @@ auto CharCircuitBuilder::createCharCircuit(const TopologyDesc& topo, const std::
   }
 
   _impl._char_clock_name = id_prefix + "clk";
-  LOG_FATAL_IF(_impl._wrapper == nullptr) << "CharCircuitBuilder: Wrapper dependency is not configured.";
-  LOG_FATAL_IF(_impl._fast_sta == nullptr) << "CharCircuitBuilder: FastSTA dependency is not configured.";
+  if (_impl._wrapper == nullptr) {
+    CTSLOG.error(Loc::current(), "CharCircuitBuilder: Wrapper dependency is not configured.");
+  }
+  if (_impl._fast_sta == nullptr) {
+    CTSLOG.error(Loc::current(), "CharCircuitBuilder: FastSTA dependency is not configured.");
+  }
   _impl._fast_sta_char_context_id = _impl._fast_sta->buildCharContext(::icts::FastStaCharTopologySpec{
       .wrapper = _impl._wrapper,
       .source_cell_master = source_buf.cell_master,
@@ -108,16 +110,21 @@ auto CharCircuitBuilder::createCharCircuit(const TopologyDesc& topo, const std::
 auto CharCircuitBuilder::setCharParasitics(const TopologyDesc& topo, double load_pf) const -> void
 {
   (void) topo;
-  LOG_FATAL_IF(_impl._fast_sta_char_context_id == ::icts::kInvalidFastStaCharContextId)
-      << "Fast STA characterization context is not prepared before parasitic load update.";
-  LOG_FATAL_IF(_impl._fast_sta == nullptr) << "CharCircuitBuilder: FastSTA dependency is not configured.";
+  if (_impl._fast_sta_char_context_id == ::icts::kInvalidFastStaCharContextId) {
+    CTSLOG.error(Loc::current(), "Fast STA characterization context is not prepared before parasitic load update.");
+  }
+  if (_impl._fast_sta == nullptr) {
+    CTSLOG.error(Loc::current(), "CharCircuitBuilder: FastSTA dependency is not configured.");
+  }
   (void) _impl._fast_sta->setCharLoad(_impl._fast_sta_char_context_id, load_pf);
 }
 
 auto CharCircuitBuilder::destroyCharCircuit() -> void
 {
   if (_impl._fast_sta_char_context_id != ::icts::kInvalidFastStaCharContextId) {
-    LOG_FATAL_IF(_impl._fast_sta == nullptr) << "CharCircuitBuilder: FastSTA dependency is not configured.";
+    if (_impl._fast_sta == nullptr) {
+      CTSLOG.error(Loc::current(), "CharCircuitBuilder: FastSTA dependency is not configured.");
+    }
     (void) _impl._fast_sta->eraseCharContext(_impl._fast_sta_char_context_id);
     _impl._fast_sta_char_context_id = ::icts::kInvalidFastStaCharContextId;
   }

@@ -18,7 +18,7 @@
 
 #include <algorithm>
 
-#include "iCTS/api/CTSAPI.hh"
+#include "iCTS/interface/CTSAPI.hh"
 #include <tool_manager.h>
 
 namespace python_interface {

@@ -23,8 +23,6 @@
 
 #include "bound_skew_tree/algorithm/BstPipeline.hh"
 
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -35,7 +33,7 @@
 #include <string>
 #include <vector>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "bound_skew_tree/algorithm/BinaryTopology.hh"
 #include "bound_skew_tree/algorithm/BottomUpMergeJoining.hh"
 #include "bound_skew_tree/algorithm/BoundSkewTreeImpl.hh"
@@ -81,7 +79,7 @@ auto BstPipeline::bottomUp() -> void
       bottomUpAllPairBased();
       break;
     default:
-      LOG_FATAL << "topo type is not supported";
+      CTSLOG.error(Loc::current(), "topo type is not supported");
       break;
   }
 }
@@ -100,7 +98,7 @@ auto BstPipeline::bottomUpAllPairBased() -> void
         cost_func = [&](Area* left, Area* right) -> double { return _impl.mergeCost(left, right); };
         break;
       default:
-        LOG_FATAL << "topo type is not supported";
+        CTSLOG.error(Loc::current(), "topo type is not supported");
         break;
     }
     auto best_match = _impl.getBestMatch(cost_func);
@@ -131,7 +129,7 @@ auto BstPipeline::bottomUpTopoBased() -> void
     case BSTRoutingTopologyMode::kSourceRouteTree:
       break;
     default:
-      LOG_FATAL << "topo type is not supported";
+      CTSLOG.error(Loc::current(), "topo type is not supported");
       break;
   }
   processBottomUpTopology();
@@ -219,7 +217,9 @@ auto BstPipeline::updateEmbeddedNodeTiming(Area* current) const -> void
 {
   auto* left = current->get_left();
   auto* right = current->get_right();
-  LOG_FATAL_IF(left == nullptr || right == nullptr) << "Embedded node children are null";
+  if (left == nullptr || right == nullptr) {
+    CTSLOG.error(Loc::current(), "Embedded node children are null");
+  }
 
   auto parent_point = current->get_location();
   const auto left_point = left->get_location();
@@ -232,11 +232,13 @@ auto BstPipeline::updateEmbeddedNodeTiming(Area* current) const -> void
                                                                           right->get_cap_load(), _impl._rc_pattern);
   parent_point.min = std::min(left_point.min + delay_to_left, right_point.min + delay_to_right);
   parent_point.max = std::max(left_point.max + delay_to_left, right_point.max + delay_to_right);
-  LOG_FATAL_IF(TopDownEmbedding::pointSkew(parent_point) > _impl._skew_bound + (100 * kEpsilon))
-      << "skew is so larger than skew bound, skew: " << TopDownEmbedding::pointSkew(parent_point);
+  if (TopDownEmbedding::pointSkew(parent_point) > _impl._skew_bound + (100 * kEpsilon)) {
+    CTSLOG.error(Loc::current(), "skew is so larger than skew bound, skew: ", TopDownEmbedding::pointSkew(parent_point));
+  }
   if (TopDownEmbedding::pointSkew(parent_point) > _impl._skew_bound + kEpsilon) {
-    LOG_WARNING << current->get_name() << " max delay: " << parent_point.max << " min delay: " << parent_point.min;
-    LOG_WARNING << "skew is larger than skew bound with error: " << TopDownEmbedding::pointSkew(parent_point) - _impl._skew_bound;
+    CTSLOG.warn(Loc::current(), current->get_name(), " max delay: ", parent_point.max, " min delay: ", parent_point.min);
+    CTSLOG.warn(Loc::current(),
+                "skew is larger than skew bound with error: ", TopDownEmbedding::pointSkew(parent_point) - _impl._skew_bound);
     parent_point.min = parent_point.max - _impl._skew_bound + kEpsilon;
   }
   current->set_location(parent_point);
@@ -257,8 +259,9 @@ auto BstPipeline::merge(Area* parent, Area* left, Area* right) -> void
   auto right_line = parent->get_line(kRight);
   _impl.bottomUpMergeJoining().constructMergeRegion(MergeAreas{.parent = parent, .left = left, .right = right});
   if (Geom::lineType(_impl.topDownEmbedding().getJoiningSegmentLine(kLeft)) == LineType::kManhattan) {
-    LOG_FATAL_IF(Geom::lineType(_impl.topDownEmbedding().getJoiningSegmentLine(kRight)) != LineType::kManhattan)
-        << "right joining_segment is not manhattan";
+    if (Geom::lineType(_impl.topDownEmbedding().getJoiningSegmentLine(kRight)) != LineType::kManhattan) {
+      CTSLOG.error(Loc::current(), "right joining_segment is not manhattan");
+    }
     if (Geom::isSegmentTransformedRect(_impl.mergeSegment(kLeft))) {
       auto& left_merge_segment = _impl.mergeSegment(kLeft);
       Geom::transformedRectToLine(left_merge_segment, left_line);

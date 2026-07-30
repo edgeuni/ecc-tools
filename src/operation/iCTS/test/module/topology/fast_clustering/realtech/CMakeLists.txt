@@ -11,7 +11,6 @@ if(ICTS_BUILD_REALTECH_TESTS AND ICTS_BUILD_SLOW_REALTECH_TESTS)
     LIBS
       icts_source_module_topology
       icts_test_common_clustering_artifact
-      icts_test_common_scoped_log_file
       icts_test_common_realtech_setup
       icts_test_common_visualization
   )

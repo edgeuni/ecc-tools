@@ -23,8 +23,6 @@
 
 #include "common/realtech/asset/RealTechAssetLoader.hh"
 
-#include <glog/logging.h>
-
 #include <array>
 #include <cstdlib>
 #include <filesystem>
@@ -38,16 +36,14 @@
 #include <utility>
 #include <vector>
 
-#include "Flow.hh"
-#include "Log.hh"
-#include "common/CTSTestRuntime.hh"
+#include "Logger.hh"
 #include "common/io/TestArtifactIO.hh"
 #include "common/realtech/setup/RealTechDesignSetup.hh"
-#include "database/config/Config.hh"
-#include "database/io/Wrapper.hh"
+#include "data_manager/DataManager.hh"
+#include "data_manager/config/Config.hh"
+#include "data_manager/io/Wrapper.hh"
 #include "dm_config.h"
 #include "idm.h"
-#include "setup/clock_data/ClockDataRead.hh"
 
 namespace icts_test::common::realtech::asset {
 namespace {
@@ -70,7 +66,7 @@ struct RealTechAssets
 
 constexpr std::string_view kRealTechWorkspaceEnv = "ICTS_REALTECH_WORKSPACE";
 constexpr std::string_view kRealTechPdkEnv = "ICTS_REALTECH_PDK_DIR";
-constexpr std::string_view kLegacyPdkEnv = "PDK_DIR";
+constexpr std::string_view kWorkspacePdkEnv = "PDK_DIR";
 constexpr std::array<std::string_view, 2> kDefaultWorkspaceRelPaths = {
     "scripts/design/ics55_dev",
     "scripts/design/ics55_gcd",
@@ -250,8 +246,8 @@ auto ResolvePdkRootPath(const std::filesystem::path& workspace_path) -> std::fil
   if (const auto explicit_pdk_root = ReadEnvPath(kRealTechPdkEnv); !explicit_pdk_root.empty()) {
     return explicit_pdk_root;
   }
-  if (const auto legacy_pdk_root = ReadEnvPath(kLegacyPdkEnv); !legacy_pdk_root.empty()) {
-    return legacy_pdk_root;
+  if (const auto workspace_pdk_root = ReadEnvPath(kWorkspacePdkEnv); !workspace_pdk_root.empty()) {
+    return workspace_pdk_root;
   }
 
   if (const auto run_script_pdk = TryParseShellExport(workspace_path / kRunScriptRelPath, "PDK_DIR"); !run_script_pdk.empty()) {
@@ -381,7 +377,7 @@ auto LoadRealTechAssets(const RealTechAssets& assets, std::string& error) -> boo
     error = "cts config is missing: " + assets.cts_config_path.string();
     return false;
   }
-  icts_test::runtime::CurrentRuntime().config.init(assets.cts_config_path.string());
+  CTSDM.getConfig().init(assets.cts_config_path.string());
 
   const std::vector<std::string> tech_lef_paths = {assets.tech_lef_path.string()};
   if (!dmInst->readLef(tech_lef_paths, true)) {
@@ -444,7 +440,7 @@ auto LoadRealTechAssets(const RealTechAssets& assets, std::string& error) -> boo
     error = "cannot create work dir: " + work_dir.string();
     return false;
   }
-  icts_test::runtime::CurrentRuntime().config.set_work_dir(work_dir.string());
+  CTSDM.getConfig().set_work_dir(work_dir.string());
   dm_config.set_output_path((io::ResolveClusteringOutputDir() / "real_tech_output").string());
 
   auto* idb_builder = dmInst->get_idb_builder();
@@ -453,16 +449,12 @@ auto LoadRealTechAssets(const RealTechAssets& assets, std::string& error) -> boo
     return false;
   }
 
-  icts_test::runtime::CurrentRuntime().wrapper.reset();
-  icts_test::runtime::CurrentRuntime().wrapper.init(idb_builder);
-  auto& runtime = icts_test::runtime::CurrentRuntime();
-  if (!icts::ClockDataRead::read(icts::ClockDataReadInput{
-          .config = &runtime.config,
-          .design = &runtime.design,
-          .wrapper = &runtime.wrapper,
-          .reporter = &runtime.reporter,
-      })) {
-    error = "readClockData failed for SDC-declared clocks";
+  const auto input_status = CTSDM.input(icts::DataManagerInput{
+      .config_file = assets.cts_config_path.string(),
+      .work_dir = work_dir.string(),
+  });
+  if (!input_status.ok()) {
+    error = "CTS data input failed: " + input_status.message;
     return false;
   }
   return true;
@@ -499,7 +491,7 @@ auto BuildRealTechSetupState() -> RealTechSetupState
       state.source_label = "real_tech:" + workspace_path.string();
       state.summary = "loaded real tech/design from workspace " + workspace_path.string() + ", def=" + assets.def_path.filename().string()
                       + ", verilog=" + (assets.verilog_path.empty() ? std::string("<none>") : assets.verilog_path.filename().string());
-      LOG_INFO << "RealTechSetup: " << state.summary;
+      CTSLOG.info(icts::Loc::current(), "RealTechSetup: ", state.summary);
       return state;
     }
 
@@ -523,7 +515,7 @@ auto BuildRealTechSetupState() -> RealTechSetupState
   state.mode = RealTechMode::kSyntheticLoads;
   state.source_label = "synthetic_standin";
   state.summary = summary.str();
-  LOG_WARNING << "RealTechSetup: " << state.summary;
+  CTSLOG.warn(icts::Loc::current(), "RealTechSetup: ", state.summary);
   return state;
 }
 

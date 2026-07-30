@@ -23,8 +23,6 @@
 
 #include "FLUTERouter.hh"
 
-#include <glog/logging.h>
-
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -34,7 +32,7 @@
 #include <utility>
 #include <vector>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "Point.hh"
 #include "SaltPinBuilder.hh"
 #include "geometry/Geometry.hh"
@@ -98,16 +96,24 @@ auto FLUTERouter::buildTree(const ClockTerminal& driver_terminal, const std::vec
     auto parent_id = ensure_node(salt_node->parent);
     const auto* current_node = clock_tree.get_node(current_id);
     const auto* parent_node = clock_tree.get_node(parent_id);
-    LOG_FATAL_IF(current_node == nullptr || parent_node == nullptr) << "FLUTE clock routing tree node is null.";
+    if (current_node == nullptr || parent_node == nullptr) {
+      CTSLOG.error(Loc::current(), "FLUTE clock routing tree node is null.");
+    }
 
     const auto distance = geometry::Manhattan(parent_node->location, current_node->location);
-    LOG_FATAL_IF(distance < 0) << "FLUTE embedded edge distance is negative.";
+    if (distance < 0) {
+      CTSLOG.error(Loc::current(), "FLUTE embedded edge distance is negative.");
+    }
     auto edge_id = clock_tree.addEdge(parent_id, current_id, distance, distance);
-    LOG_FATAL_IF(edge_id == ClockSteinerTreeType::kInvalidId) << "Failed to add edge when building FLUTE ClockSteinerTree.";
+    if (edge_id == ClockSteinerTreeType::kInvalidId) {
+      CTSLOG.error(Loc::current(), "Failed to add edge when building FLUTE ClockSteinerTree.");
+    }
   };
   salt::TreeNode::preOrder(source, connect_node_func);
 
-  LOG_FATAL_IF(!clock_tree.validate()) << "Constructed FLUTE ClockSteinerTree is invalid.";
+  if (!clock_tree.validate()) {
+    CTSLOG.error(Loc::current(), "Constructed FLUTE ClockSteinerTree is invalid.");
+  }
   return clock_tree;
 }
 

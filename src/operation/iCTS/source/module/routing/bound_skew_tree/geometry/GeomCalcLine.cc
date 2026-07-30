@@ -20,8 +20,6 @@
  * @date 2026-04-24
  * @brief Line classification, intersection, and distance helpers for bound-skew tree routing
  */
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -29,7 +27,7 @@
 #include <limits>
 #include <ostream>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "bound_skew_tree/component/Components.hh"
 #include "bound_skew_tree/geometry/GeomCalc.hh"
 
@@ -75,8 +73,12 @@ struct LinePairView
 
 auto AccumulateEndpointIntersections(const EndpointIntersectionContext& context, const LinePairView& line_pair) -> void
 {
-  LOG_FATAL_IF(context.intersection_point == nullptr || context.intersection_count == nullptr) << "endpoint intersection context is null";
-  LOG_FATAL_IF(line_pair.source_line == nullptr || line_pair.target_line == nullptr) << "line pair is null";
+  if (context.intersection_point == nullptr || context.intersection_count == nullptr) {
+    CTSLOG.error(Loc::current(), "endpoint intersection context is null");
+  }
+  if (line_pair.source_line == nullptr || line_pair.target_line == nullptr) {
+    CTSLOG.error(Loc::current(), "line pair is null");
+  }
 
   for (const Point& point_source : *line_pair.source_line) {
     Point candidate_point = point_source;
@@ -91,7 +93,9 @@ auto RemoveDuplicatedEndpointIntersections(size_t& intersection_count, const std
 {
   const LinePairView& left_to_right = line_pairs.at(kLeft);
   const LinePairView& right_to_left = line_pairs.at(kRight);
-  LOG_FATAL_IF(left_to_right.source_line == nullptr || right_to_left.source_line == nullptr) << "line pair is null";
+  if (left_to_right.source_line == nullptr || right_to_left.source_line == nullptr) {
+    CTSLOG.error(Loc::current(), "line pair is null");
+  }
 
   for (const Point& first_point : *left_to_right.source_line) {
     for (const Point& second_point : *right_to_left.source_line) {
@@ -194,7 +198,9 @@ auto GeomCalc::lineType(const Point& first_point, const Point& second_point) -> 
 
 auto GeomCalc::lineIntersect(Point& intersection_point, const Line& first_line, const Line& second_line) -> IntersectType
 {
-  LOG_FATAL_IF(HasZeroLength(first_line) || HasZeroLength(second_line)) << "line length is zero";
+  if (HasZeroLength(first_line) || HasZeroLength(second_line)) {
+    CTSLOG.error(Loc::current(), "line length is zero");
+  }
   if (!boundBoxOverlap(first_line, second_line)) {
     return IntersectType::kNone;
   }
@@ -226,7 +232,9 @@ auto GeomCalc::lineRelative(const Line& lhs_line, const Line& rhs_line, const si
 {
   const auto lhs_line_type = lineType(lhs_line);
   const auto rhs_line_type = lineType(rhs_line);
-  LOG_FATAL_IF(lhs_line_type != rhs_line_type) << "line type is not same";
+  if (lhs_line_type != rhs_line_type) {
+    CTSLOG.error(Loc::current(), "line type is not same");
+  }
 
   if (lhs_line_type == LineType::kVertical || lhs_line_type == LineType::kTilt) {
     const auto lhs_max_x = std::max(lhs_line.at(kHead).x, lhs_line.at(kTail).x);
@@ -250,7 +258,7 @@ auto GeomCalc::lineRelative(const Line& lhs_line, const Line& rhs_line, const si
     return RelativeType::kManhattanParallel;
   }
 
-  LOG_FATAL << "line type error";
+  CTSLOG.error(Loc::current(), "line type error");
   return RelativeType::kManhattanParallel;
 }
 
@@ -281,7 +289,9 @@ auto GeomCalc::lineDist(const Line& lhs_line, const Line& rhs_line) -> LineDista
   for (size_t side = 0; side < line_pairs.size(); ++side) {
     const size_t opposite_side = (side + 1) % kLinePointCount;
     const LinePairView& line_pair = line_pairs.at(side);
-    LOG_FATAL_IF(line_pair.source_line == nullptr || line_pair.target_line == nullptr) << "line pair is null";
+    if (line_pair.source_line == nullptr || line_pair.target_line == nullptr) {
+      CTSLOG.error(Loc::current(), "line pair is null");
+    }
 
     for (size_t point_index = 0; point_index < point_counts.at(side); ++point_index) {
       Point closest_point_on_target_line;

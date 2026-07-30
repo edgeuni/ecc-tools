@@ -20,8 +20,6 @@
  * @date 2026-04-11
  * @brief Thin scenario runner for topology generation tests.
  */
-
-#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -31,16 +29,12 @@
 #include <utility>
 #include <vector>
 
-#include "Flow.hh"
-#include "Log.hh"
-#include "common/CTSTestRuntime.hh"
+#include "Logger.hh"
 #include "common/dataset/TestDataset.hh"
 #include "common/io/TestArtifactIO.hh"
-#include "common/logging/ScopedLogFile.hh"
 #include "module/topology/TopologyGen.hh"
 #include "module/topology/topology_gen/fixture/TopologyGenCaseFixture.hh"
 #include "module/topology/topology_gen/fixture/TopologyGenScenario.hh"
-#include "utils/logger/Schema.hh"
 
 namespace icts_test::topology_gen {
 
@@ -53,15 +47,7 @@ auto RunBuildAndVisualize(const TopologyCase& test_case) -> void
   const auto output_dir = common::io::PrepareCleanOutputDir(common::io::ResolveTopologyGenOutputDir() / case_dir_name);
   ASSERT_FALSE(output_dir.empty()) << "Failed to prepare topology output dir for case: " << test_case.name;
 
-  const auto log_path = output_dir / "cts.log";
-  const common::logging::ScopedLogFile log_guard(log_path, "TopologyGen Test Report");
-
-  LOG_INFO << "Topology test start: " << test_case.name << ", count=" << test_case.count << ", seed=" << test_case.seed;
-  icts_test::runtime::CurrentRuntime().reporter.emitKeyValueTable("Topology Scenario", {
-                                                                                           {"name", test_case.name},
-                                                                                           {"count", std::to_string(test_case.count)},
-                                                                                           {"seed", std::to_string(test_case.seed)},
-                                                                                       });
+  CTSLOG.info(icts::Loc::current(), "Topology test start: ", test_case.name, ", count=", test_case.count, ", seed=", test_case.seed);
 
   auto data = detail::GenerateCase(test_case);
   ASSERT_EQ(data.loads.size(), test_case.count);

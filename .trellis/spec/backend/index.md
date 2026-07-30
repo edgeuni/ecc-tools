@@ -1,37 +1,25 @@
 # Backend Development Guidelines
 
-Backend rules for `src/operation/iCTS/`.
+Applies to `src/operation/iCTS/`. All spec documents are written in English.
 
-## Read Order
+## Authorities
 
-1. [Project Constraints](../project-constraints.md)
-2. [Directory Structure](./directory-structure.md)
-3. [Quality Guidelines](./quality-guidelines.md)
-4. The topic-specific docs below as needed
+| Document | Authority |
+| --- | --- |
+| [Project Constraints](../project-constraints.md) | Trellis/spec governance, repository process, file rules, approved exceptions |
+| [Directory Structure](./directory-structure.md) | Layer placement, facades, and CMake ownership |
+| [Data Manager Guidelines](./database-guidelines.md) | Session state, ownership, commits, and external boundaries |
+| [Logging and Monitoring](./logging-guidelines.md) | `CTSLOG`, `Monitor`, tables, and report mirroring |
+| [Error Handling](./error-handling.md) | Typed recovery and terminal failure |
+| [Quality Guidelines](./quality-guidelines.md) | Naming, includes, dependencies, and quality gate |
 
-## Authority Map
+## Pre-Development
 
-| Doc | Owns |
-|-----|------|
-| [Project Constraints](../project-constraints.md) | Repository-wide hard constraints |
-| [Directory Structure](./directory-structure.md) | Code placement, layers, CMake target structure |
-| [Database Guidelines](./database-guidelines.md) | Runtime ownership, dependency boundaries, data-model rules |
-| [Logging Guidelines](./logging-guidelines.md) | Runtime `LOG_*`, structured report output, and log levels |
-| [Error Handling](./error-handling.md) | No-exception policy and severity decisions |
-| [Quality Guidelines](./quality-guidelines.md) | Naming, includes, dependency visibility, review checks |
-| [Quality Workflow](../../ecc_dev_tools/README.md) | `ecc_dev_tools` commands, outputs, suppressions, tool behavior |
+- Read Project Constraints and each authority touched by the proposed change.
+- For cross-layer or reuse-sensitive work, use the relevant [thinking guide](../guides/index.md).
+- Resolve conflicts with current code or task assets before editing; do not silently reinterpret the spec.
 
-## Topic Guide
+## Quality Check
 
-- Adding or moving modules/targets -> [Directory Structure](./directory-structure.md)
-- Working with `Design`, `Config`, `Wrapper`, or `STAAdapter` -> [Database Guidelines](./database-guidelines.md)
-- Refactoring CTS flow, synthesis, evaluation, or report code -> [Directory Structure](./directory-structure.md), [Database Guidelines](./database-guidelines.md), and [Quality Guidelines](./quality-guidelines.md)
-- Choosing log level or logging style -> [Logging Guidelines](./logging-guidelines.md)
-- Deciding whether to return, warn, or terminate -> [Error Handling](./error-handling.md)
-- Naming, include cleanup, CMake visibility, or validation flow -> [Quality Guidelines](./quality-guidelines.md)
-
-## Note
-
-This page is navigation only. Do not duplicate rules here. Update the authority doc for the topic instead.
-
-**Language**: All spec documents are written in English.
+- Verify the change against every authority it touches.
+- Run the task acceptance and final quality gate defined in Quality Guidelines.

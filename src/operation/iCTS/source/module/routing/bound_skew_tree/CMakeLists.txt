@@ -21,10 +21,10 @@ add_library(
 target_link_libraries(
   icts_source_module_routing_bst
   PRIVATE
-  icts_source_database_routing
-  icts_source_database_spatial
-  icts_source_utils_geometry
-  log
+  icts_source_data_manager_routing
+  icts_source_data_manager_spatial
+  icts_source_toolkit_geometry
+  icts_source_toolkit_logger
 )
 
 target_include_directories(

@@ -1,41 +1,43 @@
 # Project Constraints
 
-Repository-wide hard constraints for work under `src/operation/iCTS/`.
+Mandatory project-wide rules for `src/operation/iCTS/`.
 
-## Scope
+## Trellis Asset Governance
 
-- Applies to backend code in `src/operation/iCTS/`.
-- These rules are mandatory.
-- Topic-specific rules live in `.trellis/spec/backend/`.
+- After a task's definition assets—including its PRD, design, implementation plan, context manifests, reviewed research/decision records, and applicable specs—have been reviewed and the task is active, treat them as frozen development inputs.
+- Do not edit approved Trellis assets during implementation to track progress, match the implementation, broaden scope, or justify a decision after the fact.
+- If an approved asset must change, first present the exact files and clauses, reason, and impact. Edit only after explicit user review and approval.
+- Update generated task status and runtime state only through the Trellis lifecycle commands; do not hand-edit them as task-definition content.
 
-## Constraints
+## Spec Governance
 
-### Process
+- Specs contain only stable, reusable, project-wide, actionable development contracts.
+- Allowed content: architecture and dependency boundaries; public or cross-layer contracts; ownership, lifecycle, error, naming, build, test, and quality rules; explicitly approved narrow exceptions.
+- Excluded content: task plans or status, migration narration, implementation history, temporary diagnostics, validation results, one-off design choices, and source inventories or behavior evident from direct code inspection.
+- Examples and signatures must match current code unless explicitly marked as an approved normative contract.
+- Before changing `.trellis/spec/**`, present the exact scope, reason, and impact and obtain explicit user approval. Editing first and notifying afterward is not approval.
+- Make the smallest sufficient change. Keep each rule in one authority document; indexes and guides link to it instead of duplicating it.
+
+## Repository Process
 
 - AI agents must not run `git push`.
-- Use read-only Git commands unless the human explicitly asks for more.
-- **Do not change specs lightly unless the change belongs to global code-development conventions.**
-- Treat every exception as a named, narrow contract. An exception must identify the exact path or pattern, the rule it relaxes, and the condition that keeps it from becoming a precedent for new code.
+- Git mutations require explicit user authorization; use read-only Git commands otherwise.
+- Every exception must name the exact path or pattern, relaxed rule, and allowed scope.
 
-Current accepted exceptions:
+Approved exceptions:
 
-| Path or pattern | Relaxed rule | Allowed scope |
-|-----------------|--------------|---------------|
-| `src/operation/iCTS/test/main.cc` | PascalCase file name | Existing GoogleTest executable entry point only. New test files still use PascalCase. |
-| `src/operation/iCTS/test/flow/{FlowTest.cc,FlowSdcTraceTest.cc,FlowWritebackTest.cc}` | Whole-namespace imports | Existing `using namespace flow_test;` may remain while the fixture namespace is local to the test file. New or substantially touched tests should prefer explicit `flow_test::` qualification or symbol-level `using`; `using namespace std;` remains forbidden. |
-| Config JSON fallback conversion documented in `backend/error-handling.md` | No-exception policy | Existing config parsing only. Do not copy `throw`/`try`/`catch` into normal source, module, flow, or test logic. |
+| Path | Relaxed rule | Allowed scope |
+| --- | --- | --- |
+| `src/operation/iCTS/test/main.cc` | PascalCase file name | Existing GoogleTest entry point only |
+| `src/operation/iCTS/source/data_manager/config/Config.cc` | No-exception policy | Existing JSON conversion/parsing catches only |
 
-### Files and Naming
+## Files and Naming
 
-- Use `.hh` for headers and `.cc` for sources.
-- Do not use `.h`, `.hpp`, `.cpp`, `.cxx`, or `.c` in iCTS.
-- File names use PascalCase.
-- Acronyms stay uppercase: `CTSAPI.hh`, `FLUTE.cc`, `CBS.cc`.
-- All headers use `#pragma once`.
+- Use `.hh` for headers and `.cc` for sources; do not add `.h`, `.hpp`, `.cpp`, `.cxx`, or `.c` files in iCTS.
+- File names use PascalCase; acronyms remain uppercase, such as `CTSAPI.hh`, `FLUTE.cc`, and `CBS.cc`.
+- Every header uses `#pragma once`.
 
-### New File Header
-
-Every new `.hh` and `.cc` file must start with this copyright block:
+Every new `.hh` and `.cc` file starts with:
 
 ```cpp
 // ***************************************************************************************
@@ -56,67 +58,19 @@ Every new `.hh` and `.cc` file must start with this copyright block:
 // ***************************************************************************************
 ```
 
-Immediately after it, add a Doxygen file comment:
+Immediately follow it with:
 
 ```cpp
 /**
  * @file FileName.hh
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date YYYY-MM-DD
- * @brief One-line description of what this file contains
+ * @brief One-line description of this file's responsibility.
  */
 ```
 
-### Mandatory Coding Rules
+## Scope and Terminology
 
-- Format code with the repository `.clang-format`.
-- Do not use exceptions in iCTS code.
-- Use the repository `LOG_*` macros for console logging in iCTS code.
-- Use the iCTS structured report helpers for file output such as `cts.log`.
-- Do not use global `std::cout`, or `printf`.
-- Follow `backend/quality-guidelines.md` for naming, includes, and dependency visibility.
-- Update CMake before implementing new files or modules.
-
-### External Module Touches
-
-- If an iCTS task must touch external modules such as iSTA or iPA, keep the diff minimally invasive and avoid unrelated formatting or cleanup.
-- Keep iCTS-specific additions visually scoped with an appropriate namespace, struct, facade, or similarly explicit boundary.
-- Do not use `ecc_dev_tools` to repair external-module findings as part of an iCTS task.
-- In `finish-work`, explicitly remind the human to review external-module diffs.
-
-### Terminology
-
-Use established iCTS terms:
-- `inst`, not `instance`
-- `net`, not `wire`
-- `pin`, not `port` except real top-level IO
-- `cell_master`, not `cell_type` or `cell_name`
-- `dbu` for integer design-base-unit coordinates
-- `loads`, `clock_source`, `inserted_insts`, and `inserted_nets` consistently
-
-### Required Validation
-
-- Do not use `ecc_dev_tools` in the default development loop for iCTS tasks.
-- In `finish-work`, run one full `src/operation/iCTS` check before handoff.
-- If that final full check reports in-scope findings, fix them and rerun the same full check until they are clean.
-
-## Checklist
-
-Before handoff, verify:
-
-- [ ] File extensions and names follow the iCTS rules
-- [ ] New headers use `#pragma once`
-- [ ] New files include the required copyright and Doxygen header
-- [ ] Code follows backend quality, logging, and error-handling specs
-- [ ] CMake was updated before implementation when structure changed
-- [ ] Final full `src/operation/iCTS` `ecc_dev_tools` validation was run in `finish-work`
-- [ ] External-module diffs, if any, remain minimal and are called out for human review
-
-## Related Docs
-
-- `backend/index.md`
-- `backend/directory-structure.md`
-- `backend/quality-guidelines.md`
-- `backend/logging-guidelines.md`
-- `backend/error-handling.md`
-- `.trellis/ecc_dev_tools/README.md`
+- Format touched code with the repository `.clang-format`.
+- Keep changes to external modules such as iSTA or iPA minimal and free of unrelated cleanup; report those diffs for user review.
+- Use established iCTS terms: `inst`, `net`, `pin` (except real top-level IO), `cell_master`, `dbu`, `loads`, `clock_source`, `inserted_insts`, and `inserted_nets`.

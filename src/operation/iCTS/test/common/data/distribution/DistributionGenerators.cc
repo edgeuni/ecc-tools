@@ -33,7 +33,7 @@
 
 #include "Pin.hh"  // IWYU pragma: keep
 #include "common/data/pin_factory/PinFactory.hh"
-#include "database/spatial/Point.hh"
+#include "data_manager/spatial/Point.hh"
 
 namespace icts_test::common::data::distribution {
 namespace {

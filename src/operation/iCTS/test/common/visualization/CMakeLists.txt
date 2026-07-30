@@ -8,5 +8,5 @@ target_link_libraries(
   icts_test_common_visualization
   PRIVATE
   icts_test_base
-  icts_source_utils_visualization
+  icts_source_toolkit_visualization
 )

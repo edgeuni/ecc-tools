@@ -25,7 +25,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -33,14 +32,10 @@
 #include <vector>
 
 #include "characterization/Characterization.hh"
-#include "database/characterization/BufferingPattern.hh"
-#include "database/characterization/HTreeTopologyChar.hh"
-#include "database/characterization/PatternId.hh"
-#include "database/characterization/SegmentChar.hh"
-
-namespace icts_test::common::logging {
-class ScopedLogFile;
-}  // namespace icts_test::common::logging
+#include "data_manager/characterization/BufferingPattern.hh"
+#include "data_manager/characterization/HTreeTopologyChar.hh"
+#include "data_manager/characterization/PatternId.hh"
+#include "data_manager/characterization/SegmentChar.hh"
 
 namespace icts_test::characterization::realtech {
 
@@ -52,7 +47,7 @@ inline constexpr double kExactLeafLevelLengthUm = 25.0;
 inline constexpr double kExactMidLevelLengthUm = 50.0;
 inline constexpr double kExactRootLevelLengthUm = 100.0;
 inline constexpr double kRealTechCharWirelengthUnitUm = 25.0;
-inline constexpr unsigned kRealTechCharWirelengthIterations = 3U;
+inline constexpr unsigned kRealTechCharWirelengthIterations = 4U;
 inline constexpr unsigned kRealTechCharSlewSteps = 15U;
 inline constexpr unsigned kRealTechCharCapSteps = 15U;
 
@@ -65,7 +60,6 @@ struct ConfigState
   double max_cap = 0.0;
   bool has_max_buf_tran = false;
   bool has_max_cap = false;
-  double max_length = 0.0;
   double wirelength_unit_um = 0.0;
   unsigned wirelength_iterations = 0U;
   unsigned slew_steps = 0U;
@@ -114,7 +108,6 @@ struct RealTechCharFixture
 
   bool _is_prepared = false;
   std::optional<ConfigState> _original_config_state;
-  std::unique_ptr<::icts_test::common::logging::ScopedLogFile> _cts_log_guard;
 };
 
 struct BufferLimitInfo
@@ -172,7 +165,7 @@ struct HTreeFrontierContext
 };
 
 auto JoinStrings(const std::vector<std::string>& values) -> std::string;
-auto WriteScenarioLog(const std::string& scenario_name, const std::string& file_name, const std::string& content) -> bool;
+auto WriteScenarioReport(const std::string& scenario_name, const std::string& file_name, const std::string& content) -> bool;
 auto CollectConfiguredBufferLimitInfo() -> std::vector<BufferLimitInfo>;
 auto CollectUsableBufferMasters(const std::vector<BufferLimitInfo>& infos) -> std::vector<std::string>;
 auto LookupBufferInfo(const std::vector<BufferLimitInfo>& infos, const std::string& cell_master) -> const BufferLimitInfo*;

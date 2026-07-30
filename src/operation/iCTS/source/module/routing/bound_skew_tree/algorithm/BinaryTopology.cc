@@ -23,8 +23,6 @@
 
 #include "bound_skew_tree/algorithm/BinaryTopology.hh"
 
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -40,7 +38,7 @@
 #include <utility>
 #include <vector>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "bound_skew_tree/algorithm/BoundSkewTreeImpl.hh"
 #include "bound_skew_tree/component/Components.hh"
 
@@ -59,7 +57,9 @@ struct TreeBuildFrame
 
 auto copyAreaRange(const std::vector<Area*>& areas, const size_t begin_index, const size_t end_index) -> std::vector<Area*>
 {
-  LOG_FATAL_IF(begin_index > end_index || end_index > areas.size()) << "Area range is invalid.";
+  if (begin_index > end_index || end_index > areas.size()) {
+    CTSLOG.error(Loc::current(), "Area range is invalid.");
+  }
 
   std::vector<Area*> area_range;
   area_range.reserve(end_index - begin_index);
@@ -87,7 +87,9 @@ template <typename SplitFunc, typename MergeFunc, typename CenterFunc>
 auto buildBinaryTreeIteratively(const std::vector<Area*>& areas, const SplitFunc& split_func, const MergeFunc& merge_func,
                                 const CenterFunc& center_func, std::string_view tree_name) -> Area*
 {
-  LOG_FATAL_IF(areas.empty()) << tree_name << " areas are empty.";
+  if (areas.empty()) {
+    CTSLOG.error(Loc::current(), tree_name, " areas are empty.");
+  }
 
   std::vector<TreeBuildFrame> frames;
   frames.push_back(TreeBuildFrame{.areas = areas, .parent_index = std::nullopt});
@@ -116,7 +118,9 @@ auto buildBinaryTreeIteratively(const std::vector<Area*>& areas, const SplitFunc
     if (area_count == 2) {
       result = merge_func(frame.areas.front(), frame.areas.back());
     } else {
-      LOG_FATAL_IF(frame.left_result == nullptr || frame.right_result == nullptr) << tree_name << " child result is null.";
+      if (frame.left_result == nullptr || frame.right_result == nullptr) {
+        CTSLOG.error(Loc::current(), tree_name, " child result is null.");
+      }
       result = merge_func(frame.left_result, frame.right_result);
     }
     result->set_location(center_func(frame.areas));
@@ -124,7 +128,9 @@ auto buildBinaryTreeIteratively(const std::vector<Area*>& areas, const SplitFunc
     frames.pop_back();
   }
 
-  LOG_FATAL_IF(root == nullptr) << tree_name << " root is null.";
+  if (root == nullptr) {
+    CTSLOG.error(Loc::current(), tree_name, " root is null.");
+  }
   return root;
 }
 
@@ -220,7 +226,9 @@ auto collectClusters(const std::vector<Area*>& areas, const std::vector<size_t>&
 
 auto BinaryTopology::biPartition() -> void
 {
-  LOG_FATAL_IF(_impl._unmerged_nodes.size() < 2) << "unmerged nodes size is less than 2";
+  if (_impl._unmerged_nodes.size() < 2) {
+    CTSLOG.error(Loc::current(), "unmerged nodes size is less than 2");
+  }
   _impl._root = buildBiPartitionTree(_impl._unmerged_nodes);
   _impl.areaReset();
 }
@@ -368,7 +376,9 @@ auto BinaryTopology::areaOnOctagonBound(const std::vector<Area*>& areas, const s
 
 auto BinaryTopology::biCluster() -> void
 {
-  LOG_FATAL_IF(_impl._unmerged_nodes.size() < 2) << "unmerged nodes size is less than 2";
+  if (_impl._unmerged_nodes.size() < 2) {
+    CTSLOG.error(Loc::current(), "unmerged nodes size is less than 2");
+  }
   _impl._root = buildBiClusterTree(_impl._unmerged_nodes);
   _impl.areaReset();
 }
@@ -379,7 +389,9 @@ auto BinaryTopology::buildBiClusterTree(const std::vector<Area*>& areas) -> Area
       areas,
       [&](const std::vector<Area*>& split_areas) -> std::pair<std::vector<Area*>, std::vector<Area*>> {
         auto clusters = kMeansPlus(split_areas, KMeansConfig{.cluster_count = 2});
-        LOG_FATAL_IF(clusters.size() != 2) << "Bi-cluster requires exactly two non-empty clusters.";
+        if (clusters.size() != 2) {
+          CTSLOG.error(Loc::current(), "Bi-cluster requires exactly two non-empty clusters.");
+        }
         return std::pair<std::vector<Area*>, std::vector<Area*>>{clusters.front(), clusters.back()};
       },
       [&](Area* left_area, Area* right_area) -> Area* { return _impl.merge(left_area, right_area); },

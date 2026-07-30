@@ -20,9 +20,6 @@
  * @date 2026-04-24
  * @brief Exact frontier composition helpers for real-tech characterization tests.
  */
-
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <cmath>
 #include <compare>
@@ -37,16 +34,15 @@
 #include <vector>
 
 #include "BufferingPattern.hh"
-#include "Flow.hh"
 #include "HTreeTopologyChar.hh"
-#include "Log.hh"
+#include "Logger.hh"
 #include "SegmentChar.hh"
 #include "characterization/Characterization.hh"
-#include "common/CTSTestRuntime.hh"
-#include "database/characterization/CharCore.hh"
-#include "database/characterization/PatternId.hh"
-#include "database/characterization/ValueLattice.hh"
-#include "database/io/Wrapper.hh"
+#include "data_manager/DataManager.hh"
+#include "data_manager/characterization/CharCore.hh"
+#include "data_manager/characterization/PatternId.hh"
+#include "data_manager/characterization/ValueLattice.hh"
+#include "data_manager/io/Wrapper.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 
 namespace icts_test::characterization::realtech {
@@ -62,16 +58,16 @@ class BufferStrengthTable
     }
 
     if (!_drive_caps.contains(cell_master)) {
-      double drive_cap_pf = icts_test::runtime::CurrentRuntime().wrapper.queryCellOutPinCapLimit(cell_master);
+      double drive_cap_pf = CTSDM.getWrapper().queryCellOutPinCapLimit(cell_master);
       if (drive_cap_pf <= 0.0) {
-        drive_cap_pf = icts_test::runtime::CurrentRuntime().wrapper.queryCellOutPinCapTableAxisMax(cell_master);
+        drive_cap_pf = CTSDM.getWrapper().queryCellOutPinCapTableAxisMax(cell_master);
       }
       _drive_caps[cell_master] = drive_cap_pf;
       _ranks_dirty = true;
 
       if (drive_cap_pf <= 0.0) {
-        LOG_WARNING << "CharacterizationRealTechFixture: unresolved drive-strength rank for buffer master " << cell_master
-                    << "; manual compose keeps an explicit boundary buffer with unresolved size class.";
+        CTSLOG.warn(icts::Loc::current(), "CharacterizationRealTechFixture: unresolved drive-strength rank for buffer master ", cell_master,
+                    "; manual compose keeps an explicit boundary buffer with unresolved size class.");
       }
     }
 
@@ -175,16 +171,20 @@ auto BuildCompositionState(const icts::BufferingPattern& pattern) -> icts::Patte
 auto LookupSegmentState(const SegmentFrontierContext& context, icts::PatternId pattern_id) -> icts::PatternCompositionState
 {
   const auto it = context.composition_states.find(pattern_id);
-  LOG_FATAL_IF(it == context.composition_states.end())
-      << "CharacterizationRealTechFixture: missing segment composition state for pattern " << pattern_id.local_id;
+  if (it == context.composition_states.end()) {
+    CTSLOG.error(icts::Loc::current(), "CharacterizationRealTechFixture: missing segment composition state for pattern ",
+                 pattern_id.local_id);
+  }
   return it->second;
 }
 
 auto LookupTopologyState(const HTreeFrontierContext& context, icts::PatternId pattern_id) -> icts::PatternCompositionState
 {
   const auto it = context.composition_states.find(pattern_id);
-  LOG_FATAL_IF(it == context.composition_states.end())
-      << "CharacterizationRealTechFixture: missing topology composition state for pattern " << pattern_id.local_id;
+  if (it == context.composition_states.end()) {
+    CTSLOG.error(icts::Loc::current(), "CharacterizationRealTechFixture: missing topology composition state for pattern ",
+                 pattern_id.local_id);
+  }
   return it->second;
 }
 
@@ -202,11 +202,14 @@ class SegmentStateCombiner
 
   auto combine(icts::PatternId upstream, icts::PatternId downstream) const -> icts::PatternId
   {
-    LOG_FATAL_IF(!canCompose(upstream, downstream)) << "CharacterizationRealTechFixture: invalid non-monotonic segment composition.";
+    if (!canCompose(upstream, downstream)) {
+      CTSLOG.error(icts::Loc::current(), "CharacterizationRealTechFixture: invalid non-monotonic segment composition.");
+    }
     const auto upstream_it = _context->patterns.find(upstream);
     const auto downstream_it = _context->patterns.find(downstream);
-    LOG_FATAL_IF(upstream_it == _context->patterns.end() || downstream_it == _context->patterns.end())
-        << "CharacterizationRealTechFixture: missing segment pattern during exact compose.";
+    if (upstream_it == _context->patterns.end() || downstream_it == _context->patterns.end()) {
+      CTSLOG.error(icts::Loc::current(), "CharacterizationRealTechFixture: missing segment pattern during exact compose.");
+    }
 
     const auto merged_pattern_id = icts::PatternId::segment(_context->next_pattern_id++);
     auto merged_pattern = icts::BufferingPattern::concat(upstream_it->second, downstream_it->second);
@@ -236,7 +239,9 @@ class TopologyStateCombiner
 
   auto combine(icts::PatternId upstream, icts::PatternId downstream) const -> icts::PatternId
   {
-    LOG_FATAL_IF(!canCompose(upstream, downstream)) << "CharacterizationRealTechFixture: invalid non-monotonic topology composition.";
+    if (!canCompose(upstream, downstream)) {
+      CTSLOG.error(icts::Loc::current(), "CharacterizationRealTechFixture: invalid non-monotonic topology composition.");
+    }
     const auto upstream_state = LookupTopologyState(*_context, upstream);
     const auto downstream_state = LookupTopologyState(*_context, downstream);
 

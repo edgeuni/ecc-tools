@@ -45,7 +45,6 @@ class CharBuilderImpl;
 
 namespace icts {
 
-class SchemaWriter;
 class BufferingPattern;
 class FastSTA;
 class SegmentChar;
@@ -59,7 +58,6 @@ struct CharBuilderInput
   double root_input_slew_ns = 0.0;
   Wrapper* wrapper = nullptr;
   FastSTA* fast_sta = nullptr;
-  SchemaWriter* reporter = nullptr;
 };
 
 struct CharBuilderConfig

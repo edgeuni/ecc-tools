@@ -25,8 +25,6 @@
 
 #include "characterization/sampling/CharStaSampler.hh"
 
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <optional>
@@ -36,7 +34,7 @@
 
 #include "CharCore.hh"
 #include "FastSta.hh"
-#include "Log.hh"
+#include "Logger.hh"
 #include "PatternId.hh"
 #include "SegmentChar.hh"
 #include "ValueLattice.hh"
@@ -49,7 +47,6 @@
 namespace icts::char_builder::detail {
 namespace {
 
-constexpr std::size_t kCharProgressLogStride = 32U;
 constexpr bool kEnableCharPowerSampling = true;
 
 }  // namespace
@@ -69,25 +66,12 @@ auto CharStaSampler::characterizeTopology(unsigned length_idx, const TopologyDes
   const PatternFeasibility feasibility = _impl.feasibilityChecker().analyzePatternFeasibility(topo, buf_masters);
   if (!feasibility.is_pattern_feasible) {
     ++build_progress.skipped_patterns_infeasible;
-    if ((build_progress.evaluated_patterns % kCharProgressLogStride) == 0U) {
-      LOG_INFO << "CharBuilder: wirelength=" << total_length_um << " um progress " << build_progress.evaluated_patterns << "/"
-               << build_progress.estimated_patterns << " patterns"
-               << " (feasible=" << build_progress.feasible_patterns << ", skipped=" << build_progress.skipped_patterns_infeasible
-               << ", executed_sta_samples=" << build_progress.executed_sta_samples << ")";
-    }
     ++_impl._next_pattern_id;
     return;
   }
   ++build_progress.feasible_patterns;
 
   sampleFeasibleTopology(length_idx, pid, topo, buf_masters, feasibility, build_progress);
-  if ((build_progress.evaluated_patterns % kCharProgressLogStride) == 0U) {
-    LOG_INFO << "CharBuilder: wirelength=" << total_length_um << " um progress " << build_progress.evaluated_patterns << "/"
-             << build_progress.estimated_patterns << " patterns"
-             << " (feasible=" << build_progress.feasible_patterns << ", skipped=" << build_progress.skipped_patterns_infeasible
-             << ", executed_sta_samples=" << build_progress.executed_sta_samples
-             << ", skipped_sta_samples=" << build_progress.skipped_sta_samples << ")";
-  }
   ++_impl._next_pattern_id;
 }
 
@@ -158,7 +142,9 @@ auto CharStaSampler::sampleLoadSlews(unsigned length_idx, const ::icts::PatternI
   const ::icts::UniformValueLattice cap_lattice = ::icts::UniformValueLattice::buildFromMax(_impl._max_cap, _impl._cap_steps);
   const unsigned load_cap_idx = cap_lattice.coveringIndex(load_pf);
   for (const double input_slew_ns : _impl._slews_to_test) {
-    LOG_FATAL_IF(_impl._fast_sta == nullptr) << "CharStaSampler: FastSTA dependency is not configured.";
+    if (_impl._fast_sta == nullptr) {
+      CTSLOG.error(Loc::current(), "CharStaSampler: FastSTA dependency is not configured.");
+    }
     const auto sample_result = _impl._fast_sta->runCharSample(_impl._fast_sta_char_context_id, input_slew_ns);
     ++build_progress.executed_sta_samples;
     const unsigned input_slew_idx = slew_lattice.coveringIndex(input_slew_ns);

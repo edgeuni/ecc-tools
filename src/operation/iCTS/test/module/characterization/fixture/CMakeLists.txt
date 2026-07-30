@@ -11,6 +11,5 @@ target_link_libraries(
     icts_test_base
   PRIVATE
     icts_test_common_io
-    icts_test_common_scoped_log_file
     icts_test_common_realtech_setup
 )

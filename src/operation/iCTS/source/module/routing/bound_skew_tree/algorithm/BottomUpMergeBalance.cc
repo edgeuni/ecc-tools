@@ -23,8 +23,6 @@
 
 #include "bound_skew_tree/algorithm/BottomUpMergeBalance.hh"
 
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -32,7 +30,7 @@
 #include <utility>
 #include <vector>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "bound_skew_tree/algorithm/BottomUpMergeJoining.hh"
 #include "bound_skew_tree/algorithm/BoundSkewTreeImpl.hh"
 #include "bound_skew_tree/algorithm/TopDownEmbedding.hh"
@@ -47,7 +45,7 @@ auto BottomUpMergeBalance::calcBalancePoint(const Area& current_area) -> void
   auto* left_child = current_area.get_left();
   auto* right_child = current_area.get_right();
   if (left_child == nullptr || right_child == nullptr) {
-    LOG_FATAL << "calcBalancePoint requires both child areas";
+    CTSLOG.error(Loc::current(), "calcBalancePoint requires both child areas");
     return;
   }
 
@@ -108,8 +106,9 @@ auto BottomUpMergeBalance::calcBalancePointOnLine(const BalancePointQuery& query
 {
   auto horizontal_distance = std::abs(query.first_point.x - query.second_point.x);
   auto vertical_distance = std::abs(query.first_point.y - query.second_point.y);
-  LOG_FATAL_IF(!Equal(horizontal_distance, 0) && !Equal(vertical_distance, 0))
-      << "h and v are not zero, which balance point is not on line";
+  if (!Equal(horizontal_distance, 0) && !Equal(vertical_distance, 0)) {
+    CTSLOG.error(Loc::current(), "h and v are not zero, which balance point is not on line");
+  }
 
   auto first_delay = query.timing_type == kMin ? query.first_point.min : query.first_point.max;
   auto second_delay = query.timing_type == kMin ? query.second_point.min : query.second_point.max;
@@ -141,8 +140,12 @@ auto BottomUpMergeBalance::calcBalancePointOffLine(const BalancePointQuery& quer
   auto second_point = query.second_point;
   auto horizontal_distance = std::abs(first_point.x - second_point.x);
   auto vertical_distance = std::abs(first_point.y - second_point.y);
-  LOG_FATAL_IF(Equal(horizontal_distance, 0) || Equal(vertical_distance, 0)) << "h or v is zero, which balance point is on line";
-  LOG_FATAL_IF(first_point.x > second_point.x) << "first_point is not left of second_point";
+  if (Equal(horizontal_distance, 0) || Equal(vertical_distance, 0)) {
+    CTSLOG.error(Loc::current(), "h or v is zero, which balance point is on line");
+  }
+  if (first_point.x > second_point.x) {
+    CTSLOG.error(Loc::current(), "first_point is not left of second_point");
+  }
 
   auto first_delay = query.timing_type == kMin ? first_point.min : first_point.max;
   auto second_delay = query.timing_type == kMin ? second_point.min : second_point.max;
@@ -166,7 +169,9 @@ auto BottomUpMergeBalance::calcBalancePointOffLine(const BalancePointQuery& quer
   }
 
   if (x_position < 0) {
-    LOG_FATAL_IF(y_position >= 0) << "y is illegal";
+    if (y_position >= 0) {
+      CTSLOG.error(Loc::current(), "y is illegal");
+    }
     auto adjusted_point = first_point;
     auto delay_increase
         = _impl.topDownEmbedding().calcDelayIncrease(horizontal_distance, vertical_distance, second_point.val, query.rc_pattern);
@@ -180,13 +185,19 @@ auto BottomUpMergeBalance::calcBalancePointOffLine(const BalancePointQuery& quer
                                              .balance_ref_axis = query.balance_ref_axis,
                                              .rc_pattern = query.rc_pattern},
                            result);
-    LOG_FATAL_IF(result.distance_to_first > kEpsilon) << "dist to first_point should be zero";
+    if (result.distance_to_first > kEpsilon) {
+      CTSLOG.error(Loc::current(), "dist to first_point should be zero");
+    }
     auto new_delay_increase
         = _impl.topDownEmbedding().calcDelayIncrease(0, result.distance_to_second, adjusted_point.val, query.rc_pattern);
-    LOG_FATAL_IF(!Equal(first_delay, delay_increase + new_delay_increase + second_delay)) << "delay is not equal";
+    if (!Equal(first_delay, delay_increase + new_delay_increase + second_delay)) {
+      CTSLOG.error(Loc::current(), "delay is not equal");
+    }
     result.distance_to_second += horizontal_distance + vertical_distance;
   } else if (x_position > horizontal_distance) {
-    LOG_FATAL_IF(y_position <= vertical_distance) << "y: " << y_position << " is not greater than v: " << vertical_distance;
+    if (y_position <= vertical_distance) {
+      CTSLOG.error(Loc::current(), "y: ", y_position, " is not greater than v: ", vertical_distance);
+    }
     auto adjusted_point = second_point;
     auto delay_increase
         = _impl.topDownEmbedding().calcDelayIncrease(horizontal_distance, vertical_distance, first_point.val, query.rc_pattern);
@@ -200,13 +211,18 @@ auto BottomUpMergeBalance::calcBalancePointOffLine(const BalancePointQuery& quer
                                              .balance_ref_axis = query.balance_ref_axis,
                                              .rc_pattern = query.rc_pattern},
                            result);
-    LOG_FATAL_IF(result.distance_to_second > kEpsilon) << "dist to second_point should be zero";
+    if (result.distance_to_second > kEpsilon) {
+      CTSLOG.error(Loc::current(), "dist to second_point should be zero");
+    }
     auto new_delay_increase = _impl.topDownEmbedding().calcDelayIncrease(0, result.distance_to_first, adjusted_point.val, query.rc_pattern);
-    LOG_FATAL_IF(!Equal(second_delay, delay_increase + new_delay_increase + first_delay)) << "delay is not equal";
+    if (!Equal(second_delay, delay_increase + new_delay_increase + first_delay)) {
+      CTSLOG.error(Loc::current(), "delay is not equal");
+    }
     result.distance_to_first += horizontal_distance + vertical_distance;
   } else {
-    LOG_FATAL_IF(y_position < -kEpsilon || y_position > vertical_distance + kEpsilon)
-        << "y: " << y_position << " is not in range [0, " << vertical_distance << "]";
+    if (y_position < -kEpsilon || y_position > vertical_distance + kEpsilon) {
+      CTSLOG.error(Loc::current(), "y: ", y_position, " is not in range [0, ", vertical_distance, "]");
+    }
     result.balance_point.x = first_point.x + x_position;
     result.balance_point.y = first_point.y < second_point.y ? first_point.y + y_position : first_point.y - y_position;
     auto first_delay_increase = _impl.topDownEmbedding().calcDelayIncrease(x_position, y_position, first_point.val, query.rc_pattern);
@@ -216,10 +232,13 @@ auto BottomUpMergeBalance::calcBalancePointOffLine(const BalancePointQuery& quer
     result.balance_point.max = std::max(first_point.max + first_delay_increase, second_point.max + second_delay_increase);
     result.distance_to_first = x_position + y_position;
     result.distance_to_second = horizontal_distance + vertical_distance - result.distance_to_first;
-    LOG_FATAL_IF(!Equal(first_delay_increase + first_delay, second_delay_increase + second_delay)) << "delay is not equal";
+    if (!Equal(first_delay_increase + first_delay, second_delay_increase + second_delay)) {
+      CTSLOG.error(Loc::current(), "delay is not equal");
+    }
   }
-  LOG_FATAL_IF(result.distance_to_first + result.distance_to_second < horizontal_distance + vertical_distance - kEpsilon)
-      << "dist out of range";
+  if (result.distance_to_first + result.distance_to_second < horizontal_distance + vertical_distance - kEpsilon) {
+    CTSLOG.error(Loc::current(), "dist out of range");
+  }
 }
 
 auto BottomUpMergeBalance::calcMergeDist(const double& unit_resistance, const double& unit_capacitance, const double& cap_load_1,
@@ -255,7 +274,9 @@ auto BottomUpMergeBalance::calcPointCoordOnLine(const Point& first_point, const 
 {
   auto total_distance = distance_to_first + distance_to_second;
   auto point_distance = Geom::distance(first_point, second_point);
-  LOG_FATAL_IF(!Equal(total_distance, point_distance) && total_distance < point_distance) << "distance is less than points distance";
+  if (!Equal(total_distance, point_distance) && total_distance < point_distance) {
+    CTSLOG.error(Loc::current(), "distance is less than points distance");
+  }
   if (Equal(distance_to_first, 0)) {
     point = first_point;
   } else if (Equal(distance_to_second, 0)) {
@@ -314,8 +335,9 @@ auto BottomUpMergeBalance::calcYBalancePosition(const double& delay_1, const dou
                    * ((_impl._unit_horizontal_resistance * horizontal_distance) + (_impl._unit_vertical_resistance * vertical_distance)))
                 + (resistance_capacitance_cross_term * horizontal_distance * vertical_distance);
     y_position = numerator / denominator;
-    LOG_FATAL_IF(y_position > vertical_distance + kEpsilon)
-        << "y: " << y_position << " is larger than vertical_distance: " << vertical_distance;
+    if (y_position > vertical_distance + kEpsilon) {
+      CTSLOG.error(Loc::current(), "y: ", y_position, " is larger than vertical_distance: ", vertical_distance);
+    }
   } else {
     // assume (horizontal_distance-x, y) and (x, vertical_distance-y), then set x = 0
     numerator = delay_2 - delay_1 + (_impl._delay_quadratic_factor.vertical * vertical_distance * vertical_distance)
@@ -323,7 +345,9 @@ auto BottomUpMergeBalance::calcYBalancePosition(const double& delay_1, const dou
                 + (_impl._unit_vertical_resistance * vertical_distance * cap_load_2)
                 - (_impl._unit_horizontal_resistance * horizontal_distance * cap_load_1);
     y_position = numerator / denominator;
-    LOG_FATAL_IF(y_position < -kEpsilon) << "y: " << y_position << " is less than 0";
+    if (y_position < -kEpsilon) {
+      CTSLOG.error(Loc::current(), "y: ", y_position, " is less than 0");
+    }
   }
   return y_position;
 }
@@ -349,13 +373,17 @@ auto BottomUpMergeBalance::calcFeasibleMergeSegmentPoints(const Area& current_ar
         exist = calcFeasibleMergeSegmentOnLine(current_area, candidate.right, joining_corner, end_side);
         if (!exist) {
           exist = calcFeasibleMergeSegmentOnLine(current_area, _impl.joiningCornerPoint(end_side), candidate.left, end_side);
-          LOG_FATAL_IF(!exist) << "can't find feasible merge section on line";
+          if (!exist) {
+            CTSLOG.error(Loc::current(), "can't find feasible merge section on line");
+          }
         }
       } else {
         exist = calcFeasibleMergeSegmentOnLine(current_area, _impl.joiningCornerPoint(end_side), candidate.right, end_side);
         if (exist) {
           exist = calcFeasibleMergeSegmentOnLine(current_area, candidate.right, joining_corner, end_side);
-          LOG_FATAL_IF(!exist) << "can't find feasible merge section on line";
+          if (!exist) {
+            CTSLOG.error(Loc::current(), "can't find feasible merge section on line");
+          }
         }
       }
     } else {
@@ -396,7 +424,7 @@ auto BottomUpMergeBalance::calcFeasibleMergeSegmentOnLine(const Area& current_ar
       auto second_point = nearest_balance_point;
       _impl.topDownEmbedding().updatePointDelaysByEndSide(current_area, end_side, first_point);
       _impl.topDownEmbedding().updatePointDelaysByEndSide(current_area, end_side, second_point);
-      LOG_FATAL << "feasible merge section point should in skew bound";
+      CTSLOG.error(Loc::current(), "feasible merge section point should in skew bound");
     }
     _impl.feasibleMergeSegmentPoints(end_side).push_back(feasible_merge_point);
     return true;
@@ -409,10 +437,16 @@ auto BottomUpMergeBalance::calcFeasibleMergeSegmentBetweenPoints(const Point& hi
 {
   auto high_skew = TopDownEmbedding::pointSkew(high_skew_point);
   auto low_skew = TopDownEmbedding::pointSkew(low_skew_point);
-  LOG_FATAL_IF(low_skew > _impl._skew_bound) << "low skew is larger than skew bound";
-  LOG_FATAL_IF(high_skew < low_skew + kEpsilon) << "high skew is less than low skew";
+  if (low_skew > _impl._skew_bound) {
+    CTSLOG.error(Loc::current(), "low skew is larger than skew bound");
+  }
+  if (high_skew < low_skew + kEpsilon) {
+    CTSLOG.error(Loc::current(), "high skew is less than low skew");
+  }
   auto dist = Geom::distance(high_skew_point, low_skew_point);
-  LOG_FATAL_IF(dist <= kEpsilon) << "distance is less than epsilon";
+  if (dist <= kEpsilon) {
+    CTSLOG.error(Loc::current(), "distance is less than epsilon");
+  }
   auto dist_to_low = dist * (_impl._skew_bound - low_skew) / (high_skew - low_skew);
   calcPointCoordOnLine(high_skew_point, low_skew_point, dist - dist_to_low, dist_to_low, feasible_merge_point);
 }
@@ -497,7 +531,9 @@ auto BottomUpMergeBalance::addMergeRegionOnJoiningSegment(Area* current_area, co
   const auto& side_joining_region = _impl.joiningRegionPoints(side);
   const auto other_side = BoundSkewTreeImpl::otherSide(side);
   const auto& other_joining_region = _impl.joiningRegionPoints(other_side);
-  LOG_FATAL_IF(side_joining_region.size() < 2) << "join region size is less than 2";
+  if (side_joining_region.size() < 2) {
+    CTSLOG.error(Loc::current(), "join region size is less than 2");
+  }
 
   const auto first_point = side_joining_region.front();
   const auto other_first_point = other_joining_region.front();
@@ -536,13 +572,17 @@ auto BottomUpMergeBalance::addMergeRegionOnJoiningSegment(Area* current_area, co
 
 auto BottomUpMergeBalance::calcMergeRegionLeftIndex(const size_t& side) const -> size_t
 {
-  LOG_FATAL_IF(_impl.joiningRegionPoints(side).size() < 2) << "join region size is less than 2";
+  if (_impl.joiningRegionPoints(side).size() < 2) {
+    CTSLOG.error(Loc::current(), "join region size is less than 2");
+  }
   return 1;
 }
 
 auto BottomUpMergeBalance::calcMergeRegionSpan(const size_t& side, const size_t& left_index) const -> MergeRegionSpan
 {
-  LOG_FATAL_IF(_impl.joiningRegionPoints(side).size() < 2) << "join region size is less than 2";
+  if (_impl.joiningRegionPoints(side).size() < 2) {
+    CTSLOG.error(Loc::current(), "join region size is less than 2");
+  }
   const auto right_index = _impl.joiningRegionPoints(side).size() - 2;
   return MergeRegionSpan{.side = side, .left_index = left_index, .right_index = right_index < left_index ? left_index - 1 : right_index};
 }
@@ -584,7 +624,9 @@ auto BottomUpMergeBalance::addMergeRegionPointFromJoiningRegion(Area* current_ar
     Geom::calcRelativeCoord(point, relative_type, dist);
     const auto horizontal_distance = std::abs(point.x - original_point.x);
     const auto vertical_distance = std::abs(point.y - original_point.y);
-    LOG_FATAL_IF(!Equal(horizontal_distance, 0) && !Equal(vertical_distance, 0)) << "not horizontal or vertical";
+    if (!Equal(horizontal_distance, 0) && !Equal(vertical_distance, 0)) {
+      CTSLOG.error(Loc::current(), "not horizontal or vertical");
+    }
     const auto incr_delay = side == kLeft
                                 ? _impl.topDownEmbedding().calcDelayIncrease(horizontal_distance, vertical_distance,
                                                                              current_area->get_left()->get_cap_load(), _impl._rc_pattern)
@@ -601,7 +643,7 @@ auto BottomUpMergeBalance::calcSkewSlope(const Area& current_area) const -> doub
   auto* left_child = current_area.get_left();
   auto* right_child = current_area.get_right();
   if (left_child == nullptr || right_child == nullptr) {
-    LOG_FATAL << "calcSkewSlope requires both child areas";
+    CTSLOG.error(Loc::current(), "calcSkewSlope requires both child areas");
     return 0.0;
   }
 
@@ -621,7 +663,7 @@ auto BottomUpMergeBalance::calcSkewSlope(const Area& current_area) const -> doub
     return _impl._unit_horizontal_resistance
            * (left_cap_load + right_cap_load + (current_area.get_radius() * _impl._unit_horizontal_capacitance));
   }
-  LOG_FATAL << "line is not horizontal or vertical";
+  CTSLOG.error(Loc::current(), "line is not horizontal or vertical");
   return 0.0;
 }
 

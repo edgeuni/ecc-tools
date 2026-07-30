@@ -30,13 +30,15 @@
 #include <unordered_map>
 #include <vector>
 
+#include "data_manager/DataManager.hh"
+
 #if defined(ICTS_ENABLE_SLOW_REALTECH_REGRESSION) && ICTS_ENABLE_SLOW_REALTECH_REGRESSION
 #include "BufferingPattern.hh"
 #endif
 #include "characterization/Characterization.hh"
-#include "database/characterization/HTreeTopologyChar.hh"
-#include "database/characterization/SegmentChar.hh"
-#include "database/config/Config.hh"
+#include "data_manager/characterization/HTreeTopologyChar.hh"
+#include "data_manager/characterization/SegmentChar.hh"
+#include "data_manager/config/Config.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 
 namespace icts_test {
@@ -173,8 +175,7 @@ TEST(CharacterizationRealTechSmokeTest, ManualHTreeTopologyAssemblyProducesInspe
   report_stream.setf(std::ostringstream::fixed, std::ostringstream::floatfield);
   report_stream << std::setprecision(3);
   report_stream << "scenario=smoke_manual_htree\n";
-  report_stream << "configured_buffers=" << realtech_fixture::JoinStrings(icts_test::runtime::CurrentRuntime().config.get_buffer_types())
-                << "\n";
+  report_stream << "configured_buffers=" << realtech_fixture::JoinStrings(CTSDM.getConfig().get_buffer_types()) << "\n";
   report_stream << "usable_buffers=" << realtech_fixture::JoinStrings(usable_buffers) << "\n";
   report_stream << "resolved_max_slew_ns=" << builder.get_max_slew() << "\n";
   report_stream << "resolved_max_cap_pf=" << builder.get_max_cap() << "\n";
@@ -220,7 +221,7 @@ TEST(CharacterizationRealTechSmokeTest, ManualHTreeTopologyAssemblyProducesInspe
       [&](const icts::HTreeTopologyChar& entry) -> std::string { return realtech_fixture::FormatHTreeChar(entry, grid); });
   report_stream << "best_exact_htree_char=" << realtech_fixture::FormatHTreeChar(exact_flow.best_char.value(), grid) << "\n";
 
-  ASSERT_TRUE(realtech_fixture::WriteScenarioLog("smoke_manual_htree", "smoke_manual_htree_report.txt", report_stream.str()));
+  ASSERT_TRUE(realtech_fixture::WriteScenarioReport("smoke_manual_htree", "smoke_manual_htree_report.txt", report_stream.str()));
 }
 
 #if ICTS_ENABLE_SLOW_REALTECH_REGRESSION

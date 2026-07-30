@@ -151,7 +151,7 @@ TEST(CharacterizationRealTechExactRegressionTest, ExactComposeAndExactJoinRemain
       [&](const icts::HTreeTopologyChar& entry) -> std::string { return realtech_fixture::FormatHTreeChar(entry, grid); });
   report_stream << "best_exact_htree_char=" << realtech_fixture::FormatHTreeChar(best_exact_htree.value(), grid) << "\n";
 
-  ASSERT_TRUE(realtech_fixture::WriteScenarioLog("exact_regression", "exact_regression_report.txt", report_stream.str()));
+  ASSERT_TRUE(realtech_fixture::WriteScenarioReport("exact_regression", "exact_regression_report.txt", report_stream.str()));
 }
 
 TEST(CharacterizationRealTechExactRegressionTest, IterOneFitAndComposedFrontierGapReport)
@@ -213,7 +213,7 @@ TEST(CharacterizationRealTechExactRegressionTest, IterOneFitAndComposedFrontierG
   AppendComposeGapStats(report_stream, length_two_gap, grid);
   AppendComposeGapStats(report_stream, length_three_gap, grid);
 
-  ASSERT_TRUE(realtech_fixture::WriteScenarioLog("iter1_fit_compose_gap", "iter1_fit_compose_gap_report.txt", report_stream.str()));
+  ASSERT_TRUE(realtech_fixture::WriteScenarioReport("iter1_fit_compose_gap", "iter1_fit_compose_gap_report.txt", report_stream.str()));
 }
 
 }  // namespace

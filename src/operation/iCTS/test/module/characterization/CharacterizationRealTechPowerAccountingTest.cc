@@ -166,8 +166,8 @@ TEST(CharacterizationRealTechExactRegressionTest, ExactComposePowerAccountingPro
   report_stream << "worst_delay_underestimate_ns=" << worst_delay_underestimate_ns << "\n";
   report_stream << "worst_delay_underestimate_example=" << worst_delay_example << "\n";
 
-  ASSERT_TRUE(realtech_fixture::WriteScenarioLog("exact_compose_power_accounting", "exact_compose_power_accounting_report.txt",
-                                                 report_stream.str()));
+  ASSERT_TRUE(realtech_fixture::WriteScenarioReport("exact_compose_power_accounting", "exact_compose_power_accounting_report.txt",
+                                                    report_stream.str()));
 }
 
 }  // namespace

@@ -23,15 +23,13 @@
 
 #include "bound_skew_tree/BSTRouter.hh"
 
-#include <glog/logging.h>
-
 #include <cmath>
 #include <memory>
 #include <ostream>
 #include <utility>
 #include <vector>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "Point.hh"
 #include "RoutingTerminal.hh"
 #include "bound_skew_tree/algorithm/BoundSkewTree.hh"
@@ -60,9 +58,11 @@ auto BuildDefaultRoutingConfig(const BSTRoutingConfig& parameters) -> BSTRouting
 
 auto ResolveBuildTopologyMode(const BSTRoutingConfig& parameters) -> BSTRoutingTopologyMode
 {
-  LOG_FATAL_IF(parameters.topology_mode == BSTRoutingTopologyMode::kSourceRouteTree)
-      << "BSTRouter::buildTree received BSTRoutingTopologyMode::kSourceRouteTree; call buildTreeFromTopology for source-route-tree "
-         "routing.";
+  if (parameters.topology_mode == BSTRoutingTopologyMode::kSourceRouteTree) {
+    CTSLOG.error(Loc::current(),
+                 "BSTRouter::buildTree received BSTRoutingTopologyMode::kSourceRouteTree; call buildTreeFromTopology for source-route-tree "
+                 "routing.");
+  }
   return parameters.topology_mode;
 }
 

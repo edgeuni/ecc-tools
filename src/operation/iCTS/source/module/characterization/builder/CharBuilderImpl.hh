@@ -42,7 +42,6 @@
 namespace icts {
 class BufferingPattern;
 class FastSTA;
-class SchemaWriter;
 class SegmentChar;
 class Wrapper;
 struct CharacterizationBufferCell;
@@ -209,8 +208,6 @@ class CharBuilderImpl
   std::size_t _fast_sta_char_context_id = std::numeric_limits<std::size_t>::max();
   ::icts::Wrapper* _wrapper = nullptr;
   ::icts::FastSTA* _fast_sta = nullptr;
-  ::icts::SchemaWriter* _reporter = nullptr;
-
   std::vector<::icts::SegmentChar> _segment_chars;
   std::vector<::icts::BufferingPattern> _buffering_patterns;
   unsigned _next_pattern_id = 0;

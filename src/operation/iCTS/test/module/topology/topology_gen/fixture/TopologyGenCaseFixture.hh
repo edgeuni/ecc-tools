@@ -31,7 +31,7 @@
 #include "Pin.hh"
 #include "Point.hh"
 #include "common/dataset/TestDataset.hh"
-#include "database/spatial/Tree.hh"
+#include "data_manager/spatial/Tree.hh"
 #include "module/topology/topology_gen/fixture/TopologyGenScenario.hh"
 
 namespace icts_test::topology_gen::detail {

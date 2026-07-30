@@ -22,15 +22,13 @@
  */
 #include "bound_skew_tree/geometry/GeomCalc.hh"
 
-#include <glog/logging.h>
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <ostream>
 #include <vector>
 
-#include "Log.hh"
+#include "Logger.hh"
 #include "bound_skew_tree/component/Components.hh"
 
 namespace icts::bst {
@@ -134,7 +132,9 @@ auto GeomCalc::pointToLineDistance(const Point& point, const Line& line, Point& 
   }
 
   Point validated_point = closest_point;
-  LOG_FATAL_IF(!onLine(validated_point, line)) << "closest point is not on line";
+  if (!onLine(validated_point, line)) {
+    CTSLOG.error(Loc::current(), "closest point is not on line");
+  }
   return min_distance;
 }
 

@@ -31,8 +31,8 @@
 #include <vector>
 
 #include "common/dataset/TestDataset.hh"
-#include "database/design/Pin.hh"
-#include "database/spatial/Point.hh"
+#include "data_manager/design/Pin.hh"
+#include "data_manager/spatial/Point.hh"
 
 namespace icts_test::common::data::pin_factory {
 
