@@ -25,7 +25,7 @@
 #include "py_register_imp.h"
 #include "py_register_irt.h"
 #include "py_register_ircx.h"
-// #include "py_register_ista.h"  // disabled: py_ista removed
+#include "py_register_ista.h"
 #include "py_register_izh.h"
 #include "py_register_report.h"
 #include "python_module.h"
@@ -44,7 +44,7 @@ PYBIND11_MODULE(ecc_py, m)
   register_imp(m);
   register_irt(m);
   register_ircx(m);
-  // register_ista(m);  // disabled: py_ista removed
+  register_ista(m);
   register_izh(m);
   register_report(m);
   register_feature(m);
