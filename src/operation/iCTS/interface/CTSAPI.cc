@@ -83,6 +83,15 @@ auto CTSAPI::setLastStatus(CTSStatus status) -> CTSStatus
   return _last_status;
 }
 
+auto CTSAPI::runCTS(const std::string& config_file, const std::string& work_dir) -> CTSStatus
+{
+  auto init_status = init(config_file, work_dir);
+  if (!init_status.ok()) {
+    return init_status;
+  }
+  return runCTS();
+}
+
 auto CTSAPI::runCTS() -> CTSStatus
 {
   auto& api = getInst();

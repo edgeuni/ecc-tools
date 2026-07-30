@@ -24,8 +24,9 @@
  */
 #include "VerilogParserRustC.hh"
 
-#include "log/Log.hh"
-#include "string/Str.hh"
+#include <string_view>
+
+#include "utility/logger/Logger.hpp"
 
 namespace idb {
 
@@ -38,7 +39,7 @@ namespace idb {
 unsigned RustVerilogReader::readVerilog(const char* verilog_file_path)
 {
   unsigned is_ok = 1;
-  LOG_INFO << "load verilog file " << verilog_file_path;
+  IEDALOG.info(ieda::Loc::current(), "load verilog file ", verilog_file_path);
   _verilog_file_ptr = rust_parse_verilog(verilog_file_path);
 
   if (_verilog_file_ptr) {
@@ -64,7 +65,7 @@ unsigned RustVerilogReader::readVerilog(const char* verilog_file_path)
  */
 bool RustVerilogReader::autoTopModule()
 {
-  LOG_INFO << "auto set top module ";
+  IEDALOG.info(ieda::Loc::current(), "auto set top module ");
   if (_verilog_file_ptr == nullptr)
     return false;
   RustVerilogFile* rust_verilog_file = rust_convert_verilog_file(_verilog_file_ptr);
@@ -107,7 +108,7 @@ unsigned RustVerilogReader::flattenModule(const char* top_module_name)
   {
     void* verilog_module_ptr = rust_convert_rc_ref_cell_module(verilog_module);
     RustVerilogModule* rust_verilog_module = rust_convert_raw_verilog_module(verilog_module_ptr);
-    if (ieda::Str::equal(rust_verilog_module->module_name, top_module_name)) {
+    if (std::string_view(rust_verilog_module->module_name) == top_module_name) {
       _top_module = rust_verilog_module;
       break;
     }

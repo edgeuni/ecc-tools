@@ -8,7 +8,6 @@ target_link_libraries(
   icts_source_module_routing_helper
   icts_source_toolkit_geometry
   icts_source_toolkit_logger
-  flute
   salt
 )
 

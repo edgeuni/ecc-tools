@@ -22,12 +22,12 @@ add_executable(ecc_bin
     ieda_main.cpp
 )
 
-target_link_libraries(ecc_bin flow)
+target_link_libraries(ecc_bin flow ieda_logger)
 
 add_executable(iEDA
     ieda_main.cpp
 )
 
-target_link_libraries(iEDA flow)
+target_link_libraries(iEDA flow ieda_logger)
 
 set_target_properties(iEDA PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/design/ics55_dev)

@@ -37,7 +37,6 @@
 #include <vector>
 
 #include "def_service.h"
-#include "string/Str.hh"
 #include "verilog/VerilogParserRustC.hh"
 
 namespace idb {

@@ -39,7 +39,6 @@
 #include "LibParserCpp.hh"
 #include "Logger.hh"
 #include "Type.hh"
-#include "Vector.hh"
 #include "Wrapper.hh"
 #include "config/Config.hh"
 #include "design/Design.hh"

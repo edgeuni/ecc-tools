@@ -41,7 +41,6 @@
 #include "IdbTerm.h"
 #include "LibParserCpp.hh"
 #include "Logger.hh"
-#include "Vector.hh"
 #include "Wrapper.hh"
 #include "adapter/sdc/SdcClockReader.hh"
 #include "builder.h"

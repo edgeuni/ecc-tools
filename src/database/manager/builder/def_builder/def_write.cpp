@@ -36,9 +36,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <stdarg.h>
+#include <string_view>
 #include <zlib.h>
 #include "../../../data/design/IdbDesign.h"
-#include "Str.hh"
 #include "boost_definition.h"
 
 using std::cout;
@@ -72,7 +72,7 @@ DefWrite::~DefWrite()
 bool DefWrite::initFile(const char* file)
 {
   // Creating a compressed format handle
-  if (ieda::Str::contain(file, ".gz")) {
+  if (std::string_view(file).find(".gz") != std::string_view::npos) {
     _font = SaveFormat::kGzip;
     _file_write_gz = gzopen(file, "w");
 
@@ -495,8 +495,6 @@ int32_t DefWrite::write_component()
 
   for (IdbInstance* instance : instance_list->get_instance_list()) {
     std::string inst_name = instance->get_name();
-    // std::string new_inst_name = ieda::Str::addBackslash(inst_name);
-
     string type = instance->get_type() != IdbInstanceType::kNone
                       ? "+ SOURCE " + IdbEnum::GetInstance()->get_instance_property()->get_type_str(instance->get_type())
                       : "";
@@ -850,7 +848,6 @@ int32_t DefWrite::write_net()
 
   for (IdbNet* net : net_list->get_net_list()) {
     std::string net_name = net->get_net_name();
-    // std::string net_name_new = ieda::Str::addBackslash(net_name);
     writestr("- %s", net_name.c_str());
 
     auto* io_pins = net->get_io_pins();

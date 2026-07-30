@@ -7,7 +7,6 @@ target_link_libraries(
   PRIVATE
   icts_source
   idm
-  usage
   feature_db
 )
 

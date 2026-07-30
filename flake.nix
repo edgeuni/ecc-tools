@@ -12,12 +12,10 @@
       tcl,
       boost,
       eigen,
-      yaml-cpp,
       libunwind,
       glog,
       gtest,
       gflags,
-      metis,
       gmp,
       curl,
       tbb_2022,
@@ -46,7 +44,6 @@
       };
 
       postPatch = lib.pipe {
-        sdf_parser = "src/database/manager/parser/sdf/sdf_parse";
         verilog-parser = "src/database/manager/parser/verilog/verilog-rust/verilog-parser";
       } [
         (lib.mapAttrsToList (name: path: ''
@@ -78,12 +75,10 @@
         tcl
         boost
         eigen
-        yaml-cpp
         libunwind
         glog
         gtest
         gflags
-        metis
         gmp
         curl
         tbb_2022
