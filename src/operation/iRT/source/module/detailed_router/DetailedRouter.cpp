@@ -2700,7 +2700,7 @@ void DetailedRouter::selectBestResult(DRBox& dr_box)
 
 void DetailedRouter::freeDRBox(DRBox& dr_box)
 {
-  dr_box.get_open_queue().clear();
+  dr_box.get_open_queue().release();
   for (DRTask* dr_task : dr_box.get_dr_task_list()) {
     delete dr_task;
     dr_task = nullptr;

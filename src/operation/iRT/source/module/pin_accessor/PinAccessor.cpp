@@ -2768,7 +2768,7 @@ void PinAccessor::selectBestResult(PABox& pa_box)
 
 void PinAccessor::freePABox(PABox& pa_box)
 {
-  pa_box.get_open_queue().clear();
+  pa_box.get_open_queue().release();
   for (PATask* pa_task : pa_box.get_pa_task_list()) {
     delete pa_task;
     pa_task = nullptr;

@@ -1244,7 +1244,7 @@ void TrackAssigner::uploadViolation(TAPanel& ta_panel)
 
 void TrackAssigner::freeTAPanel(TAPanel& ta_panel)
 {
-  ta_panel.get_open_queue().clear();
+  ta_panel.get_open_queue().release();
   for (TATask* ta_task : ta_panel.get_ta_task_list()) {
     delete ta_task;
     ta_task = nullptr;

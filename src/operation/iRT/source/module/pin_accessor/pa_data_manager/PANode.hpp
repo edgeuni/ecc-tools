@@ -100,10 +100,12 @@ class PANode : public LayerCoord
   PANode* get_parent_node() const { return _parent_node; }
   double get_known_cost() const { return _known_cost; }
   double get_estimated_cost() const { return _estimated_cost; }
+  int32_t get_open_queue_idx() const { return _open_queue_idx; }
   void set_state(PANodeState state) { _state = state; }
   void set_parent_node(PANode* parent_node) { _parent_node = parent_node; }
   void set_known_cost(const double known_cost) { _known_cost = known_cost; }
   void set_estimated_cost(const double estimated_cost) { _estimated_cost = estimated_cost; }
+  void set_open_queue_idx(int32_t open_queue_idx) { _open_queue_idx = open_queue_idx; }
   // function
   bool isNone() { return _state == PANodeState::kNone; }
   bool isOpen() { return _state == PANodeState::kOpen; }
@@ -170,6 +172,7 @@ class PANode : public LayerCoord
   PANode* _parent_node = nullptr;
   double _known_cost = 0.0;  // include curr
   double _estimated_cost = 0.0;
+  int32_t _open_queue_idx = -1;
 #endif
 };
 
