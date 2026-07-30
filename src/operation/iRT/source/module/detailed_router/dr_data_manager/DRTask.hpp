@@ -122,10 +122,10 @@ struct CmpDRTask
           b_coord_list.push_back(coord);
         }
       }
-      std::sort(a_coord_list.begin(), a_coord_list.end(), CmpLayerCoordByLayerASC());
-      std::sort(b_coord_list.begin(), b_coord_list.end(), CmpLayerCoordByLayerASC());
+      std::ranges::sort(a_coord_list, CmpLayerCoordByLayerASC());
+      std::ranges::sort(b_coord_list, CmpLayerCoordByLayerASC());
 
-      if (std::lexicographical_compare(a_coord_list.begin(), a_coord_list.end(), b_coord_list.begin(), b_coord_list.end(), CmpLayerCoordByLayerASC())) {
+      if (std::ranges::lexicographical_compare(a_coord_list, b_coord_list, CmpLayerCoordByLayerASC())) {
         sort_status = SortStatus::kTrue;
       } else if (a_coord_list == b_coord_list) {
         sort_status = SortStatus::kEqual;

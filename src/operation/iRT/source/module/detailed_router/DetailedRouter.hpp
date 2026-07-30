@@ -67,6 +67,12 @@ class DetailedRouter
   std::set<DRBoxId, CmpDRBoxId> getDRBoxIdSet(DRModel& dr_model, PlanarRect real_rect);
   void routeDRBoxMap(DRModel& dr_model);
   void freeDRBoxMap(DRModel& dr_model);
+  void buildStageRepairInfo(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list,
+                            std::vector<std::set<int32_t>>& stage_violation_net_set_list,
+                            std::vector<std::vector<LayerRect>>& stage_repair_region_list_list);
+  void initDRBox(DRModel& dr_model, DRBox& dr_box, const std::set<int32_t>& violation_net_set,
+                 const std::vector<LayerRect>& repair_region_list);
+  void updateRouteViolation(DRModel& dr_model, std::vector<std::vector<Violation>>& stage_violation_list_list);
   void buildFixedRect(DRBox& dr_box);
   void buildAccessPoint(DRBox& dr_box);
   void buildGlobalResult(DRBox& dr_box);
@@ -77,7 +83,7 @@ class DetailedRouter
                                 EXTLayerRect& patch);
   void initDRTaskList(DRModel& dr_model, DRBox& dr_box, const std::set<int32_t>& violation_net_set);
   void buildNetTaskList(DRModel& dr_model, DRBox& dr_box, int32_t net_idx);
-  void buildRouteViolation(DRModel& dr_model, DRBox& dr_box);
+  void buildRouteViolation(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list);
   bool needRouting(DRBox& dr_box);
   void buildBoxTrackAxis(DRBox& dr_box);
   void buildLayerNodeMap(DRBox& dr_box);
@@ -90,10 +96,12 @@ class DetailedRouter
   std::vector<int32_t> initTaskSchedule(DRBox& dr_box);
   void updateGraph(DRBox& dr_box, ChangeType change_type, int32_t net_idx, std::vector<Segment<LayerCoord>>& segment_list,
                    std::vector<EXTLayerRect>& patch_list);
+  std::vector<DRTask*> resetDRNetResult(DRBox& dr_box, int32_t net_idx);
   void routeDRNet(DRBox& dr_box, int32_t net_idx);
   void routeDRRegionalRepair(DRBox& dr_box);
   void routeDRTask(DRBox& dr_box, DRTask* dr_task);
   void initSingleRouteTask(DRBox& dr_box, DRTask* dr_task);
+  std::vector<LayerCoord> getGuideCoordList(DRBox& dr_box, DRTask* dr_task, std::vector<Segment<LayerCoord>>& global_segment_list);
   void buildGuidePenaltyMap(DRBox& dr_box, DRTask* dr_task);
   bool isConnectedAllEnd(DRBox& dr_box);
   void routeSinglePath(DRBox& dr_box);
