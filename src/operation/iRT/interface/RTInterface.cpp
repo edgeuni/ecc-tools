@@ -23,7 +23,6 @@
 #include "GDSPlotter.hpp"
 #include "LayerAssigner.hpp"
 #include "Monitor.hpp"
-#include "NotificationUtility.h"
 #include "PinAccessor.hpp"
 #include "RTInterface.hpp"
 #include "SpaceRouter.hpp"
@@ -35,8 +34,6 @@
 #include "feature_irt.h"
 #include "feature_manager.h"
 #include "idm.h"
-
-#include <unordered_map>
 
 namespace irt {
 
@@ -129,15 +126,13 @@ void RTInterface::runRT()
   RTPR.generate();
   PlanarRouter::destroyInst();
 
-  RTDM.getDatabase().get_planar_routing_h_edge_map().free();
-  RTDM.getDatabase().get_planar_routing_v_edge_map().free();
-
   LayerAssigner::initInst();
   RTLA.assign();
   LayerAssigner::destroyInst();
 
-  std::vector<GridMap<RoutingEdge>>().swap(RTDM.getDatabase().get_routing_h_edge_map());
-  std::vector<GridMap<RoutingEdge>>().swap(RTDM.getDatabase().get_routing_v_edge_map());
+  SpaceRouter::initInst();
+  RTSR.route();
+  SpaceRouter::destroyInst();
 
   TrackAssigner::initInst();
   RTTA.assign();
@@ -370,7 +365,6 @@ void RTInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   RTDM.getConfig().bottom_routing_layer = RTUTIL.getConfigValue<std::string>(config_map, "-bottom_routing_layer", "");
   RTDM.getConfig().top_routing_layer = RTUTIL.getConfigValue<std::string>(config_map, "-top_routing_layer", "");
   RTDM.getConfig().output_inter_result = RTUTIL.getConfigValue<int32_t>(config_map, "-output_inter_result", 0);
-  RTDM.getConfig().enable_notification = RTUTIL.getConfigValue<int32_t>(config_map, "-enable_notification", 0);
   RTDM.getConfig().enable_timing = RTUTIL.getConfigValue<int32_t>(config_map, "-enable_timing", 0);
   /////////////////////////////////////////////
 }
@@ -720,15 +714,6 @@ void RTInterface::wrapObstacleList()
   std::vector<idb::IdbInstance*>& idb_instance_list = idb_design->get_instance_list()->get_instance_list();
   std::vector<idb::IdbSpecialNet*>& idb_special_net_list = idb_design->get_special_net_list()->get_net_list();
   std::vector<idb::IdbPin*>& idb_io_pin_list = idb_design->get_io_pin_list()->get_pin_list();
-  std::unordered_map<idb::IdbNet*, bool> is_skipping_map;
-  is_skipping_map.reserve(idb_design->get_net_list()->get_num() + 1);
-  auto should_skip = [&](idb::IdbNet* idb_net) {
-    auto [iter, inserted] = is_skipping_map.try_emplace(idb_net);
-    if (inserted) {
-      iter->second = isSkipping(idb_net, false);
-    }
-    return iter->second;
-  };
   std::vector<idb::IdbLayer*> idb_routing_layer_list = dmInst->get_idb_lef_service()->get_layout()->get_layers()->get_routing_layers();
   std::vector<int32_t> active_routing_layer_id_list;
   if (!idb_routing_layer_list.empty()) {
@@ -768,7 +753,7 @@ void RTInterface::wrapObstacleList()
       }
       // instance pin without net
       for (idb::IdbPin* idb_pin : idb_instance->get_pin_list()->get_pin_list()) {
-        if (!should_skip(idb_pin->get_net())) {
+        if (!isSkipping(idb_pin->get_net(), false)) {
           continue;
         }
         for (idb::IdbLayerShape* port_box : idb_pin->get_port_box_list()) {
@@ -789,10 +774,9 @@ void RTInterface::wrapObstacleList()
       for (idb::IdbSpecialWire* idb_wire : idb_net->get_wire_list()->get_wire_list()) {
         for (idb::IdbSpecialWireSegment* idb_segment : idb_wire->get_segment_list()) {
           if (idb_segment->is_via()) {
-            idb::IdbViaMaster* via_master = idb_segment->get_via()->get_instance();
-            total_routing_obstacle_num += via_master->get_top_layer_shape()->get_rect_list().size();
-            total_routing_obstacle_num += via_master->get_bottom_layer_shape()->get_rect_list().size();
-            total_cut_obstacle_num += via_master->get_cut_layer_shape()->get_rect_list().size();
+            total_routing_obstacle_num += idb_segment->get_via()->get_top_layer_shape().get_rect_list().size();
+            total_routing_obstacle_num += idb_segment->get_via()->get_bottom_layer_shape().get_rect_list().size();
+            total_cut_obstacle_num += idb_segment->get_via()->get_cut_layer_shape().get_rect_list().size();
           } else {
             total_routing_obstacle_num += 1;
           }
@@ -801,7 +785,7 @@ void RTInterface::wrapObstacleList()
     }
     // io pin without net
     for (idb::IdbPin* idb_io_pin : idb_io_pin_list) {
-      if (!should_skip(idb_io_pin->get_net())) {
+      if (!isSkipping(idb_io_pin->get_net(), false)) {
         continue;
       }
       for (idb::IdbLayerShape* port_box : idb_io_pin->get_port_box_list()) {
@@ -849,7 +833,7 @@ void RTInterface::wrapObstacleList()
       }
       // instance pin without net
       for (idb::IdbPin* idb_pin : idb_instance->get_pin_list()->get_pin_list()) {
-        if (!should_skip(idb_pin->get_net())) {
+        if (!isSkipping(idb_pin->get_net(), false)) {
           continue;
         }
         for (idb::IdbLayerShape* port_box : idb_pin->get_port_box_list()) {
@@ -961,24 +945,21 @@ void RTInterface::wrapObstacleList()
       for (idb::IdbSpecialWire* idb_wire : idb_net->get_wire_list()->get_wire_list()) {
         for (idb::IdbSpecialWireSegment* idb_segment : idb_wire->get_segment_list()) {
           if (idb_segment->is_via()) {
-            idb::IdbVia* idb_via = idb_segment->get_via();
-            idb::IdbViaMaster* via_master = idb_via->get_instance();
-            idb::IdbCoordinate<int32_t>* coordinate = idb_via->get_coordinate();
-            for (idb::IdbLayerShape* layer_shape : {via_master->get_top_layer_shape(), via_master->get_bottom_layer_shape()}) {
-              for (idb::IdbRect* rect : layer_shape->get_rect_list()) {
+            for (idb::IdbLayerShape layer_shape : {idb_segment->get_via()->get_top_layer_shape(), idb_segment->get_via()->get_bottom_layer_shape()}) {
+              for (idb::IdbRect* rect : layer_shape.get_rect_list()) {
                 Obstacle obstacle;
-                obstacle.set_real_ll(rect->get_low_x() + coordinate->get_x(), rect->get_low_y() + coordinate->get_y());
-                obstacle.set_real_ur(rect->get_high_x() + coordinate->get_x(), rect->get_high_y() + coordinate->get_y());
-                obstacle.set_layer_idx(layer_shape->get_layer()->get_id());
+                obstacle.set_real_ll(rect->get_low_x(), rect->get_low_y());
+                obstacle.set_real_ur(rect->get_high_x(), rect->get_high_y());
+                obstacle.set_layer_idx(layer_shape.get_layer()->get_id());
                 routing_obstacle_list.push_back(std::move(obstacle));
               }
             }
-            idb::IdbLayerShape* cut_layer_shape = via_master->get_cut_layer_shape();
-            for (idb::IdbRect* rect : cut_layer_shape->get_rect_list()) {
+            idb::IdbLayerShape cut_layer_shape = idb_segment->get_via()->get_cut_layer_shape();
+            for (idb::IdbRect* rect : cut_layer_shape.get_rect_list()) {
               Obstacle obstacle;
-              obstacle.set_real_ll(rect->get_low_x() + coordinate->get_x(), rect->get_low_y() + coordinate->get_y());
-              obstacle.set_real_ur(rect->get_high_x() + coordinate->get_x(), rect->get_high_y() + coordinate->get_y());
-              obstacle.set_layer_idx(cut_layer_shape->get_layer()->get_id());
+              obstacle.set_real_ll(rect->get_low_x(), rect->get_low_y());
+              obstacle.set_real_ur(rect->get_high_x(), rect->get_high_y());
+              obstacle.set_layer_idx(cut_layer_shape.get_layer()->get_id());
               cut_obstacle_list.push_back(std::move(obstacle));
             }
           } else {
@@ -995,7 +976,7 @@ void RTInterface::wrapObstacleList()
     }
     // io pin without net
     for (idb::IdbPin* idb_io_pin : idb_io_pin_list) {
-      if (!should_skip(idb_io_pin->get_net())) {
+      if (!isSkipping(idb_io_pin->get_net(), false)) {
         continue;
       }
       for (idb::IdbLayerShape* port_box : idb_io_pin->get_port_box_list()) {
@@ -1994,22 +1975,6 @@ void RTInterface::updateTiming(std::vector<std::map<std::string, std::vector<Lay
   });
 #endif
 #endif
-}
-
-#endif
-
-#if 1  // ecos
-
-void RTInterface::sendNotification(std::string stage, int32_t iter, std::map<std::string, std::string> json_path_map)
-{
-  std::map<std::string, std::any> notification;
-  notification["step_name"] = "routing";
-  notification["stage"] = stage;
-  notification["iter"] = std::to_string(iter);
-  notification["json_path_map"] = json_path_map;
-  if (!ieda::NotificationUtility::getInstance().sendNotification("iRT", notification).success) {
-    RTLOG.warn(Loc::current(), "Failed to send notification!");
-  }
 }
 
 #endif

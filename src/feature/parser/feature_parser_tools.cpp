@@ -290,7 +290,7 @@ json FeatureParser::buildSummaryCTS()
   CTSSummary& summary = _summary->get_summary_icts();
 
   json_cts["buffer_num"] = summary.buffer_num;
-  json_cts["buffer_area"] = summary.buffer_area;
+  json_cts["buffer_area"] = summary.buffer_area.has_value() ? json(*summary.buffer_area) : json(nullptr);
   json_cts["clock_path_min_buffer"] = summary.clock_path_min_buffer;
   json_cts["clock_path_max_buffer"] = summary.clock_path_max_buffer;
   json_cts["max_level_of_clock_tree"] = summary.max_level_of_clock_tree;

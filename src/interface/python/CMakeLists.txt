@@ -11,15 +11,12 @@ add_subdirectory(py_flow)
 add_subdirectory(py_icts)
 add_subdirectory(py_idrc)
 add_subdirectory(py_ifp)
-add_subdirectory(py_instance)
 add_subdirectory(py_irt)
 add_subdirectory(py_ircx)
 add_subdirectory(py_ista)
 add_subdirectory(py_izh)
 add_subdirectory(py_report)
 add_subdirectory(py_feature)
-add_subdirectory(py_eval)
-# add_subdirectory(py_vec)  # disabled: depends on ivec_api (moved to refactor)
 add_subdirectory(py_imp)
 
 # ADD SOURCE FILES
@@ -37,16 +34,12 @@ target_link_libraries(ecc_py
         py_icts
         py_idrc
         py_ifp
-        py_inst
         py_irt
         py_ircx
         py_ista
         py_izh
         py_report
         py_feature
-        py_eval
-        log
-        # py_vec  # disabled: depends on ivec_api (moved to refactor)
         py_imp
 )
 

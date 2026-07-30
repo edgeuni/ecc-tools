@@ -22,4 +22,4 @@ add_executable(ecc_bin
     ieda_main.cpp
 )
 
-target_link_libraries(ecc_bin flow)
+target_link_libraries(ecc_bin flow ieda_logger)

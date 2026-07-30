@@ -67,13 +67,12 @@ target_link_libraries(eval_util_init_ista
         ieda_feature
         idm
         irt_interface
-        salt
+        eval_db
 )
 
 target_include_directories(eval_util_init_ista
     PUBLIC
         ${EVAL_UTIL}
-        ${PROJECT_SOURCE_DIR}/src/third_party/salt
 )
 
 

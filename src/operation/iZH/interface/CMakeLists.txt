@@ -17,7 +17,6 @@ target_link_libraries(izh_interface
     idrc_interface
     ieda_feature
     idm
-    notification
 )
 
 target_include_directories(izh_interface

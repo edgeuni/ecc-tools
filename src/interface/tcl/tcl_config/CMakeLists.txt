@@ -7,7 +7,6 @@ add_library(tcl_config
 target_link_libraries(tcl_config 
     PUBLIC
         tcl
-        str
         flow
         tool_manager
 )

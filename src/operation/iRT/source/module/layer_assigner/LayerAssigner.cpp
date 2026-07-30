@@ -54,11 +54,13 @@ void LayerAssigner::assign()
 {
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
-  clearRoutingEdgeDemand();
-
   LAModel la_model = initLAModel();
   setLAComParam(la_model);
   initLATaskList(la_model);
+  buildLayerNodeMap(la_model);
+  buildLANodeNeighbor(la_model);
+  buildOrientSupply(la_model);
+  // debugCheckLAModel(la_model);
   buildPlaneTree(la_model);
   routeLAModel(la_model);
   // debugPlotLAModel(la_model, "after");
@@ -67,30 +69,12 @@ void LayerAssigner::assign()
   outputGuide(la_model);
   outputNetCSV(la_model);
   outputOverflowCSV(la_model);
-  outputJson(la_model);
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
-}
-
-void LayerAssigner::clearRoutingEdgeDemand()
-{
-  for (std::vector<GridMap<RoutingEdge>>* routing_edge_map_list :
-       {&RTDM.getDatabase().get_routing_h_edge_map(), &RTDM.getDatabase().get_routing_v_edge_map()}) {
-    for (GridMap<RoutingEdge>& routing_edge_map : *routing_edge_map_list) {
-#pragma omp parallel for
-      for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-        for (int32_t y = 0; y < routing_edge_map.get_y_size(); y++) {
-          routing_edge_map[x][y].set_demand(0);
-        }
-      }
-    }
-  }
 }
 
 // private
 
 LayerAssigner* LayerAssigner::_la_instance = nullptr;
-
-// model
 
 LAModel LayerAssigner::initLAModel()
 {
@@ -126,13 +110,34 @@ LANet LayerAssigner::convertToLANet(Net& net)
 
 void LayerAssigner::setLAComParam(LAModel& la_model)
 {
+  int32_t topo_spilt_length = 8;
+  int32_t mid_topo_spilt_length = 8;
+  int32_t long_topo_spilt_length = 16;
+  int32_t short_segment_length = 2;
+  int32_t mid_segment_length = 5;
+  int32_t long_segment_length = 20;
   double prefer_wire_unit = 1;
   double non_prefer_wire_unit = 2.5 * prefer_wire_unit;
   double via_unit = 2 * non_prefer_wire_unit;
   double overflow_unit = 4 * non_prefer_wire_unit;
-  LAComParam la_com_param(via_unit, overflow_unit);
+  double layer_bias_unit = via_unit;
+  double layer_switch_unit = 1.5 * via_unit;
+  /**
+   * topo_spilt_length, mid_topo_spilt_length, long_topo_spilt_length, short_segment_length, mid_segment_length, long_segment_length,
+   * via_unit, overflow_unit, layer_bias_unit, layer_switch_unit
+   */
+  LAComParam la_com_param(topo_spilt_length, mid_topo_spilt_length, long_topo_spilt_length, short_segment_length, mid_segment_length, long_segment_length,
+                          via_unit, overflow_unit, layer_bias_unit, layer_switch_unit);
+  RTLOG.info(Loc::current(), "topo_spilt_length: ", la_com_param.get_topo_spilt_length());
+  RTLOG.info(Loc::current(), "mid_topo_spilt_length: ", la_com_param.get_mid_topo_spilt_length());
+  RTLOG.info(Loc::current(), "long_topo_spilt_length: ", la_com_param.get_long_topo_spilt_length());
+  RTLOG.info(Loc::current(), "short_segment_length: ", la_com_param.get_short_segment_length());
+  RTLOG.info(Loc::current(), "mid_segment_length: ", la_com_param.get_mid_segment_length());
+  RTLOG.info(Loc::current(), "long_segment_length: ", la_com_param.get_long_segment_length());
   RTLOG.info(Loc::current(), "via_unit: ", la_com_param.get_via_unit());
   RTLOG.info(Loc::current(), "overflow_unit: ", la_com_param.get_overflow_unit());
+  RTLOG.info(Loc::current(), "layer_bias_unit: ", la_com_param.get_layer_bias_unit());
+  RTLOG.info(Loc::current(), "layer_switch_unit: ", la_com_param.get_layer_switch_unit());
   la_model.set_la_com_param(la_com_param);
 }
 
@@ -147,31 +152,114 @@ void LayerAssigner::initLATaskList(LAModel& la_model)
   std::sort(la_task_list.begin(), la_task_list.end(), CmpLANet());
 }
 
-double LayerAssigner::getOverflowCost(RoutingEdge& routing_edge, double overflow_unit, int32_t net_idx)
+void LayerAssigner::buildLayerNodeMap(LAModel& la_model)
 {
-  constexpr double blocked_edge_cost = 1e12;
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
 
-  if (routing_edge.get_ignore_net_set().count(net_idx)) {
-    return 0;
-  }
-  if (routing_edge.get_supply() <= 0) {
-    return blocked_edge_cost;
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
+
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
+  layer_node_map.resize(routing_layer_list.size());
+#pragma omp parallel for
+  for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_node_map.size()); layer_idx++) {
+    GridMap<LANode>& la_node_map = layer_node_map[layer_idx];
+    la_node_map.init(gcell_map.get_x_size(), gcell_map.get_y_size());
+    for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
+      for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
+        LANode& la_node = la_node_map[x][y];
+        la_node.set_coord(x, y);
+        la_node.set_layer_idx(layer_idx);
+        la_node.set_boundary_wire_unit(gcell_map[x][y].get_boundary_wire_unit());
+        la_node.set_internal_wire_unit(gcell_map[x][y].get_internal_wire_unit());
+        la_node.set_internal_via_unit(gcell_map[x][y].get_internal_via_unit());
+        if (RTUTIL.exist(gcell_map[x][y].get_routing_ignore_net_orient_map(), layer_idx)) {
+          la_node.set_ignore_net_orient_map(gcell_map[x][y].get_routing_ignore_net_orient_map()[layer_idx]);
+        }
+        if (RTUTIL.exist(gcell_map[x][y].get_routing_allowed_net_map(), layer_idx)) {
+          la_node.set_orient_allowed_net_map(gcell_map[x][y].get_routing_allowed_net_map()[layer_idx]);
+        }
+      }
+    }
   }
 
-  int32_t demand = routing_edge.get_demand() + 1;
-  int32_t supply = routing_edge.get_supply();
-  if (demand == supply) {
-    return overflow_unit;
-  }
-  if (demand > supply) {
-    double overflow = demand - supply + 1;
-    return overflow_unit * overflow * overflow * overflow * overflow;
-  }
-  double usage_ratio = demand / 1.0 / supply;
-  return overflow_unit * usage_ratio * usage_ratio * usage_ratio * usage_ratio;
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-// route
+void LayerAssigner::buildLANodeNeighbor(LAModel& la_model)
+{
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+  int32_t bottom_routing_layer_idx = RTDM.getConfig().bottom_routing_layer_idx;
+  int32_t top_routing_layer_idx = RTDM.getConfig().top_routing_layer_idx;
+
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
+
+#pragma omp parallel for
+  for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_node_map.size()); layer_idx++) {
+    bool routing_h = routing_layer_list[layer_idx].isPreferH();
+    bool routing_v = !routing_h;
+    if (layer_idx < bottom_routing_layer_idx || top_routing_layer_idx < layer_idx) {
+      routing_h = false;
+      routing_v = false;
+    }
+    GridMap<LANode>& la_node_map = layer_node_map[layer_idx];
+    for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
+      for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
+        std::map<Orientation, LANode*>& neighbor_node_map = la_node_map[x][y].get_neighbor_node_map();
+        if (routing_h) {
+          if (x != 0) {
+            neighbor_node_map[Orientation::kWest] = &la_node_map[x - 1][y];
+          }
+          if (x != (la_node_map.get_x_size() - 1)) {
+            neighbor_node_map[Orientation::kEast] = &la_node_map[x + 1][y];
+          }
+        }
+        if (routing_v) {
+          if (y != 0) {
+            neighbor_node_map[Orientation::kSouth] = &la_node_map[x][y - 1];
+          }
+          if (y != (la_node_map.get_y_size() - 1)) {
+            neighbor_node_map[Orientation::kNorth] = &la_node_map[x][y + 1];
+          }
+        }
+        if (layer_idx != 0) {
+          neighbor_node_map[Orientation::kBelow] = &layer_node_map[layer_idx - 1][x][y];
+        }
+        if (layer_idx != static_cast<int32_t>(layer_node_map.size()) - 1) {
+          neighbor_node_map[Orientation::kAbove] = &layer_node_map[layer_idx + 1][x][y];
+        }
+      }
+    }
+  }
+
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
+
+void LayerAssigner::buildOrientSupply(LAModel& la_model)
+{
+  Monitor monitor;
+  RTLOG.info(Loc::current(), "Starting...");
+
+  GridMap<GCell>& gcell_map = RTDM.getDatabase().get_gcell_map();
+
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
+
+#pragma omp parallel for collapse(2)
+  for (int32_t x = 0; x < gcell_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < gcell_map.get_y_size(); y++) {
+      for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_node_map.size()); layer_idx++) {
+        layer_node_map[layer_idx][x][y].set_orient_supply_map(gcell_map[x][y].get_routing_orient_supply_map()[layer_idx]);
+      }
+    }
+  }
+
+  RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+}
 
 void LayerAssigner::buildPlaneTree(LAModel& la_model)
 {
@@ -181,23 +269,17 @@ void LayerAssigner::buildPlaneTree(LAModel& la_model)
   Die& die = RTDM.getDatabase().get_die();
 
   std::vector<LANet>& la_net_list = la_model.get_la_net_list();
-  const std::map<int32_t, std::set<Segment<LayerCoord>*>> net_global_result_map = RTDM.getNetGlobalResultMap(die);
 
-#pragma omp parallel for schedule(dynamic, 1)
-  for (int32_t net_idx = 0; net_idx < static_cast<int32_t>(la_net_list.size()); net_idx++) {
+  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
     LANet& la_net = la_net_list[net_idx];
+
     std::vector<Segment<LayerCoord>> routing_segment_list;
-    auto result_iter = net_global_result_map.find(la_net.get_net_idx());
-    if (result_iter != net_global_result_map.end()) {
-      routing_segment_list.reserve(result_iter->second.size());
-      for (Segment<LayerCoord>* segment : result_iter->second) {
-        routing_segment_list.push_back(*segment);
-      }
+    for (Segment<LayerCoord>* segment : segment_set) {
+      routing_segment_list.push_back(*segment);
     }
     std::vector<LayerCoord> candidate_root_coord_list;
     std::map<LayerCoord, std::set<int32_t>, CmpLayerCoordByXASC> key_coord_pin_map;
     std::vector<LAPin>& la_pin_list = la_net.get_la_pin_list();
-    candidate_root_coord_list.reserve(la_pin_list.size());
     for (size_t i = 0; i < la_pin_list.size(); i++) {
       LayerCoord coord(la_pin_list[i].get_access_point().get_grid_coord(), 0);
       candidate_root_coord_list.push_back(coord);
@@ -205,7 +287,7 @@ void LayerAssigner::buildPlaneTree(LAModel& la_model)
     }
     la_net.set_planar_tree(RTUTIL.getTreeByFullFlow(candidate_root_coord_list, routing_segment_list, key_coord_pin_map));
   }
-  for (auto& [net_idx, segment_set] : net_global_result_map) {
+  for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
     for (Segment<LayerCoord>* segment : segment_set) {
       RTDM.updateNetGlobalResultToGCellMap(ChangeType::kDel, net_idx, segment);
     }
@@ -238,29 +320,27 @@ void LayerAssigner::routeLATask(LAModel& la_model, LANet* la_task)
 {
   initSingleTask(la_model, la_task);
   if (needRouting(la_model)) {
-    routeSingleTask(la_model);
+    _refine_layer_hint_list.clear();
+    buildPillarTree(la_model);
+    assignPillarTree(la_model);
+    MTree<LayerCoord> coord_tree = getAssignedCoordTree(la_model);
+
+    std::vector<LAOverflowEdge> overflow_edge_list = getOverflowEdgeList(la_model);
+    if (!overflow_edge_list.empty()) {
+      splitPlaneTreeByOverflow(la_model, overflow_edge_list);
+      buildPillarTree(la_model);
+      assignPillarTree(la_model);
+      coord_tree = getAssignedCoordTree(la_model);
+    }
+    commitLayerTree(la_model, coord_tree);
   }
+  _refine_layer_hint_list.clear();
   resetSingleTask(la_model);
 }
 
 void LayerAssigner::initSingleTask(LAModel& la_model, LANet* la_task)
 {
   la_model.set_curr_la_task(la_task);
-  la_model.get_routing_tree().clear();
-}
-
-void LayerAssigner::routeSingleTask(LAModel& la_model)
-{
-  buildRoutingTree(la_model);
-  updateRoutingTreeToGraph(la_model, ChangeType::kAdd);
-  std::vector<LAOverflowSegment> overflow_segment_list = getOverflowSegmentList(la_model);
-  if (!overflow_segment_list.empty()) {
-    updateRoutingTreeToGraph(la_model, ChangeType::kDel);
-    splitPlaneTreeByOverflow(la_model, overflow_segment_list);
-    buildRoutingTree(la_model);
-    updateRoutingTreeToGraph(la_model, ChangeType::kAdd);
-  }
-  uploadNetResult(la_model);
 }
 
 bool LayerAssigner::needRouting(LAModel& la_model)
@@ -268,25 +348,95 @@ bool LayerAssigner::needRouting(LAModel& la_model)
   return (la_model.get_curr_la_task()->get_planar_tree().get_root() != nullptr);
 }
 
-std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentList(LAModel& la_model)
+void LayerAssigner::spiltPlaneTree(LAModel& la_model)
 {
-  constexpr int32_t refine_level = 2;  // 0: off, 1: conservative, 2: aggressive, 3: unrestricted
-  if (refine_level == 0) {
-    return {};
+  TNode<LayerCoord>* planar_tree_root = la_model.get_curr_la_task()->get_planar_tree().get_root();
+  std::queue<TNode<LayerCoord>*> planar_queue = RTUTIL.initQueue(planar_tree_root);
+  while (!planar_queue.empty()) {
+    TNode<LayerCoord>* planar_node = RTUTIL.getFrontAndPop(planar_queue);
+    std::vector<TNode<LayerCoord>*> child_list = planar_node->get_child_list();
+    for (size_t i = 0; i < child_list.size(); i++) {
+      int32_t length = RTUTIL.getManhattanDistance(planar_node->value().get_planar_coord(), child_list[i]->value().get_planar_coord());
+      int32_t topo_spilt_length = getTopoSpiltLength(la_model, length);
+      if (length <= topo_spilt_length) {
+        continue;
+      }
+      insertMidPoint(la_model, planar_node, child_list[i]);
+    }
+    RTUTIL.addListToQueue(planar_queue, child_list);
   }
-  int32_t curr_net_idx = la_model.get_curr_la_task()->get_net_idx();
-  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
-  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
-  int32_t max_refine_segment_num = 3;
-  int32_t min_subsegment_length = 4;
-  if (refine_level == 2) {
-    max_refine_segment_num = 8;
-    min_subsegment_length = 2;
-  } else if (refine_level == 3) {
-    min_subsegment_length = 1;
-  }
+}
 
-  std::vector<LAOverflowSegment> overflow_segment_list;
+int32_t LayerAssigner::getTopoSpiltLength(LAModel& la_model, int32_t segment_length)
+{
+  LAComParam& la_com_param = la_model.get_la_com_param();
+  if (segment_length <= la_com_param.get_topo_spilt_length()) {
+    return std::max(1, segment_length);
+  }
+  if (segment_length <= la_com_param.get_long_segment_length()) {
+    return std::max(1, la_com_param.get_mid_topo_spilt_length());
+  }
+  return std::max(1, la_com_param.get_long_topo_spilt_length());
+}
+
+void LayerAssigner::insertMidPoint(LAModel& la_model, TNode<LayerCoord>* planar_node, TNode<LayerCoord>* child_node)
+{
+  PlanarCoord& parent_coord = planar_node->value().get_planar_coord();
+  PlanarCoord& child_coord = child_node->value().get_planar_coord();
+  if (RTUTIL.isProximal(parent_coord, child_coord)) {
+    return;
+  }
+  int32_t length = RTUTIL.getManhattanDistance(parent_coord, child_coord);
+  int32_t topo_spilt_length = getTopoSpiltLength(la_model, length);
+  std::vector<PlanarCoord> mid_coord_list;
+  int32_t x1 = parent_coord.get_x();
+  int32_t x2 = child_coord.get_x();
+  int32_t y1 = parent_coord.get_y();
+  int32_t y2 = child_coord.get_y();
+  if (RTUTIL.isHorizontal(parent_coord, child_coord)) {
+    RTUTIL.swapByASC(x1, x2);
+    for (int32_t x = x1 + topo_spilt_length; x < x2; x += topo_spilt_length) {
+      mid_coord_list.emplace_back(x, y1);
+    }
+    if (parent_coord.get_x() > child_coord.get_x()) {
+      for (size_t i = 0, j = mid_coord_list.size() - 1; i < j; i++, j--) {
+        std::swap(mid_coord_list[i], mid_coord_list[j]);
+      }
+    }
+  } else if (RTUTIL.isVertical(parent_coord, child_coord)) {
+    RTUTIL.swapByASC(y1, y2);
+    for (int32_t y = y1 + topo_spilt_length; y < y2; y += topo_spilt_length) {
+      mid_coord_list.emplace_back(x1, y);
+    }
+    if (parent_coord.get_y() > child_coord.get_y()) {
+      for (size_t i = 0, j = mid_coord_list.size() - 1; i < j; i++, j--) {
+        std::swap(mid_coord_list[i], mid_coord_list[j]);
+      }
+    }
+  } else {
+    RTLOG.error(Loc::current(), "The segment is oblique!");
+  }
+  planar_node->delChild(child_node);
+  TNode<LayerCoord>* curr_node = planar_node;
+  for (size_t i = 0; i < mid_coord_list.size(); i++) {
+    LayerCoord mid_coord(mid_coord_list[i], 0);
+    TNode<LayerCoord>* mid_node = new TNode<LayerCoord>(mid_coord);
+    curr_node->addChild(mid_node);
+    curr_node = mid_node;
+  }
+  curr_node->addChild(child_node);
+}
+
+std::vector<LayerAssigner::LAOverflowEdge> LayerAssigner::getOverflowEdgeList(LAModel& la_model)
+{
+  constexpr int32_t max_refine_edge_num = 6;
+  constexpr double soft_start_ratio = 0.80;
+  constexpr double min_soft_score = 0.25;
+
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
+  int32_t curr_net_idx = la_model.get_curr_la_task()->get_net_idx();
+
+  std::vector<LAOverflowEdge> overflow_edge_list;
   TNode<LAPillar>* pillar_tree_root = la_model.get_curr_la_task()->get_pillar_tree().get_root();
   std::queue<TNode<LAPillar>*> pillar_node_queue = RTUTIL.initQueue(pillar_tree_root);
   while (!pillar_node_queue.empty()) {
@@ -294,121 +444,201 @@ std::vector<LayerAssigner::LAOverflowSegment> LayerAssigner::getOverflowSegmentL
     PlanarCoord parent_coord = parent_pillar_node->value().get_planar_coord();
     for (TNode<LAPillar>* child_node : parent_pillar_node->get_child_list()) {
       PlanarCoord child_coord = child_node->value().get_planar_coord();
-      int32_t segment_length = RTUTIL.getManhattanDistance(parent_coord, child_coord);
-      if (segment_length < 2 * min_subsegment_length) {
+      if (RTUTIL.isProximal(parent_coord, child_coord)) {
         continue;
       }
       if (!RTUTIL.isRightAngled(parent_coord, child_coord)) {
         RTLOG.error(Loc::current(), "The segment is oblique!");
       }
-
+      Direction direction = RTUTIL.getDirection(parent_coord, child_coord);
       int32_t layer_idx = child_node->value().get_layer_idx();
-      int32_t step_x = parent_coord.get_x() < child_coord.get_x() ? 1 : (child_coord.get_x() < parent_coord.get_x() ? -1 : 0);
-      int32_t step_y = parent_coord.get_y() < child_coord.get_y() ? 1 : (child_coord.get_y() < parent_coord.get_y() ? -1 : 0);
-      bool is_horizontal = step_x != 0;
-      GridMap<RoutingEdge>& routing_edge_map = is_horizontal ? routing_h_edge_map[layer_idx] : routing_v_edge_map[layer_idx];
-      int32_t peak_offset = -1;
-      std::vector<int32_t> overflow_list;
-      LAOverflowSegment overflow_segment;
-      overflow_segment.first_coord = parent_coord;
-      overflow_segment.second_coord = child_coord;
-      for (int32_t offset = 0; offset < segment_length; offset++) {
-        int32_t edge_x = parent_coord.get_x() + step_x * offset;
-        int32_t edge_y = parent_coord.get_y() + step_y * offset;
-        if (step_x < 0) {
-          edge_x--;
+
+      std::vector<std::pair<PlanarCoord, LAOverflowMetric>> coord_metric_pair_list;
+      if (RTUTIL.isHorizontal(parent_coord, child_coord)) {
+        int32_t step = (parent_coord.get_x() < child_coord.get_x()) ? 1 : -1;
+        for (int32_t x = parent_coord.get_x(); x != child_coord.get_x() + step; x += step) {
+          LAOverflowMetric metric = layer_node_map[layer_idx][x][parent_coord.get_y()].getOverflowMetric(curr_net_idx, direction);
+          coord_metric_pair_list.emplace_back(PlanarCoord(x, parent_coord.get_y()), metric);
         }
-        if (step_y < 0) {
-          edge_y--;
-        }
-        RoutingEdge& routing_edge = is_horizontal ? routing_edge_map[edge_x][parent_coord.get_y()]
-                                                   : routing_edge_map[parent_coord.get_x()][edge_y];
-        int32_t overflow = routing_edge.get_ignore_net_set().count(curr_net_idx) ? 0 : routing_edge.get_overflow();
-        overflow_list.push_back(overflow);
-        overflow_segment.total_overflow += overflow;
-        if (overflow > overflow_segment.max_overflow) {
-          overflow_segment.max_overflow = overflow;
-          peak_offset = offset;
+      } else {
+        int32_t step = (parent_coord.get_y() < child_coord.get_y()) ? 1 : -1;
+        for (int32_t y = parent_coord.get_y(); y != child_coord.get_y() + step; y += step) {
+          LAOverflowMetric metric = layer_node_map[layer_idx][parent_coord.get_x()][y].getOverflowMetric(curr_net_idx, direction);
+          coord_metric_pair_list.emplace_back(PlanarCoord(parent_coord.get_x(), y), metric);
         }
       }
-      if (peak_offset == -1) {
+
+      LAOverflowEdge overflow_edge;
+      overflow_edge.first_coord = parent_coord;
+      overflow_edge.second_coord = child_coord;
+      overflow_edge.layer_idx = layer_idx;
+      for (auto& coord_metric_pair : coord_metric_pair_list) {
+        LAOverflowMetric& metric = coord_metric_pair.second;
+        overflow_edge.total_true_overflow += metric.true_overflow;
+        overflow_edge.max_true_overflow = std::max(overflow_edge.max_true_overflow, metric.true_overflow);
+        overflow_edge.total_soft_congestion += metric.soft_congestion;
+        overflow_edge.max_soft_congestion = std::max(overflow_edge.max_soft_congestion, metric.soft_congestion);
+        overflow_edge.max_usage_ratio = std::max(overflow_edge.max_usage_ratio, metric.max_usage_ratio);
+      }
+      overflow_edge.has_true_overflow = (overflow_edge.max_true_overflow > RT_ERROR);
+      bool hard_trigger = overflow_edge.has_true_overflow;
+      bool soft_trigger = (!hard_trigger && overflow_edge.max_usage_ratio >= soft_start_ratio
+                           && overflow_edge.max_soft_congestion >= min_soft_score);
+      if (!hard_trigger && !soft_trigger) {
         continue;
       }
 
-      int32_t hotspot_threshold = std::max(1, overflow_segment.max_overflow / 2);
-      int32_t hotspot_first_offset = peak_offset;
-      int32_t hotspot_second_offset = peak_offset;
-      while (hotspot_first_offset > 0 && overflow_list[hotspot_first_offset - 1] >= hotspot_threshold) {
-        hotspot_first_offset--;
-      }
-      while (hotspot_second_offset + 1 < segment_length && overflow_list[hotspot_second_offset + 1] >= hotspot_threshold) {
-        hotspot_second_offset++;
-      }
-
-      if (refine_level == 1 || segment_length < 3 * min_subsegment_length) {
-        int32_t split_offset = std::clamp(peak_offset + 1, min_subsegment_length, segment_length - min_subsegment_length);
-        overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * split_offset, parent_coord.get_y() + step_y * split_offset);
-      } else if (refine_level == 2) {
-        int32_t first_split_offset = std::clamp(hotspot_first_offset, min_subsegment_length, segment_length - 2 * min_subsegment_length);
-        int32_t second_split_offset
-            = std::clamp(hotspot_second_offset + 1, first_split_offset + min_subsegment_length, segment_length - min_subsegment_length);
-        overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * first_split_offset,
-                                                       parent_coord.get_y() + step_y * first_split_offset);
-        overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * second_split_offset,
-                                                       parent_coord.get_y() + step_y * second_split_offset);
-      } else {
-        for (int32_t offset = 1; offset < segment_length; offset++) {
-          overflow_segment.split_coord_list.emplace_back(parent_coord.get_x() + step_x * offset, parent_coord.get_y() + step_y * offset);
+      auto getScore = [&overflow_edge](const LAOverflowMetric& metric) {
+        if (overflow_edge.has_true_overflow) {
+          return metric.true_overflow;
+        }
+        return metric.soft_congestion;
+      };
+      int32_t max_score_idx = -1;
+      double max_score = -1.0;
+      for (size_t i = 0; i < coord_metric_pair_list.size(); i++) {
+        double score = getScore(coord_metric_pair_list[i].second);
+        if (score > max_score) {
+          max_score = score;
+          max_score_idx = static_cast<int32_t>(i);
         }
       }
-      overflow_segment_list.push_back(overflow_segment);
+      if (max_score_idx == -1 || max_score <= 0) {
+        continue;
+      }
+
+      double hotspot_threshold = overflow_edge.has_true_overflow ? std::max(RT_ERROR, max_score * 0.5) : std::max(min_soft_score, max_score * 0.5);
+      int32_t hotspot_first_idx = max_score_idx;
+      int32_t hotspot_second_idx = max_score_idx;
+      while (hotspot_first_idx > 0 && getScore(coord_metric_pair_list[hotspot_first_idx - 1].second) >= hotspot_threshold) {
+        hotspot_first_idx--;
+      }
+      while (hotspot_second_idx + 1 < static_cast<int32_t>(coord_metric_pair_list.size())
+             && getScore(coord_metric_pair_list[hotspot_second_idx + 1].second) >= hotspot_threshold) {
+        hotspot_second_idx++;
+      }
+      auto pushSplitCoord = [&](int32_t coord_idx) {
+        if (coord_idx <= 0 || coord_idx >= static_cast<int32_t>(coord_metric_pair_list.size()) - 1) {
+          return;
+        }
+        PlanarCoord split_coord = coord_metric_pair_list[coord_idx].first;
+        if (split_coord == parent_coord || split_coord == child_coord) {
+          return;
+        }
+        overflow_edge.split_coord_list.push_back(split_coord);
+      };
+      pushSplitCoord(hotspot_first_idx - 1);
+      pushSplitCoord(hotspot_second_idx + 1);
+      std::sort(overflow_edge.split_coord_list.begin(), overflow_edge.split_coord_list.end(), CmpPlanarCoordByXASC());
+      overflow_edge.split_coord_list.erase(std::unique(overflow_edge.split_coord_list.begin(), overflow_edge.split_coord_list.end()),
+                                           overflow_edge.split_coord_list.end());
+      if (!overflow_edge.split_coord_list.empty()) {
+        overflow_edge_list.push_back(overflow_edge);
+      }
     }
     RTUTIL.addListToQueue(pillar_node_queue, parent_pillar_node->get_child_list());
   }
 
-  std::sort(overflow_segment_list.begin(), overflow_segment_list.end(), [](const LAOverflowSegment& a, const LAOverflowSegment& b) {
-    if (a.total_overflow != b.total_overflow) {
-      return a.total_overflow > b.total_overflow;
+  std::sort(overflow_edge_list.begin(), overflow_edge_list.end(), [](const LAOverflowEdge& a, const LAOverflowEdge& b) {
+    if (a.has_true_overflow != b.has_true_overflow) {
+      return a.has_true_overflow;
     }
-    return a.max_overflow > b.max_overflow;
+    if (a.has_true_overflow) {
+      if (a.max_true_overflow == b.max_true_overflow) {
+        return a.total_true_overflow > b.total_true_overflow;
+      }
+      return a.max_true_overflow > b.max_true_overflow;
+    }
+    if (a.max_soft_congestion == b.max_soft_congestion) {
+      return a.total_soft_congestion > b.total_soft_congestion;
+    }
+    return a.max_soft_congestion > b.max_soft_congestion;
   });
-  if (refine_level != 3 && static_cast<int32_t>(overflow_segment_list.size()) > max_refine_segment_num) {
-    overflow_segment_list.resize(max_refine_segment_num);
+  if (static_cast<int32_t>(overflow_edge_list.size()) > max_refine_edge_num) {
+    overflow_edge_list.resize(max_refine_edge_num);
   }
-  return overflow_segment_list;
+  return overflow_edge_list;
 }
 
-void LayerAssigner::splitPlaneTreeByOverflow(LAModel& la_model, std::vector<LAOverflowSegment>& overflow_segment_list)
+void LayerAssigner::splitPlaneTreeByOverflow(LAModel& la_model, std::vector<LAOverflowEdge>& overflow_edge_list)
 {
+  _refine_layer_hint_list.clear();
   TNode<LayerCoord>* planar_tree_root = la_model.get_curr_la_task()->get_planar_tree().get_root();
-  std::queue<TNode<LayerCoord>*> planar_node_queue = RTUTIL.initQueue(planar_tree_root);
-  while (!planar_node_queue.empty()) {
-    TNode<LayerCoord>* planar_node = RTUTIL.getFrontAndPop(planar_node_queue);
+  std::queue<TNode<LayerCoord>*> planar_queue = RTUTIL.initQueue(planar_tree_root);
+  while (!planar_queue.empty()) {
+    TNode<LayerCoord>* planar_node = RTUTIL.getFrontAndPop(planar_queue);
     std::vector<TNode<LayerCoord>*> child_list = planar_node->get_child_list();
     for (TNode<LayerCoord>* child_node : child_list) {
       PlanarCoord parent_coord = planar_node->value().get_planar_coord();
       PlanarCoord child_coord = child_node->value().get_planar_coord();
-      for (LAOverflowSegment& overflow_segment : overflow_segment_list) {
-        if (overflow_segment.is_split || parent_coord != overflow_segment.first_coord || child_coord != overflow_segment.second_coord) {
+      for (LAOverflowEdge& overflow_edge : overflow_edge_list) {
+        if (parent_coord != overflow_edge.first_coord || child_coord != overflow_edge.second_coord) {
           continue;
         }
-        planar_node->delChild(child_node);
-        TNode<LayerCoord>* curr_node = planar_node;
-        for (PlanarCoord& split_coord : overflow_segment.split_coord_list) {
-          TNode<LayerCoord>* split_node = new TNode<LayerCoord>(LayerCoord(split_coord, 0));
-          curr_node->addChild(split_node);
-          curr_node = split_node;
-        }
-        curr_node->addChild(child_node);
-        overflow_segment.is_split = true;
+        _refine_layer_hint_list.push_back({overflow_edge.first_coord, overflow_edge.second_coord, overflow_edge.layer_idx});
+        insertPointList(planar_node, child_node, overflow_edge.split_coord_list);
         break;
       }
     }
-    RTUTIL.addListToQueue(planar_node_queue, child_list);
+    RTUTIL.addListToQueue(planar_queue, child_list);
   }
 }
 
-// layer assignment
+void LayerAssigner::insertPointList(TNode<LayerCoord>* planar_node, TNode<LayerCoord>* child_node, std::vector<PlanarCoord>& point_list)
+{
+  PlanarCoord parent_coord = planar_node->value().get_planar_coord();
+  PlanarCoord child_coord = child_node->value().get_planar_coord();
+  if (point_list.empty() || RTUTIL.isProximal(parent_coord, child_coord)) {
+    return;
+  }
+  if (!RTUTIL.isRightAngled(parent_coord, child_coord)) {
+    RTLOG.error(Loc::current(), "The segment is oblique!");
+  }
+
+  auto getOffset = [&](PlanarCoord& coord) {
+    if (RTUTIL.isHorizontal(parent_coord, child_coord)) {
+      int32_t step = (parent_coord.get_x() < child_coord.get_x()) ? 1 : -1;
+      return step * (coord.get_x() - parent_coord.get_x());
+    }
+    int32_t step = (parent_coord.get_y() < child_coord.get_y()) ? 1 : -1;
+    return step * (coord.get_y() - parent_coord.get_y());
+  };
+
+  int32_t segment_length = RTUTIL.getManhattanDistance(parent_coord, child_coord);
+  std::vector<std::pair<int32_t, PlanarCoord>> offset_coord_pair_list;
+  for (PlanarCoord split_coord : point_list) {
+    if (split_coord == parent_coord || split_coord == child_coord) {
+      continue;
+    }
+    if (!RTUTIL.isRightAngled(parent_coord, split_coord) || !RTUTIL.isRightAngled(split_coord, child_coord)) {
+      continue;
+    }
+    int32_t offset = getOffset(split_coord);
+    if (offset <= 0 || segment_length <= offset) {
+      continue;
+    }
+    offset_coord_pair_list.emplace_back(offset, split_coord);
+  }
+  std::sort(offset_coord_pair_list.begin(), offset_coord_pair_list.end(),
+            [](const std::pair<int32_t, PlanarCoord>& a, const std::pair<int32_t, PlanarCoord>& b) { return a.first < b.first; });
+  offset_coord_pair_list.erase(std::unique(offset_coord_pair_list.begin(), offset_coord_pair_list.end(),
+                                           [](const std::pair<int32_t, PlanarCoord>& a, const std::pair<int32_t, PlanarCoord>& b) {
+                                             return a.first == b.first;
+                                           }),
+                               offset_coord_pair_list.end());
+  if (offset_coord_pair_list.empty()) {
+    return;
+  }
+
+  planar_node->delChild(child_node);
+  TNode<LayerCoord>* curr_node = planar_node;
+  for (auto& [offset, split_coord] : offset_coord_pair_list) {
+    TNode<LayerCoord>* split_node = new TNode<LayerCoord>(LayerCoord(split_coord, 0));
+    curr_node->addChild(split_node);
+    curr_node = split_node;
+  }
+  curr_node->addChild(child_node);
+}
 
 void LayerAssigner::buildPillarTree(LAModel& la_model)
 {
@@ -434,138 +664,32 @@ LAPillar LayerAssigner::convertLAPillar(LayerCoord& layer_coord, std::map<Planar
 
 void LayerAssigner::assignPillarTree(LAModel& la_model)
 {
-  buildSubtreeCost(la_model);
-  assignLayer(la_model);
+  assignForward(la_model);
+  assignBackward(la_model);
 }
 
-void LayerAssigner::buildSubtreeCost(LAModel& la_model)
+void LayerAssigner::assignForward(LAModel& la_model)
 {
   TNode<LAPillar>* pillar_tree_root = la_model.get_curr_la_task()->get_pillar_tree().get_root();
 
-  std::map<TNode<LAPillar>*, TNode<LAPillar>*> parent_node_map;
+  LAPackage la_package(pillar_tree_root, pillar_tree_root);
+  for (int32_t candidate_layer_idx : getCandidateLayerList(la_model, la_package)) {
+    std::set<int32_t>& pin_layer_idx_set = pillar_tree_root->value().get_pin_layer_idx_set();
+    LALayerCost layer_cost;
+    layer_cost.set_parent_layer_idx(candidate_layer_idx);
+    layer_cost.set_layer_idx(candidate_layer_idx);
+    layer_cost.set_history_cost(getFullViaCost(la_model, pin_layer_idx_set, candidate_layer_idx));
+    pillar_tree_root->value().get_layer_cost_list().push_back(std::move(layer_cost));
+  }
   std::queue<TNode<LAPillar>*> pillar_node_queue = RTUTIL.initQueue(pillar_tree_root);
   while (!pillar_node_queue.empty()) {
     TNode<LAPillar>* parent_pillar_node = RTUTIL.getFrontAndPop(pillar_node_queue);
-    for (TNode<LAPillar>* child_node : parent_pillar_node->get_child_list()) {
-      parent_node_map[child_node] = parent_pillar_node;
+    std::vector<TNode<LAPillar>*>& child_list = parent_pillar_node->get_child_list();
+    for (size_t i = 0; i < child_list.size(); i++) {
+      LAPackage la_package(parent_pillar_node, child_list[i]);
+      buildLayerCost(la_model, la_package);
     }
-    RTUTIL.addListToQueue(pillar_node_queue, parent_pillar_node->get_child_list());
-  }
-  const std::map<TNode<LAPillar>*, TNode<LAPillar>*>& parent_node_map_ref = parent_node_map;
-
-  std::vector<std::vector<TNode<LAPillar>*>> level_list = RTUTIL.getLevelOrder(la_model.get_curr_la_task()->get_pillar_tree());
-  for (int32_t i = static_cast<int32_t>(level_list.size()) - 1; i >= 0; i--) {
-    std::vector<TNode<LAPillar>*>& level_node_list = level_list[i];
-    for (int32_t node_idx = 0; node_idx < static_cast<int32_t>(level_node_list.size()); node_idx++) {
-      TNode<LAPillar>* pillar_node = level_node_list[node_idx];
-      LAPillar& pillar = pillar_node->value();
-      std::vector<LALayerCost>& layer_cost_list = pillar.get_layer_cost_list();
-      layer_cost_list.clear();
-
-      std::vector<int32_t> incoming_layer_idx_list;
-      if (pillar_node == pillar_tree_root) {
-        incoming_layer_idx_list.push_back(-1);
-      } else {
-        LAPackage la_package(parent_node_map_ref.at(pillar_node), pillar_node);
-        incoming_layer_idx_list = getCandidateLayerList(la_model, la_package);
-      }
-
-      std::vector<std::vector<int32_t>> child_candidate_layer_idx_list_list;
-      std::vector<std::vector<double>> child_base_cost_list_list;
-      std::set<int32_t> child_boundary_layer_idx_set;
-      for (TNode<LAPillar>* child_node : pillar_node->get_child_list()) {
-        LAPackage la_package(pillar_node, child_node);
-        child_candidate_layer_idx_list_list.push_back(getCandidateLayerList(la_model, la_package));
-        std::vector<LALayerCost>& child_layer_cost_list = child_node->value().get_layer_cost_list();
-        std::vector<double> child_base_cost_list;
-        child_base_cost_list.reserve(child_candidate_layer_idx_list_list.back().size());
-        for (size_t candidate_idx = 0; candidate_idx < child_candidate_layer_idx_list_list.back().size(); candidate_idx++) {
-          int32_t layer_idx = child_candidate_layer_idx_list_list.back()[candidate_idx];
-          child_boundary_layer_idx_set.insert(layer_idx);
-          double subtree_cost = DBL_MAX;
-          if (candidate_idx < child_layer_cost_list.size() && child_layer_cost_list[candidate_idx].get_layer_idx() == layer_idx) {
-            subtree_cost = child_layer_cost_list[candidate_idx].get_subtree_cost();
-          }
-          if (subtree_cost == DBL_MAX) {
-            RTLOG.error(Loc::current(), "The child layer cost is not found!");
-          }
-          child_base_cost_list.push_back(getSegmentCost(la_model, la_package, layer_idx) + subtree_cost);
-        }
-        child_base_cost_list_list.push_back(std::move(child_base_cost_list));
-      }
-
-      for (int32_t incoming_layer_idx : incoming_layer_idx_list) {
-        std::set<int32_t> base_layer_idx_set = pillar.get_pin_layer_idx_set();
-        std::set<int32_t> boundary_layer_idx_set = child_boundary_layer_idx_set;
-        if (incoming_layer_idx != -1) {
-          base_layer_idx_set.insert(incoming_layer_idx);
-          boundary_layer_idx_set.insert(incoming_layer_idx);
-        }
-
-        double min_cost = DBL_MAX;
-        std::vector<int32_t> best_child_layer_idx_list;
-        if (pillar_node->isLeafNode()) {
-          min_cost = getPillarViaCost(la_model, base_layer_idx_set);
-        } else {
-          // For a fixed via span, each child chooses its best layer independently.
-          for (int32_t layer_idx : base_layer_idx_set) {
-            boundary_layer_idx_set.insert(layer_idx);
-          }
-          std::vector<int32_t> boundary_layer_idx_list(boundary_layer_idx_set.begin(), boundary_layer_idx_set.end());
-          for (size_t low_idx = 0; low_idx < boundary_layer_idx_list.size(); low_idx++) {
-            for (size_t high_idx = low_idx; high_idx < boundary_layer_idx_list.size(); high_idx++) {
-              int32_t low_layer_idx = boundary_layer_idx_list[low_idx];
-              int32_t high_layer_idx = boundary_layer_idx_list[high_idx];
-              if (!base_layer_idx_set.empty()
-                  && (low_layer_idx > *base_layer_idx_set.begin() || high_layer_idx < *base_layer_idx_set.rbegin())) {
-                continue;
-              }
-
-              double curr_cost = la_model.get_la_com_param().get_via_unit() * (high_layer_idx - low_layer_idx);
-              std::vector<int32_t> curr_child_layer_idx_list;
-              bool valid = true;
-              for (size_t child_idx = 0; child_idx < pillar_node->get_child_list().size(); child_idx++) {
-                double child_min_cost = DBL_MAX;
-                int32_t best_child_layer_idx = -1;
-                for (size_t candidate_idx = 0; candidate_idx < child_candidate_layer_idx_list_list[child_idx].size(); candidate_idx++) {
-                  int32_t child_layer_idx = child_candidate_layer_idx_list_list[child_idx][candidate_idx];
-                  if (child_layer_idx < low_layer_idx || high_layer_idx < child_layer_idx) {
-                    continue;
-                  }
-                  double child_cost = child_base_cost_list_list[child_idx][candidate_idx];
-                  if (child_cost < child_min_cost || (child_cost == child_min_cost && child_layer_idx < best_child_layer_idx)) {
-                    child_min_cost = child_cost;
-                    best_child_layer_idx = child_layer_idx;
-                  }
-                }
-                if (child_min_cost == DBL_MAX) {
-                  valid = false;
-                  break;
-                }
-                curr_cost += child_min_cost;
-                curr_child_layer_idx_list.push_back(best_child_layer_idx);
-              }
-              if (!valid) {
-                continue;
-              }
-              if (curr_cost < min_cost || (curr_cost == min_cost && curr_child_layer_idx_list < best_child_layer_idx_list)) {
-                min_cost = curr_cost;
-                best_child_layer_idx_list = std::move(curr_child_layer_idx_list);
-              }
-            }
-          }
-        }
-        if (min_cost == DBL_MAX) {
-          RTLOG.error(Loc::current(), "The min cost is wrong!");
-        }
-
-        LALayerCost layer_cost;
-        layer_cost.set_layer_idx(incoming_layer_idx);
-        layer_cost.set_subtree_cost(min_cost);
-        layer_cost.set_child_layer_idx_list(best_child_layer_idx_list);
-        layer_cost_list.push_back(std::move(layer_cost));
-      }
-    }
+    RTUTIL.addListToQueue(pillar_node_queue, child_list);
   }
 }
 
@@ -591,27 +715,95 @@ std::vector<int32_t> LayerAssigner::getCandidateLayerList(LAModel& la_model, LAP
   return candidate_layer_idx_list;
 }
 
-double LayerAssigner::getPillarViaCost(LAModel& la_model, const std::set<int32_t>& layer_idx_set)
+double LayerAssigner::getFullViaCost(LAModel& la_model, std::set<int32_t>& layer_idx_set, int32_t candidate_layer_idx)
 {
-  if (layer_idx_set.empty()) {
-    return 0;
+  double via_unit = la_model.get_la_com_param().get_via_unit();
+
+  int32_t via_num = 0;
+  if (layer_idx_set.size() > 0) {
+    std::set<int32_t> layer_idx_set_temp = layer_idx_set;
+    layer_idx_set_temp.insert(candidate_layer_idx);
+    via_num = std::abs(*layer_idx_set_temp.begin() - *layer_idx_set_temp.rbegin());
   }
-  return la_model.get_la_com_param().get_via_unit() * (*layer_idx_set.rbegin() - *layer_idx_set.begin());
+  return (via_unit * via_num);
+}
+
+void LayerAssigner::buildLayerCost(LAModel& la_model, LAPackage& la_package)
+{
+  std::vector<LALayerCost>& layer_cost_list = la_package.getChildPillar().get_layer_cost_list();
+
+  std::vector<int32_t> candidate_layer_idx_list = getCandidateLayerList(la_model, la_package);
+  for (int32_t candidate_layer_idx : candidate_layer_idx_list) {
+    std::pair<int32_t, double> parent_pillar_cost_pair = getParentPillarCost(la_model, la_package, candidate_layer_idx);
+    double segment_cost = getSegmentCost(la_model, la_package, candidate_layer_idx);
+    double layer_bias_cost = getLayerBiasCost(la_model, la_package, candidate_layer_idx_list, candidate_layer_idx);
+    double refine_layer_hint_cost = getRefineLayerHintCost(la_model, la_package, candidate_layer_idx);
+    double layer_switch_cost = getLayerSwitchCost(la_model, la_package, parent_pillar_cost_pair.first, candidate_layer_idx);
+    double child_pillar_cost = getChildPillarCost(la_model, la_package, candidate_layer_idx);
+
+    LALayerCost layer_cost;
+    layer_cost.set_parent_layer_idx(parent_pillar_cost_pair.first);
+    layer_cost.set_layer_idx(candidate_layer_idx);
+    layer_cost.set_history_cost(parent_pillar_cost_pair.second + segment_cost + layer_bias_cost + refine_layer_hint_cost + layer_switch_cost
+                                + child_pillar_cost);
+    layer_cost_list.push_back(std::move(layer_cost));
+  }
+}
+
+std::pair<int32_t, double> LayerAssigner::getParentPillarCost(LAModel& la_model, LAPackage& la_package, int32_t candidate_layer_idx)
+{
+  LAPillar& parent_pillar = la_package.getParentPillar();
+
+  std::pair<int32_t, double> layer_cost_pair;
+  double min_cost = DBL_MAX;
+  for (LALayerCost& layer_cost : parent_pillar.get_layer_cost_list()) {
+    std::set<int32_t> layer_idx_set_temp = parent_pillar.get_pin_layer_idx_set();
+    layer_idx_set_temp.insert(layer_cost.get_layer_idx());
+    double curr_cost = layer_cost.get_history_cost() + getExtraViaCost(la_model, layer_idx_set_temp, candidate_layer_idx);
+
+    if (curr_cost < min_cost) {
+      min_cost = curr_cost;
+      layer_cost_pair.first = layer_cost.get_layer_idx();
+      layer_cost_pair.second = curr_cost;
+    } else if (curr_cost == min_cost) {
+      layer_cost_pair.first = std::min(layer_cost_pair.first, layer_cost.get_layer_idx());
+    }
+  }
+  if (min_cost == DBL_MAX) {
+    RTLOG.error(Loc::current(), "The min cost is wrong!");
+  }
+  return layer_cost_pair;
+}
+
+double LayerAssigner::getExtraViaCost(LAModel& la_model, std::set<int32_t>& layer_idx_set, int32_t candidate_layer_idx)
+{
+  double via_unit = la_model.get_la_com_param().get_via_unit();
+
+  int32_t via_num = 0;
+  if (layer_idx_set.size() > 0) {
+    int32_t begin_layer_idx = *layer_idx_set.begin();
+    int32_t end_layer_idx = *layer_idx_set.rbegin();
+    if (candidate_layer_idx < begin_layer_idx) {
+      via_num = std::abs(candidate_layer_idx - begin_layer_idx);
+    } else if (end_layer_idx < candidate_layer_idx) {
+      via_num = std::abs(candidate_layer_idx - end_layer_idx);
+    } else {
+      via_num = 0;
+    }
+  }
+  return (via_unit * via_num);
 }
 
 double LayerAssigner::getSegmentCost(LAModel& la_model, LAPackage& la_package, int32_t candidate_layer_idx)
 {
+  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
   double overflow_unit = la_model.get_la_com_param().get_overflow_unit();
-  int32_t net_idx = la_model.get_curr_la_task()->get_net_idx();
+
+  Direction prefer_direction = routing_layer_list[candidate_layer_idx].get_prefer_direction();
 
   PlanarCoord first_coord = la_package.getParentPillar().get_planar_coord();
   PlanarCoord second_coord = la_package.getChildPillar().get_planar_coord();
-  if (RTUTIL.isProximal(first_coord, second_coord)) {
-    return 0;
-  }
-  if (!RTUTIL.isRightAngled(first_coord, second_coord)) {
-    RTLOG.error(Loc::current(), "The segment is oblique!");
-  }
   int32_t first_x = first_coord.get_x();
   int32_t first_y = first_coord.get_y();
   int32_t second_x = second_coord.get_x();
@@ -619,83 +811,271 @@ double LayerAssigner::getSegmentCost(LAModel& la_model, LAPackage& la_package, i
   RTUTIL.swapByASC(first_x, second_x);
   RTUTIL.swapByASC(first_y, second_y);
 
-  double edge_cost = 0;
-  if (RTUTIL.isHorizontal(first_coord, second_coord)) {
-    GridMap<RoutingEdge>& routing_edge_map = RTDM.getDatabase().get_routing_h_edge_map()[candidate_layer_idx];
-    for (int32_t x = first_x; x < second_x; x++) {
-      edge_cost += getOverflowCost(routing_edge_map[x][first_y], overflow_unit, net_idx);
-    }
-  } else {
-    GridMap<RoutingEdge>& routing_edge_map = RTDM.getDatabase().get_routing_v_edge_map()[candidate_layer_idx];
-    for (int32_t y = first_y; y < second_y; y++) {
-      edge_cost += getOverflowCost(routing_edge_map[first_x][y], overflow_unit, net_idx);
+  double node_cost = 0;
+  for (int32_t x = first_x; x <= second_x; x++) {
+    for (int32_t y = first_y; y <= second_y; y++) {
+      node_cost += layer_node_map[candidate_layer_idx][x][y].getOverflowCost(la_model.get_curr_la_task()->get_net_idx(), prefer_direction, overflow_unit);
     }
   }
-  return edge_cost;
+  return node_cost;
 }
 
-void LayerAssigner::assignLayer(LAModel& la_model)
+double LayerAssigner::getLayerBiasCost(LAModel& la_model, LAPackage& la_package, std::vector<int32_t>& candidate_layer_idx_list, int32_t candidate_layer_idx)
 {
-  TNode<LAPillar>* pillar_tree_root = la_model.get_curr_la_task()->get_pillar_tree().get_root();
-  pillar_tree_root->value().set_layer_idx(-1);
+  if (candidate_layer_idx_list.size() <= 1) {
+    return 0;
+  }
 
-  std::queue<TNode<LAPillar>*> pillar_node_queue = RTUTIL.initQueue(pillar_tree_root);
-  while (!pillar_node_queue.empty()) {
-    TNode<LAPillar>* pillar_node = RTUTIL.getFrontAndPop(pillar_node_queue);
-    LALayerCost* selected_layer_cost = nullptr;
-    for (LALayerCost& layer_cost : pillar_node->value().get_layer_cost_list()) {
-      if (layer_cost.get_layer_idx() == pillar_node->value().get_layer_idx()) {
-        selected_layer_cost = &layer_cost;
-        break;
+  int32_t segment_length = RTUTIL.getManhattanDistance(la_package.getParentPillar().get_planar_coord(), la_package.getChildPillar().get_planar_coord());
+  if (segment_length == 0) {
+    return 0;
+  }
+
+  int32_t layer_rank = -1;
+  for (size_t i = 0; i < candidate_layer_idx_list.size(); i++) {
+    if (candidate_layer_idx_list[i] == candidate_layer_idx) {
+      layer_rank = static_cast<int32_t>(i);
+      break;
+    }
+  }
+  if (layer_rank == -1) {
+    RTLOG.error(Loc::current(), "The candidate layer is not found!");
+  }
+
+  LAComParam& la_com_param = la_model.get_la_com_param();
+  int32_t max_rank = static_cast<int32_t>(candidate_layer_idx_list.size()) - 1;
+  double layer_bias_unit = la_com_param.get_layer_bias_unit();
+
+  if (segment_length <= la_com_param.get_short_segment_length()) {
+    return layer_bias_unit * 2.0 * layer_rank;
+  }
+  if (segment_length <= la_com_param.get_mid_segment_length()) {
+    return layer_bias_unit * 1.0 * layer_rank;
+  }
+  if (segment_length <= la_com_param.get_long_segment_length()) {
+    double target_rank = 0.5 * max_rank;
+    return layer_bias_unit * 0.4 * std::abs(layer_rank - target_rank);
+  }
+
+  auto clamp = [](double value, double lower_bound, double upper_bound) {
+    return std::max(lower_bound, std::min(value, upper_bound));
+  };
+  auto smooth_step = [&clamp](double value, double lower_bound, double upper_bound) {
+    double ratio = clamp((value - lower_bound) / (upper_bound - lower_bound), 0.0, 1.0);
+    return ratio * ratio * (3.0 - 2.0 * ratio);
+  };
+  auto lerp = [](double start, double end, double ratio) { return start + (end - start) * ratio; };
+
+  double long_segment_length = la_com_param.get_long_segment_length();
+  double length_scale = std::min(segment_length / long_segment_length, 4.0);
+  double old_layer_bias_cost = layer_bias_unit * 0.6 * length_scale * (max_rank - layer_rank);
+  double candidate_layer_num = static_cast<double>(candidate_layer_idx_list.size());
+  double resolution_ratio = clamp(candidate_layer_num - 2.0, 0.0, 1.0);
+
+  double knee1 = long_segment_length * 2.5;
+  double knee2 = long_segment_length * 5.0;
+  double knee3 = long_segment_length * 10.0;
+
+  double target_norm_rank = 0.70;
+  if (segment_length <= knee1) {
+    target_norm_rank = 0.70;
+  } else if (segment_length <= knee2) {
+    target_norm_rank = lerp(0.70, 0.78, smooth_step(segment_length, knee1, knee2));
+  } else if (segment_length <= knee3) {
+    target_norm_rank = lerp(0.78, 0.90, smooth_step(segment_length, knee2, knee3));
+  } else {
+    target_norm_rank = 0.90;
+  }
+
+  double norm_rank = layer_rank / 1.0 / max_rank;
+  double rank_distance = std::abs(norm_rank - target_norm_rank);
+  double normalized_layer_bias_cost = layer_bias_unit * 0.8 * max_rank * rank_distance;
+
+  double top_region_ratio = clamp((norm_rank - 0.8) / 0.2, 0.0, 1.0);
+  double top_gate_ratio = (1.0 - smooth_step(segment_length, knee1, knee3)) * resolution_ratio;
+  normalized_layer_bias_cost += layer_bias_unit * 0.6 * length_scale * top_region_ratio * top_gate_ratio;
+  return lerp(old_layer_bias_cost, normalized_layer_bias_cost, resolution_ratio);
+}
+
+double LayerAssigner::getRefineLayerHintCost(LAModel& la_model, LAPackage& la_package, int32_t candidate_layer_idx)
+{
+  if (_refine_layer_hint_list.empty()) {
+    return 0;
+  }
+
+  PlanarCoord first_coord = la_package.getParentPillar().get_planar_coord();
+  PlanarCoord second_coord = la_package.getChildPillar().get_planar_coord();
+  if (RTUTIL.isProximal(first_coord, second_coord)) {
+    return 0;
+  }
+
+  auto is_on_segment = [](const PlanarCoord& coord, const PlanarCoord& first_coord, const PlanarCoord& second_coord) {
+    if (RTUTIL.isProximal(first_coord, second_coord)) {
+      return coord == first_coord;
+    }
+
+    int32_t first_x = first_coord.get_x();
+    int32_t second_x = second_coord.get_x();
+    int32_t first_y = first_coord.get_y();
+    int32_t second_y = second_coord.get_y();
+    RTUTIL.swapByASC(first_x, second_x);
+    RTUTIL.swapByASC(first_y, second_y);
+
+    if (RTUTIL.isHorizontal(first_coord, second_coord)) {
+      return coord.get_y() == first_coord.get_y() && first_x <= coord.get_x() && coord.get_x() <= second_x;
+    }
+    if (RTUTIL.isVertical(first_coord, second_coord)) {
+      return coord.get_x() == first_coord.get_x() && first_y <= coord.get_y() && coord.get_y() <= second_y;
+    }
+    return false;
+  };
+
+  for (LARefineLayerHint& hint : _refine_layer_hint_list) {
+    if (RTUTIL.getDirection(first_coord, second_coord) != RTUTIL.getDirection(hint.first_coord, hint.second_coord)) {
+      continue;
+    }
+    if (!is_on_segment(first_coord, hint.first_coord, hint.second_coord) || !is_on_segment(second_coord, hint.first_coord, hint.second_coord)) {
+      continue;
+    }
+    if (candidate_layer_idx == hint.layer_idx) {
+      return 0;
+    }
+    return la_model.get_la_com_param().get_layer_bias_unit() * 0.5 * std::abs(candidate_layer_idx - hint.layer_idx);
+  }
+  return 0;
+}
+
+double LayerAssigner::getLayerSwitchCost(LAModel& la_model, LAPackage& la_package, int32_t parent_layer_idx, int32_t candidate_layer_idx)
+{
+  if (parent_layer_idx == candidate_layer_idx) {
+    return 0;
+  }
+
+  int32_t segment_length = RTUTIL.getManhattanDistance(la_package.getParentPillar().get_planar_coord(), la_package.getChildPillar().get_planar_coord());
+  if (segment_length == 0) {
+    return 0;
+  }
+
+  double switch_cost = la_model.get_la_com_param().get_layer_switch_unit() * std::abs(parent_layer_idx - candidate_layer_idx);
+  if (!la_package.getParentPillar().get_pin_layer_idx_set().empty() || !la_package.getChildPillar().get_pin_layer_idx_set().empty()) {
+    switch_cost *= 0.5;
+  }
+  return switch_cost;
+}
+
+double LayerAssigner::getChildPillarCost(LAModel& la_model, LAPackage& la_package, int32_t candidate_layer_idx)
+{
+  LAPillar& child_pillar = la_package.getChildPillar();
+  return getFullViaCost(la_model, child_pillar.get_pin_layer_idx_set(), candidate_layer_idx);
+}
+
+void LayerAssigner::assignBackward(LAModel& la_model)
+{
+  std::vector<std::vector<TNode<LAPillar>*>> level_list = RTUTIL.getLevelOrder(la_model.get_curr_la_task()->get_pillar_tree());
+  if (level_list.empty()) {
+    return;
+  }
+  for (int32_t i = static_cast<int32_t>(level_list.size() - 1); i >= 0; i--) {
+    for (size_t j = 0; j < level_list[i].size(); j++) {
+      int32_t best_layer_idx;
+      if (level_list[i][j]->isLeafNode()) {
+        best_layer_idx = getBestLayerBySelf(level_list[i][j]);
+      } else {
+        best_layer_idx = getBestLayerByChild(level_list[i][j]);
+      }
+      level_list[i][j]->value().set_layer_idx(best_layer_idx);
+    }
+  }
+}
+
+int32_t LayerAssigner::getBestLayerBySelf(TNode<LAPillar>* pillar_node)
+{
+  std::vector<LALayerCost>& layer_cost_list = pillar_node->value().get_layer_cost_list();
+
+  double min_cost = DBL_MAX;
+  int32_t best_layer_idx = layer_cost_list.front().get_layer_idx();
+  for (LALayerCost& layer_cost : layer_cost_list) {
+    double cost = layer_cost.get_history_cost();
+    if (cost < min_cost) {
+      min_cost = cost;
+      best_layer_idx = layer_cost.get_layer_idx();
+    } else if (cost == min_cost) {
+      best_layer_idx = std::min(best_layer_idx, layer_cost.get_layer_idx());
+    }
+  }
+  if (min_cost == DBL_MAX) {
+    RTLOG.error(Loc::current(), "The min cost is wrong!");
+  }
+  return best_layer_idx;
+}
+
+int32_t LayerAssigner::getBestLayerByChild(TNode<LAPillar>* parent_pillar_node)
+{
+  std::set<int32_t> candidate_layer_idx_set;
+  for (TNode<LAPillar>* child_node : parent_pillar_node->get_child_list()) {
+    for (LALayerCost& layer_cost : child_node->value().get_layer_cost_list()) {
+      if (layer_cost.get_layer_idx() == child_node->value().get_layer_idx()) {
+        candidate_layer_idx_set.insert(layer_cost.get_parent_layer_idx());
       }
     }
-    if (selected_layer_cost == nullptr) {
-      RTLOG.error(Loc::current(), "The layer cost is not found!");
-    }
-
-    std::vector<TNode<LAPillar>*>& child_list = pillar_node->get_child_list();
-    std::vector<int32_t>& child_layer_idx_list = selected_layer_cost->get_child_layer_idx_list();
-    if (child_list.size() != child_layer_idx_list.size()) {
-      RTLOG.error(Loc::current(), "The child layer count is wrong!");
-    }
-    for (size_t i = 0; i < child_list.size(); i++) {
-      child_list[i]->value().set_layer_idx(child_layer_idx_list[i]);
-    }
-    RTUTIL.addListToQueue(pillar_node_queue, child_list);
   }
+  double min_cost = DBL_MAX;
+  int32_t best_layer_idx = INT_MAX;
+  for (int32_t candidate_layer_idx : candidate_layer_idx_set) {
+    for (LALayerCost& layer_cost : parent_pillar_node->value().get_layer_cost_list()) {
+      if (layer_cost.get_layer_idx() != candidate_layer_idx) {
+        continue;
+      }
+      double curr_cost = layer_cost.get_history_cost();
+      if (curr_cost < min_cost) {
+        min_cost = curr_cost;
+        best_layer_idx = candidate_layer_idx;
+      } else if (curr_cost == min_cost) {
+        best_layer_idx = std::min(best_layer_idx, candidate_layer_idx);
+      }
+      break;
+    }
+  }
+  if (min_cost == DBL_MAX) {
+    RTLOG.error(Loc::current(), "The min cost is wrong!");
+  }
+  return best_layer_idx;
 }
 
-// result
-
-void LayerAssigner::buildRoutingTree(LAModel& la_model)
+void LayerAssigner::buildLayerTree(LAModel& la_model)
 {
-  buildPillarTree(la_model);
-  assignPillarTree(la_model);
+  MTree<LayerCoord> coord_tree = getAssignedCoordTree(la_model);
+  commitLayerTree(la_model, coord_tree);
+}
+
+MTree<LayerCoord> LayerAssigner::getAssignedCoordTree(LAModel& la_model)
+{
   std::vector<Segment<LayerCoord>> routing_segment_list = getRoutingSegmentList(la_model);
-  la_model.set_routing_tree(getCoordTree(la_model, routing_segment_list));
+  return getCoordTree(la_model, routing_segment_list);
+}
+
+void LayerAssigner::commitLayerTree(LAModel& la_model, MTree<LayerCoord>& coord_tree)
+{
+  updateDemandToGraph(la_model, ChangeType::kAdd, coord_tree);
+  uploadNetResult(la_model, coord_tree);
 }
 
 std::vector<Segment<LayerCoord>> LayerAssigner::getRoutingSegmentList(LAModel& la_model)
 {
   std::vector<Segment<LayerCoord>> routing_segment_list;
 
-  TNode<LAPillar>* pillar_tree_root = la_model.get_curr_la_task()->get_pillar_tree().get_root();
-  std::queue<TNode<LAPillar>*> pillar_node_queue = RTUTIL.initQueue(pillar_tree_root);
+  std::queue<TNode<LAPillar>*> pillar_node_queue = RTUTIL.initQueue(la_model.get_curr_la_task()->get_pillar_tree().get_root());
   while (!pillar_node_queue.empty()) {
     TNode<LAPillar>* parent_pillar_node = RTUTIL.getFrontAndPop(pillar_node_queue);
     std::vector<TNode<LAPillar>*>& child_list = parent_pillar_node->get_child_list();
     {
       std::set<int32_t> layer_idx_set = parent_pillar_node->value().get_pin_layer_idx_set();
-      if (parent_pillar_node != pillar_tree_root) {
-        layer_idx_set.insert(parent_pillar_node->value().get_layer_idx());
-      }
+      layer_idx_set.insert(parent_pillar_node->value().get_layer_idx());
       for (TNode<LAPillar>* child_node : child_list) {
         layer_idx_set.insert(child_node->value().get_layer_idx());
       }
-      if (!layer_idx_set.empty()) {
-        routing_segment_list.emplace_back(LayerCoord(parent_pillar_node->value().get_planar_coord(), *layer_idx_set.begin()),
-                                          LayerCoord(parent_pillar_node->value().get_planar_coord(), *layer_idx_set.rbegin()));
-      }
+      routing_segment_list.emplace_back(LayerCoord(parent_pillar_node->value().get_planar_coord(), *layer_idx_set.begin()),
+                                        LayerCoord(parent_pillar_node->value().get_planar_coord(), *layer_idx_set.rbegin()));
     }
     for (TNode<LAPillar>* child_node : child_list) {
       routing_segment_list.emplace_back(LayerCoord(parent_pillar_node->value().get_planar_coord(), child_node->value().get_layer_idx()),
@@ -719,9 +1099,9 @@ MTree<LayerCoord> LayerAssigner::getCoordTree(LAModel& la_model, std::vector<Seg
   return RTUTIL.getTreeByFullFlow(candidate_root_coord_list, routing_segment_list, key_coord_pin_map);
 }
 
-void LayerAssigner::uploadNetResult(LAModel& la_model)
+void LayerAssigner::uploadNetResult(LAModel& la_model, MTree<LayerCoord>& coord_tree)
 {
-  for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(la_model.get_routing_tree())) {
+  for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
     Segment<LayerCoord>* segment = new Segment<LayerCoord>(coord_segment.get_first()->value(), coord_segment.get_second()->value());
     RTDM.updateNetGlobalResultToGCellMap(ChangeType::kAdd, la_model.get_curr_la_task()->get_net_idx(), segment);
   }
@@ -729,61 +1109,64 @@ void LayerAssigner::uploadNetResult(LAModel& la_model)
 
 void LayerAssigner::resetSingleTask(LAModel& la_model)
 {
-  la_model.get_routing_tree().clear();
   la_model.set_curr_la_task(nullptr);
 }
 
-// environment
+#if 1  // update env
 
-void LayerAssigner::updateRoutingTreeToGraph(LAModel& la_model, ChangeType change_type)
+void LayerAssigner::updateDemandToGraph(LAModel& la_model, ChangeType change_type, MTree<LayerCoord>& coord_tree)
 {
   int32_t curr_net_idx = la_model.get_curr_la_task()->get_net_idx();
-  int32_t delta = 0;
-  if (change_type == ChangeType::kAdd) {
-    delta = 1;
-  } else if (change_type == ChangeType::kDel) {
-    delta = -1;
-  } else {
-    RTLOG.error(Loc::current(), "The change type is error!");
-  }
 
-  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
-  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
-  for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(la_model.get_routing_tree())) {
-    LayerCoord first_coord = coord_segment.get_first()->value();
-    LayerCoord second_coord = coord_segment.get_second()->value();
-    if (first_coord.get_layer_idx() != second_coord.get_layer_idx()) {
-      continue;
-    }
-    if (RTUTIL.isProximal(first_coord, second_coord)) {
-      continue;
-    }
-    if (!RTUTIL.isRightAngled(first_coord, second_coord)) {
+  std::vector<Segment<LayerCoord>> routing_segment_list;
+  for (Segment<TNode<LayerCoord>*>& coord_segment : RTUTIL.getSegListByTree(coord_tree)) {
+    routing_segment_list.emplace_back(coord_segment.get_first()->value(), coord_segment.get_second()->value());
+  }
+  std::map<LayerCoord, std::set<Orientation>, CmpLayerCoordByXASC> usage_map;
+  for (Segment<LayerCoord>& coord_segment : routing_segment_list) {
+    LayerCoord& first_coord = coord_segment.get_first();
+    LayerCoord& second_coord = coord_segment.get_second();
+
+    Orientation orientation = RTUTIL.getOrientation(first_coord, second_coord);
+    if (orientation == Orientation::kNone || orientation == Orientation::kOblique) {
       RTLOG.error(Loc::current(), "The orientation is error!");
     }
+    Orientation opposite_orientation = RTUTIL.getOppositeOrientation(orientation);
 
-    int32_t layer_idx = first_coord.get_layer_idx();
-    int32_t first_x = std::min(first_coord.get_x(), second_coord.get_x());
-    int32_t second_x = std::max(first_coord.get_x(), second_coord.get_x());
-    int32_t first_y = std::min(first_coord.get_y(), second_coord.get_y());
-    int32_t second_y = std::max(first_coord.get_y(), second_coord.get_y());
-    bool is_horizontal = RTUTIL.isHorizontal(first_coord, second_coord);
-    int32_t edge_num = is_horizontal ? second_x - first_x : second_y - first_y;
-    for (int32_t i = 0; i < edge_num; i++) {
-      RoutingEdge& routing_edge
-          = is_horizontal ? routing_h_edge_map[layer_idx][first_x + i][first_y] : routing_v_edge_map[layer_idx][first_x][first_y + i];
-      if (routing_edge.get_ignore_net_set().count(curr_net_idx)) {
-        continue;
+    int32_t first_x = first_coord.get_x();
+    int32_t first_y = first_coord.get_y();
+    int32_t first_layer_idx = first_coord.get_layer_idx();
+    int32_t second_x = second_coord.get_x();
+    int32_t second_y = second_coord.get_y();
+    int32_t second_layer_idx = second_coord.get_layer_idx();
+    RTUTIL.swapByASC(first_x, second_x);
+    RTUTIL.swapByASC(first_y, second_y);
+    RTUTIL.swapByASC(first_layer_idx, second_layer_idx);
+
+    for (int32_t x = first_x; x <= second_x; x++) {
+      for (int32_t y = first_y; y <= second_y; y++) {
+        for (int32_t layer_idx = first_layer_idx; layer_idx <= second_layer_idx; layer_idx++) {
+          LayerCoord coord(x, y, layer_idx);
+          if (coord != first_coord) {
+            usage_map[coord].insert(opposite_orientation);
+          }
+          if (coord != second_coord) {
+            usage_map[coord].insert(orientation);
+          }
+        }
       }
-      if (change_type == ChangeType::kDel && routing_edge.get_demand() <= 0) {
-        RTLOG.error(Loc::current(), "The routing edge demand is error!");
-      }
-      routing_edge.set_demand(routing_edge.get_demand() + delta);
     }
+  }
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
+  for (auto& [usage_coord, orientation_list] : usage_map) {
+    LANode& la_node = layer_node_map[usage_coord.get_layer_idx()][usage_coord.get_x()][usage_coord.get_y()];
+    la_node.updateDemand(curr_net_idx, orientation_list, change_type);
   }
 }
 
-// exhibit
+#endif
+
+#if 1  // exhibit
 
 void LayerAssigner::updateSummary(LAModel& la_model)
 {
@@ -805,6 +1188,7 @@ void LayerAssigner::updateSummary(LAModel& la_model)
   int32_t& total_via_num = summary.la_summary.total_via_num;
   std::map<std::string, std::map<std::string, double>>& clock_timing_map = summary.la_summary.clock_timing_map;
 
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
   std::vector<LANet>& la_net_list = la_model.get_la_net_list();
 
   routing_demand_map.clear();
@@ -817,25 +1201,18 @@ void LayerAssigner::updateSummary(LAModel& la_model)
   total_via_num = 0;
   clock_timing_map.clear();
 
-  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
-  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
-  for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(routing_h_edge_map.size()); layer_idx++) {
-    double routing_demand = 0;
-    double routing_overflow = 0;
-    for (GridMap<RoutingEdge>* routing_edge_map : {&routing_h_edge_map[layer_idx], &routing_v_edge_map[layer_idx]}) {
-#pragma omp parallel for reduction(+ : routing_demand, routing_overflow)
-      for (int32_t x = 0; x < routing_edge_map->get_x_size(); x++) {
-        for (int32_t y = 0; y < routing_edge_map->get_y_size(); y++) {
-          RoutingEdge& routing_edge = (*routing_edge_map)[x][y];
-          routing_demand += routing_edge.get_demand();
-          routing_overflow += routing_edge.get_overflow();
-        }
+  for (int32_t layer_idx = 0; layer_idx < static_cast<int32_t>(layer_node_map.size()); layer_idx++) {
+    GridMap<LANode>& la_node_map = layer_node_map[layer_idx];
+    for (int32_t x = 0; x < la_node_map.get_x_size(); x++) {
+      for (int32_t y = 0; y < la_node_map.get_y_size(); y++) {
+        double node_demand = la_node_map[x][y].getDemand();
+        double node_overflow = la_node_map[x][y].getOverflow();
+        routing_demand_map[layer_idx] += node_demand;
+        total_demand += node_demand;
+        routing_overflow_map[layer_idx] += node_overflow;
+        total_overflow += node_overflow;
       }
     }
-    routing_demand_map[layer_idx] = routing_demand;
-    total_demand += routing_demand;
-    routing_overflow_map[layer_idx] = routing_overflow;
-    total_overflow += routing_overflow;
   }
   for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
     for (Segment<LayerCoord>* segment : segment_set) {
@@ -1055,15 +1432,13 @@ void LayerAssigner::outputNetCSV(LAModel& la_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
-  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
   for (RoutingLayer& routing_layer : routing_layer_list) {
     std::ofstream* net_csv_file = RTUTIL.getOutputFileStream(RTUTIL.getString(la_temp_directory_path, "net_map_", routing_layer.get_layer_name(), ".csv"));
-    GridMap<RoutingEdge>& routing_edge_map
-        = routing_layer.isPreferH() ? routing_h_edge_map[routing_layer.get_layer_idx()] : routing_v_edge_map[routing_layer.get_layer_idx()];
-    for (int32_t y = routing_edge_map.get_y_size() - 1; y >= 0; y--) {
-      for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-        RTUTIL.pushStream(net_csv_file, routing_edge_map[x][y].get_demand(), ",");
+    GridMap<LANode>& la_node_map = layer_node_map[routing_layer.get_layer_idx()];
+    for (int32_t y = la_node_map.get_y_size() - 1; y >= 0; y--) {
+      for (int32_t x = 0; x < la_node_map.get_x_size(); x++) {
+        RTUTIL.pushStream(net_csv_file, la_node_map[x][y].getDemand(), ",");
       }
       RTUTIL.pushStream(net_csv_file, "\n");
     }
@@ -1083,17 +1458,15 @@ void LayerAssigner::outputOverflowCSV(LAModel& la_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
-  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
   for (RoutingLayer& routing_layer : routing_layer_list) {
     std::ofstream* overflow_csv_file
         = RTUTIL.getOutputFileStream(RTUTIL.getString(la_temp_directory_path, "overflow_map_", routing_layer.get_layer_name(), ".csv"));
 
-    GridMap<RoutingEdge>& routing_edge_map
-        = routing_layer.isPreferH() ? routing_h_edge_map[routing_layer.get_layer_idx()] : routing_v_edge_map[routing_layer.get_layer_idx()];
-    for (int32_t y = routing_edge_map.get_y_size() - 1; y >= 0; y--) {
-      for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-        RTUTIL.pushStream(overflow_csv_file, routing_edge_map[x][y].get_overflow(), ",");
+    GridMap<LANode>& la_node_map = layer_node_map[routing_layer.get_layer_idx()];
+    for (int32_t y = la_node_map.get_y_size() - 1; y >= 0; y--) {
+      for (int32_t x = 0; x < la_node_map.get_x_size(); x++) {
+        RTUTIL.pushStream(overflow_csv_file, la_node_map[x][y].getOverflow(), ",");
       }
       RTUTIL.pushStream(overflow_csv_file, "\n");
     }
@@ -1102,135 +1475,17 @@ void LayerAssigner::outputOverflowCSV(LAModel& la_model)
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
-void LayerAssigner::outputJson(LAModel& la_model)
-{
-  int32_t enable_notification = RTDM.getConfig().enable_notification;
-  if (!enable_notification) {
-    return;
-  }
-  std::map<std::string, std::string> json_path_map;
-  json_path_map["net_map"] = outputNetJson(la_model);
-  json_path_map["overflow_map"] = outputOverflowJson(la_model);
-  json_path_map["summary"] = outputSummaryJson(la_model);
-  RTI.sendNotification("LA", 1, json_path_map);
-}
 
-std::string LayerAssigner::outputNetJson(LAModel& la_model)
-{
-  Die& die = RTDM.getDatabase().get_die();
-  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
-  std::string& la_temp_directory_path = RTDM.getConfig().la_temp_directory_path;
 
-  std::vector<nlohmann::json> net_json_list;
-  {
-    nlohmann::json result_shape_json;
-    for (auto& [net_idx, segment_set] : RTDM.getNetGlobalResultMap(die)) {
-      std::string net_name = net_list[net_idx].get_net_name();
-      for (Segment<LayerCoord>* segment : segment_set) {
-        PlanarRect first_gcell = RTUTIL.getRealRectByGCell(segment->get_first(), gcell_axis);
-        PlanarRect second_gcell = RTUTIL.getRealRectByGCell(segment->get_second(), gcell_axis);
-        if (segment->get_first().get_layer_idx() != segment->get_second().get_layer_idx()) {
-          result_shape_json["result_shape"][net_name]["path"].push_back({first_gcell.get_ll_x(), first_gcell.get_ll_y(), first_gcell.get_ur_x(),
-                                                                         first_gcell.get_ur_y(),
-                                                                         routing_layer_list[segment->get_first().get_layer_idx()].get_layer_name()});
-          result_shape_json["result_shape"][net_name]["path"].push_back({second_gcell.get_ll_x(), second_gcell.get_ll_y(), second_gcell.get_ur_x(),
-                                                                         second_gcell.get_ur_y(),
-                                                                         routing_layer_list[segment->get_second().get_layer_idx()].get_layer_name()});
-        } else {
-          PlanarRect gcell = RTUTIL.getBoundingBox({first_gcell, second_gcell});
-          result_shape_json["result_shape"][net_name]["path"].push_back({gcell.get_ll_x(), gcell.get_ll_y(), gcell.get_ur_x(), gcell.get_ur_y(),
-                                                                         routing_layer_list[segment->get_first().get_layer_idx()].get_layer_name()});
-        }
-      }
-    }
-    net_json_list.push_back(result_shape_json);
-  }
-  std::string net_json_file_path = RTUTIL.getString(la_temp_directory_path, "net_map.json");
-  std::ofstream* net_json_file = RTUTIL.getOutputFileStream(net_json_file_path);
-  (*net_json_file) << net_json_list;
-  RTUTIL.closeFileStream(net_json_file);
-  return net_json_file_path;
-}
 
-std::string LayerAssigner::outputOverflowJson(LAModel& la_model)
-{
-  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  std::string& la_temp_directory_path = RTDM.getConfig().la_temp_directory_path;
 
-  std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
-  std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
-  std::vector<nlohmann::json> overflow_json_list;
-  for (RoutingLayer& routing_layer : routing_layer_list) {
-    int32_t layer_idx = routing_layer.get_layer_idx();
-    bool is_horizontal = routing_layer.isPreferH();
-    GridMap<RoutingEdge>& routing_edge_map = is_horizontal ? routing_h_edge_map[layer_idx] : routing_v_edge_map[layer_idx];
-    for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-      for (int32_t y = 0; y < routing_edge_map.get_y_size(); y++) {
-        PlanarRect first_gcell = RTUTIL.getRealRectByGCell(PlanarCoord(x, y), gcell_axis);
-        PlanarCoord second_grid_coord = is_horizontal ? PlanarCoord(x + 1, y) : PlanarCoord(x, y + 1);
-        PlanarRect second_gcell = RTUTIL.getRealRectByGCell(second_grid_coord, gcell_axis);
-        PlanarRect edge_rect = RTUTIL.getBoundingBox({first_gcell, second_gcell});
-        overflow_json_list.push_back({edge_rect.get_ll_x(), edge_rect.get_ll_y(), edge_rect.get_ur_x(), edge_rect.get_ur_y(),
-                                      routing_layer.get_layer_name(), routing_edge_map[x][y].get_overflow()});
-      }
-    }
-  }
-  std::string overflow_json_file_path = RTUTIL.getString(la_temp_directory_path, "overflow_map.json");
-  std::ofstream* overflow_json_file = RTUTIL.getOutputFileStream(overflow_json_file_path);
-  (*overflow_json_file) << overflow_json_list;
-  RTUTIL.closeFileStream(overflow_json_file);
-  return overflow_json_file_path;
-}
 
-std::string LayerAssigner::outputSummaryJson(LAModel& la_model)
-{
-  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  std::vector<CutLayer>& cut_layer_list = RTDM.getDatabase().get_cut_layer_list();
-  Summary& summary = RTDM.getDatabase().get_summary();
-  std::string& la_temp_directory_path = RTDM.getConfig().la_temp_directory_path;
 
-  std::map<int32_t, double>& routing_demand_map = summary.la_summary.routing_demand_map;
-  double& total_demand = summary.la_summary.total_demand;
-  std::map<int32_t, double>& routing_overflow_map = summary.la_summary.routing_overflow_map;
-  double& total_overflow = summary.la_summary.total_overflow;
-  std::map<int32_t, double>& routing_wire_length_map = summary.la_summary.routing_wire_length_map;
-  double& total_wire_length = summary.la_summary.total_wire_length;
-  std::map<int32_t, int32_t>& cut_via_num_map = summary.la_summary.cut_via_num_map;
-  int32_t& total_via_num = summary.la_summary.total_via_num;
-  std::map<std::string, std::map<std::string, double>>& clock_timing_map = summary.la_summary.clock_timing_map;
 
-  nlohmann::json summary_json;
-  for (auto& [routing_layer_idx, demand] : routing_demand_map) {
-    summary_json["routing_demand_map"][routing_layer_list[routing_layer_idx].get_layer_name()] = demand;
-  }
-  summary_json["total_demand"] = total_demand;
-  for (auto& [routing_layer_idx, overflow] : routing_overflow_map) {
-    summary_json["routing_overflow_map"][routing_layer_list[routing_layer_idx].get_layer_name()] = overflow;
-  }
-  summary_json["total_overflow"] = total_overflow;
-  for (auto& [routing_layer_idx, wire_length] : routing_wire_length_map) {
-    summary_json["routing_wire_length_map"][routing_layer_list[routing_layer_idx].get_layer_name()] = wire_length;
-  }
-  summary_json["total_wire_length"] = total_wire_length;
-  for (auto& [cut_layer_idx, via_num] : cut_via_num_map) {
-    summary_json["cut_via_num_map"][cut_layer_list[cut_layer_idx].get_layer_name()] = via_num;
-  }
-  summary_json["total_via_num"] = total_via_num;
-  for (auto& [clock_name, timing] : clock_timing_map) {
-    summary_json["clock_timing_map"]["clock_name"] = clock_name;
-    summary_json["clock_timing_map"]["timing"] = timing;
-  }
-  std::string summary_json_file_path = RTUTIL.getString(la_temp_directory_path, "summary.json");
-  std::ofstream* summary_json_file = RTUTIL.getOutputFileStream(summary_json_file_path);
-  (*summary_json_file) << summary_json;
-  RTUTIL.closeFileStream(summary_json_file);
-  return summary_json_file_path;
-}
 
-// debug
+#endif
+
+#if 1  // debug
 
 void LayerAssigner::debugPlotLAModel(LAModel& la_model, std::string flag)
 {
@@ -1301,7 +1556,7 @@ void LayerAssigner::debugPlotLAModel(LAModel& la_model, std::string flag)
   }
 
   // fixed_rect
-  for (auto& [is_routing, layer_net_rect_map] : RTDM.getTypeLayerNetFixedRectMap()) {
+  for (auto& [is_routing, layer_net_rect_map] : RTDM.getTypeLayerNetFixedRectMap(die)) {
     for (auto& [layer_idx, net_rect_map] : layer_net_rect_map) {
       for (auto& [net_idx, rect_set] : net_rect_map) {
         GPStruct fixed_rect_struct(RTUTIL.getString("fixed_rect(net_", net_idx, ")"));
@@ -1388,85 +1643,212 @@ void LayerAssigner::debugPlotLAModel(LAModel& la_model, std::string flag)
     gp_gds.addStruct(detailed_patch_struct);
   }
 
-  // routing_edge
+  // layer_node_map
   {
-    GPStruct routing_edge_struct("routing_edge");
-    std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
-    std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
-    for (RoutingLayer& routing_layer : routing_layer_list) {
-      int32_t layer_idx = routing_layer.get_layer_idx();
-      bool is_horizontal = routing_layer.isPreferH();
-      GridMap<RoutingEdge>& routing_edge_map = is_horizontal ? routing_h_edge_map[layer_idx] : routing_v_edge_map[layer_idx];
-      for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-        for (int32_t y = 0; y < routing_edge_map.get_y_size(); y++) {
-          RoutingEdge& routing_edge = routing_edge_map[x][y];
-          PlanarCoord first_grid_coord(x, y);
-          PlanarCoord second_grid_coord = is_horizontal ? PlanarCoord(x + 1, y) : PlanarCoord(x, y + 1);
-          PlanarRect edge_rect = RTUTIL.getBoundingBox(
-              {RTUTIL.getRealRectByGCell(first_grid_coord, gcell_axis), RTUTIL.getRealRectByGCell(second_grid_coord, gcell_axis)});
-          int32_t y_reduced_span = std::max(1, edge_rect.getYSpan() / 12);
-          int32_t text_y = edge_rect.get_ur_y();
+    std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
+    // la_node_map
+    {
+      GPStruct la_node_map_struct("la_node_map");
+      for (GridMap<LANode>& la_node_map : layer_node_map) {
+        for (int32_t grid_x = 0; grid_x < la_node_map.get_x_size(); grid_x++) {
+          for (int32_t grid_y = 0; grid_y < la_node_map.get_y_size(); grid_y++) {
+            LANode& la_node = la_node_map[grid_x][grid_y];
+            PlanarRect real_rect = RTUTIL.getRealRectByGCell(la_node.get_planar_coord(), gcell_axis);
+            int32_t y_reduced_span = std::max(1, real_rect.getYSpan() / 12);
+            int32_t y = real_rect.get_ur_y();
 
-          std::vector<std::string> message_list;
-          message_list.push_back(RTUTIL.getString("grid: (", first_grid_coord.get_x(), " , ", first_grid_coord.get_y(), ")-(",
-                                                  second_grid_coord.get_x(), " , ", second_grid_coord.get_y(), ")"));
-          message_list.push_back(
-              RTUTIL.getString("supply: ", routing_edge.get_supply(), ", demand: ", routing_edge.get_demand(), ", overflow: ", routing_edge.get_overflow()));
+            y -= y_reduced_span;
+            GPText gp_text_node_real_coord;
+            gp_text_node_real_coord.set_coord(real_rect.get_ll_x(), y);
+            gp_text_node_real_coord.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+            gp_text_node_real_coord.set_message(RTUTIL.getString("(", la_node.get_x(), " , ", la_node.get_y(), " , ", la_node.get_layer_idx(), ")"));
+            gp_text_node_real_coord.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+            gp_text_node_real_coord.set_presentation(GPTextPresentation::kLeftMiddle);
+            la_node_map_struct.push(gp_text_node_real_coord);
 
-          std::string ignore_net_message = "ignore_net:";
-          for (int32_t net_idx : routing_edge.get_ignore_net_set()) {
-            ignore_net_message += RTUTIL.getString(" ", net_idx);
-          }
-          message_list.push_back(ignore_net_message);
+            y -= y_reduced_span;
+            GPText gp_text_node_grid_coord;
+            gp_text_node_grid_coord.set_coord(real_rect.get_ll_x(), y);
+            gp_text_node_grid_coord.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+            gp_text_node_grid_coord.set_message(RTUTIL.getString("(", grid_x, " , ", grid_y, " , ", la_node.get_layer_idx(), ")"));
+            gp_text_node_grid_coord.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+            gp_text_node_grid_coord.set_presentation(GPTextPresentation::kLeftMiddle);
+            la_node_map_struct.push(gp_text_node_grid_coord);
 
-          for (std::string& message : message_list) {
-            text_y -= y_reduced_span;
-            GPText gp_text;
-            gp_text.set_coord(edge_rect.get_ll_x(), text_y);
-            gp_text.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
-            gp_text.set_message(message);
-            gp_text.set_layer_idx(RTGP.getGDSIdxByRouting(layer_idx));
-            gp_text.set_presentation(GPTextPresentation::kLeftMiddle);
-            routing_edge_struct.push(gp_text);
+            y -= y_reduced_span;
+            GPText gp_text_orient_supply_map;
+            gp_text_orient_supply_map.set_coord(real_rect.get_ll_x(), y);
+            gp_text_orient_supply_map.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+            gp_text_orient_supply_map.set_message("orient_supply_map: ");
+            gp_text_orient_supply_map.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+            gp_text_orient_supply_map.set_presentation(GPTextPresentation::kLeftMiddle);
+            la_node_map_struct.push(gp_text_orient_supply_map);
+
+            if (!la_node.get_orient_supply_map().empty()) {
+              y -= y_reduced_span;
+              GPText gp_text_orient_supply_map_info;
+              gp_text_orient_supply_map_info.set_coord(real_rect.get_ll_x(), y);
+              gp_text_orient_supply_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+              std::string orient_supply_map_info_message = "--";
+              for (auto& [orient, supply] : la_node.get_orient_supply_map()) {
+                orient_supply_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient), ",", supply, ")");
+              }
+              gp_text_orient_supply_map_info.set_message(orient_supply_map_info_message);
+              gp_text_orient_supply_map_info.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+              gp_text_orient_supply_map_info.set_presentation(GPTextPresentation::kLeftMiddle);
+              la_node_map_struct.push(gp_text_orient_supply_map_info);
+            }
+
+            y -= y_reduced_span;
+            GPText gp_text_ignore_net_orient_map;
+            gp_text_ignore_net_orient_map.set_coord(real_rect.get_ll_x(), y);
+            gp_text_ignore_net_orient_map.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+            gp_text_ignore_net_orient_map.set_message("ignore_net_orient_map: ");
+            gp_text_ignore_net_orient_map.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+            gp_text_ignore_net_orient_map.set_presentation(GPTextPresentation::kLeftMiddle);
+            la_node_map_struct.push(gp_text_ignore_net_orient_map);
+
+            if (!la_node.get_ignore_net_orient_map().empty()) {
+              y -= y_reduced_span;
+              GPText gp_text_ignore_net_orient_map_info;
+              gp_text_ignore_net_orient_map_info.set_coord(real_rect.get_ll_x(), y);
+              gp_text_ignore_net_orient_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+              std::string ignore_net_orient_map_info_message = "--";
+              for (auto& [net_idx, orient_set] : la_node.get_ignore_net_orient_map()) {
+                ignore_net_orient_map_info_message += RTUTIL.getString("(", net_idx);
+                for (Orientation orient : orient_set) {
+                  ignore_net_orient_map_info_message += RTUTIL.getString(",", GetOrientationName()(orient));
+                }
+                ignore_net_orient_map_info_message += RTUTIL.getString(")");
+              }
+              gp_text_ignore_net_orient_map_info.set_message(ignore_net_orient_map_info_message);
+              gp_text_ignore_net_orient_map_info.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+              gp_text_ignore_net_orient_map_info.set_presentation(GPTextPresentation::kLeftMiddle);
+              la_node_map_struct.push(gp_text_ignore_net_orient_map_info);
+            }
+
+            y -= y_reduced_span;
+            GPText gp_text_orient_net_map;
+            gp_text_orient_net_map.set_coord(real_rect.get_ll_x(), y);
+            gp_text_orient_net_map.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+            gp_text_orient_net_map.set_message("orient_net_map: ");
+            gp_text_orient_net_map.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+            gp_text_orient_net_map.set_presentation(GPTextPresentation::kLeftMiddle);
+            la_node_map_struct.push(gp_text_orient_net_map);
+
+            if (!la_node.get_orient_net_map().empty()) {
+              y -= y_reduced_span;
+              GPText gp_text_orient_net_map_info;
+              gp_text_orient_net_map_info.set_coord(real_rect.get_ll_x(), y);
+              gp_text_orient_net_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+              std::string orient_net_map_info_message = "--";
+              for (auto& [orient, net_set] : la_node.get_orient_net_map()) {
+                orient_net_map_info_message += RTUTIL.getString("(", GetOrientationName()(orient));
+                for (int32_t net_idx : net_set) {
+                  orient_net_map_info_message += RTUTIL.getString(",", net_idx);
+                }
+                orient_net_map_info_message += RTUTIL.getString(")");
+              }
+              gp_text_orient_net_map_info.set_message(orient_net_map_info_message);
+              gp_text_orient_net_map_info.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+              gp_text_orient_net_map_info.set_presentation(GPTextPresentation::kLeftMiddle);
+              la_node_map_struct.push(gp_text_orient_net_map_info);
+            }
+
+            y -= y_reduced_span;
+            GPText gp_text_net_orient_map;
+            gp_text_net_orient_map.set_coord(real_rect.get_ll_x(), y);
+            gp_text_net_orient_map.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+            gp_text_net_orient_map.set_message("net_orient_map: ");
+            gp_text_net_orient_map.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+            gp_text_net_orient_map.set_presentation(GPTextPresentation::kLeftMiddle);
+            la_node_map_struct.push(gp_text_net_orient_map);
+
+            if (!la_node.get_net_orient_map().empty()) {
+              y -= y_reduced_span;
+              GPText gp_text_net_orient_map_info;
+              gp_text_net_orient_map_info.set_coord(real_rect.get_ll_x(), y);
+              gp_text_net_orient_map_info.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+              std::string net_orient_map_info_message = "--";
+              for (auto& [net_idx, orient_set] : la_node.get_net_orient_map()) {
+                net_orient_map_info_message += RTUTIL.getString("(", net_idx);
+                for (Orientation orient : orient_set) {
+                  net_orient_map_info_message += RTUTIL.getString(",", GetOrientationName()(orient));
+                }
+                net_orient_map_info_message += RTUTIL.getString(")");
+              }
+              gp_text_net_orient_map_info.set_message(net_orient_map_info_message);
+              gp_text_net_orient_map_info.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+              gp_text_net_orient_map_info.set_presentation(GPTextPresentation::kLeftMiddle);
+              la_node_map_struct.push(gp_text_net_orient_map_info);
+            }
+
+            y -= y_reduced_span;
+            GPText gp_text_overflow;
+            gp_text_overflow.set_coord(real_rect.get_ll_x(), y);
+            gp_text_overflow.set_text_type(static_cast<int32_t>(GPDataType::kInfo));
+            gp_text_overflow.set_message(RTUTIL.getString("overflow: ", la_node.getOverflow()));
+            gp_text_overflow.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+            gp_text_overflow.set_presentation(GPTextPresentation::kLeftMiddle);
+            la_node_map_struct.push(gp_text_overflow);
           }
         }
       }
+      gp_gds.addStruct(la_node_map_struct);
     }
-    gp_gds.addStruct(routing_edge_struct);
-  }
+    // overflow
+    {
+      GPStruct overflow_struct("overflow");
+      for (GridMap<LANode>& la_node_map : layer_node_map) {
+        for (int32_t grid_x = 0; grid_x < la_node_map.get_x_size(); grid_x++) {
+          for (int32_t grid_y = 0; grid_y < la_node_map.get_y_size(); grid_y++) {
+            LANode& la_node = la_node_map[grid_x][grid_y];
+            if (la_node.getOverflow() <= 0) {
+              continue;
+            }
+            PlanarRect real_rect = RTUTIL.getRealRectByGCell(la_node.get_planar_coord(), gcell_axis);
 
-  // overflow
-  {
-    GPStruct overflow_struct("overflow");
-    std::vector<GridMap<RoutingEdge>>& routing_h_edge_map = RTDM.getDatabase().get_routing_h_edge_map();
-    std::vector<GridMap<RoutingEdge>>& routing_v_edge_map = RTDM.getDatabase().get_routing_v_edge_map();
-    for (RoutingLayer& routing_layer : routing_layer_list) {
-      int32_t layer_idx = routing_layer.get_layer_idx();
-      bool is_horizontal = routing_layer.isPreferH();
-      GridMap<RoutingEdge>& routing_edge_map = is_horizontal ? routing_h_edge_map[layer_idx] : routing_v_edge_map[layer_idx];
-      for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-        for (int32_t y = 0; y < routing_edge_map.get_y_size(); y++) {
-          RoutingEdge& routing_edge = routing_edge_map[x][y];
-          if (routing_edge.get_overflow() <= 0) {
-            continue;
+            GPBoundary gp_boundary;
+            gp_boundary.set_data_type(static_cast<int32_t>(GPDataType::kOverflow));
+            gp_boundary.set_rect(real_rect);
+            gp_boundary.set_layer_idx(RTGP.getGDSIdxByRouting(la_node.get_layer_idx()));
+            overflow_struct.push(gp_boundary);
           }
-          PlanarCoord first_coord = RTUTIL.getRealRectByGCell(PlanarCoord(x, y), gcell_axis).getMidPoint();
-          PlanarCoord second_grid_coord = is_horizontal ? PlanarCoord(x + 1, y) : PlanarCoord(x, y + 1);
-          PlanarCoord second_coord = RTUTIL.getRealRectByGCell(second_grid_coord, gcell_axis).getMidPoint();
-          GPPath gp_path;
-          gp_path.set_data_type(static_cast<int32_t>(GPDataType::kOverflow));
-          gp_path.set_layer_idx(RTGP.getGDSIdxByRouting(layer_idx));
-          gp_path.set_width(point_size);
-          gp_path.set_segment(first_coord, second_coord);
-          overflow_struct.push(gp_path);
         }
       }
+      gp_gds.addStruct(overflow_struct);
     }
-    gp_gds.addStruct(overflow_struct);
   }
 
   std::string gds_file_path = RTUTIL.getString(la_temp_directory_path, flag, "_la_model.gds");
   RTGP.plot(gp_gds, gds_file_path);
 }
+
+void LayerAssigner::debugCheckLAModel(LAModel& la_model)
+{
+  std::vector<GridMap<LANode>>& layer_node_map = la_model.get_layer_node_map();
+  for (GridMap<LANode>& la_node_map : layer_node_map) {
+    for (int32_t x = 0; x < la_node_map.get_x_size(); x++) {
+      for (int32_t y = 0; y < la_node_map.get_y_size(); y++) {
+        LANode& la_node = la_node_map[x][y];
+        for (auto& [orient, neighbor] : la_node.get_neighbor_node_map()) {
+          Orientation opposite_orient = RTUTIL.getOppositeOrientation(orient);
+          if (!RTUTIL.exist(neighbor->get_neighbor_node_map(), opposite_orient)) {
+            RTLOG.error(Loc::current(), "The la_node neighbor is not bidirectional!");
+          }
+          if (neighbor->get_neighbor_node_map()[opposite_orient] != &la_node) {
+            RTLOG.error(Loc::current(), "The la_node neighbor is not bidirectional!");
+          }
+          if (RTUTIL.getOrientation(LayerCoord(la_node), LayerCoord(*neighbor)) == orient) {
+            continue;
+          }
+          RTLOG.error(Loc::current(), "The neighbor orient is different with real region!");
+        }
+      }
+    }
+  }
+}
+
+#endif
 
 }  // namespace irt
