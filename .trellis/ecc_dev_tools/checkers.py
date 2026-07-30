@@ -242,22 +242,23 @@ def run_format_check(
     clang_format = _tool_executable(snapshot, "clang-format")
     result.notes.append(f"Checked {len(files)} C/C++ files with clang-format.")
     result.notes.append(f"Using clang-format binary: {clang_format}")
+    result.notes.append("Style resolution: --style=file selects the closest parent .clang-format for each source file.")
 
     def _check_one_file(file_path: Path) -> tuple[Finding | None, RuntimeEntry]:
         started_at = time.perf_counter()
         if fix:
-            run_command([clang_format, "-i", str(file_path)], cwd=repo_root, check=True)
+            run_command([clang_format, "--style=file", "-i", str(file_path)], cwd=repo_root, check=True)
             finding = None
         else:
             original = file_path.read_text(encoding="utf-8", errors="replace")
-            formatted = run_command([clang_format, str(file_path)], cwd=repo_root, check=True).stdout
+            formatted = run_command([clang_format, "--style=file", str(file_path)], cwd=repo_root, check=True).stdout
             finding = None
             if original != formatted:
                 finding = Finding(
                     check="format",
                     severity="warning",
                     path=file_path,
-                    message="Formatting differs from repository .clang-format output.",
+                    message="Formatting differs from applicable .clang-format output.",
                     category="format",
                     subtype="needs-reformat",
                     origin="clang-format",

@@ -7,6 +7,7 @@ A local C++ quality checker for `src/operation/iCTS`.
 - `format`
   - `clang-format` consistency check
   - `--fix` only fixes formatting
+  - Passes `--style=file`, so each source uses its closest parent `.clang-format`
 - `tidy`
   - `clang-tidy` check families
   - Deep mode also runs analyzer / clang frontend / native fallback
@@ -58,6 +59,10 @@ python3 ./.trellis/ecc_dev_tools/check.py check --path <path> --preset tidy-only
 # IWYU only
 python3 ./.trellis/ecc_dev_tools/check.py check --path <path> --preset iwyu-only
 ```
+
+## Formatting Configuration
+
+Format checks and fixes pass each source path to `clang-format --style=file`. For every source file, clang-format searches from that file's directory toward the repository root and applies the closest parent `.clang-format`. Module-local configurations therefore override the repository fallback without a profile-specific configuration path.
 
 ## Tidy Modes
 

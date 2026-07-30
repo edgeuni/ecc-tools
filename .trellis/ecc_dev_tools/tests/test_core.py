@@ -70,6 +70,7 @@ from ecc_dev_tools.checkers import (
     _scan_deps_for_file,
     _strip_diagnostic_suffix,
     run_header_dependency_check,
+    run_format_check,
     run_selected_checks,
     run_tidy_check,
 )
@@ -1315,6 +1316,82 @@ class TestRunClangTidyHeaderPass(unittest.TestCase):
             result.runtime_entries[0].label,
             "tidy-headers:src/File.hh",
         )
+
+
+class TestRunFormatCheck(unittest.TestCase):
+    """run_format_check() -- explicit nearest-parent clang-format resolution."""
+
+    def _make_fixture(self):
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        repo_root = Path(temp_dir.name)
+        source_dir = repo_root / "src"
+        source_dir.mkdir()
+        source = source_dir / "File.cc"
+        source.write_text("int value;\n", encoding="utf-8")
+        scope = Scope(
+            repo_root=repo_root,
+            raw_paths=["src"],
+            resolved_paths=[source_dir.resolve()],
+        )
+        snapshot = EnvironmentSnapshot(
+            repo_root=repo_root,
+            build_dir=repo_root / "build",
+            jobs=1,
+            total_cpus=1,
+            idle_threads_estimate=1,
+            tool_statuses=[
+                ToolStatus(
+                    name="clang-format",
+                    required=True,
+                    found=True,
+                    executable="/opt/llvm/bin/clang-format",
+                    ok=True,
+                ),
+            ],
+        )
+        return repo_root, source.resolve(), scope, snapshot
+
+    @patch("ecc_dev_tools.checkers.run_command")
+    def test_check_uses_file_style_and_reports_applicable_configuration(self, run_command_mock):
+        repo_root, source, scope, snapshot = self._make_fixture()
+        run_command_mock.return_value = type(
+            "Result",
+            (),
+            {"returncode": 0, "stdout": "int formatted_value;\n", "stderr": ""},
+        )()
+
+        result = run_format_check(repo_root, scope, False, snapshot, cpp_files=[source])
+
+        run_command_mock.assert_called_once_with(
+            ["/opt/llvm/bin/clang-format", "--style=file", str(source)],
+            cwd=repo_root,
+            check=True,
+        )
+        self.assertIn(
+            "Style resolution: --style=file selects the closest parent .clang-format for each source file.",
+            result.notes,
+        )
+        self.assertEqual(len(result.findings), 1)
+        self.assertEqual(
+            result.findings[0].message,
+            "Formatting differs from applicable .clang-format output.",
+        )
+
+    @patch("ecc_dev_tools.checkers.run_command")
+    def test_fix_uses_file_style(self, run_command_mock):
+        repo_root, source, scope, snapshot = self._make_fixture()
+        run_command_mock.return_value = type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        result = run_format_check(repo_root, scope, True, snapshot, cpp_files=[source])
+
+        run_command_mock.assert_called_once_with(
+            ["/opt/llvm/bin/clang-format", "--style=file", "-i", str(source)],
+            cwd=repo_root,
+            check=True,
+        )
+        self.assertEqual(result.findings, [])
+        self.assertIn("Fix mode enabled: files were reformatted in place.", result.notes)
 
 
 class TestRunSelectedChecks(unittest.TestCase):
