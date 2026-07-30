@@ -37,7 +37,7 @@
 #include <string>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 
 namespace icts {
 class BufferingPattern;
@@ -170,6 +170,7 @@ class CharBuilderImpl
   auto maxObservedOutputSlewIdx() const -> unsigned { return _max_observed_output_slew_idx; }
   auto maxObservedDrivenCapPf() const -> double { return _max_observed_driven_cap_pf; }
   auto maxObservedDrivenCapIdx() const -> unsigned { return _max_observed_driven_cap_idx; }
+  auto buildFailureReason() const -> const std::string& { return _build_failure_reason; }
 
  private:
   std::vector<::icts::CharacterizationBufferCell> _sorted_buffers;
@@ -211,6 +212,7 @@ class CharBuilderImpl
   std::vector<::icts::SegmentChar> _segment_chars;
   std::vector<::icts::BufferingPattern> _buffering_patterns;
   unsigned _next_pattern_id = 0;
+  std::string _build_failure_reason;
   std::size_t _executed_sta_samples = 0;
   std::size_t _skipped_sta_samples = 0;
   std::size_t _output_slew_overflow_samples = 0;

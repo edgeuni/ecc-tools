@@ -66,9 +66,7 @@ struct LinePairView
 
 [[nodiscard]] auto IsSameDirectedLine(const Line& first_line, const Line& second_line) -> bool
 {
-  return GeomCalc::distance(HeadPoint(first_line), HeadPoint(second_line))
-             + GeomCalc::distance(TailPoint(first_line), TailPoint(second_line))
-         < kEpsilon;
+  return GeomCalc::distance(HeadPoint(first_line), HeadPoint(second_line)) + GeomCalc::distance(TailPoint(first_line), TailPoint(second_line)) < kEpsilon;
 }
 
 auto AccumulateEndpointIntersections(const EndpointIntersectionContext& context, const LinePairView& line_pair) -> void
@@ -129,8 +127,7 @@ auto RemoveDuplicatedEndpointIntersections(size_t& intersection_count, const std
 
 [[nodiscard]] auto CalcLineYAtX(const Line& line, const double target_x) -> double
 {
-  return ((HeadPoint(line).y - TailPoint(line).y) * (target_x - HeadPoint(line).x) / (HeadPoint(line).x - TailPoint(line).x))
-         + HeadPoint(line).y;
+  return ((HeadPoint(line).y - TailPoint(line).y) * (target_x - HeadPoint(line).x) / (HeadPoint(line).x - TailPoint(line).x)) + HeadPoint(line).y;
 }
 
 [[nodiscard]] auto SolveInfiniteLineIntersection(Point& intersection_point, const Line& first_line, const Line& second_line) -> bool
@@ -160,13 +157,12 @@ auto RemoveDuplicatedEndpointIntersections(size_t& intersection_count, const std
     return false;
   }
 
-  intersection_point.x = (HeadPoint(second_line).y - HeadPoint(first_line).y + (HeadPoint(first_line).x * first_line_slope)
-                          - (HeadPoint(second_line).x * second_line_slope))
-                         / (first_line_slope - second_line_slope);
-  intersection_point.y
-      = (HeadPoint(first_line).y + HeadPoint(second_line).y + (first_line_slope * (intersection_point.x - HeadPoint(first_line).x))
-         + (second_line_slope * (intersection_point.x - HeadPoint(second_line).x)))
-        / kAverageFactor;
+  intersection_point.x
+      = (HeadPoint(second_line).y - HeadPoint(first_line).y + (HeadPoint(first_line).x * first_line_slope) - (HeadPoint(second_line).x * second_line_slope))
+        / (first_line_slope - second_line_slope);
+  intersection_point.y = (HeadPoint(first_line).y + HeadPoint(second_line).y + (first_line_slope * (intersection_point.x - HeadPoint(first_line).x))
+                          + (second_line_slope * (intersection_point.x - HeadPoint(second_line).x)))
+                         / kAverageFactor;
   return true;
 }
 
@@ -326,15 +322,13 @@ auto GeomCalc::onLine(Point& point, const Line& line) -> bool
     const auto delta_x = std::abs(line.at(kTail).x - line.at(kHead).x);
     const auto delta_y = std::abs(line.at(kTail).y - line.at(kHead).y);
     if (delta_y > delta_x) {
-      const auto snapped_x = ((line.at(kTail).x - line.at(kHead).x) * (point.y - line.at(kHead).y) / (line.at(kTail).y - line.at(kHead).y))
-                             + line.at(kHead).x;
+      const auto snapped_x = ((line.at(kTail).x - line.at(kHead).x) * (point.y - line.at(kHead).y) / (line.at(kTail).y - line.at(kHead).y)) + line.at(kHead).x;
       if (Equal(snapped_x, point.x)) {
         point.x = snapped_x;
         return true;
       }
     } else {
-      const auto snapped_y = ((line.at(kTail).y - line.at(kHead).y) * (point.x - line.at(kHead).x) / (line.at(kTail).x - line.at(kHead).x))
-                             + line.at(kHead).y;
+      const auto snapped_y = ((line.at(kTail).y - line.at(kHead).y) * (point.x - line.at(kHead).x) / (line.at(kTail).x - line.at(kHead).x)) + line.at(kHead).y;
       if (Equal(snapped_y, point.y)) {
         point.y = snapped_y;
         return true;

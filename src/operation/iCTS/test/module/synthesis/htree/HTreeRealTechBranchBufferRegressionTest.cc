@@ -34,9 +34,9 @@
 #include "Net.hh"
 #include "Pin.hh"
 #include "Point.hh"
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 #include "module/synthesis/htree/HTree.hh"
 #include "module/synthesis/htree/HTreeArtifactWriter.hh"
@@ -47,13 +47,13 @@
 namespace icts_test {
 namespace {
 
-namespace common_realtech = common::realtech;
-namespace realtech_fixture = characterization::realtech;
+namespace design_realtech = data_manager::realtech;
+namespace characterization_realtech = characterization::realtech;
 
 TEST(HTreeRealTechSmokeTest, ForceBranchBufferSelectsTerminalBranchPatternsOnEveryLevel)
 {
-  const auto& setup_state = common_realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = design_realtech::EnsureRealTechSetup();
+  if (setup_state.mode != design_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     GTEST_SKIP() << setup_state.summary;
     return;
   }
@@ -64,23 +64,22 @@ TEST(HTreeRealTechSmokeTest, ForceBranchBufferSelectsTerminalBranchPatternsOnEve
     return;
   }
 
-  realtech_fixture::RealTechCharFixture char_fixture;
-  if (const auto prepare_error
-      = char_fixture.prepare("htree_branch_buffer", std::nullopt, kHTreeSmokeMaxSlewNs, kHTreeSmokeMaxCapPf, false, true);
+  characterization_realtech::RealTechCharFixture char_fixture;
+  if (const auto prepare_error = char_fixture.prepare("htree_branch_buffer", std::nullopt, kHTreeSmokeMaxSlewNs, kHTreeSmokeMaxCapPf, false, true);
       prepare_error.has_value()) {
     GTEST_SKIP() << *prepare_error;
     return;
   }
 
   ASSERT_TRUE(CTSDM.getConfig().is_force_branch_buffer());
-  EXPECT_EQ(CTSDM.getConfig().get_slew_steps(), realtech_fixture::kRealTechCharSlewSteps);
-  EXPECT_EQ(CTSDM.getConfig().get_cap_steps(), realtech_fixture::kRealTechCharCapSteps);
+  EXPECT_EQ(CTSDM.getConfig().get_slew_steps(), characterization_realtech::kRealTechCharSlewSteps);
+  EXPECT_EQ(CTSDM.getConfig().get_cap_steps(), characterization_realtech::kRealTechCharCapSteps);
 
   const auto artifact_paths = htree::PrepareHTreeArtifactPaths("realtech_branch_buffer");
   ASSERT_FALSE(artifact_paths.output_dir.empty());
   CTSLOG.openLogFileStream(artifact_paths.cts_log.string());
-  CTSLOG.info(icts::Loc::current(), "HTree smoke scenario: htree_branch_buffer, clock=", selected_clock->clock_name,
-              ", loads=", selected_clock->loads.size(), ".");
+  CTSLOG.info(icts::Loc::current(), "HTree smoke scenario: htree_branch_buffer, clock=", selected_clock->clock_name, ", loads=", selected_clock->loads.size(),
+              ".");
 
   icts::Pin root_driver("htree_branch_buffer_root_out", icts::PinType::kOut);
   icts::Net root_net("htree_branch_buffer_root_net");
@@ -95,8 +94,8 @@ TEST(HTreeRealTechSmokeTest, ForceBranchBufferSelectsTerminalBranchPatternsOnEve
   ASSERT_GT(observation.selected_feasible_frontier_entry_count, 0U);
   EXPECT_LE(observation.selected_feasible_frontier_entry_count, observation.selected_feasible_solution_count);
   ASSERT_TRUE(result.output.best_char.has_value());
-  EXPECT_EQ(result.diagnostics.char_slew_steps, realtech_fixture::kRealTechCharSlewSteps);
-  EXPECT_EQ(result.diagnostics.char_cap_steps, realtech_fixture::kRealTechCharCapSteps);
+  EXPECT_EQ(result.diagnostics.char_slew_steps, characterization_realtech::kRealTechCharSlewSteps);
+  EXPECT_EQ(result.diagnostics.char_cap_steps, characterization_realtech::kRealTechCharCapSteps);
   AssertBranchBufferMaterialization(result);
   WriteAndAssertHTreeArtifacts(artifact_paths, "htree_branch_buffer", selected_clock->clock_name, selected_clock->loads, result);
   const auto cts_log_content = ReadTextFile(artifact_paths.cts_log);
@@ -106,8 +105,8 @@ TEST(HTreeRealTechSmokeTest, ForceBranchBufferSelectsTerminalBranchPatternsOnEve
 
 TEST(HTreeRealTechSmokeTest, CallerFacingBranchBufferOptionOverridesConfigDefault)
 {
-  const auto& setup_state = common_realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = design_realtech::EnsureRealTechSetup();
+  if (setup_state.mode != design_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     GTEST_SKIP() << setup_state.summary;
     return;
   }
@@ -118,7 +117,7 @@ TEST(HTreeRealTechSmokeTest, CallerFacingBranchBufferOptionOverridesConfigDefaul
     return;
   }
 
-  realtech_fixture::RealTechCharFixture char_fixture;
+  characterization_realtech::RealTechCharFixture char_fixture;
   if (const auto prepare_error
       = char_fixture.prepare("htree_branch_buffer_option_override", std::nullopt, kHTreeSmokeMaxSlewNs, kHTreeSmokeMaxCapPf, false, false);
       prepare_error.has_value()) {
@@ -139,8 +138,8 @@ TEST(HTreeRealTechSmokeTest, CallerFacingBranchBufferOptionOverridesConfigDefaul
 
 TEST(HTreeRealTechSmokeTest, CallerFacingTopBoundaryInputConfigPropagatesWhenFeasible)
 {
-  const auto& setup_state = common_realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = design_realtech::EnsureRealTechSetup();
+  if (setup_state.mode != design_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     GTEST_SKIP() << setup_state.summary;
     return;
   }
@@ -151,7 +150,7 @@ TEST(HTreeRealTechSmokeTest, CallerFacingTopBoundaryInputConfigPropagatesWhenFea
     return;
   }
 
-  realtech_fixture::RealTechCharFixture char_fixture;
+  characterization_realtech::RealTechCharFixture char_fixture;
   if (const auto prepare_error = char_fixture.prepare("htree_boundary_options", std::nullopt, kHTreeSmokeMaxSlewNs, kHTreeSmokeMaxCapPf);
       prepare_error.has_value()) {
     GTEST_SKIP() << *prepare_error;
@@ -182,8 +181,8 @@ TEST(HTreeRealTechSmokeTest, CallerFacingTopBoundaryInputConfigPropagatesWhenFea
   icts::Pin top_boundary_root_driver("htree_boundary_root_out", icts::PinType::kOut);
   icts::Net top_boundary_root_net("htree_boundary_root_net");
   ConnectRootNetForHTreeTest(top_boundary_root_net, top_boundary_root_driver, selected_clock->loads);
-  auto top_boundary_result = icts::htree::BuildWithDiagnostics(MakeExplicitHTreeInput(top_boundary_root_net),
-                                                               MakeExplicitHTreeConfig(std::nullopt, top_input_slew_ns));
+  auto top_boundary_result
+      = icts::htree::BuildWithDiagnostics(MakeExplicitHTreeInput(top_boundary_root_net), MakeExplicitHTreeConfig(std::nullopt, top_input_slew_ns));
   ASSERT_TRUE(top_boundary_result.summary.success);
   ASSERT_TRUE(top_boundary_result.diagnostics.min_top_input_slew_ns.has_value());
   EXPECT_DOUBLE_EQ(top_boundary_result.diagnostics.min_top_input_slew_ns.value_or(0.0), top_input_slew_ns);
@@ -204,14 +203,13 @@ TEST(HTreeRealTechSmokeTest, CallerFacingTopBoundaryInputConfigPropagatesWhenFea
   icts::Pin impossible_root_driver("htree_boundary_impossible_root_out", icts::PinType::kOut);
   icts::Net impossible_root_net("htree_boundary_impossible_root_net");
   ConnectRootNetForHTreeTest(impossible_root_net, impossible_root_driver, selected_clock->loads);
-  auto impossible_top_boundary_result = icts::htree::BuildWithDiagnostics(
-      MakeExplicitHTreeInput(impossible_root_net), MakeExplicitHTreeConfig(std::nullopt, impossible_top_input_slew_ns));
+  auto impossible_top_boundary_result
+      = icts::htree::BuildWithDiagnostics(MakeExplicitHTreeInput(impossible_root_net), MakeExplicitHTreeConfig(std::nullopt, impossible_top_input_slew_ns));
   ASSERT_TRUE(impossible_top_boundary_result.summary.success);
   ASSERT_TRUE(impossible_top_boundary_result.diagnostics.min_top_input_slew_ns.has_value());
   EXPECT_DOUBLE_EQ(impossible_top_boundary_result.diagnostics.min_top_input_slew_ns.value_or(0.0), impossible_top_input_slew_ns);
   ASSERT_TRUE(impossible_top_boundary_result.diagnostics.top_input_slew_covering_idx.has_value());
-  EXPECT_EQ(impossible_top_boundary_result.diagnostics.top_input_slew_covering_idx.value_or(0U),
-            baseline_result.diagnostics.char_slew_steps + 1U);
+  EXPECT_EQ(impossible_top_boundary_result.diagnostics.top_input_slew_covering_idx.value_or(0U), baseline_result.diagnostics.char_slew_steps + 1U);
   const auto impossible_observation = htree::ObserveHTreeBuild(impossible_top_boundary_result);
   EXPECT_TRUE(impossible_observation.used_boundary_relaxation);
   EXPECT_FALSE(impossible_observation.boundary_relaxation_reason.empty());
@@ -228,8 +226,8 @@ TEST(HTreeRealTechSmokeTest, CallerFacingTopBoundaryInputConfigPropagatesWhenFea
   const unsigned impossible_top_covering_idx = impossible_top_boundary_result.diagnostics.top_input_slew_covering_idx.value_or(0U);
   ASSERT_GT(impossible_top_covering_idx, 0U);
   EXPECT_LT(impossible_top_best_char.get_input_slew_idx(), impossible_top_covering_idx);
-  const double expected_top_boundary_relaxation_score = static_cast<double>(impossible_top_best_char.get_input_slew_idx())
-                                                        / static_cast<double>(baseline_result.diagnostics.char_slew_steps);
+  const double expected_top_boundary_relaxation_score
+      = static_cast<double>(impossible_top_best_char.get_input_slew_idx()) / static_cast<double>(baseline_result.diagnostics.char_slew_steps);
   EXPECT_DOUBLE_EQ(impossible_observation.boundary_relaxation_score.value_or(0.0), expected_top_boundary_relaxation_score);
 }
 

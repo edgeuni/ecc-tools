@@ -184,8 +184,8 @@ auto TopDownEmbedding::calcJoiningRegionArea(const Line& first_line, const Line&
   auto min_y = std::min({first_line.at(kHead).y, first_line.at(kTail).y, second_line.at(kHead).y, second_line.at(kTail).y});
   auto max_y = std::max({first_line.at(kHead).y, first_line.at(kTail).y, second_line.at(kHead).y, second_line.at(kTail).y});
   auto bound_area = (max_x - min_x) * (max_y - min_y);
-  auto tri_area_1 = BoundSkewTreeImpl::kHalfFactor * std::abs(first_line.at(kHead).x - first_line.at(kTail).x)
-                    * std::abs(first_line.at(kHead).y - first_line.at(kTail).y);
+  auto tri_area_1
+      = BoundSkewTreeImpl::kHalfFactor * std::abs(first_line.at(kHead).x - first_line.at(kTail).x) * std::abs(first_line.at(kHead).y - first_line.at(kTail).y);
   auto tri_area_2 = BoundSkewTreeImpl::kHalfFactor * std::abs(second_line.at(kHead).x - second_line.at(kTail).x)
                     * std::abs(second_line.at(kHead).y - second_line.at(kTail).y);
   auto jr_area = bound_area - tri_area_1 - tri_area_2;
@@ -227,8 +227,7 @@ auto TopDownEmbedding::calcSimplePointDelays(Point& point, Line& boundary_segmen
   }
   if (Equal(horizontal_distance, vertical_distance)) {
     // line is manhattan arc
-    if (!Equal(boundary_segment.at(kHead).min, boundary_segment.at(kTail).min)
-        || !Equal(boundary_segment.at(kHead).max, boundary_segment.at(kTail).max)) {
+    if (!Equal(boundary_segment.at(kHead).min, boundary_segment.at(kTail).min) || !Equal(boundary_segment.at(kHead).max, boundary_segment.at(kTail).max)) {
       CTSLOG.error(Loc::current(), "manhattan arc endpoint's delay is not same");
     }
     point.min = boundary_segment.at(kHead).min = boundary_segment.at(kTail).min;
@@ -259,8 +258,7 @@ auto TopDownEmbedding::calcSegmentPointDelays(Point& point, Line& boundary_segme
 auto TopDownEmbedding::calcPointDelays(const Area& current_area, Point& point, Line& boundary_segment) const -> void
 {
   if (!calcSimplePointDelays(point, boundary_segment)) {
-    if (!Equal(pointSkew(boundary_segment.at(kHead)), _impl._skew_bound)
-        || !Equal(pointSkew(boundary_segment.at(kTail)), _impl._skew_bound)) {
+    if (!Equal(pointSkew(boundary_segment.at(kHead)), _impl._skew_bound) || !Equal(pointSkew(boundary_segment.at(kTail)), _impl._skew_bound)) {
       CTSLOG.error(Loc::current(), "thera are skew reservation in line");
     }
     calcIrregularPointDelays(current_area, point, boundary_segment);
@@ -303,9 +301,9 @@ auto TopDownEmbedding::calcIrregularPointDelays(const Area& current_area, Point&
   auto joining_segment_type = Geom::lineType(current_area.get_line(kLeft));
   if (joining_segment_type == LineType::kManhattan) {
     if (!Geom::isSame(left_line.at(kHead), left_line.at(kTail)) || !Geom::isSame(right_line.at(kHead), right_line.at(kTail))) {
-      CTSLOG.error(Loc::current(), "endpoint should be same, left head: [", left_line.at(kHead).x, ", ", left_line.at(kHead).y,
-                   "], left tail: [", left_line.at(kTail).x, ", ", left_line.at(kTail).y, "], right head: [", right_line.at(kHead).x, ", ",
-                   right_line.at(kHead).y, "], right tail: [", right_line.at(kTail).x, ", ", right_line.at(kTail).y, "]");
+      CTSLOG.error(Loc::current(), "endpoint should be same, left head: [", left_line.at(kHead).x, ", ", left_line.at(kHead).y, "], left tail: [",
+                   left_line.at(kTail).x, ", ", left_line.at(kTail).y, "], right head: [", right_line.at(kHead).x, ", ", right_line.at(kHead).y,
+                   "], right tail: [", right_line.at(kTail).x, ", ", right_line.at(kTail).y, "]");
     }
 
     auto delay_left = pointDelayIncrease(left_line.at(kHead), point, left_child->get_cap_load(), _impl._rc_pattern);
@@ -338,8 +336,8 @@ auto TopDownEmbedding::calcIrregularPointDelays(const Area& current_area, Point&
   }
 }
 
-auto TopDownEmbedding::pointDelayIncrease(const Point& lhs_point, const Point& rhs_point, const double& cap_load,
-                                          const BSTRoutingRCPattern& rc_pattern) const -> double
+auto TopDownEmbedding::pointDelayIncrease(const Point& lhs_point, const Point& rhs_point, const double& cap_load, const BSTRoutingRCPattern& rc_pattern) const
+    -> double
 {
   auto delay = calcDelayIncrease(std::abs(lhs_point.x - rhs_point.x), std::abs(lhs_point.y - rhs_point.y), cap_load, rc_pattern);
   if (delay < 0) {
@@ -363,10 +361,9 @@ auto TopDownEmbedding::pointDelayIncrease(const Point& lhs_point, const Point& r
   } else {
     delay = calcDelayIncrease(horizontal_distance, vertical_distance, cap_load, rc_pattern);
     if (length > horizontal_distance + vertical_distance) {
-      delay += calcDelayIncrease(
-          0, length - horizontal_distance - vertical_distance,
-          cap_load + (_impl._unit_horizontal_capacitance * horizontal_distance) + (_impl._unit_vertical_capacitance * vertical_distance),
-          rc_pattern);
+      delay += calcDelayIncrease(0, length - horizontal_distance - vertical_distance,
+                                 cap_load + (_impl._unit_horizontal_capacitance * horizontal_distance) + (_impl._unit_vertical_capacitance * vertical_distance),
+                                 rc_pattern);
     }
   }
   if (delay < 0) {
@@ -381,17 +378,14 @@ auto TopDownEmbedding::calcDelayIncrease(const double& horizontal_length, const 
   double delay = 0;
   switch (rc_pattern) {
     case BSTRoutingRCPattern::kHV:
-      delay = (_impl._unit_horizontal_resistance * horizontal_length
-               * ((_impl._unit_horizontal_capacitance * horizontal_length / 2) + cap_load))
+      delay = (_impl._unit_horizontal_resistance * horizontal_length * ((_impl._unit_horizontal_capacitance * horizontal_length / 2) + cap_load))
               + (_impl._unit_vertical_resistance * vertical_length
-                 * ((_impl._unit_vertical_capacitance * vertical_length / 2) + cap_load
-                    + (horizontal_length * _impl._unit_horizontal_capacitance)));
+                 * ((_impl._unit_vertical_capacitance * vertical_length / 2) + cap_load + (horizontal_length * _impl._unit_horizontal_capacitance)));
       break;
     case BSTRoutingRCPattern::kVH:
       delay = (_impl._unit_vertical_resistance * vertical_length * ((_impl._unit_vertical_capacitance * vertical_length / 2) + cap_load))
               + (_impl._unit_horizontal_resistance * horizontal_length
-                 * ((_impl._unit_horizontal_capacitance * horizontal_length / 2) + cap_load
-                    + (vertical_length * _impl._unit_vertical_capacitance)));
+                 * ((_impl._unit_horizontal_capacitance * horizontal_length / 2) + cap_load + (vertical_length * _impl._unit_vertical_capacitance)));
       break;
     case BSTRoutingRCPattern::kSingle:
       delay = _impl._unit_horizontal_resistance * (horizontal_length + vertical_length)
@@ -474,8 +468,7 @@ auto TopDownEmbedding::checkUpdatedJoiningSegment(const Area* current_area, Line
   const auto line_distance = Geom::lineDist(left_joining_segment, right_joining_segment);
   const auto dist = line_distance.distance;
   if (!Geom::isSame(BoundSkewTreeImpl::linePoint(left_joining_segment, kHead), BoundSkewTreeImpl::linePoint(left_joining_segment, kTail))
-      && !Geom::isSame(BoundSkewTreeImpl::linePoint(right_joining_segment, kHead),
-                       BoundSkewTreeImpl::linePoint(right_joining_segment, kTail))
+      && !Geom::isSame(BoundSkewTreeImpl::linePoint(right_joining_segment, kHead), BoundSkewTreeImpl::linePoint(right_joining_segment, kTail))
       && !Geom::isParallel(left_joining_segment, right_joining_segment)) {
     CTSLOG.error(Loc::current(), "joining_segment line error");
   }

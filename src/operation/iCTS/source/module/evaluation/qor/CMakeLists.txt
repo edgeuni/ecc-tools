@@ -1,7 +1,7 @@
 add_library(
   icts_source_module_evaluation_qor
-  ${ICTS_MODULE_EVALUATION_QOR}/QorEvaluation.cc
-  ${ICTS_MODULE_EVALUATION_QOR}/QorEvaluationMetrics.cc
+  ${ICTS_MODULE_EVALUATION_QOR}/QOREvaluation.cc
+  ${ICTS_MODULE_EVALUATION_QOR}/QOREvaluationMetrics.cc
 )
 
 target_link_libraries(

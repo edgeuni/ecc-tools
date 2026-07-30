@@ -42,8 +42,7 @@ auto ClockLayout::set_design_dbu_per_um(int32_t dbu_per_um) -> void
   _design_dbu_per_um = std::max(dbu_per_um, int32_t{1});
 }
 
-auto ClockLayout::ensureClock(const std::string& clock_name, const std::string& clock_net_name, std::size_t clock_index)
-    -> ClockLayoutClock&
+auto ClockLayout::ensureClock(const std::string& clock_name, const std::string& clock_net_name, std::size_t clock_index) -> ClockLayoutClock&
 {
   if (auto* layout_clock = findClock(clock_index); layout_clock != nullptr) {
     if (layout_clock->clock_name.empty()) {
@@ -67,39 +66,36 @@ auto ClockLayout::ensureClock(const std::string& clock_name, const std::string& 
 
 auto ClockLayout::findClock(std::size_t clock_index) -> ClockLayoutClock*
 {
-  auto iter = std::ranges::find_if(
-      _clocks, [clock_index](const ClockLayoutClock& layout_clock) -> bool { return layout_clock.clock_index == clock_index; });
+  auto iter = std::ranges::find_if(_clocks, [clock_index](const ClockLayoutClock& layout_clock) -> bool { return layout_clock.clock_index == clock_index; });
   return iter == _clocks.end() ? nullptr : &(*iter);
 }
 
 auto ClockLayout::findClock(std::size_t clock_index) const -> const ClockLayoutClock*
 {
-  auto iter = std::ranges::find_if(
-      _clocks, [clock_index](const ClockLayoutClock& layout_clock) -> bool { return layout_clock.clock_index == clock_index; });
+  auto iter = std::ranges::find_if(_clocks, [clock_index](const ClockLayoutClock& layout_clock) -> bool { return layout_clock.clock_index == clock_index; });
   return iter == _clocks.end() ? nullptr : &(*iter);
 }
 
 auto ClockLayout::findNet(std::size_t clock_index, const std::string& net_name) const -> const ClockLayoutNet*
 {
-  auto clock_iter = std::ranges::find_if(
-      _clocks, [clock_index](const ClockLayoutClock& layout_clock) -> bool { return layout_clock.clock_index == clock_index; });
+  auto clock_iter
+      = std::ranges::find_if(_clocks, [clock_index](const ClockLayoutClock& layout_clock) -> bool { return layout_clock.clock_index == clock_index; });
   if (clock_iter == _clocks.end()) {
     return nullptr;
   }
-  auto net_iter = std::ranges::find_if(clock_iter->nets,
-                                       [&net_name](const ClockLayoutNet& layout_net) -> bool { return layout_net.net_name == net_name; });
+  auto net_iter = std::ranges::find_if(clock_iter->nets, [&net_name](const ClockLayoutNet& layout_net) -> bool { return layout_net.net_name == net_name; });
   return net_iter == clock_iter->nets.end() ? nullptr : &(*net_iter);
 }
 
 auto ClockLayout::findInst(std::size_t clock_index, const std::string& inst_name) const -> const ClockLayoutInst*
 {
-  auto clock_iter = std::ranges::find_if(
-      _clocks, [clock_index](const ClockLayoutClock& layout_clock) -> bool { return layout_clock.clock_index == clock_index; });
+  auto clock_iter
+      = std::ranges::find_if(_clocks, [clock_index](const ClockLayoutClock& layout_clock) -> bool { return layout_clock.clock_index == clock_index; });
   if (clock_iter == _clocks.end()) {
     return nullptr;
   }
-  auto inst_iter = std::ranges::find_if(
-      clock_iter->insts, [&inst_name](const ClockLayoutInst& layout_inst) -> bool { return layout_inst.inst_name == inst_name; });
+  auto inst_iter
+      = std::ranges::find_if(clock_iter->insts, [&inst_name](const ClockLayoutInst& layout_inst) -> bool { return layout_inst.inst_name == inst_name; });
   return inst_iter == clock_iter->insts.end() ? nullptr : &(*inst_iter);
 }
 

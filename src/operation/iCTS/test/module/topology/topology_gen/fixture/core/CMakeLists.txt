@@ -12,5 +12,5 @@ target_link_libraries(
   icts_test_module_topology_gen_artifact_writer
   PRIVATE
   icts_source_toolkit_logger
-  icts_test_common_io
+  icts_test_toolkit_io
 )

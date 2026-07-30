@@ -35,7 +35,6 @@
 #include "IdbInstance.h"
 #include "IdbNet.h"
 #include "IdbPins.h"
-#include "common/io/TestArtifactIO.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
 #include "data_manager/design/Clock.hh"
@@ -43,10 +42,11 @@
 #include "data_manager/io/Wrapper.hh"
 #include "dm_config.h"
 #include "idm.h"
+#include "toolkit/io/TestArtifactIO.hh"
 
 namespace icts_test::fast_clustering::realtech {
 namespace {
-using common::io::SanitizeOutputName;
+using toolkit::io::SanitizeOutputName;
 
 auto LoadTechnologyOnce(const TechAssets& assets, std::string& error) -> bool
 {
@@ -130,8 +130,8 @@ auto BuildClockNetCandidate(idb::IdbNet* idb_net) -> ClockNetCandidate
   }
 
   std::ostringstream reason_stream;
-  reason_stream << "idb_clock=" << candidate.idb_clock << ",name_clock_like=" << candidate.name_clock_like
-                << ",clock_pin_count=" << candidate.clock_pin_count << ",inst_load_count=" << candidate.inst_load_count;
+  reason_stream << "idb_clock=" << candidate.idb_clock << ",name_clock_like=" << candidate.name_clock_like << ",clock_pin_count=" << candidate.clock_pin_count
+                << ",inst_load_count=" << candidate.inst_load_count;
   candidate.reason = reason_stream.str();
   return candidate;
 }
@@ -210,11 +210,12 @@ auto LoadBenchmarkCase(const BenchmarkCase& benchmark_case, const TechAssets& as
     return loaded;
   }
 
-  loaded.dbu_per_micron = CTSDM.getWrapper().queryDbUnit();
-  if (loaded.dbu_per_micron <= 0) {
+  const auto dbu_per_micron = CTSDM.getWrapper().queryDbUnit();
+  if (!dbu_per_micron.has_value() || *dbu_per_micron <= 0) {
     loaded.error = "DBU-per-micron unavailable after DEF load";
     return loaded;
   }
+  loaded.dbu_per_micron = *dbu_per_micron;
   loaded.inst_count = idb_design->get_instance_list() == nullptr ? 0U : idb_design->get_instance_list()->get_instance_list().size();
   loaded.net_count = idb_design->get_net_list() == nullptr ? 0U : idb_design->get_net_list()->get_net_list().size();
   const auto clocks = CTSDM.getDesign().get_clocks();

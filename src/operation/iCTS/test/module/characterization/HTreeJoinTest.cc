@@ -41,16 +41,13 @@ TEST(HTreeJoinTest, HalfCapJoin)
   icts::HTreeTopologyCharTable upstream;
   icts::HTreeTopologyCharTable downstream;
 
-  upstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew80, char_cases::kSlew100, char_cases::kCap40, char_cases::kCap100,
-                                             char_cases::kDelay1p0, char_cases::kPower0p5,
-                                             char_cases::HTreeShape{.pattern_id = char_cases::kPattern1, .levels = 1}));
+  upstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew80, char_cases::kSlew100, char_cases::kCap40, char_cases::kCap100, char_cases::kDelay1p0,
+                                             char_cases::kPower0p5, char_cases::HTreeShape{.pattern_id = char_cases::kPattern1, .levels = 1}));
 
-  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew120, char_cases::kCap50, char_cases::kCap60,
-                                               char_cases::kDelay2p0, char_cases::kPower0p3,
-                                               char_cases::HTreeShape{.pattern_id = char_cases::kPattern2, .levels = 1}));
-  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew130, char_cases::kCap51, char_cases::kCap70,
-                                               char_cases::kDelay3p0, char_cases::kPower0p4,
-                                               char_cases::HTreeShape{.pattern_id = char_cases::kPattern3, .levels = 1}));
+  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew120, char_cases::kCap50, char_cases::kCap60, char_cases::kDelay2p0,
+                                               char_cases::kPower0p3, char_cases::HTreeShape{.pattern_id = char_cases::kPattern2, .levels = 1}));
+  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew130, char_cases::kCap51, char_cases::kCap70, char_cases::kDelay3p0,
+                                               char_cases::kPower0p4, char_cases::HTreeShape{.pattern_id = char_cases::kPattern3, .levels = 1}));
 
   const icts::TopologyPatternCombiner combiner(char_cases::kBoundaryKey);
   auto result = upstream.concatWith(downstream, combiner);
@@ -74,15 +71,12 @@ TEST(HTreeJoinTest, OddCapHalvingUsesCeilHalfBin)
   icts::HTreeTopologyCharTable upstream;
   icts::HTreeTopologyCharTable downstream;
 
-  upstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew80, char_cases::kSlew100, char_cases::kCap40, char_cases::kCap101,
-                                             char_cases::kDelay1p0, char_cases::kPower0p5,
-                                             char_cases::HTreeShape{.pattern_id = char_cases::kPattern1, .levels = 1}));
-  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew120, char_cases::kCap50, char_cases::kCap60,
-                                               char_cases::kDelay2p0, char_cases::kPower0p3,
-                                               char_cases::HTreeShape{.pattern_id = char_cases::kPattern2, .levels = 1}));
-  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew130, char_cases::kCap51, char_cases::kCap70,
-                                               char_cases::kDelay3p0, char_cases::kPower0p4,
-                                               char_cases::HTreeShape{.pattern_id = char_cases::kPattern3, .levels = 1}));
+  upstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew80, char_cases::kSlew100, char_cases::kCap40, char_cases::kCap101, char_cases::kDelay1p0,
+                                             char_cases::kPower0p5, char_cases::HTreeShape{.pattern_id = char_cases::kPattern1, .levels = 1}));
+  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew120, char_cases::kCap50, char_cases::kCap60, char_cases::kDelay2p0,
+                                               char_cases::kPower0p3, char_cases::HTreeShape{.pattern_id = char_cases::kPattern2, .levels = 1}));
+  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew130, char_cases::kCap51, char_cases::kCap70, char_cases::kDelay3p0,
+                                               char_cases::kPower0p4, char_cases::HTreeShape{.pattern_id = char_cases::kPattern3, .levels = 1}));
 
   const icts::TopologyPatternCombiner combiner(char_cases::kBoundaryKey);
   auto result = upstream.concatWith(downstream, combiner);
@@ -99,12 +93,10 @@ TEST(HTreeJoinTest, PowerDoubling)
   icts::HTreeTopologyCharTable upstream;
   icts::HTreeTopologyCharTable downstream;
 
-  upstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew80, char_cases::kSlew100, char_cases::kCap40, char_cases::kCap100,
-                                             char_cases::kDelay1p0, char_cases::kPower10p0,
-                                             char_cases::HTreeShape{.pattern_id = char_cases::kPattern1, .levels = 1}));
-  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew120, char_cases::kCap50, char_cases::kCap60,
-                                               char_cases::kDelay2p0, char_cases::kPower5p0,
-                                               char_cases::HTreeShape{.pattern_id = char_cases::kPattern2, .levels = 1}));
+  upstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew80, char_cases::kSlew100, char_cases::kCap40, char_cases::kCap100, char_cases::kDelay1p0,
+                                             char_cases::kPower10p0, char_cases::HTreeShape{.pattern_id = char_cases::kPattern1, .levels = 1}));
+  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew120, char_cases::kCap50, char_cases::kCap60, char_cases::kDelay2p0,
+                                               char_cases::kPower5p0, char_cases::HTreeShape{.pattern_id = char_cases::kPattern2, .levels = 1}));
 
   const icts::TopologyPatternCombiner combiner(char_cases::kBoundaryKey);
   auto result = upstream.concatWith(downstream, combiner);
@@ -118,12 +110,10 @@ TEST(HTreeJoinTest, PowerDoublingSubtractsDownstreamSourceBoundarySwitchPower)
   icts::HTreeTopologyCharTable upstream;
   icts::HTreeTopologyCharTable downstream;
 
-  upstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew80, char_cases::kSlew100, char_cases::kCap40, char_cases::kCap100,
-                                             char_cases::kDelay1p0, char_cases::kPower10p0,
-                                             char_cases::HTreeShape{.pattern_id = char_cases::kPattern1, .levels = 1}, 0.20));
-  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew120, char_cases::kCap50, char_cases::kCap60,
-                                               char_cases::kDelay2p0, char_cases::kPower5p0,
-                                               char_cases::HTreeShape{.pattern_id = char_cases::kPattern2, .levels = 1}, 1.50));
+  upstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew80, char_cases::kSlew100, char_cases::kCap40, char_cases::kCap100, char_cases::kDelay1p0,
+                                             char_cases::kPower10p0, char_cases::HTreeShape{.pattern_id = char_cases::kPattern1, .levels = 1}, 0.20));
+  downstream.addChar(char_cases::MakeHTreeChar(char_cases::kSlew100, char_cases::kSlew120, char_cases::kCap50, char_cases::kCap60, char_cases::kDelay2p0,
+                                               char_cases::kPower5p0, char_cases::HTreeShape{.pattern_id = char_cases::kPattern2, .levels = 1}, 1.50));
 
   const icts::TopologyPatternCombiner combiner(char_cases::kBoundaryKey);
   auto result = upstream.concatWith(downstream, combiner);

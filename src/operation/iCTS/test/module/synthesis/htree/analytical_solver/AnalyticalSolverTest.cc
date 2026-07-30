@@ -248,8 +248,8 @@ TEST(AnalyticalSolverTest, AnalyticalTopologyPatternRejectsInternalFanoutHiddenB
   segment_patterns.add(icts::BufferingPattern(length_idx, plain_pattern, {}, {}, false));
   segment_patterns.add(icts::BufferingPattern(length_idx, root_buffer_pattern, {0.1}, {"BUF_X1"}, false, MakeBoundaryState(true, true)));
 
-  const auto topology_pattern = icts::htree::analytical_solver::BuildAnalyticalTopologyPattern(
-      {root_buffer_pattern, plain_pattern, plain_pattern}, segment_patterns, 2U);
+  const auto topology_pattern
+      = icts::htree::analytical_solver::BuildAnalyticalTopologyPattern({root_buffer_pattern, plain_pattern, plain_pattern}, segment_patterns, 2U);
 
   EXPECT_FALSE(topology_pattern.has_value());
 }

@@ -85,8 +85,7 @@ auto PolishSmallClusters(std::vector<ClusterDraft>& clusters, const std::vector<
 
   PolishBoundaryLoads(clusters, entries, config);
 
-  const auto inactive_tail
-      = std::ranges::remove_if(clusters, [](const ClusterDraft& cluster) -> bool { return !cluster.active || cluster.entry_ids.empty(); });
+  const auto inactive_tail = std::ranges::remove_if(clusters, [](const ClusterDraft& cluster) -> bool { return !cluster.active || cluster.entry_ids.empty(); });
   clusters.erase(inactive_tail.begin(), inactive_tail.end());
 }
 

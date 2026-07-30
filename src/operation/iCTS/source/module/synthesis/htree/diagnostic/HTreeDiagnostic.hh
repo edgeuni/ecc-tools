@@ -35,6 +35,7 @@ struct RootDriverCompensationReport
 {
   bool enabled = false;
   bool valid = false;
+  bool power_available = false;
   std::string method;
   std::string cell_master;
   std::string load_source;

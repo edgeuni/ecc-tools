@@ -105,10 +105,9 @@ auto CalculateClusterLeafDistance(const ClusterLeafDistanceInput& input) -> std:
 
   std::ranges::sort(distances);
   const std::size_t median_index = distances.size() / 2U;
-  const double median_distance
-      = (distances.size() % 2U) == 0U
-            ? (static_cast<double>(distances.at(median_index - 1U)) + static_cast<double>(distances.at(median_index))) / 2.0
-            : static_cast<double>(distances.at(median_index));
+  const double median_distance = (distances.size() % 2U) == 0U
+                                     ? (static_cast<double>(distances.at(median_index - 1U)) + static_cast<double>(distances.at(median_index))) / 2.0
+                                     : static_cast<double>(distances.at(median_index));
   Topology::ClusterLeafDistanceSummary summary{
       .count = distances.size(),
       .min_distance_um = distances.front(),

@@ -32,15 +32,15 @@
 #include <utility>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "Logger.hh"
 #include "characterization/Characterization.hh"
-#include "common/io/TestArtifactIO.hh"
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "idm.h"
 #include "io/Wrapper.hh"
+#include "toolkit/io/TestArtifactIO.hh"
 
 namespace icts_test::characterization::realtech {
 
@@ -51,18 +51,22 @@ auto BuildRuntimeCharacterizationBufferCells(const std::vector<std::string>& buf
   std::vector<icts::CharacterizationBufferCell> buffer_cells;
   buffer_cells.reserve(buffer_types.size());
   for (const auto& cell_master : buffer_types) {
-    auto [input_pin, output_pin] = CTSDM.getWrapper().queryBufferPorts(cell_master);
+    const auto ports = CTSDM.getWrapper().queryBufferPorts(cell_master);
+    const auto input_cap_pf = CTSDM.getWrapper().queryCharInputPinCap(cell_master);
+    if (!ports.has_value() || !input_cap_pf.has_value()) {
+      continue;
+    }
     buffer_cells.push_back(icts::CharacterizationBufferCell{
         .cell_master = cell_master,
         .max_cap_pf = 0.0,
-        .input_cap_pf = CTSDM.getWrapper().queryCharInputPinCap(cell_master),
+        .input_cap_pf = *input_cap_pf,
         .input_slew_limit_ns = CTSDM.getWrapper().queryCellInPinSlewLimit(cell_master),
         .input_slew_table_axis_max_ns = CTSDM.getWrapper().queryCellInPinSlewTableAxisMax(cell_master),
         .output_cap_limit_pf = CTSDM.getWrapper().queryCellOutPinCapLimit(cell_master),
         .output_cap_table_axis_max_pf = CTSDM.getWrapper().queryCellOutPinCapTableAxisMax(cell_master),
         .cell_height_um = CTSDM.getWrapper().queryCellHeightUm(cell_master),
-        .input_pin = std::move(input_pin),
-        .output_pin = std::move(output_pin),
+        .input_pin = ports->input,
+        .output_pin = ports->output,
     });
   }
   return buffer_cells;
@@ -164,9 +168,8 @@ auto MakeRuntimeCharBuilderContract() -> RuntimeCharBuilderContract
   return contract;
 }
 
-auto MakeRealTechCharConfigState(const ConfigState& baseline_state, std::optional<std::vector<std::string>> buffer_types,
-                                 double max_buf_tran_ns, double max_cap_pf, bool omit_wirelength_unit, bool force_branch_buffer)
-    -> ConfigState
+auto MakeRealTechCharConfigState(const ConfigState& baseline_state, std::optional<std::vector<std::string>> buffer_types, double max_buf_tran_ns,
+                                 double max_cap_pf, bool omit_wirelength_unit, bool force_branch_buffer) -> ConfigState
 {
   auto configured_state = baseline_state;
   configured_state.has_max_buf_tran = max_buf_tran_ns > 0.0;
@@ -192,16 +195,15 @@ RealTechCharFixture::~RealTechCharFixture()
   restore();
 }
 
-auto RealTechCharFixture::prepare(const std::string& scenario_name, std::optional<std::vector<std::string>> buffer_types,
-                                  double max_buf_tran_ns, double max_cap_pf, bool omit_wirelength_unit, bool force_branch_buffer)
-    -> std::optional<std::string>
+auto RealTechCharFixture::prepare(const std::string& scenario_name, std::optional<std::vector<std::string>> buffer_types, double max_buf_tran_ns,
+                                  double max_cap_pf, bool omit_wirelength_unit, bool force_branch_buffer) -> std::optional<std::string>
 {
   if (_is_prepared) {
     restore();
   }
 
-  const auto& setup_state = icts_test::common::realtech::EnsureRealTechSetup();
-  if (setup_state.mode != icts_test::common::realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = icts_test::data_manager::realtech::EnsureRealTechSetup();
+  if (setup_state.mode != icts_test::data_manager::realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     return setup_state.summary;
   }
 
@@ -211,12 +213,12 @@ auto RealTechCharFixture::prepare(const std::string& scenario_name, std::optiona
   }
 
   const auto original_config_state = CaptureConfigState();
-  auto configured_state = MakeRealTechCharConfigState(original_config_state, std::move(buffer_types), max_buf_tran_ns, max_cap_pf,
-                                                      omit_wirelength_unit, force_branch_buffer);
+  auto configured_state
+      = MakeRealTechCharConfigState(original_config_state, std::move(buffer_types), max_buf_tran_ns, max_cap_pf, omit_wirelength_unit, force_branch_buffer);
   _original_config_state = original_config_state;
   ApplyConfigState(configured_state);
 
-  const auto output_dir = icts_test::common::io::ResolveOutputDir() / "characterization" / "realtech" / scenario_name;
+  const auto output_dir = icts_test::toolkit::io::ResolveOutputDir() / "characterization" / "realtech" / scenario_name;
   std::error_code error_code;
   std::filesystem::create_directories(output_dir, error_code);
   if (error_code) {
@@ -224,8 +226,7 @@ auto RealTechCharFixture::prepare(const std::string& scenario_name, std::optiona
   }
 
   CTSLOG.openLogFileStream((output_dir / "cts.log").string());
-  CTSLOG.info(icts::Loc::current(), "Characterization scenario: ", scenario_name,
-              ", omit wirelength unit=", omit_wirelength_unit ? "true" : "false",
+  CTSLOG.info(icts::Loc::current(), "Characterization scenario: ", scenario_name, ", omit wirelength unit=", omit_wirelength_unit ? "true" : "false",
               ", force branch buffer=", force_branch_buffer ? "true" : "false", ".");
   _is_prepared = true;
   return std::nullopt;
@@ -261,13 +262,13 @@ auto JoinStrings(const std::vector<std::string>& values) -> std::string
 
 auto WriteScenarioReport(const std::string& scenario_name, const std::string& file_name, const std::string& content) -> bool
 {
-  const auto output_dir = icts_test::common::io::ResolveOutputDir() / "characterization" / "realtech" / scenario_name;
+  const auto output_dir = icts_test::toolkit::io::ResolveOutputDir() / "characterization" / "realtech" / scenario_name;
   std::error_code error_code;
   std::filesystem::create_directories(output_dir, error_code);
   if (error_code) {
     return false;
   }
-  return icts_test::common::io::WriteTextArtifact(output_dir / file_name, content);
+  return icts_test::toolkit::io::WriteTextArtifact(output_dir / file_name, content);
 }
 
 auto CollectConfiguredBufferLimitInfo() -> std::vector<BufferLimitInfo>
@@ -280,15 +281,15 @@ auto CollectConfiguredBufferLimitInfo() -> std::vector<BufferLimitInfo>
       continue;
     }
 
-    auto [input_pin, output_pin] = CTSDM.getWrapper().queryBufferPorts(cell_master);
-    if (input_pin.empty() || output_pin.empty()) {
+    const auto ports = CTSDM.getWrapper().queryBufferPorts(cell_master);
+    if (!ports.has_value()) {
       continue;
     }
 
     infos.push_back(BufferLimitInfo{
         .cell_master = cell_master,
-        .input_pin = std::move(input_pin),
-        .output_pin = std::move(output_pin),
+        .input_pin = ports->input,
+        .output_pin = ports->output,
         .port_slew_limit_ns = CTSDM.getWrapper().queryCellInPinSlewLimit(cell_master),
         .table_slew_limit_ns = CTSDM.getWrapper().queryCellInPinSlewTableAxisMax(cell_master),
         .port_cap_limit_pf = CTSDM.getWrapper().queryCellOutPinCapLimit(cell_master),
@@ -303,8 +304,8 @@ auto CollectUsableBufferMasters(const std::vector<BufferLimitInfo>& infos) -> st
 {
   std::vector<std::string> masters;
   for (const auto& info : infos) {
-    const bool has_slew_limit = info.port_slew_limit_ns > 0.0 || info.table_slew_limit_ns > 0.0;
-    const bool has_cap_limit = info.port_cap_limit_pf > 0.0 || info.table_cap_limit_pf > 0.0;
+    const bool has_slew_limit = HasPositiveValue(info.port_slew_limit_ns) || HasPositiveValue(info.table_slew_limit_ns);
+    const bool has_cap_limit = HasPositiveValue(info.port_cap_limit_pf) || HasPositiveValue(info.table_cap_limit_pf);
     if (has_slew_limit && has_cap_limit) {
       masters.push_back(info.cell_master);
     }
@@ -318,8 +319,7 @@ auto LookupBufferInfo(const std::vector<BufferLimitInfo>& infos, const std::stri
   return it == infos.end() ? nullptr : &(*it);
 }
 
-auto MinPositiveResolvedLimit(const std::vector<BufferLimitInfo>& infos, const std::vector<std::string>& selected_masters, bool for_slew)
-    -> double
+auto MinPositiveResolvedLimit(const std::vector<BufferLimitInfo>& infos, const std::vector<std::string>& selected_masters, bool for_slew) -> double
 {
   double port_min = std::numeric_limits<double>::infinity();
   double table_min = std::numeric_limits<double>::infinity();
@@ -330,13 +330,13 @@ auto MinPositiveResolvedLimit(const std::vector<BufferLimitInfo>& infos, const s
       continue;
     }
 
-    const double port_value = for_slew ? info->port_slew_limit_ns : info->port_cap_limit_pf;
-    const double table_value = for_slew ? info->table_slew_limit_ns : info->table_cap_limit_pf;
-    if (port_value > 0.0) {
-      port_min = std::min(port_min, port_value);
+    const auto& port_value = for_slew ? info->port_slew_limit_ns : info->port_cap_limit_pf;
+    const auto& table_value = for_slew ? info->table_slew_limit_ns : info->table_cap_limit_pf;
+    if (port_value.has_value() && port_value.value() > 0.0) {
+      port_min = std::min(port_min, port_value.value());
     }
-    if (table_value > 0.0) {
-      table_min = std::min(table_min, table_value);
+    if (table_value.has_value() && table_value.value() > 0.0) {
+      table_min = std::min(table_min, table_value.value());
     }
   }
 
@@ -360,19 +360,23 @@ auto ResolveDefaultWirelengthUnitUm(const std::vector<BufferLimitInfo>& infos, c
       continue;
     }
 
-    const double drive_cap_pf = info->port_cap_limit_pf > 0.0 ? info->port_cap_limit_pf : info->table_cap_limit_pf;
-    if (drive_cap_pf <= 0.0) {
+    double drive_cap_pf = 0.0;
+    if (info->port_cap_limit_pf.has_value() && info->port_cap_limit_pf.value() > 0.0) {
+      drive_cap_pf = info->port_cap_limit_pf.value();
+    } else if (info->table_cap_limit_pf.has_value() && info->table_cap_limit_pf.value() > 0.0) {
+      drive_cap_pf = info->table_cap_limit_pf.value();
+    } else {
       continue;
     }
 
-    const double cell_height_um = CTSDM.getWrapper().queryCellHeightUm(cell_master);
-    if (cell_height_um <= 0.0) {
+    const auto cell_height_um = CTSDM.getWrapper().queryCellHeightUm(cell_master);
+    if (!cell_height_um.has_value() || cell_height_um.value() <= 0.0) {
       continue;
     }
 
     if (drive_cap_pf > strongest_drive_cap_pf) {
       strongest_drive_cap_pf = drive_cap_pf;
-      resolved_unit_um = cell_height_um * 10.0;
+      resolved_unit_um = cell_height_um.value() * 10.0;
     }
   }
 

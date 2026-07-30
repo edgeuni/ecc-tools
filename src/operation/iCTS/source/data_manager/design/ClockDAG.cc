@@ -123,8 +123,7 @@ auto formatClockCellError(const std::string& reason, const Inst& inst) -> std::s
     }
     pins += pin->get_name();
   }
-  return reason + "{inst=" + inst.get_name() + ",cell_master=" + inst.get_cell_master() + ",type=" + instTypeName(inst) + ",pins=" + pins
-         + "}";
+  return reason + "{inst=" + inst.get_name() + ",cell_master=" + inst.get_cell_master() + ",type=" + instTypeName(inst) + ",pins=" + pins + "}";
 }
 
 auto collectClockNets(const Clock& clock) -> std::vector<Net*>
@@ -237,9 +236,8 @@ auto finishTopologicalOrder(ClockDAG::ClockGraph& graph) -> void
   for (auto* pin : graph.pins) {
     in_degree[pin] = 0U;
   }
-  for (const auto& [from, arcs] : graph.outgoing_arcs) {
-    (void) from;
-    for (const auto& arc : arcs) {
+  for (const auto& outgoing_arcs : graph.outgoing_arcs) {
+    for (const auto& arc : outgoing_arcs.second) {
       ++in_degree[arc.to];
     }
   }

@@ -84,11 +84,15 @@ auto SaturatingMultiply(std::size_t lhs, std::size_t rhs) -> std::size_t
   return lhs * rhs;
 }
 
-auto CalcCellMastersAreaUm2(Wrapper& wrapper, const std::vector<std::string>& cell_masters) -> double
+auto CalcCellMastersAreaUm2(Wrapper& wrapper, const std::vector<std::string>& cell_masters) -> std::optional<double>
 {
   double area_um2 = 0.0;
   for (const auto& cell_master : cell_masters) {
-    area_um2 += std::max(0.0, wrapper.queryCellAreaUm2(cell_master));
+    const auto cell_area_um2 = wrapper.queryCellAreaUm2(cell_master);
+    if (!cell_area_um2.has_value()) {
+      return std::nullopt;
+    }
+    area_um2 += *cell_area_um2;
   }
   return area_um2;
 }
@@ -121,9 +125,11 @@ auto ApplySelectedPatternToLevelPlans(Wrapper& wrapper, HTree::Build& result, co
     level.selected_has_terminal_branch_buffer = segment_pattern->hasTerminalBranchBuffer();
     level.selected_terminal_cell_master = segment_pattern->hasTerminalBranchBuffer() && !cell_masters.empty() ? cell_masters.back() : "";
     level.selected_buffer_count = cell_masters.size();
-    level.selected_buffer_area_um2 = CalcCellMastersAreaUm2(wrapper, cell_masters);
+    const auto selected_buffer_area_um2 = CalcCellMastersAreaUm2(wrapper, cell_masters);
+    level.selected_buffer_area_um2 = selected_buffer_area_um2;
     level.selected_weighted_buffer_count = SaturatingMultiply(level_multiplicity, level.selected_buffer_count);
-    level.selected_weighted_buffer_area_um2 = static_cast<double>(level_multiplicity) * level.selected_buffer_area_um2;
+    level.selected_weighted_buffer_area_um2
+        = selected_buffer_area_um2.has_value() ? std::optional<double>{static_cast<double>(level_multiplicity) * *selected_buffer_area_um2} : std::nullopt;
   }
 }
 

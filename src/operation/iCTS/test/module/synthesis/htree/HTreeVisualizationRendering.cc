@@ -44,9 +44,9 @@
 #include "Pin.hh"
 #include "Point.hh"
 #include "Tree.hh"
-#include "module/synthesis/htree/HTreeSvgRenderer.hh"
+#include "module/synthesis/htree/HTreeSVGRenderer.hh"
 #include "synthesis/htree/HTree.hh"
-#include "visualization/core/SvgCommon.hh"
+#include "visualization/core/SVGCommon.hh"
 
 namespace icts_test::htree {
 
@@ -259,10 +259,8 @@ auto BuildBufferRenderStyles(const std::vector<BufferMasterSummary>& summaries) 
     const double rank_ratio = summaries.size() == 1 ? 0.5 : static_cast<double>(index) / static_cast<double>(rank_count);
     const double half_size = min_half_size + ((max_half_size - min_half_size) * rank_ratio);
     BufferRenderStyle style;
-    style.fill_color
-        = icts::visualization::detail::kSvgBufferFillPalette[index % icts::visualization::detail::kSvgBufferFillPalette.size()];
-    style.stroke_color
-        = icts::visualization::detail::kSvgBufferStrokePalette[index % icts::visualization::detail::kSvgBufferStrokePalette.size()];
+    style.fill_color = icts::visualization::detail::kSvgBufferFillPalette[index % icts::visualization::detail::kSvgBufferFillPalette.size()];
+    style.stroke_color = icts::visualization::detail::kSvgBufferStrokePalette[index % icts::visualization::detail::kSvgBufferStrokePalette.size()];
     style.half_size = half_size;
     styles.emplace(summaries[index].cell_master, style);
   }
@@ -270,12 +268,12 @@ auto BuildBufferRenderStyles(const std::vector<BufferMasterSummary>& summaries) 
   return styles;
 }
 
-auto WriteStraightConnection(std::ofstream& output_stream, const std::string& source_x, const std::string& source_y,
-                             const std::string& target_x, const std::string& target_y, const std::string& stroke_color, double stroke_width,
-                             const std::string& dash_array, const std::string& tooltip) -> void
+auto WriteStraightConnection(std::ofstream& output_stream, const std::string& source_x, const std::string& source_y, const std::string& target_x,
+                             const std::string& target_y, const std::string& stroke_color, double stroke_width, const std::string& dash_array,
+                             const std::string& tooltip) -> void
 {
-  output_stream << R"(<line x1=")" << source_x << R"(" y1=")" << source_y << R"(" x2=")" << target_x << R"(" y2=")" << target_y
-                << R"(" stroke=")" << stroke_color << R"(" stroke-width=")" << stroke_width << R"(" stroke-linecap="round")";
+  output_stream << R"(<line x1=")" << source_x << R"(" y1=")" << source_y << R"(" x2=")" << target_x << R"(" y2=")" << target_y << R"(" stroke=")"
+                << stroke_color << R"(" stroke-width=")" << stroke_width << R"(" stroke-linecap="round")";
   if (!dash_array.empty()) {
     output_stream << R"( stroke-dasharray=")" << dash_array << '"';
   }
@@ -286,8 +284,7 @@ auto WriteStraightConnection(std::ofstream& output_stream, const std::string& so
 }
 
 auto WriteLegend(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform,
-                 const std::vector<BufferMasterSummary>& buffer_summaries,
-                 const std::unordered_map<std::string, BufferRenderStyle>& buffer_styles) -> void
+                 const std::vector<BufferMasterSummary>& buffer_summaries, const std::unordered_map<std::string, BufferRenderStyle>& buffer_styles) -> void
 {
   const double legend_x = icts::visualization::detail::kSvgLegendX;
   const double legend_row_height = icts::visualization::detail::kSvgLegendRowHeight;
@@ -297,11 +294,10 @@ auto WriteLegend(std::ofstream& output_stream, const icts::visualization::detail
   const double legend_y = std::max(22.0, static_cast<double>(transform.height) - legend_height - 18.0);
 
   output_stream << R"(<g font-family="monospace" font-size="12" fill=")" << icts::visualization::detail::kSvgColorLegendText << R"(">)";
-  output_stream << R"(<rect x=")" << FormatSvgNumber(legend_x - 8.0) << R"(" y=")" << FormatSvgNumber(legend_y - 16.0)
-                << R"(" width="280" height=")" << FormatSvgNumber(legend_height) << R"(" rx="6" fill=")"
-                << icts::visualization::detail::kSvgColorLegendFill << R"(" fill-opacity=")"
-                << FormatSvgNumber(icts::visualization::detail::kSvgLegendFrameOpacity) << R"(" stroke=")"
-                << icts::visualization::detail::kSvgColorLegendStroke << R"(" />)";
+  output_stream << R"(<rect x=")" << FormatSvgNumber(legend_x - 8.0) << R"(" y=")" << FormatSvgNumber(legend_y - 16.0) << R"(" width="280" height=")"
+                << FormatSvgNumber(legend_height) << R"(" rx="6" fill=")" << icts::visualization::detail::kSvgColorLegendFill << R"(" fill-opacity=")"
+                << FormatSvgNumber(icts::visualization::detail::kSvgLegendFrameOpacity) << R"(" stroke=")" << icts::visualization::detail::kSvgColorLegendStroke
+                << R"(" />)";
   output_stream << R"(<text x=")" << FormatSvgNumber(legend_x) << R"(" y=")" << FormatSvgNumber(legend_y) << R"(">Legend</text>)";
 
   const double row_1_y = legend_y + legend_row_height;
@@ -310,27 +306,24 @@ auto WriteLegend(std::ofstream& output_stream, const icts::visualization::detail
   const double row_4_y = legend_y + (4.0 * legend_row_height);
   const double row_5_y = legend_y + (5.0 * legend_row_height);
 
-  output_stream << R"(<circle cx=")" << FormatSvgNumber(legend_x + 6.0) << R"(" cy=")" << FormatSvgNumber(row_1_y - 4.0)
-                << R"(" r="4" fill=")" << icts::visualization::detail::kSvgColorSinkLoad << R"(" fill-opacity="0.75" />)";
+  output_stream << R"(<circle cx=")" << FormatSvgNumber(legend_x + 6.0) << R"(" cy=")" << FormatSvgNumber(row_1_y - 4.0) << R"(" r="4" fill=")"
+                << icts::visualization::detail::kSvgColorSinkLoad << R"(" fill-opacity="0.75" />)";
   output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_1_y) << R"(">sink load</text>)";
 
   output_stream << R"(<line x1=")" << FormatSvgNumber(legend_x) << R"(" y1=")" << FormatSvgNumber(row_2_y - 4.0) << R"(" x2=")"
                 << FormatSvgNumber(legend_x + 12.0) << R"(" y2=")" << FormatSvgNumber(row_2_y - 4.0) << R"(" stroke=")"
                 << icts::visualization::detail::kSvgColorTopologyEdge << R"(" stroke-width="1.4" stroke-dasharray="6,4" />)";
-  output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_2_y)
-                << R"(">H-tree topology</text>)";
+  output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_2_y) << R"(">H-tree topology</text>)";
 
   output_stream << R"(<line x1=")" << FormatSvgNumber(legend_x) << R"(" y1=")" << FormatSvgNumber(row_3_y - 4.0) << R"(" x2=")"
                 << FormatSvgNumber(legend_x + 12.0) << R"(" y2=")" << FormatSvgNumber(row_3_y - 4.0) << R"(" stroke=")"
                 << icts::visualization::detail::kSvgColorRoutedSinkNet << R"(" stroke-width="2.0" />)";
-  output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_3_y)
-                << R"(">sink-reaching net</text>)";
+  output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_3_y) << R"(">sink-reaching net</text>)";
 
   output_stream << R"(<line x1=")" << FormatSvgNumber(legend_x) << R"(" y1=")" << FormatSvgNumber(row_4_y - 4.0) << R"(" x2=")"
                 << FormatSvgNumber(legend_x + 12.0) << R"(" y2=")" << FormatSvgNumber(row_4_y - 4.0) << R"(" stroke=")"
                 << icts::visualization::detail::kSvgColorDegradedInternalNet << R"(" stroke-width="1.6" />)";
-  output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_4_y)
-                << R"(">internal fanout net</text>)";
+  output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_4_y) << R"(">internal fanout net</text>)";
 
   output_stream << R"(<line x1=")" << FormatSvgNumber(legend_x) << R"(" y1=")" << FormatSvgNumber(row_5_y - 4.0) << R"(" x2=")"
                 << FormatSvgNumber(legend_x + 12.0) << R"(" y2=")" << FormatSvgNumber(row_5_y - 4.0) << R"(" stroke=")"
@@ -345,21 +338,20 @@ auto WriteLegend(std::ofstream& output_stream, const icts::visualization::detail
     const double symbol_size = 2.0 * std::min(style.half_size, 6.0);
 
     output_stream << R"(<rect x=")" << FormatSvgNumber(legend_x + 1.0) << R"(" y=")" << FormatSvgNumber(row_y - 11.0) << R"(" width=")"
-                  << FormatSvgNumber(symbol_size) << R"(" height=")" << FormatSvgNumber(symbol_size) << R"(" fill=")" << style.fill_color
-                  << R"(" stroke=")" << style.stroke_color << R"(" stroke-width="1.2" />)";
+                  << FormatSvgNumber(symbol_size) << R"(" height=")" << FormatSvgNumber(symbol_size) << R"(" fill=")" << style.fill_color << R"(" stroke=")"
+                  << style.stroke_color << R"(" stroke-width="1.2" />)";
 
     std::ostringstream label;
     label << summary.cell_master;
     label << " x" << summary.count;
-    output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_y) << R"(">)"
-                  << EscapeXml(label.str()) << R"(</text>)";
+    output_stream << R"(<text x=")" << FormatSvgNumber(legend_x + 18.0) << R"(" y=")" << FormatSvgNumber(row_y) << R"(">)" << EscapeXml(label.str())
+                  << R"(</text>)";
   }
   output_stream << R"(</g>
 )";
 }
 
-auto WriteTopologyOverlay(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform,
-                          const icts::Tree& topology) -> void
+auto WriteTopologyOverlay(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform, const icts::Tree& topology) -> void
 {
   for (std::size_t node_id = 0; node_id < topology.get_size(); ++node_id) {
     const auto* node = topology.get_node(node_id);
@@ -377,8 +369,7 @@ auto WriteTopologyOverlay(std::ofstream& output_stream, const icts::visualizatio
     const auto target_x = FormatSvgNumber(MapX(transform, node->get_position().get_x()));
     const auto target_y = FormatSvgNumber(MapY(transform, node->get_position().get_y()));
     const std::string tooltip = "tree edge " + std::to_string(parent->get_id()) + " -> " + std::to_string(node->get_id());
-    WriteStraightConnection(output_stream, source_x, source_y, target_x, target_y, icts::visualization::detail::kSvgColorTopologyEdge, 1.4,
-                            "6,4", tooltip);
+    WriteStraightConnection(output_stream, source_x, source_y, target_x, target_y, icts::visualization::detail::kSvgColorTopologyEdge, 1.4, "6,4", tooltip);
   }
 }
 
@@ -397,8 +388,8 @@ auto WriteMaterializedNets(std::ofstream& output_stream, const icts::visualizati
     }
 
     const bool is_root_net = net->get_driver() == result.output.root_output_pin;
-    const bool reaches_sink = std::ranges::any_of(
-        net->get_loads(), [&original_loads](const icts::Pin* pin) -> bool { return IsOriginalLoadPin(pin, original_loads); });
+    const bool reaches_sink
+        = std::ranges::any_of(net->get_loads(), [&original_loads](const icts::Pin* pin) -> bool { return IsOriginalLoadPin(pin, original_loads); });
 
     const std::string stroke_color = ResolveNetStrokeColor(is_root_net, reaches_sink);
     const double stroke_width = ResolveNetStrokeWidth(is_root_net, reaches_sink);
@@ -421,8 +412,7 @@ auto WriteMaterializedNets(std::ofstream& output_stream, const icts::visualizati
   }
 }
 
-auto WriteTopologyNodes(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform,
-                        const icts::Tree& topology) -> void
+auto WriteTopologyNodes(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform, const icts::Tree& topology) -> void
 {
   for (std::size_t node_id = 0; node_id < topology.get_size(); ++node_id) {
     const auto* node = topology.get_node(node_id);
@@ -435,8 +425,7 @@ auto WriteTopologyNodes(std::ofstream& output_stream, const icts::visualization:
     const auto position_y = FormatSvgNumber(MapY(transform, node->get_position().get_y()));
 
     const double radius = is_root ? 6.0 : 4.0;
-    const std::string fill_color
-        = is_root ? icts::visualization::detail::kSvgColorDriverRoot : icts::visualization::detail::kSvgColorTopologyNode;
+    const std::string fill_color = is_root ? icts::visualization::detail::kSvgColorDriverRoot : icts::visualization::detail::kSvgColorTopologyNode;
     output_stream << R"(<circle cx=")" << position_x << R"(" cy=")" << position_y << R"(" r=")" << radius << R"(" fill=")" << fill_color
                   << R"(" fill-opacity="0.92" stroke=")" << icts::visualization::detail::kSvgColorNodeStroke << R"(" stroke-width="1">)";
     WriteTooltip(output_stream, "tree node " + std::to_string(node->get_id()));
@@ -445,8 +434,8 @@ auto WriteTopologyNodes(std::ofstream& output_stream, const icts::visualization:
 }
 
 auto WriteBuffers(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform,
-                  const std::vector<std::unique_ptr<icts::Inst>>& inserted_insts,
-                  const std::unordered_map<std::string, BufferRenderStyle>& buffer_styles) -> void
+                  const std::vector<std::unique_ptr<icts::Inst>>& inserted_insts, const std::unordered_map<std::string, BufferRenderStyle>& buffer_styles)
+    -> void
 {
   for (const auto& inst_owner : inserted_insts) {
     const auto* inst = inst_owner.get();
@@ -458,17 +447,15 @@ auto WriteBuffers(std::ofstream& output_stream, const icts::visualization::detai
     const BufferRenderStyle style = style_itr != buffer_styles.end() ? style_itr->second : BufferRenderStyle{};
     const double center_x = MapX(transform, inst->get_location().get_x());
     const double center_y = MapY(transform, inst->get_location().get_y());
-    output_stream << R"(<rect x=")" << FormatSvgNumber(center_x - style.half_size) << R"(" y=")"
-                  << FormatSvgNumber(center_y - style.half_size) << R"(" width=")" << FormatSvgNumber(2.0 * style.half_size)
-                  << R"(" height=")" << FormatSvgNumber(2.0 * style.half_size) << R"(" fill=")" << style.fill_color << R"(" stroke=")"
-                  << style.stroke_color << R"(" stroke-width="1.2">)";
+    output_stream << R"(<rect x=")" << FormatSvgNumber(center_x - style.half_size) << R"(" y=")" << FormatSvgNumber(center_y - style.half_size)
+                  << R"(" width=")" << FormatSvgNumber(2.0 * style.half_size) << R"(" height=")" << FormatSvgNumber(2.0 * style.half_size) << R"(" fill=")"
+                  << style.fill_color << R"(" stroke=")" << style.stroke_color << R"(" stroke-width="1.2">)";
     WriteTooltip(output_stream, "buffer " + inst->get_name() + " [" + inst->get_cell_master() + "]");
     output_stream << "</rect>\n";
   }
 }
 
-auto WriteLoads(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform,
-                const std::vector<icts::Pin*>& loads) -> void
+auto WriteLoads(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform, const std::vector<icts::Pin*>& loads) -> void
 {
   for (const auto* load : loads) {
     if (load == nullptr || !HasValidLocation(load->get_location())) {
@@ -477,19 +464,17 @@ auto WriteLoads(std::ofstream& output_stream, const icts::visualization::detail:
 
     const auto location_x = FormatSvgNumber(MapX(transform, load->get_location().get_x()));
     const auto location_y = FormatSvgNumber(MapY(transform, load->get_location().get_y()));
-    const std::string load_label
-        = load->get_name() + (load->get_inst() != nullptr ? " [" + load->get_inst()->get_name() + "]" : std::string{});
+    const std::string load_label = load->get_name() + (load->get_inst() != nullptr ? " [" + load->get_inst()->get_name() + "]" : std::string{});
 
-    output_stream << R"(<circle cx=")" << location_x << R"(" cy=")" << location_y << R"(" r="4.5" fill=")"
-                  << icts::visualization::detail::kSvgColorSinkLoad << R"(" fill-opacity="0.75" stroke=")"
-                  << icts::visualization::detail::kSvgColorLoadStroke << R"(" stroke-width="0.8">)";
+    output_stream << R"(<circle cx=")" << location_x << R"(" cy=")" << location_y << R"(" r="4.5" fill=")" << icts::visualization::detail::kSvgColorSinkLoad
+                  << R"(" fill-opacity="0.75" stroke=")" << icts::visualization::detail::kSvgColorLoadStroke << R"(" stroke-width="0.8">)";
     WriteTooltip(output_stream, load_label);
     output_stream << "</circle>\n";
   }
 }
 
-auto WriteRootMarker(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform,
-                     const icts::htree::DiagnosticBuild& result) -> void
+auto WriteRootMarker(std::ofstream& output_stream, const icts::visualization::detail::SvgTransform& transform, const icts::htree::DiagnosticBuild& result)
+    -> void
 {
   const auto root_location = FindRenderableLocation(result.output.root_output_pin);
   if (!HasValidLocation(root_location)) {
@@ -499,16 +484,15 @@ auto WriteRootMarker(std::ofstream& output_stream, const icts::visualization::de
   const auto center_x = FormatSvgNumber(MapX(transform, root_location.get_x()));
   const auto center_y = FormatSvgNumber(MapY(transform, root_location.get_y()));
 
-  output_stream << R"(<circle cx=")" << center_x << R"(" cy=")" << center_y << R"(" r=")" << FormatSvgNumber(kRootRingRadius)
-                << R"(" fill="none" stroke=")" << icts::visualization::detail::kSvgColorFlylineRootNet << R"(" stroke-width="2.0">)";
+  output_stream << R"(<circle cx=")" << center_x << R"(" cy=")" << center_y << R"(" r=")" << FormatSvgNumber(kRootRingRadius) << R"(" fill="none" stroke=")"
+                << icts::visualization::detail::kSvgColorFlylineRootNet << R"(" stroke-width="2.0">)";
   WriteTooltip(output_stream, "root output pin");
   output_stream << "</circle>\n";
 }
 
 }  // namespace
 
-auto WriteMaterializedSvg(const std::filesystem::path& path, const std::vector<icts::Pin*>& loads,
-                          const icts::htree::DiagnosticBuild& result) -> bool
+auto WriteMaterializedSvg(const std::filesystem::path& path, const std::vector<icts::Pin*>& loads, const icts::htree::DiagnosticBuild& result) -> bool
 {
   const auto extra_points = CollectExtraPoints(result);
   const auto bounds = ComputeBounds(loads, extra_points);
@@ -521,9 +505,8 @@ auto WriteMaterializedSvg(const std::filesystem::path& path, const std::vector<i
     return false;
   }
 
-  output_stream << icts::visualization::detail::kSvgOpenTagPrefix << FormatSvgNumber(transform.width)
-                << icts::visualization::detail::kSvgHeightTag << FormatSvgNumber(transform.height)
-                << icts::visualization::detail::kSvgViewBoxPrefix << FormatSvgNumber(transform.width) << ' '
+  output_stream << icts::visualization::detail::kSvgOpenTagPrefix << FormatSvgNumber(transform.width) << icts::visualization::detail::kSvgHeightTag
+                << FormatSvgNumber(transform.height) << icts::visualization::detail::kSvgViewBoxPrefix << FormatSvgNumber(transform.width) << ' '
                 << FormatSvgNumber(transform.height) << icts::visualization::detail::kSvgOpenTagSuffix;
   output_stream << icts::visualization::detail::kSvgBackgroundRect;
 

@@ -35,7 +35,7 @@
 #include <utility>
 #include <vector>
 
-#include "FastSta.hh"
+#include "FastSTA.hh"
 #include "Logger.hh"
 #include "optimization/candidate/OptimizationCandidates.hh"
 #include "optimization/model/ClockSizingOptimizationData.hh"
@@ -125,8 +125,7 @@ auto AccumulateWindowStatsFromChild(ClockSizingTopologyWindowStats& stats, FastS
 }
 
 auto BuildTopologyWindowStats(const FastSTA& fast_sta, FastStaClockId clock_id, const std::vector<ClockSizingBuffer>& buffers,
-                              const ClockSizingTopologyIndex& topology, const ClockSizingArrivalWindow& window)
-    -> ClockSizingTopologyWindowStats
+                              const ClockSizingTopologyIndex& topology, const ClockSizingArrivalWindow& window) -> ClockSizingTopologyWindowStats
 {
   ClockSizingTopologyWindowStats stats;
   const auto graph_profile = fast_sta.queryClockGraphProfile(clock_id);
@@ -194,8 +193,8 @@ auto BuildTopologyWindowStats(const FastSTA& fast_sta, FastStaClockId clock_id, 
   return stats;
 }
 
-auto ScoreWindowSizingEdit(const ClockSizingEdit& edit, const std::vector<ClockSizingBuffer>& buffers,
-                           const ClockSizingTopologyWindowStats& stats, bool& mixed_rejected) -> double
+auto ScoreWindowSizingEdit(const ClockSizingEdit& edit, const std::vector<ClockSizingBuffer>& buffers, const ClockSizingTopologyWindowStats& stats,
+                           bool& mixed_rejected) -> double
 {
   mixed_rejected = false;
   if (edit.drive_step == 0 || edit.buffer_index >= buffers.size()) {
@@ -231,8 +230,8 @@ auto ScoreWindowSizingEdit(const ClockSizingEdit& edit, const std::vector<ClockS
   return primary_violation * count_weight * drive_weight * pure_bonus * purity / area_cost;
 }
 
-auto ScoreScalableBatch(const std::vector<ClockSizingEdit>& edits, const std::vector<ClockSizingBuffer>& buffers,
-                        const ClockSizingTopologyWindowStats& stats) -> double
+auto ScoreScalableBatch(const std::vector<ClockSizingEdit>& edits, const std::vector<ClockSizingBuffer>& buffers, const ClockSizingTopologyWindowStats& stats)
+    -> double
 {
   double score = 0.0;
   for (const auto& edit : edits) {
@@ -262,9 +261,8 @@ auto BatchKey(const std::vector<ClockSizingEdit>& edits) -> std::string
   return key;
 }
 
-auto AppendScoredBatch(std::vector<ScoredClockSizingBatch>& candidates, std::unordered_set<std::string>& seen,
-                       const std::vector<ClockSizingEdit>& edits, const std::vector<ClockSizingBuffer>& buffers,
-                       const ClockSizingTopologyWindowStats& stats, std::size_t max_edit_count = 0U) -> void
+auto AppendScoredBatch(std::vector<ScoredClockSizingBatch>& candidates, std::unordered_set<std::string>& seen, const std::vector<ClockSizingEdit>& edits,
+                       const std::vector<ClockSizingBuffer>& buffers, const ClockSizingTopologyWindowStats& stats, std::size_t max_edit_count = 0U) -> void
 {
   if (edits.empty()) {
     return;
@@ -299,8 +297,7 @@ auto AppendScoredBatch(std::vector<ScoredClockSizingBatch>& candidates, std::uno
   candidates.push_back(ScoredClockSizingBatch{.edits = std::move(compact), .score = score});
 }
 
-auto CollectScoredClockSizingEdits(const std::vector<ClockSizingBuffer>& buffers, const ClockSizingTopologyWindowStats& stats)
-    -> ClockSizingEditScoreSet
+auto CollectScoredClockSizingEdits(const std::vector<ClockSizingBuffer>& buffers, const ClockSizingTopologyWindowStats& stats) -> ClockSizingEditScoreSet
 {
   ClockSizingEditScoreSet collection;
   collection.edits.reserve(buffers.size() * 4U);
@@ -357,8 +354,8 @@ auto IsTopologyAncestor(const ClockSizingTopologyIndex& topology, FastStaNodeId 
   return false;
 }
 
-auto HasTopologySelectionConflict(const ClockSizingTopologyIndex& topology, const std::vector<ClockSizingBuffer>& buffers,
-                                  const ClockSizingEdit& edit, const std::vector<FastStaNodeId>& selected_nodes) -> bool
+auto HasTopologySelectionConflict(const ClockSizingTopologyIndex& topology, const std::vector<ClockSizingBuffer>& buffers, const ClockSizingEdit& edit,
+                                  const std::vector<FastStaNodeId>& selected_nodes) -> bool
 {
   if (edit.buffer_index >= buffers.size()) {
     return true;
@@ -374,8 +371,7 @@ auto HasTopologySelectionConflict(const ClockSizingTopologyIndex& topology, cons
 }
 
 auto SelectTopClockSizingEdits(const std::vector<ScoredClockSizingEdit>& scored_edits, const ClockSizingTopologyIndex& topology,
-                               const std::vector<ClockSizingBuffer>& buffers, int drive_sign, std::size_t max_edit_count)
-    -> std::vector<ClockSizingEdit>
+                               const std::vector<ClockSizingBuffer>& buffers, int drive_sign, std::size_t max_edit_count) -> std::vector<ClockSizingEdit>
 {
   std::vector<ClockSizingEdit> edits;
   edits.reserve(max_edit_count);
@@ -413,8 +409,8 @@ auto NormalizedBatchScore(const ScoredClockSizingBatch& candidate) -> double
 }  // namespace
 
 auto GenerateScalableClockSizingEditBatches(const FastSTA& fast_sta, FastStaClockId clock_id, const std::vector<ClockSizingBuffer>& buffers,
-                                            const ClockSizingTopologyIndex& topology, const ClockSizingTimingState& current,
-                                            double target_skew_ns) -> std::vector<ScoredClockSizingBatch>
+                                            const ClockSizingTopologyIndex& topology, const ClockSizingTimingState& current, double target_skew_ns)
+    -> std::vector<ScoredClockSizingBatch>
 {
   std::vector<ScoredClockSizingBatch> candidates;
   std::unordered_set<std::string> seen;

@@ -156,8 +156,7 @@ struct TopologyPatternLibrary
     return HTreeTopologyPattern(pattern_id, node->levels, std::move(level_segment_pattern_ids));
   }
 
-  auto compactReachableFrom(const std::vector<PatternId>& root_pattern_ids) const
-      -> std::pair<TopologyPatternLibrary, std::unordered_map<PatternId, PatternId>>
+  auto compactReachableFrom(const std::vector<PatternId>& root_pattern_ids) const -> std::pair<TopologyPatternLibrary, std::unordered_map<PatternId, PatternId>>
   {
     std::vector<char> retained(nodes.size(), 0);
     std::vector<PatternId> pending_pattern_ids = root_pattern_ids;
@@ -241,8 +240,7 @@ inline auto IsBinarySourceFanoutLegal(std::size_t per_branch_load_count, std::si
 class TopologyPatternLibraryCombiner
 {
  public:
-  TopologyPatternLibraryCombiner(TopologyPatternLibrary& library, unsigned start_id, std::size_t max_fanout,
-                                 std::size_t branching_factor = 2U)
+  TopologyPatternLibraryCombiner(TopologyPatternLibrary& library, unsigned start_id, std::size_t max_fanout, std::size_t branching_factor = 2U)
       : _library(&library), _next_id(start_id), _max_fanout(max_fanout), _branching_factor(std::max<std::size_t>(1U, branching_factor))
   {
   }
@@ -251,8 +249,7 @@ class TopologyPatternLibraryCombiner
   {
     const auto upstream_state = _library->getCompositionState(upstream);
     const auto downstream_state = _library->getCompositionState(downstream);
-    return upstream_state.monotonic_boundary_state.canComposeWith(downstream_state.monotonic_boundary_state)
-           && isBranchFanoutLegal(downstream_state);
+    return upstream_state.monotonic_boundary_state.canComposeWith(downstream_state.monotonic_boundary_state) && isBranchFanoutLegal(downstream_state);
   }
 
   auto composeState(PatternId upstream, PatternId downstream) const -> PatternCompositionState
@@ -261,8 +258,7 @@ class TopologyPatternLibraryCombiner
     const auto downstream_state = _library->getCompositionState(downstream);
     return PatternCompositionState{
         .terminal_semantic = downstream_state.terminal_semantic,
-        .monotonic_boundary_state
-        = MonotonicBoundaryState::compose(upstream_state.monotonic_boundary_state, downstream_state.monotonic_boundary_state),
+        .monotonic_boundary_state = MonotonicBoundaryState::compose(upstream_state.monotonic_boundary_state, downstream_state.monotonic_boundary_state),
         .source_exposed_load_count = resolveMergedSourceLoadCount(upstream_state, downstream_state),
     };
   }
@@ -279,8 +275,7 @@ class TopologyPatternLibraryCombiner
     }
 
     const PatternId merged_pattern_id = PatternId::topology(_next_id++);
-    _library->addConcat(merged_pattern_id, upstream_pattern->levels + downstream_pattern->levels, upstream, downstream,
-                        composeState(upstream, downstream));
+    _library->addConcat(merged_pattern_id, upstream_pattern->levels + downstream_pattern->levels, upstream, downstream, composeState(upstream, downstream));
     return merged_pattern_id;
   }
 
@@ -292,8 +287,7 @@ class TopologyPatternLibraryCombiner
     return IsSourceFanoutLegal(downstream_state.source_exposed_load_count, _max_fanout, _branching_factor);
   }
 
-  auto resolveMergedSourceLoadCount(const PatternCompositionState& upstream_state, const PatternCompositionState& downstream_state) const
-      -> std::size_t
+  auto resolveMergedSourceLoadCount(const PatternCompositionState& upstream_state, const PatternCompositionState& downstream_state) const -> std::size_t
   {
     if (upstream_state.monotonic_boundary_state.source.has_buffer) {
       return 1U;

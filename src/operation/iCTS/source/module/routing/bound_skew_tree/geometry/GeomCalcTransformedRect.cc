@@ -65,8 +65,8 @@ auto GeomCalc::transformedRectDistance(TransformedRect& lhs_transformed_rect, Tr
   return 0;
 }
 
-auto GeomCalc::makeIntersection(const TransformedRect& first_transformed_rect, const TransformedRect& second_transformed_rect,
-                                TransformedRect& intersection) -> void
+auto GeomCalc::makeIntersection(const TransformedRect& first_transformed_rect, const TransformedRect& second_transformed_rect, TransformedRect& intersection)
+    -> void
 {
   intersection.x_low(std::max(first_transformed_rect.x_low(), second_transformed_rect.x_low()));
   intersection.x_high(std::min(first_transformed_rect.x_high(), second_transformed_rect.x_high()));
@@ -91,8 +91,7 @@ auto GeomCalc::containsTransformedRect(const TransformedRect& inner_transformed_
          && inner_transformed_rect.y_low() >= outer_transformed_rect.y_low() - kEpsilon;
 }
 
-auto GeomCalc::buildTransformedRect(const TransformedRect& transformed_rect, const double& radius,
-                                    TransformedRect& expanded_transformed_rect) -> void
+auto GeomCalc::buildTransformedRect(const TransformedRect& transformed_rect, const double& radius, TransformedRect& expanded_transformed_rect) -> void
 {
   expanded_transformed_rect.x_low(transformed_rect.x_low() - radius);
   expanded_transformed_rect.x_high(transformed_rect.x_high() + radius);
@@ -143,8 +142,7 @@ auto GeomCalc::transformedRectToRegion(TransformedRect& transformed_rect, Region
     return;
   }
 
-  TransformedRect edge_transformed_rect(transformed_rect.x_high(), transformed_rect.x_high(), transformed_rect.y_low(),
-                                        transformed_rect.y_high());
+  TransformedRect edge_transformed_rect(transformed_rect.x_high(), transformed_rect.x_high(), transformed_rect.y_low(), transformed_rect.y_high());
   Point head_point;
   Point tail_point;
 

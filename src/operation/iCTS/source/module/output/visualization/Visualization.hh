@@ -48,8 +48,8 @@ class Visualization
  public:
   Visualization() = delete;
 
-  static auto emit(const std::filesystem::path& visualization_dir, const Config& cts_config, const Drawing& drawing,
-                   const VisualizationConfig& config = {}) -> VisualizationSummary;
+  static auto emit(const std::filesystem::path& visualization_dir, const Config& cts_config, const Drawing& drawing, const VisualizationConfig& config = {})
+      -> VisualizationSummary;
 };
 
 }  // namespace icts

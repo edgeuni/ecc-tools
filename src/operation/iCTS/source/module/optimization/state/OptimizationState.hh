@@ -26,7 +26,7 @@
 #include <cstddef>
 #include <vector>
 
-#include "FastSta.hh"
+#include "FastSTA.hh"
 #include "optimization/model/ClockSizingOptimizationData.hh"
 
 namespace icts::clock_sizing_optimization {

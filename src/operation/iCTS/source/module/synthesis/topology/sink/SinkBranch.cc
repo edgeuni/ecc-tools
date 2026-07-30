@@ -31,7 +31,7 @@
 #include <utility>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "Logger.hh"
 #include "Net.hh"
 #include "Point.hh"
@@ -68,8 +68,7 @@ auto ApplyMinTopInputSlew(const Config& config, HTree::Config& htree_config) -> 
   htree_config.min_top_input_slew_ns = config.get_root_input_slew();
 }
 
-auto BuildSinkTreeLoadPreparationPolicy(const Config& config, Wrapper& wrapper, bool enable_sink_clustering)
-    -> SinkTreeLoadPreparationPolicy
+auto BuildSinkTreeLoadPreparationPolicy(const Config& config, Wrapper& wrapper, bool enable_sink_clustering) -> SinkTreeLoadPreparationPolicy
 {
   SinkTreeLoadPreparationPolicy policy{
       .enable_sink_clustering = enable_sink_clustering,
@@ -200,8 +199,7 @@ auto BuildSinkTree(const Topology::Input& input, const Topology::Config& config)
   auto htree_config = BuildSinkHtreeConfig(flow_config);
   auto htree_build = HTree::build(htree_input, htree_config);
   if (!htree_build.summary.success) {
-    const std::string htree_failure
-        = htree_build.summary.failure_reason.empty() ? "unknown H-tree failure" : htree_build.summary.failure_reason;
+    const std::string htree_failure = htree_build.summary.failure_reason.empty() ? "unknown H-tree failure" : htree_build.summary.failure_reason;
     CTSLOG.warn(Loc::current(), "Topology: H-tree build failed: ", htree_failure);
     result.summary.failure_reason = "H-tree build failed: " + htree_failure;
     root_net_side_effects.restore();
@@ -216,8 +214,15 @@ auto BuildSinkTree(const Topology::Input& input, const Topology::Config& config)
   RecordSinkHtreeBuild(result, std::move(htree_build));
 
   if (result.summary.sink_clustering_enabled) {
+    const auto dbu_per_um = wrapper.queryDbUnit();
+    if (!dbu_per_um.has_value()) {
+      CTSLOG.warn(Loc::current(), "Topology: clustered sink-tree distance reporting failed because DBU-per-micron is unavailable.");
+      result.summary.failure_reason = "dbu_per_um_unavailable";
+      root_net_side_effects.restore();
+      return result;
+    }
     result.summary.cluster_leaf_distance_summary = CalculateClusterLeafDistance(ClusterLeafDistanceInput{
-        .dbu_per_um = wrapper.queryDbUnit(),
+        .dbu_per_um = *dbu_per_um,
         .build = &result,
     });
   }

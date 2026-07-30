@@ -38,10 +38,10 @@
 #include "Inst.hh"
 #include "Pin.hh"
 #include "Point.hh"
-#include "common/io/TestArtifactIO.hh"
-#include "module/synthesis/TopologySvgRenderer.hh"
+#include "module/synthesis/TopologySVGRenderer.hh"
 #include "synthesis/topology/Topology.hh"
-#include "visualization/core/SvgCommon.hh"
+#include "toolkit/io/TestArtifactIO.hh"
+#include "visualization/core/SVGCommon.hh"
 
 namespace icts_test::synthesis {
 namespace {
@@ -93,8 +93,7 @@ auto FindRenderableLocation(const icts::Pin* pin) -> icts::Point<int>
 auto CollectExtraPoints(const icts::Topology::Build& result) -> std::vector<icts::Point<int>>
 {
   std::vector<icts::Point<int>> extra_points;
-  extra_points.reserve(result.output.htree_output.topology.get_size() + result.output.inserted_insts.size()
-                       + result.output.inserted_pins.size());
+  extra_points.reserve(result.output.htree_output.topology.get_size() + result.output.inserted_insts.size() + result.output.inserted_pins.size());
 
   for (std::size_t node_id = 0; node_id < result.output.htree_output.topology.get_size(); ++node_id) {
     const auto* node = result.output.htree_output.topology.get_node(node_id);
@@ -171,10 +170,8 @@ auto BuildBufferRenderStyles(const std::vector<BufferMasterSummary>& summaries) 
   for (std::size_t index = 0; index < summaries.size(); ++index) {
     const double rank_ratio = summaries.size() == 1 ? 0.5 : static_cast<double>(index) / static_cast<double>(rank_count);
     BufferRenderStyle style;
-    style.fill_color
-        = icts::visualization::detail::kSvgBufferFillPalette[index % icts::visualization::detail::kSvgBufferFillPalette.size()];
-    style.stroke_color
-        = icts::visualization::detail::kSvgBufferStrokePalette[index % icts::visualization::detail::kSvgBufferStrokePalette.size()];
+    style.fill_color = icts::visualization::detail::kSvgBufferFillPalette[index % icts::visualization::detail::kSvgBufferFillPalette.size()];
+    style.stroke_color = icts::visualization::detail::kSvgBufferStrokePalette[index % icts::visualization::detail::kSvgBufferStrokePalette.size()];
     style.half_size = min_half_size + ((max_half_size - min_half_size) * rank_ratio);
     styles.emplace(summaries[index].cell_master, style);
   }
@@ -224,8 +221,7 @@ auto BuildReport(const std::string& scenario_name, const std::string& clock_name
   report << "cluster_buffer_count=" << result.output.cluster_buffers.size() << "\n";
   report << "sink_level_edge_count=" << sink_level_segments.size() << "\n";
   report << "source_pin=" << (source != nullptr ? source->get_name() : "<null>") << "\n";
-  report << "root_net=" << (result.output.htree_output.root_net != nullptr ? result.output.htree_output.root_net->get_name() : "<null>")
-         << "\n";
+  report << "root_net=" << (result.output.htree_output.root_net != nullptr ? result.output.htree_output.root_net->get_name() : "<null>") << "\n";
   report << "artifacts=cts.log,synthesis_topology.svg,synthesis_report.txt\n";
   report << "output_dir=" << paths.output_dir.string() << "\n";
   return report.str();
@@ -236,8 +232,7 @@ auto BuildReport(const std::string& scenario_name, const std::string& clock_name
 auto PrepareTopologyArtifactPaths(const std::string& case_name) -> TopologyArtifactPaths
 {
   TopologyArtifactPaths paths;
-  paths.output_dir = common::io::PrepareCleanOutputDir(common::io::ResolveOutputDir() / "module" / "synthesis"
-                                                       / common::io::SanitizeOutputName(case_name));
+  paths.output_dir = toolkit::io::PrepareCleanOutputDir(toolkit::io::ResolveOutputDir() / "module" / "synthesis" / toolkit::io::SanitizeOutputName(case_name));
   if (paths.output_dir.empty()) {
     return paths;
   }
@@ -248,16 +243,15 @@ auto PrepareTopologyArtifactPaths(const std::string& case_name) -> TopologyArtif
   return paths;
 }
 
-auto WriteTopologyArtifacts(const TopologyArtifactPaths& paths, const std::string& scenario_name, const std::string& clock_name,
-                            icts::Pin* source, const std::vector<icts::Pin*>& original_sinks, const icts::Topology::Build& result) -> bool
+auto WriteTopologyArtifacts(const TopologyArtifactPaths& paths, const std::string& scenario_name, const std::string& clock_name, icts::Pin* source,
+                            const std::vector<icts::Pin*>& original_sinks, const icts::Topology::Build& result) -> bool
 {
   if (paths.output_dir.empty()) {
     return false;
   }
 
   const bool wrote_svg = WriteSynthesisSvg(paths.synthesis_svg, original_sinks, result);
-  const bool wrote_report
-      = common::io::WriteTextArtifact(paths.report_path, BuildReport(scenario_name, clock_name, paths, source, original_sinks, result));
+  const bool wrote_report = toolkit::io::WriteTextArtifact(paths.report_path, BuildReport(scenario_name, clock_name, paths, source, original_sinks, result));
   return wrote_svg && wrote_report;
 }
 

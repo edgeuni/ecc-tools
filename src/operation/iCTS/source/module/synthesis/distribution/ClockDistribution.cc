@@ -103,8 +103,7 @@ auto ClockDistribution::prepare(const ClockDistributionInput& input) -> std::opt
   context.root_input = root_buffer_output.root_input;
   context.root_output = root_buffer_output.root_output;
   if (context.root_buffer == nullptr || context.root_input == nullptr || context.root_output == nullptr) {
-    status_recorder.append(clock, DomainStatus::kFailed, input.sink_domain, input.valid_sinks, input.sinks.size(),
-                           "failed to insert root buffer");
+    status_recorder.append(clock, DomainStatus::kFailed, input.sink_domain, input.valid_sinks, input.sinks.size(), "failed to insert root buffer");
     CTSLOG.warn(Loc::current(), "ClockDistribution: clock \"", clock.get_clock_name(), "\" sink domain ", sink_domain_label,
                 " failed because root-buffer insertion failed.");
     return std::nullopt;
@@ -118,8 +117,7 @@ auto ClockDistribution::prepare(const ClockDistributionInput& input) -> std::opt
       .sinks = input.sinks,
   });
   if (context.downstream_net == nullptr) {
-    status_recorder.append(clock, DomainStatus::kFailed, input.sink_domain, input.valid_sinks, input.sinks.size(),
-                           "failed to create downstream net");
+    status_recorder.append(clock, DomainStatus::kFailed, input.sink_domain, input.valid_sinks, input.sinks.size(), "failed to create downstream net");
     CTSLOG.warn(Loc::current(), "ClockDistribution: clock \"", clock.get_clock_name(), "\" sink domain ", sink_domain_label,
                 " failed because downstream net creation failed.");
     return std::nullopt;

@@ -37,7 +37,7 @@
 #include "IdbLayout.h"
 #include "IdbUnits.h"
 #include "Logger.hh"
-#include "adapter/sdc/SdcClockReader.hh"
+#include "adapter/sdc/SDCClockReader.hh"
 #include "builder.h"
 #include "def_service.h"
 #include "design/Clock.hh"
@@ -114,29 +114,26 @@ auto Wrapper::clearCtsBindings() -> void
   _idb2cts_pin_map.clear();
 }
 
-auto Wrapper::queryDbUnit() const -> int32_t
+auto Wrapper::queryDbUnit() const -> std::optional<int32_t>
 {
   if (_idb_design == nullptr || _idb_design->get_units() == nullptr) {
-    CTSLOG.warn(Loc::current(), "iDB design units are not ready in Wrapper.");
-    return 0;
+    return std::nullopt;
   }
-  return _idb_design->get_units()->get_micron_dbu();
+  const auto dbu_per_um = _idb_design->get_units()->get_micron_dbu();
+  return dbu_per_um > 0 ? std::optional<int32_t>{dbu_per_um} : std::nullopt;
 }
 
-auto Wrapper::withinCore(int32_t point_x, int32_t point_y) const -> bool
+auto Wrapper::withinCore(int32_t point_x, int32_t point_y) const -> std::optional<bool>
 {
   if (_idb_layout == nullptr) {
-    CTSLOG.warn(Loc::current(), "iDB layout is null when checking core boundary; treating point as inside core.");
-    return true;
+    return std::nullopt;
   }
   auto* core = _idb_layout->get_core();
   if (core == nullptr || core->get_bounding_box() == nullptr) {
-    CTSLOG.warn(Loc::current(), "iDB core boundary is unavailable; treating point as inside core.");
-    return true;
+    return std::nullopt;
   }
   auto* core_box = core->get_bounding_box();
-  return point_x >= core_box->get_low_x() && point_x <= core_box->get_high_x() && point_y >= core_box->get_low_y()
-         && point_y <= core_box->get_high_y();
+  return point_x >= core_box->get_low_x() && point_x <= core_box->get_high_x() && point_y >= core_box->get_low_y() && point_y <= core_box->get_high_y();
 }
 
 auto Wrapper::read(Design& design) -> void
@@ -172,8 +169,7 @@ auto Wrapper::traceSdcClocks(const SdcClockTraceInput& input) const -> ClockTrac
   if (idb_design == nullptr && _idb != nullptr && _idb->get_def_service() != nullptr) {
     idb_design = _idb->get_def_service()->get_design();
   }
-  const SdcLibertyCellLookup liberty_cell_lookup
-      = [this](const std::string& cell_master) -> idb::LibCell* { return findLibertyCell(cell_master); };
+  const SdcLibertyCellLookup liberty_cell_lookup = [this](const std::string& cell_master) -> idb::LibCell* { return findLibertyCell(cell_master); };
   return SdcClockReader::traceClockTargets(*input.clock_data, idb_design, liberty_cell_lookup, input.max_fanout);
 }
 

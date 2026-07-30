@@ -150,8 +150,7 @@ class Wrapper::CtsClockIdbWriter
     if (scope.touched_net_names.empty() && !clocks.empty()) {
       result.success = false;
       result.reason = "invalid_clock_dag";
-      CTSLOG.warn(Loc::current(),
-                  "CTS iDB clock-tree materialization found no reachable clock nets: ", _design->get_clock_dag().get_status());
+      CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization found no reachable clock nets: ", _design->get_clock_dag().get_status());
       return result;
     }
     const auto restore_data = captureClockTreeIdbPreexistingObjects(scope);
@@ -166,8 +165,8 @@ class Wrapper::CtsClockIdbWriter
         result.failed_net = _failed_net_name.empty() ? clock->get_clock_net_name() : _failed_net_name;
         result.reason = "write_clock_failed";
         result.idb_clock_tree_restored = restorePreexistingClockTreeIdbObjects(scope, restore_data);
-        CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for clock \"", result.failed_clock, "\", net \"",
-                    result.failed_net, "\": ", _failure_reason.empty() ? result.reason : _failure_reason,
+        CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for clock \"", result.failed_clock, "\", net \"", result.failed_net,
+                    "\": ", _failure_reason.empty() ? result.reason : _failure_reason,
                     "; prior iDB state restored=", result.idb_clock_tree_restored ? "true" : "false", ".");
         return result;
       }
@@ -181,8 +180,7 @@ class Wrapper::CtsClockIdbWriter
  private:
   auto validateIdbWriteBoundary(WrapperWriteSummary& result) -> bool
   {
-    if (!_wrapper->is_design_ready() || _wrapper->_idb_design->get_net_list() == nullptr
-        || _wrapper->_idb_design->get_instance_list() == nullptr) {
+    if (!_wrapper->is_design_ready() || _wrapper->_idb_design->get_net_list() == nullptr || _wrapper->_idb_design->get_instance_list() == nullptr) {
       result.success = false;
       result.reason = "idb_design_not_ready";
       CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed: iDB design, net list, or inst list is not ready.");
@@ -198,8 +196,7 @@ class Wrapper::CtsClockIdbWriter
     }
     result.success = false;
     result.reason = "invalid_clock_dag";
-    CTSLOG.warn(Loc::current(),
-                "CTS iDB clock-tree materialization rejected an invalid clock DAG: ", _design->get_clock_dag().get_status());
+    CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization rejected an invalid clock DAG: ", _design->get_clock_dag().get_status());
     return false;
   }
 
@@ -272,8 +269,7 @@ class Wrapper::CtsClockIdbWriter
     if (reachable_iter == scope.reachable_nets_by_clock.end() || reachable_iter->second.empty()) {
       _failed_net_name = clock.get_clock_net_name();
       _failure_reason = "no_reachable_clock_nets";
-      CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for clock \"", clock.get_clock_name(),
-                  "\": no reachable ClockDAG nets.");
+      CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for clock \"", clock.get_clock_name(), "\": no reachable ClockDAG nets.");
       return false;
     }
 
@@ -319,8 +315,8 @@ class Wrapper::CtsClockIdbWriter
     }
     auto* cell_master = _wrapper->_idb_layout->get_cell_master_list()->find_cell_master(inst->get_cell_master());
     if (cell_master == nullptr) {
-      CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for inst \"", inst->get_name(), "\": cell master \"",
-                  inst->get_cell_master(), "\" is not found.");
+      CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for inst \"", inst->get_name(), "\": cell master \"", inst->get_cell_master(),
+                  "\" is not found.");
       return nullptr;
     }
 
@@ -331,13 +327,13 @@ class Wrapper::CtsClockIdbWriter
       }
       if (idb_inst->get_cell_master() == nullptr || idb_inst->get_cell_master()->get_name() != inst->get_cell_master()) {
         if (!_wrapper->_idb_design->replaceInstanceMaster(inst->get_name(), inst->get_cell_master())) {
-          CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed: cannot update mapped iDB inst \"", inst->get_name(),
-                      "\" to cell master \"", inst->get_cell_master(), "\".");
+          CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed: cannot update mapped iDB inst \"", inst->get_name(), "\" to cell master \"",
+                      inst->get_cell_master(), "\".");
           return nullptr;
         }
       }
-      if (!_wrapper->_idb_design->placeInstance(inst->get_name(), inst->get_location().get_x(), inst->get_location().get_y(),
-                                                idb::IdbOrient::kN_R0, idb::IdbPlacementStatus::kPlaced)) {
+      if (!_wrapper->_idb_design->placeInstance(inst->get_name(), inst->get_location().get_x(), inst->get_location().get_y(), idb::IdbOrient::kN_R0,
+                                                idb::IdbPlacementStatus::kPlaced)) {
         CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed: cannot place mapped iDB inst \"", inst->get_name(), "\".");
         return nullptr;
       }
@@ -355,15 +351,15 @@ class Wrapper::CtsClockIdbWriter
       }
     } else if (idb_inst->get_cell_master() == nullptr || idb_inst->get_cell_master()->get_name() != inst->get_cell_master()) {
       if (!_wrapper->_idb_design->replaceInstanceMaster(inst->get_name(), inst->get_cell_master())) {
-        CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed: cannot update iDB inst \"", inst->get_name(),
-                    "\" to cell master \"", inst->get_cell_master(), "\".");
+        CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed: cannot update iDB inst \"", inst->get_name(), "\" to cell master \"",
+                    inst->get_cell_master(), "\".");
         return nullptr;
       }
       idb_inst->set_type(idb::IdbInstanceType::kTiming);
     }
 
-    if (!_wrapper->_idb_design->placeInstance(inst->get_name(), inst->get_location().get_x(), inst->get_location().get_y(),
-                                              idb::IdbOrient::kN_R0, idb::IdbPlacementStatus::kPlaced)) {
+    if (!_wrapper->_idb_design->placeInstance(inst->get_name(), inst->get_location().get_x(), inst->get_location().get_y(), idb::IdbOrient::kN_R0,
+                                              idb::IdbPlacementStatus::kPlaced)) {
       CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed: cannot place iDB inst \"", inst->get_name(), "\".");
       return nullptr;
     }
@@ -472,9 +468,8 @@ class Wrapper::CtsClockIdbWriter
 
     _failed_net_name = target_net_name;
     _failure_reason = "clock_tree_pin_current_net_out_of_scope";
-    CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for net \"", target_net_name, "\": existing iDB pin for CTS ",
-                cts_pin_role, " \"", Design::getPinFullName(cts_pin), "\" is connected to out-of-scope iDB net \"",
-                current_net->get_net_name(), "\".");
+    CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for net \"", target_net_name, "\": existing iDB pin for CTS ", cts_pin_role, " \"",
+                Design::getPinFullName(cts_pin), "\" is connected to out-of-scope iDB net \"", current_net->get_net_name(), "\".");
     return false;
   }
 
@@ -497,8 +492,8 @@ class Wrapper::CtsClockIdbWriter
     auto* idb_driver = findExistingIdbPinForClockNet(driver);
     if (idb_driver == nullptr) {
       _failure_reason = "clock_tree_driver_pin_unresolved";
-      CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for net \"", net_name,
-                  "\": existing iDB pin for CTS driver \"", Design::getPinFullName(driver), "\" was not found.");
+      CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for net \"", net_name, "\": existing iDB pin for CTS driver \"",
+                  Design::getPinFullName(driver), "\" was not found.");
       return false;
     }
     if (!validatePinCurrentNetInWriteScope(idb_driver, idb_net, scope, net_name, "driver", driver)) {
@@ -516,8 +511,8 @@ class Wrapper::CtsClockIdbWriter
       auto* idb_load = findExistingIdbPinForClockNet(load);
       if (idb_load == nullptr) {
         _failure_reason = "clock_tree_load_pin_unresolved";
-        CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for net \"", net_name,
-                    "\": existing iDB pin for CTS load \"", Design::getPinFullName(load), "\" was not found.");
+        CTSLOG.warn(Loc::current(), "CTS iDB clock-tree materialization failed for net \"", net_name, "\": existing iDB pin for CTS load \"",
+                    Design::getPinFullName(load), "\" was not found.");
         return false;
       }
       if (!validatePinCurrentNetInWriteScope(idb_load, idb_net, scope, net_name, "load", load)) {
@@ -540,8 +535,7 @@ class Wrapper::CtsClockIdbWriter
     return true;
   }
 
-  auto restorePreexistingClockTreeIdbObjects(const ClockTreeIdbMaterializationScope& scope,
-                                             const ClockTreeIdbPreexistingObjects& restore_data) -> bool
+  auto restorePreexistingClockTreeIdbObjects(const ClockTreeIdbMaterializationScope& scope, const ClockTreeIdbPreexistingObjects& restore_data) -> bool
   {
     auto* idb_net_list = _wrapper->_idb_design->get_net_list();
     auto* idb_inst_list = _wrapper->_idb_design->get_instance_list();

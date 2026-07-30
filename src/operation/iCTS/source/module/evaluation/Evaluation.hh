@@ -25,7 +25,7 @@
 
 #include <string>
 
-#include "evaluation/qor/QorEvaluation.hh"
+#include "evaluation/qor/QOREvaluation.hh"
 
 namespace icts {
 

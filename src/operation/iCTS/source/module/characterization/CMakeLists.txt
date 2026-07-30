@@ -9,7 +9,7 @@ set(ICTS_MODULE_CHAR_SRC
   ${CMAKE_CURRENT_SOURCE_DIR}/circuit/CharCircuitBuilder.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/pattern/CharPatternEnumerator.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/pattern/CharPatternStorage.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/sampling/CharStaSampler.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/sampling/CharSTASampler.cc
 )
 
 add_library(icts_source_module_characterization_headers INTERFACE)

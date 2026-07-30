@@ -23,25 +23,33 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "FastSta.hh"
-#include "FastStaDmpCeff.hh"
-#include "FastStaIncremental.hh"
-#include "FastStaParasitics.hh"
-#include "FastStaPower.hh"
-#include "FastStaTiming.hh"
-#include "clock_net_parasitic/FastStaClockNetParasitic.hh"
-#include "clock_sizing/FastStaClockSizingEdit.hh"
-#include "clock_state/FastStaClockState.hh"
+#include "FastSTA.hh"
+#include "FastSTADmpCeff.hh"
+#include "FastSTAIncremental.hh"
+#include "FastSTAParasitics.hh"
+#include "FastSTAPower.hh"
+#include "FastSTATiming.hh"
+#include "clock_net_parasitic/FastSTAClockNetParasitic.hh"
+#include "clock_sizing/FastSTAClockSizingEdit.hh"
+#include "clock_state/FastSTABuilder.hh"
+#include "clock_state/FastSTAClockState.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
-#include "liberty/FastStaLibertyModel.hh"
-#include "timing/FastStaClockTiming.hh"
+#include "design/Clock.hh"
+#include "design/Inst.hh"
+#include "design/Pin.hh"
+#include "io/Wrapper.hh"
+#include "liberty/FastSTALibertyModel.hh"
+#include "segment_char/FastSTAChar.hh"
+#include "spatial/Point.hh"
+#include "timing/FastSTAClockTiming.hh"
 
 namespace icts_test {
 namespace {
@@ -56,8 +64,7 @@ auto MakeTable(icts::FastStaLibertyTableKind kind, double base) -> icts::FastSta
   return icts::FastStaLibertyTable{
       .kind = kind,
       .transition = icts::FastStaTransition::kRise,
-      .axes
-      = {MakeAxis(icts::FastStaLibertyAxisKind::kInputSlew, {0.0, 1.0}), MakeAxis(icts::FastStaLibertyAxisKind::kOutputLoad, {0.0, 2.0})},
+      .axes = {MakeAxis(icts::FastStaLibertyAxisKind::kInputSlew, {0.0, 1.0}), MakeAxis(icts::FastStaLibertyAxisKind::kOutputLoad, {0.0, 2.0})},
       .values = {base, base + 0.2, base + 0.1, base + 0.3},
   };
 }
@@ -84,14 +91,13 @@ auto MakeCell(const std::string& master, double input_cap_pf, double area_um2, d
   };
 }
 
-auto MakeOpenStaAlignmentTable(icts::FastStaLibertyTableKind kind, double low_slew_low_cap, double low_slew_high_cap,
-                               double high_slew_low_cap, double high_slew_high_cap) -> icts::FastStaLibertyTable
+auto MakeOpenStaAlignmentTable(icts::FastStaLibertyTableKind kind, double low_slew_low_cap, double low_slew_high_cap, double high_slew_low_cap,
+                               double high_slew_high_cap) -> icts::FastStaLibertyTable
 {
   return icts::FastStaLibertyTable{
       .kind = kind,
       .transition = icts::FastStaTransition::kRise,
-      .axes
-      = {MakeAxis(icts::FastStaLibertyAxisKind::kInputSlew, {0.1, 0.5}), MakeAxis(icts::FastStaLibertyAxisKind::kOutputLoad, {0.1, 1.0})},
+      .axes = {MakeAxis(icts::FastStaLibertyAxisKind::kInputSlew, {0.1, 0.5}), MakeAxis(icts::FastStaLibertyAxisKind::kOutputLoad, {0.1, 1.0})},
       .values = {low_slew_low_cap, low_slew_high_cap, high_slew_low_cap, high_slew_high_cap},
   };
 }
@@ -126,9 +132,8 @@ auto MakeOpenStaAlignmentCell() -> icts::FastStaLibertyCell
   };
 }
 
-auto MakeNode(icts::FastStaNodeKind kind, std::string name, std::string inst_name, std::string pin_name, std::string cell_master,
-              icts::FastStaPoint location, double input_cap_pf, icts::FastStaNetId incoming_net_id,
-              std::vector<icts::FastStaNetId> output_net_ids) -> icts::FastStaNode
+auto MakeNode(icts::FastStaNodeKind kind, std::string name, std::string inst_name, std::string pin_name, std::string cell_master, icts::FastStaPoint location,
+              double input_cap_pf, icts::FastStaNetId incoming_net_id, std::vector<icts::FastStaNetId> output_net_ids) -> icts::FastStaNode
 {
   icts::FastStaNode node;
   node.kind = kind;
@@ -143,8 +148,8 @@ auto MakeNode(icts::FastStaNodeKind kind, std::string name, std::string inst_nam
   return node;
 }
 
-auto MakeRcNode(std::string name, double wire_cap_pf, double pin_cap_pf, double cap_pf, double elmore_delay_ns,
-                icts::FastStaNodeId terminal_node_id) -> icts::FastStaRcNode
+auto MakeRcNode(std::string name, double wire_cap_pf, double pin_cap_pf, double cap_pf, double elmore_delay_ns, icts::FastStaNodeId terminal_node_id)
+    -> icts::FastStaRcNode
 {
   icts::FastStaRcNode node;
   node.name = std::move(name);
@@ -156,9 +161,8 @@ auto MakeRcNode(std::string name, double wire_cap_pf, double pin_cap_pf, double 
   return node;
 }
 
-auto MakeParasitic(std::vector<icts::FastStaRcNode> rc_nodes, std::vector<icts::FastStaRcEdge> rc_edges,
-                   icts::FastStaRcNodeId root_rc_node_id, icts::FastStaPiModel pi = {}, double total_cap_pf = 0.0,
-                   bool pre_reduced_pi_elmore = false) -> icts::FastStaNetParasitic
+auto MakeParasitic(std::vector<icts::FastStaRcNode> rc_nodes, std::vector<icts::FastStaRcEdge> rc_edges, icts::FastStaRcNodeId root_rc_node_id,
+                   icts::FastStaPiModel pi = {}, double total_cap_pf = 0.0, bool pre_reduced_pi_elmore = false) -> icts::FastStaNetParasitic
 {
   icts::FastStaNetParasitic parasitic;
   parasitic.rc_nodes = std::move(rc_nodes);
@@ -214,10 +218,8 @@ auto MakeTinyContext() -> icts::FastStaClockContext
 
   context.source_node_id = 0U;
   context.nodes = {
-      MakeNode(icts::FastStaNodeKind::kSource, "clk_src", "", "clk_src", "", icts::FastStaPoint{.x_dbu = 0, .y_dbu = 0}, 0.0,
-               icts::kInvalidFastStaNetId, {0U}),
-      MakeNode(icts::FastStaNodeKind::kBufferInput, "buf/A", "buf", "A", "BUF_X1", icts::FastStaPoint{.x_dbu = 1000, .y_dbu = 0}, 0.20, 0U,
-               {}),
+      MakeNode(icts::FastStaNodeKind::kSource, "clk_src", "", "clk_src", "", icts::FastStaPoint{.x_dbu = 0, .y_dbu = 0}, 0.0, icts::kInvalidFastStaNetId, {0U}),
+      MakeNode(icts::FastStaNodeKind::kBufferInput, "buf/A", "buf", "A", "BUF_X1", icts::FastStaPoint{.x_dbu = 1000, .y_dbu = 0}, 0.20, 0U, {}),
       MakeNode(icts::FastStaNodeKind::kBufferOutput, "buf/Y", "buf", "Y", "BUF_X1", icts::FastStaPoint{.x_dbu = 1000, .y_dbu = 0}, 0.0,
                icts::kInvalidFastStaNetId, {1U}),
       MakeNode(icts::FastStaNodeKind::kSink, "sink/CLK", "sink", "CLK", "", icts::FastStaPoint{.x_dbu = 2000, .y_dbu = 0}, 0.10, 1U, {}),
@@ -291,8 +293,8 @@ auto MakeOpenStaAlignmentPathContext() -> icts::FastStaClockContext
   context.nets = {
       MakeNet("clk", 0U, {1U}, 3.0),
       MakeNet("leaf", 2U, {3U}, 3.0,
-              MakeParasitic({MakeRcNode("leaf@root", 0.80, 0.0, 0.80, 0.0, 2U), MakeRcNode("leaf@u_leaf/A", 0.0, 0.20, 0.20, 0.15, 3U)}, {},
-                            0U, icts::FastStaPiModel{.near_cap_pf = 0.20, .resistance_ohm = 1000.0, .far_cap_pf = 0.80}, 1.0, true)),
+              MakeParasitic({MakeRcNode("leaf@root", 0.80, 0.0, 0.80, 0.0, 2U), MakeRcNode("leaf@u_leaf/A", 0.0, 0.20, 0.20, 0.15, 3U)}, {}, 0U,
+                            icts::FastStaPiModel{.near_cap_pf = 0.20, .resistance_ohm = 1000.0, .far_cap_pf = 0.80}, 1.0, true)),
       MakeNet("sink", 4U, {5U}, 3.0,
               MakeParasitic({MakeRcNode("sink@root", 0.50, 0.0, 0.50, 0.0, 4U), MakeRcNode("sink@load", 0.0, 0.0, 0.0, 0.08, 5U)}, {}, 0U,
                             icts::FastStaPiModel{.near_cap_pf = 0.10, .resistance_ohm = 1000.0, .far_cap_pf = 0.40}, 0.50, true)),
@@ -311,6 +313,47 @@ TEST(FastSTATest, LibertyTableBilinearLookupInterpolates)
     return;
   }
   EXPECT_NEAR(*value, 1.15, 1e-12);
+}
+
+TEST(FastSTATest, LibertyTableRejectsMalformedShape)
+{
+  auto table = MakeTable(icts::FastStaLibertyTableKind::kCellDelay, 1.0);
+  table.values.pop_back();
+
+  EXPECT_FALSE(table.valid());
+  EXPECT_FALSE(table.lookup(0.5, 1.0).has_value());
+}
+
+TEST(FastSTATest, ClockContextBuildDoesNotRequireBufferModelForNonPropagationSink)
+{
+  icts::Wrapper wrapper;
+  icts::Clock clock("clk", "clk_net");
+  clock.set_clock_period_ns(10.0);
+  icts::Inst sink_inst("u_sink", "DFFQX1H7L", icts::InstType::kFlipFlop, icts::Point<int>(100, 200));
+  icts::Pin sink_pin("CK", icts::PinType::kClock, icts::Point<int>(100, 200), &sink_inst);
+  sink_inst.add_pin(&sink_pin);
+  clock.add_inst(&sink_inst);
+
+  const auto build = icts::FastStaBuilder::buildClockContext(
+      icts::FastStaEnvironment{
+          .wrapper = &wrapper,
+          .dbu_per_um = 1000,
+          .routing_layer = 1,
+          .root_input_slew_ns = 0.1,
+          .max_cap_pf = 1.0,
+          .max_sink_tran_ns = 1.0,
+      },
+      icts::FastStaClockBuildInput{.clock = &clock});
+
+  if (!build.context.has_value()) {
+    ADD_FAILURE() << build.failure_reason;
+    return;
+  }
+  const auto& context = build.context.value();
+  ASSERT_EQ(context.nodes.size(), 1U);
+  EXPECT_EQ(context.nodes.front().kind, icts::FastStaNodeKind::kSink);
+  EXPECT_EQ(context.nodes.front().cell_master, "DFFQX1H7L");
+  EXPECT_TRUE(context.liberty_cell_by_master.empty());
 }
 
 TEST(FastSTATest, DmpDriverTimingProducesCeffAndLoadSlew)
@@ -391,6 +434,17 @@ TEST(FastSTATest, TimingUsesContextRootSlewWithoutConfigMutation)
   EXPECT_NEAR(CTSDM.getConfig().get_root_input_slew(), 0.777, 1e-12);
 }
 
+TEST(FastSTATest, TimingUpdateRejectsMissingDriverTimingTable)
+{
+  auto context = MakeTinyContext();
+  context.liberty_cell_by_master.at("BUF_X1").timing_arc.delay_tables.clear();
+
+  EXPECT_FALSE(icts::FastStaTiming::update(context));
+  EXPECT_FALSE(context.timing_valid);
+  EXPECT_FALSE(context.nodes.at(2U).timing.valid);
+  EXPECT_FALSE(context.nodes.at(3U).timing.valid);
+}
+
 TEST(FastSTATest, SourceBoundaryNetUsesNormalNetLoadAndCapFields)
 {
   auto context = MakeTinyContext();
@@ -441,6 +495,79 @@ TEST(FastSTATest, TimingPowerAndMasterChangeUpdateContext)
   ASSERT_TRUE(icts::FastStaPower::update(context));
   EXPECT_NEAR(context.power.area_um2, 2.5, 1e-12);
   EXPECT_NEAR(context.power.leakage_power_w, 0.02, 1e-12);
+}
+
+TEST(FastSTATest, PowerUpdateRejectsMissingInternalPowerTable)
+{
+  auto context = MakeTinyContext();
+  ASSERT_TRUE(icts::FastStaTiming::update(context));
+  context.liberty_cell_by_master.at("BUF_X1").timing_arc.internal_power_tables.clear();
+
+  EXPECT_FALSE(icts::FastStaPower::update(context));
+  EXPECT_FALSE(context.power_valid);
+  EXPECT_DOUBLE_EQ(context.power.total_power_w, 0.0);
+}
+
+TEST(FastSTATest, PowerUpdateRejectsMalformedInternalPowerTable)
+{
+  auto context = MakeTinyContext();
+  ASSERT_TRUE(icts::FastStaTiming::update(context));
+  auto& power_table = context.liberty_cell_by_master.at("BUF_X1").timing_arc.internal_power_tables.front();
+  power_table.values.pop_back();
+
+  EXPECT_FALSE(icts::FastStaPower::update(context));
+  EXPECT_FALSE(context.power_valid);
+  EXPECT_DOUBLE_EQ(context.power.total_power_w, 0.0);
+}
+
+TEST(FastSTATest, PowerUpdateRejectsNegativeInternalPowerEnergy)
+{
+  auto context = MakeTinyContext();
+  ASSERT_TRUE(icts::FastStaTiming::update(context));
+  auto& power_table = context.liberty_cell_by_master.at("BUF_X1").timing_arc.internal_power_tables.front();
+  std::ranges::fill(power_table.values, -1.0);
+
+  EXPECT_FALSE(icts::FastStaPower::update(context));
+  EXPECT_FALSE(context.power_valid);
+  EXPECT_DOUBLE_EQ(context.power.total_power_w, 0.0);
+}
+
+TEST(FastSTATest, PowerUpdateRejectsUnavailableLeakagePower)
+{
+  auto context = MakeTinyContext();
+  ASSERT_TRUE(icts::FastStaTiming::update(context));
+  context.liberty_cell_by_master.at("BUF_X1").leakage_power_w = std::nullopt;
+
+  EXPECT_FALSE(icts::FastStaPower::update(context));
+  EXPECT_FALSE(context.power_valid);
+  EXPECT_DOUBLE_EQ(context.power.total_power_w, 0.0);
+}
+
+TEST(FastSTATest, PowerUpdateAcceptsExplicitZeroPowerData)
+{
+  auto context = MakeTinyContext();
+  ASSERT_TRUE(icts::FastStaTiming::update(context));
+  auto& cell = context.liberty_cell_by_master.at("BUF_X1");
+  cell.leakage_power_w = 0.0;
+  for (auto& power_table : cell.timing_arc.internal_power_tables) {
+    std::ranges::fill(power_table.values, 0.0);
+  }
+
+  EXPECT_TRUE(icts::FastStaPower::update(context));
+  EXPECT_TRUE(context.power_valid);
+  EXPECT_DOUBLE_EQ(context.power.internal_power_w, 0.0);
+  EXPECT_DOUBLE_EQ(context.power.leakage_power_w, 0.0);
+}
+
+TEST(FastSTATest, CharacterizationSampleRejectsMissingSourceBoundaryNet)
+{
+  auto context = MakeTinyContext();
+  context.node_id_by_name["cts_char_source/Y"] = 3U;
+  context.node_id_by_name["cts_char_sink/A"] = 3U;
+
+  const auto sample = icts::FastStaChar::runSample(context, 0.2);
+
+  EXPECT_FALSE(sample.valid);
 }
 
 TEST(FastSTATest, IncrementalMasterChangeMatchesFullRecompute)

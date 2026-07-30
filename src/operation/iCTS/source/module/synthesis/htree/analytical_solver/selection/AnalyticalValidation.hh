@@ -58,7 +58,6 @@ struct AnalyticalValidationSummary
   RootDriverCompensationDetail root_driver_compensation;
 };
 
-auto ValidateAnalyticalCandidate(AnalyticalCandidate& candidate, const AnalyticalCandidateLegalityCheck& legality_check)
-    -> AnalyticalValidationSummary;
+auto ValidateAnalyticalCandidate(AnalyticalCandidate& candidate, const AnalyticalCandidateLegalityCheck& legality_check) -> AnalyticalValidationSummary;
 
 }  // namespace icts::htree::analytical_solver

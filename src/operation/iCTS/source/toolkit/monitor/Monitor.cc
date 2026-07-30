@@ -84,8 +84,8 @@ auto Monitor::getCurrentCPUTime() -> double
   if (getrusage(RUSAGE_SELF, &usage) != 0) {
     CTSLOG.error(Loc::current(), "Unable to sample CTS process CPU time.");
   }
-  return static_cast<double>(usage.ru_utime.tv_sec) + static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0
-         + static_cast<double>(usage.ru_stime.tv_sec) + static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
+  return static_cast<double>(usage.ru_utime.tv_sec) + static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0 + static_cast<double>(usage.ru_stime.tv_sec)
+         + static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
 }
 
 auto Monitor::getCurrentUsageMemory() -> double

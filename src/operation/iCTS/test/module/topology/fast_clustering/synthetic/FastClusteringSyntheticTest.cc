@@ -36,11 +36,10 @@
 #include <utility>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "Logger.hh"
-#include "common/data/pin_factory/PinFactory.hh"
-#include "common/dataset/TestDataset.hh"
 #include "data_manager/design/Pin.hh"
+#include "data_manager/design/fixture/data/pin_factory/PinFactory.hh"
 #include "data_manager/spatial/Point.hh"
 #include "module/topology/clustering/Clustering.hh"
 #include "module/topology/config/TopologyConfig.hh"
@@ -112,8 +111,7 @@ auto AddSyntheticLoadPinCaps(const std::vector<icts::Pin*>& loads, icts::Cluster
   }
 }
 
-auto CollectClusterOriginalIndexSets(const icts::ClusterOutput& result, const std::vector<icts::Pin*>& loads)
-    -> std::set<std::set<std::size_t>>
+auto CollectClusterOriginalIndexSets(const icts::ClusterOutput& result, const std::vector<icts::Pin*>& loads) -> std::set<std::set<std::size_t>>
 {
   std::unordered_map<const icts::Pin*, std::size_t> original_index_by_pin;
   original_index_by_pin.reserve(loads.size());
@@ -134,7 +132,7 @@ auto CollectClusterOriginalIndexSets(const icts::ClusterOutput& result, const st
 
 TEST(FastClusteringSyntheticTest, FacadeProducesCompleteLegalClusters)
 {
-  auto generated = common::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "fast_pin_");
+  auto generated = data_manager::fixture::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "fast_pin_");
   icts::ClusterConfig config;
   config.max_fanout = 6;
   config.max_diameter = 160;
@@ -164,7 +162,7 @@ TEST(FastClusteringSyntheticTest, FacadePreservesParetoAxisOutcomeAfterPolish)
   const std::vector<icts::Point<int>> points{
       {180, 235}, {465, 137}, {337, 280}, {311, 2}, {196, 262}, {414, 66},
   };
-  auto generated = common::data::pin_factory::BuildPinsFromPoints(points, {.width = 600, .height = 320}, "axis_pin_");
+  auto generated = data_manager::fixture::data::pin_factory::BuildPinsFromPoints(points, {.width = 600, .height = 320}, "axis_pin_");
   icts::ClusterConfig config;
   config.max_fanout = 4;
   config.max_cap = std::numeric_limits<double>::infinity();
@@ -178,7 +176,7 @@ TEST(FastClusteringSyntheticTest, FacadePreservesParetoAxisOutcomeAfterPolish)
 
 TEST(FastClusteringSyntheticTest, ExactCapUsesExplicitClusterLoadPinCaps)
 {
-  auto generated = common::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "cap_pin_");
+  auto generated = data_manager::fixture::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "cap_pin_");
   icts::ClusterConfig config;
   config.max_fanout = 8;
   config.max_cap = 1.0;
@@ -200,7 +198,7 @@ TEST(FastClusteringSyntheticTest, ExactCapUsesExplicitClusterLoadPinCaps)
 
 TEST(FastClusteringSyntheticTest, ClusteringFacadeMatchesFastClusteringFacade)
 {
-  auto generated = common::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "facade_pin_");
+  auto generated = data_manager::fixture::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "facade_pin_");
   icts::ClusterConfig config;
   config.max_fanout = 8;
   config.max_cap = std::numeric_limits<double>::infinity();
@@ -215,7 +213,7 @@ TEST(FastClusteringSyntheticTest, ClusteringFacadeMatchesFastClusteringFacade)
 
 TEST(FastClusteringSyntheticTest, EmitsBoundedElectricalSummary)
 {
-  auto generated = common::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "log_pin_");
+  auto generated = data_manager::fixture::data::pin_factory::BuildPinsFromPoints(BuildClusteredPoints(), {.width = 5000, .height = 4000}, "log_pin_");
   icts::ClusterConfig config;
   config.max_fanout = 8;
   config.max_cap = 1.0;

@@ -225,16 +225,14 @@ auto parse_string_list(const nlohmann::json& value) -> std::vector<std::string>
   return result;
 }
 
-auto setConfigParseError(Config& config, const std::string& json_file, const char* key, const nlohmann::json& value,
-                         const std::string& expected_type) -> bool
+auto setConfigParseError(Config& config, const std::string& json_file, const char* key, const nlohmann::json& value, const std::string& expected_type) -> bool
 {
   config.set_last_error("invalid " + expected_type + " value for key \"" + std::string(key) + "\" in " + json_file + ": " + value.dump());
   CTSLOG.warn(Loc::current(), "CTS config parse failed: ", config.get_last_error());
   return false;
 }
 
-auto ApplyDoubleIfPresent(const nlohmann::json& json, const char* key, Config& config, void (Config::*setter)(double),
-                          const std::string& json_file) -> bool
+auto ApplyDoubleIfPresent(const nlohmann::json& json, const char* key, Config& config, void (Config::*setter)(double), const std::string& json_file) -> bool
 {
   if (json.contains(key)) {
     const auto parsed = parse_double(json.at(key));
@@ -246,8 +244,7 @@ auto ApplyDoubleIfPresent(const nlohmann::json& json, const char* key, Config& c
   return true;
 }
 
-auto ApplyUnsignedIfPresent(const nlohmann::json& json, const char* key, Config& config, void (Config::*setter)(unsigned),
-                            const std::string& json_file) -> bool
+auto ApplyUnsignedIfPresent(const nlohmann::json& json, const char* key, Config& config, void (Config::*setter)(unsigned), const std::string& json_file) -> bool
 {
   if (json.contains(key)) {
     const auto parsed = parse_unsigned(json.at(key));
@@ -385,12 +382,10 @@ auto Config::parse(const std::string& json_file) -> bool
   if (!ApplyDoubleIfPresent(json, "htree_topology_tolerance", *this, &Config::set_htree_topology_tolerance, json_file)) {
     return false;
   }
-  if (!ApplyBoolIfPresent(json, "enable_analytical_htree", is_enable_analytical_htree(), *this, &Config::set_enable_analytical_htree,
-                          json_file)) {
+  if (!ApplyBoolIfPresent(json, "enable_analytical_htree", is_enable_analytical_htree(), *this, &Config::set_enable_analytical_htree, json_file)) {
     return false;
   }
-  if (!ApplyBoolIfPresent(json, "enable_sink_clustering", is_enable_sink_clustering(), *this, &Config::set_enable_sink_clustering,
-                          json_file)) {
+  if (!ApplyBoolIfPresent(json, "enable_sink_clustering", is_enable_sink_clustering(), *this, &Config::set_enable_sink_clustering, json_file)) {
     return false;
   }
   return true;

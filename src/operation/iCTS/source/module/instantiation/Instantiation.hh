@@ -26,7 +26,7 @@
 #include <cstddef>
 #include <string>
 
-#include "result/StageResult.hh"
+#include "stage/StageSummary.hh"
 
 namespace icts {
 

@@ -68,9 +68,8 @@ auto eraseNameIndexEntry(std::unordered_map<std::string, ObjectT*>& object_by_na
 }
 
 template <typename ObjectT>
-auto eraseRecordedNameIndexEntry(std::unordered_map<std::string, ObjectT*>& object_by_name,
-                                 std::unordered_map<const ObjectT*, std::string>& name_by_object, const ObjectT* object,
-                                 const std::string& current_name) -> void
+auto eraseRecordedNameIndexEntry(std::unordered_map<std::string, ObjectT*>& object_by_name, std::unordered_map<const ObjectT*, std::string>& name_by_object,
+                                 const ObjectT* object, const std::string& current_name) -> void
 {
   const auto name_iter = name_by_object.find(object);
   if (name_iter != name_by_object.end()) {
@@ -229,10 +228,12 @@ auto Design::get_nets() const -> std::vector<Net*>
 
 auto Design::findClock(const std::string& clock_name, const std::string& clock_net_name) const -> Clock*
 {
-  const auto object_iter = std::ranges::find_if(_clocks, [&clock_name, &clock_net_name](const auto& clock) -> bool {
-    return clock != nullptr && clock->get_clock_name() == clock_name && clock->get_clock_net_name() == clock_net_name;
-  });
-  return object_iter == _clocks.end() ? nullptr : object_iter->get();
+  const auto clock_name_iter = _clock_by_name_and_net.find(clock_name);
+  if (clock_name_iter == _clock_by_name_and_net.end()) {
+    return nullptr;
+  }
+  const auto clock_net_iter = clock_name_iter->second.find(clock_net_name);
+  return clock_net_iter == clock_name_iter->second.end() ? nullptr : clock_net_iter->second;
 }
 
 auto Design::makeClock(const std::string& clock_name, const std::string& clock_net_name) -> Clock*
@@ -242,6 +243,7 @@ auto Design::makeClock(const std::string& clock_name, const std::string& clock_n
     auto clock_owner = std::make_unique<Clock>(clock_name, clock_net_name);
     clock = clock_owner.get();
     _clocks.push_back(std::move(clock_owner));
+    _clock_by_name_and_net[clock_name][clock_net_name] = clock;
   }
   _clock_dag.invalidate("clock_topology_changed");
 
@@ -288,8 +290,7 @@ auto Design::commitInst(std::unique_ptr<Inst> inst) -> Inst*
   }
 
   if (findInst(inst->get_name()) != nullptr) {
-    CTSLOG.warn(Loc::current(), "Design: reject committing inst \"", inst->get_name(),
-                "\" because a final inst with the same name already exists.");
+    CTSLOG.warn(Loc::current(), "Design: reject committing inst \"", inst->get_name(), "\" because a final inst with the same name already exists.");
     return nullptr;
   }
   auto* inst_ptr = inst.get();
@@ -341,8 +342,7 @@ auto Design::indexPin(Pin* pin) -> bool
 
   const auto map_iter = _pin_by_full_name.find(full_name);
   if (map_iter != _pin_by_full_name.end() && map_iter->second != pin) {
-    CTSLOG.warn(Loc::current(), "Design: reject indexing pin \"", full_name,
-                "\" because a different final pin already uses that full name.");
+    CTSLOG.warn(Loc::current(), "Design: reject indexing pin \"", full_name, "\" because a different final pin already uses that full name.");
     return false;
   }
 
@@ -447,8 +447,7 @@ auto Design::commitNet(std::unique_ptr<Net> net) -> Net*
   }
 
   if (findNet(net->get_name()) != nullptr) {
-    CTSLOG.warn(Loc::current(), "Design: reject committing net \"", net->get_name(),
-                "\" because a final net with the same name already exists.");
+    CTSLOG.warn(Loc::current(), "Design: reject committing net \"", net->get_name(), "\" because a final net with the same name already exists.");
     return nullptr;
   }
   auto* net_ptr = net.get();
@@ -483,6 +482,7 @@ auto Design::clearTopologyObjects() -> void
 
 auto Design::clearClocks() -> void
 {
+  _clock_by_name_and_net.clear();
   _clocks.clear();
   _clock_dag.invalidate("clock_topology_cleared");
 }

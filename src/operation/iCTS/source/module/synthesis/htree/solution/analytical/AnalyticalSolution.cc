@@ -63,10 +63,9 @@ auto SelectAnalyticalHTreeSolution(HTreeSynthesisState& state) -> HTreeSelection
   if (input.wrapper == nullptr) {
     CTSLOG.error(Loc::current(), "HTree analytical solution requires explicit Wrapper dependency.");
   }
-  const auto analytical_attempt
-      = as::TrySolveAnalyticalHTree(result.output.topology, state.full_level_plans, state.depth_candidates, segment_pattern_library,
-                                    state.search_boundary_constraints, state.fanout_pruning_config, state.root_driver_compensation_input,
-                                    state.sink_load_region_input, char_builder, result.diagnostics.char_slew_steps);
+  const auto analytical_attempt = as::TrySolveAnalyticalHTree(result.output.topology, state.full_level_plans, state.depth_candidates, segment_pattern_library,
+                                                              state.search_boundary_constraints, state.fanout_pruning_config,
+                                                              state.root_driver_compensation_input, state.sink_load_region_input, char_builder);
   result.diagnostics.analytical_model_set_count = analytical_attempt.model_set_count;
   result.diagnostics.analytical_rejected_fit_count = analytical_attempt.rejected_fit_count;
   result.diagnostics.analytical_structural_cap_operator_count = analytical_attempt.structural_cap_operator_count;

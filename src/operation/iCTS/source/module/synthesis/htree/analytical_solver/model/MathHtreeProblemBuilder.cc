@@ -63,9 +63,8 @@ auto MergeDomain(const icts::analytical::AnalyticalModelSet& model_set) -> MathH
       .load_cap_min_pf = 0.0,
       .load_cap_max_pf = std::numeric_limits<double>::infinity(),
   };
-  for (const auto metric :
-       {icts::analytical::AnalyticalMetric::kOutputSlew, icts::analytical::AnalyticalMetric::kDelay,
-        icts::analytical::AnalyticalMetric::kPower, icts::analytical::AnalyticalMetric::kSourceBoundaryNetSwitchPower}) {
+  for (const auto metric : {icts::analytical::AnalyticalMetric::kOutputSlew, icts::analytical::AnalyticalMetric::kDelay,
+                            icts::analytical::AnalyticalMetric::kPower, icts::analytical::AnalyticalMetric::kSourceBoundaryNetSwitchPower}) {
     const auto* model = model_set.findMetric(metric);
     if (model == nullptr || !model->domain.isValid()) {
       continue;
@@ -83,9 +82,8 @@ auto IsAffineComplete(const icts::analytical::AnalyticalModelSet& model_set) -> 
   if (!model_set.isComplete()) {
     return false;
   }
-  for (const auto metric :
-       {icts::analytical::AnalyticalMetric::kOutputSlew, icts::analytical::AnalyticalMetric::kDelay,
-        icts::analytical::AnalyticalMetric::kPower, icts::analytical::AnalyticalMetric::kSourceBoundaryNetSwitchPower}) {
+  for (const auto metric : {icts::analytical::AnalyticalMetric::kOutputSlew, icts::analytical::AnalyticalMetric::kDelay,
+                            icts::analytical::AnalyticalMetric::kPower, icts::analytical::AnalyticalMetric::kSourceBoundaryNetSwitchPower}) {
     const auto* model = model_set.findMetric(metric);
     if (model == nullptr || model->basis != icts::analytical::AnalyticalModelBasis::kAffine || !model->isValid()) {
       return false;
@@ -182,8 +180,7 @@ auto BuildMathHtreeProblem(const analytical_solver::AnalyticalHTreeSolveProblem&
 
   for (std::size_t level_index = 0U; level_index < solve_problem.levels->size(); ++level_index) {
     const auto& level = solve_problem.levels->at(level_index);
-    if (solve_problem.config.unit_length_idx == 0U || level.aligned_length_idx == 0U
-        || level.aligned_length_idx % solve_problem.config.unit_length_idx != 0U) {
+    if (solve_problem.config.unit_length_idx == 0U || level.aligned_length_idx == 0U || level.aligned_length_idx % solve_problem.config.unit_length_idx != 0U) {
       result.failure_reason = "level_length_not_unit_aligned";
       return result;
     }

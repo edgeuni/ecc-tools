@@ -170,17 +170,15 @@ class Region
   {
     const bool share_x_span = lhs.get_min_x() == rhs.get_min_x() && lhs.get_max_x() == rhs.get_max_x();
     const bool share_y_span = lhs.get_min_y() == rhs.get_min_y() && lhs.get_max_y() == rhs.get_max_y();
-    const bool y_overlap_or_touch
-        = lhs.get_min_y() <= static_cast<T>(rhs.get_max_y() + 1) && rhs.get_min_y() <= static_cast<T>(lhs.get_max_y() + 1);
-    const bool x_overlap_or_touch
-        = lhs.get_min_x() <= static_cast<T>(rhs.get_max_x() + 1) && rhs.get_min_x() <= static_cast<T>(lhs.get_max_x() + 1);
+    const bool y_overlap_or_touch = lhs.get_min_y() <= static_cast<T>(rhs.get_max_y() + 1) && rhs.get_min_y() <= static_cast<T>(lhs.get_max_y() + 1);
+    const bool x_overlap_or_touch = lhs.get_min_x() <= static_cast<T>(rhs.get_max_x() + 1) && rhs.get_min_x() <= static_cast<T>(lhs.get_max_x() + 1);
     return (share_x_span && y_overlap_or_touch) || (share_y_span && x_overlap_or_touch);
   }
 
   static auto merge(const RectType& lhs, const RectType& rhs) -> RectType
   {
-    return RectType(std::min(lhs.get_min_x(), rhs.get_min_x()), std::min(lhs.get_min_y(), rhs.get_min_y()),
-                    std::max(lhs.get_max_x(), rhs.get_max_x()), std::max(lhs.get_max_y(), rhs.get_max_y()));
+    return RectType(std::min(lhs.get_min_x(), rhs.get_min_x()), std::min(lhs.get_min_y(), rhs.get_min_y()), std::max(lhs.get_max_x(), rhs.get_max_x()),
+                    std::max(lhs.get_max_y(), rhs.get_max_y()));
   }
 
   std::vector<RectType> _rects;

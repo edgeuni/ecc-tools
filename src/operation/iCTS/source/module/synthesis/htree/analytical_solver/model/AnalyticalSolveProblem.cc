@@ -79,8 +79,8 @@ auto ValidateSolveProblem(const AnalyticalHTreeSolveProblem& solve_problem) -> s
 auto ResolveNextSegmentPatternId(const BufferPatternLibrary& segment_pattern_library) -> unsigned
 {
   unsigned next_id = 0U;
-  for (const auto& [pattern_id, pattern] : segment_pattern_library.patterns) {
-    (void) pattern;
+  for (const auto& pattern_entry : segment_pattern_library.patterns) {
+    const auto& pattern_id = pattern_entry.first;
     if (pattern_id.domain == PatternDomain::kSegmentPattern) {
       next_id = std::max(next_id, pattern_id.local_id + 1U);
     }
@@ -100,8 +100,7 @@ auto MakePatternSequenceKey(const std::vector<PatternId>& pattern_ids) -> Patter
 
 auto ResolveSegmentPatternLibrary(const AnalyticalHTreeSolveProblem& solve_problem) -> const BufferPatternLibrary*
 {
-  return solve_problem.segment_pattern_library != nullptr ? solve_problem.segment_pattern_library
-                                                          : solve_problem.mutable_segment_pattern_library;
+  return solve_problem.segment_pattern_library != nullptr ? solve_problem.segment_pattern_library : solve_problem.mutable_segment_pattern_library;
 }
 
 auto MaterializeFunctionalSegmentPattern(const std::vector<PatternId>& unit_pattern_ids, FunctionalComposeContext& context,

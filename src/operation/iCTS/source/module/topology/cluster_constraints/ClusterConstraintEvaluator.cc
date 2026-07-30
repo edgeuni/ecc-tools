@@ -33,7 +33,7 @@
 #include <utility>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "Logger.hh"
 #include "Pin.hh"
 #include "PinLocationHelper.hh"
@@ -79,8 +79,7 @@ auto IsPointOverlappingAnyLoad(const Point<int>& point, const std::vector<Point<
   return std::ranges::any_of(load_locations, [&](const auto& location) -> bool { return location == point; });
 }
 
-auto LegalizeRoutingRoot(const Point<int>& raw_synthetic_root, const std::vector<Point<int>>& load_locations, Point<int>& legalized_root)
-    -> bool
+auto LegalizeRoutingRoot(const Point<int>& raw_synthetic_root, const std::vector<Point<int>>& load_locations, Point<int>& legalized_root) -> bool
 {
   legalized_root = raw_synthetic_root;
   if (!IsPointOverlappingAnyLoad(raw_synthetic_root, load_locations)) {
@@ -91,20 +90,18 @@ auto LegalizeRoutingRoot(const Point<int>& raw_synthetic_root, const std::vector
   LocalLegalization::Config legalization_config;
   legalization_config.failure_policy = LocalLegalization::FailurePolicy::kKeepOriginal;
 
-  const auto result = LocalLegalization::legalize(movable_points, load_locations, LocalLegalization::RegionType{},
-                                                  LocalLegalization::RegionType{}, legalization_config);
+  const auto result
+      = LocalLegalization::legalize(movable_points, load_locations, LocalLegalization::RegionType{}, LocalLegalization::RegionType{}, legalization_config);
 
   if (result.legalized_points.empty()) {
-    CTSLOG.warn(Loc::current(),
-                "Cluster constraint exact-cap root legalization failed: legalization returned empty points, synthetic root ",
+    CTSLOG.warn(Loc::current(), "Cluster constraint exact-cap root legalization failed: legalization returned empty points, synthetic root ",
                 raw_synthetic_root, ".");
     return false;
   }
 
   legalized_root = result.legalized_points.front();
   if (IsPointOverlappingAnyLoad(legalized_root, load_locations)) {
-    CTSLOG.warn(Loc::current(),
-                "Cluster constraint exact-cap root legalization failed: legalized root still overlaps load location, synthetic root ",
+    CTSLOG.warn(Loc::current(), "Cluster constraint exact-cap root legalization failed: legalized root still overlaps load location, synthetic root ",
                 raw_synthetic_root, ", legalized root ", legalized_root, ".");
     return false;
   }
@@ -136,8 +133,8 @@ auto UpdateEstimateFromRcTree(ElectricalEstimate& estimate, RCTree& rc_tree) -> 
 
 }  // namespace
 
-auto ClusterConstraintEvaluator::evaluateLoads(const std::vector<Pin*>& loads, const Point<int>& routing_root, const ClusterConfig& config,
-                                               bool need_exact_cap) -> ConstraintEvaluation
+auto ClusterConstraintEvaluator::evaluateLoads(const std::vector<Pin*>& loads, const Point<int>& routing_root, const ClusterConfig& config, bool need_exact_cap)
+    -> ConstraintEvaluation
 {
   std::vector<Pin*> active_loads;
   active_loads.reserve(loads.size());
@@ -171,9 +168,8 @@ auto ClusterConstraintEvaluator::evaluateLoads(const std::vector<Pin*>& loads, c
   return evaluatePinnedLoads(active_loads, active_loads.size(), diameter, routing_root, config, need_exact_cap);
 }
 
-auto ClusterConstraintEvaluator::evaluatePinnedLoads(const std::vector<Pin*>& loads, std::size_t fanout, int diameter,
-                                                     const Point<int>& routing_root, const ClusterConfig& config, bool need_exact_cap)
-    -> ConstraintEvaluation
+auto ClusterConstraintEvaluator::evaluatePinnedLoads(const std::vector<Pin*>& loads, std::size_t fanout, int diameter, const Point<int>& routing_root,
+                                                     const ClusterConfig& config, bool need_exact_cap) -> ConstraintEvaluation
 {
   ConstraintEvaluation evaluation;
   evaluation.legal = false;
@@ -250,8 +246,8 @@ auto ClusterConstraintEvaluator::estimatePinCap(const std::vector<Pin*>& loads, 
   return total_pin_cap;
 }
 
-auto ClusterConstraintEvaluator::estimateExactCap(const std::vector<Pin*>& loads, const Point<int>& synthetic_root,
-                                                  const ClusterConfig& config) -> ElectricalEstimate
+auto ClusterConstraintEvaluator::estimateExactCap(const std::vector<Pin*>& loads, const Point<int>& synthetic_root, const ClusterConfig& config)
+    -> ElectricalEstimate
 {
   ElectricalEstimate estimate;
   estimate.exact = true;

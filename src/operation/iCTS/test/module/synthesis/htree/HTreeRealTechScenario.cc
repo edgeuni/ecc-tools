@@ -60,8 +60,8 @@ auto ReadEnvFlag(std::string_view env_name) -> bool
   return !(value.empty() || value == "0" || value == "false" || value == "FALSE" || value == "False");
 }
 
-auto FormatArm9ExperimentReport(std::string_view scenario_name, const std::string& clock_name, std::size_t load_count,
-                                bool omit_wirelength_unit, const std::vector<Arm9ExperimentRecord>& records) -> std::string
+auto FormatArm9ExperimentReport(std::string_view scenario_name, const std::string& clock_name, std::size_t load_count, bool omit_wirelength_unit,
+                                const std::vector<Arm9ExperimentRecord>& records) -> std::string
 {
   std::ostringstream report_stream;
   report_stream.setf(std::ostringstream::fixed, std::ostringstream::floatfield);
@@ -74,10 +74,9 @@ auto FormatArm9ExperimentReport(std::string_view scenario_name, const std::strin
   report_stream << "columns=iter,step,runtime_s,success,frontier_count,selected_depth,best_pattern_id,best_delay_ns,best_power_w,"
                    "char_wirelength_unit_um,char_wirelength_iterations,char_grid_adapted,used_boundary_relaxation,failure_reason\n";
   for (const auto& record : records) {
-    report_stream << record.wirelength_iterations << "," << record.slew_cap_steps << "," << record.runtime_s << ","
-                  << (record.success ? "true" : "false") << "," << record.final_frontier_count << "," << record.selected_depth << ","
-                  << record.best_pattern_id << "," << record.best_delay_ns << "," << record.best_power_w << ","
-                  << record.char_wirelength_unit_um << "," << record.char_wirelength_iterations << ","
+    report_stream << record.wirelength_iterations << "," << record.slew_cap_steps << "," << record.runtime_s << "," << (record.success ? "true" : "false")
+                  << "," << record.final_frontier_count << "," << record.selected_depth << "," << record.best_pattern_id << "," << record.best_delay_ns << ","
+                  << record.best_power_w << "," << record.char_wirelength_unit_um << "," << record.char_wirelength_iterations << ","
                   << (record.char_grid_adapted ? "true" : "false") << "," << (record.used_boundary_relaxation ? "true" : "false") << ","
                   << record.failure_reason << "\n";
   }
@@ -138,8 +137,7 @@ auto SelectLargestRealClockLoads(std::size_t max_count) -> std::optional<RealClo
 auto CountPinsWithRealContext(const std::vector<icts::Pin*>& loads) -> std::size_t
 {
   return static_cast<std::size_t>(std::ranges::count_if(loads, [](const icts::Pin* pin) -> bool {
-    return pin != nullptr && pin->get_inst() != nullptr && pin->get_net() != nullptr && !pin->get_name().empty()
-           && !pin->get_inst()->get_name().empty();
+    return pin != nullptr && pin->get_inst() != nullptr && pin->get_net() != nullptr && !pin->get_name().empty() && !pin->get_inst()->get_name().empty();
   }));
 }
 
@@ -246,8 +244,8 @@ auto AssertNoSingleLoadExternalLeafBuffer(const icts::htree::DiagnosticBuild& re
     const auto* downstream_load = output_net->get_loads().front();
     const auto* downstream_inst = downstream_load->get_inst();
     const bool drives_internal_htree_inst = downstream_inst != nullptr && inserted_insts.contains(downstream_inst);
-    EXPECT_TRUE(drives_internal_htree_inst) << "Expected leaf single-load buffer pruning to remove " << inst->get_name()
-                                            << " but it still drives " << downstream_load->get_name();
+    EXPECT_TRUE(drives_internal_htree_inst) << "Expected leaf single-load buffer pruning to remove " << inst->get_name() << " but it still drives "
+                                            << downstream_load->get_name();
   }
 }
 
@@ -290,9 +288,8 @@ auto AssertSelectedHTreeLoadDistribution(const icts::htree::DiagnosticBuild& res
   EXPECT_LE(observation.htree_load_cap_median_pf, observation.htree_load_cap_max_pf);
 }
 
-auto WriteAndAssertHTreeArtifacts(const htree::HTreeArtifactPaths& artifact_paths, const std::string& scenario_name,
-                                  const std::string& clock_name, const std::vector<icts::Pin*>& loads,
-                                  const icts::htree::DiagnosticBuild& result) -> void
+auto WriteAndAssertHTreeArtifacts(const htree::HTreeArtifactPaths& artifact_paths, const std::string& scenario_name, const std::string& clock_name,
+                                  const std::vector<icts::Pin*>& loads, const icts::htree::DiagnosticBuild& result) -> void
 {
   ASSERT_FALSE(artifact_paths.output_dir.empty());
   EXPECT_TRUE(htree::WriteHTreeArtifacts(artifact_paths, scenario_name, clock_name, loads, result));

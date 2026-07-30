@@ -55,8 +55,8 @@ auto ToString(DomainStatus status) -> const char*
   return "failed";
 }
 
-auto DomainStatusRecorder::append(const Clock& clock, DomainStatus status, SinkDomainKind sink_domain, std::size_t valid_sinks,
-                                  std::size_t sink_domain_sinks, const std::string& detail) -> void
+auto DomainStatusRecorder::append(const Clock& clock, DomainStatus status, SinkDomainKind sink_domain, std::size_t valid_sinks, std::size_t sink_domain_sinks,
+                                  const std::string& detail) -> void
 {
   _records->push_back(SynthesisTraceStatusRecord{
       .clock_name = clock.get_clock_name(),

@@ -35,9 +35,9 @@
 #include "Logger.hh"
 #include "Net.hh"
 #include "TopologyRealTechScenario.hh"
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 #include "module/synthesis/TopologyArtifactWriter.hh"
 #include "module/synthesis/topology/Topology.hh"
@@ -45,14 +45,14 @@
 namespace icts_test {
 namespace {
 
-namespace common_realtech = common::realtech;
-namespace realtech_fixture = characterization::realtech;
+namespace design_realtech = data_manager::realtech;
+namespace characterization_realtech = characterization::realtech;
 namespace smoke = synthesis_realtech_smoke;
 
 TEST(TopologyRealTechSmokeTest, NonClusteredModeSkipsClusterBuffersAndUsesUnrestrictedHTreeFrontier)
 {
-  const auto& setup_state = common_realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = design_realtech::EnsureRealTechSetup();
+  if (setup_state.mode != design_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     GTEST_SKIP() << setup_state.summary;
     return;
   }
@@ -64,9 +64,9 @@ TEST(TopologyRealTechSmokeTest, NonClusteredModeSkipsClusterBuffersAndUsesUnrest
   }
   const auto& selected_clock_data = selected_clock.value();
 
-  realtech_fixture::RealTechCharFixture char_fixture;
-  if (const auto prepare_error = char_fixture.prepare("topology_non_clustered_smoke", std::nullopt, smoke::kSynthesisSmokeMaxSlewNs,
-                                                      smoke::kSynthesisSmokeMaxCapPf, true);
+  characterization_realtech::RealTechCharFixture char_fixture;
+  if (const auto prepare_error
+      = char_fixture.prepare("topology_non_clustered_smoke", std::nullopt, smoke::kSynthesisSmokeMaxSlewNs, smoke::kSynthesisSmokeMaxCapPf, true);
       prepare_error.has_value()) {
     GTEST_SKIP() << *prepare_error;
     return;
@@ -101,11 +101,10 @@ TEST(TopologyRealTechSmokeTest, NonClusteredModeSkipsClusterBuffersAndUsesUnrest
   smoke::AssertNoSingleLoadExternalLeafBuffer(result.output.htree_output);
   smoke::AssertSelectedTopologyDepth(result);
   EXPECT_TRUE(result.output.cluster_buffers.empty());
-  EXPECT_EQ(smoke::CountTopologyLeafNodes(result.output.htree_output.topology),
-            smoke::CalcFloorPowerOfTwo(selected_clock_data.sinks.size()));
+  EXPECT_EQ(smoke::CountTopologyLeafNodes(result.output.htree_output.topology), smoke::CalcFloorPowerOfTwo(selected_clock_data.sinks.size()));
 
-  smoke::WriteAndAssertSynthesisArtifacts("non_clustered_mode_realtech_smoke", "non_clustered_mode", selected_clock_data.clock_name,
-                                          artifact_paths, selected_clock_data.source, selected_clock_data.sinks, result);
+  smoke::WriteAndAssertSynthesisArtifacts("non_clustered_mode_realtech_smoke", "non_clustered_mode", selected_clock_data.clock_name, artifact_paths,
+                                          selected_clock_data.source, selected_clock_data.sinks, result);
   smoke::AssertNonClusteredArtifacts(artifact_paths);
 }
 

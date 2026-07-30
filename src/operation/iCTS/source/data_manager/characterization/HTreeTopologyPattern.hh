@@ -62,8 +62,7 @@ class HTreeTopologyPattern
    * @param downstream Downstream topology (closer to leaves)
    * @param merged_topo_pid New pattern ID for the merged topology
    */
-  static auto concat(const HTreeTopologyPattern& upstream, const HTreeTopologyPattern& downstream, PatternId merged_topo_pid)
-      -> HTreeTopologyPattern
+  static auto concat(const HTreeTopologyPattern& upstream, const HTreeTopologyPattern& downstream, PatternId merged_topo_pid) -> HTreeTopologyPattern
   {
     std::vector<PatternId> merged_ids;
     merged_ids.reserve(upstream._level_segment_pattern_ids.size() + downstream._level_segment_pattern_ids.size());

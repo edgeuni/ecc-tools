@@ -36,8 +36,7 @@ auto resolveOutputRootDir(const Config& config, const std::string& save_dir) -> 
   return std::filesystem::path(config.get_work_dir());
 }
 
-auto resolveVisualizationDir(const Config& config, const std::string& save_dir, const std::filesystem::path& output_root_dir)
-    -> std::filesystem::path
+auto resolveVisualizationDir(const Config& config, const std::string& save_dir, const std::filesystem::path& output_root_dir) -> std::filesystem::path
 {
   if (!save_dir.empty()) {
     return output_root_dir / "visualization";
@@ -48,8 +47,7 @@ auto resolveVisualizationDir(const Config& config, const std::string& save_dir, 
   return output_root_dir / "visualization";
 }
 
-auto resolveStatisticsDir(const Config& config, const std::string& save_dir, const std::filesystem::path& output_root_dir)
-    -> std::filesystem::path
+auto resolveStatisticsDir(const Config& config, const std::string& save_dir, const std::filesystem::path& output_root_dir) -> std::filesystem::path
 {
   if (!save_dir.empty()) {
     return output_root_dir / "statistics";

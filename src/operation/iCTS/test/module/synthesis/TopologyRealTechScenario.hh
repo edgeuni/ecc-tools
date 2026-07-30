@@ -31,9 +31,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/design/Inst.hh"
 #include "data_manager/design/Pin.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "module/synthesis/TopologyArtifactWriter.hh"
 #include "module/synthesis/htree/HTree.hh"
 #include "module/synthesis/topology/Topology.hh"
@@ -54,7 +54,7 @@ inline constexpr std::string_view kBpBeTopTopologyScenario = "topology_bp_be_top
 inline constexpr std::array<unsigned, 4> kBpBeTopExperimentIterations = {2U, 3U, 4U, 5U};
 inline constexpr std::array<unsigned, 2> kBpBeTopExperimentSteps = {10U, 15U};
 
-using RealClockSelection = common::realtech::RealClockNetSelection;
+using RealClockSelection = data_manager::realtech::RealClockNetSelection;
 
 struct TopologyExperimentRecord
 {
@@ -130,18 +130,15 @@ auto CountNonEmptyClusters(const icts::ClusterOutput& cluster_output) -> std::si
 auto CollectClusterBufferInsts(const icts::Topology::Build& result) -> std::unordered_set<icts::Inst*>;
 auto ValidateClusteredSinkConnectivity(const std::vector<icts::Pin*>& sinks, const std::unordered_set<icts::Inst*>& cluster_buffer_insts)
     -> TopologyValidationResult;
-auto ValidateClusterBufferMastersFollowLeafSemantics(const icts::Topology::Build& result, const std::string& min_cluster_master)
-    -> TopologyValidationResult;
-auto AssertClusteredSinkConnectivity(const std::vector<icts::Pin*>& sinks, const std::unordered_set<icts::Inst*>& cluster_buffer_insts)
-    -> void;
+auto ValidateClusterBufferMastersFollowLeafSemantics(const icts::Topology::Build& result, const std::string& min_cluster_master) -> TopologyValidationResult;
+auto AssertClusteredSinkConnectivity(const std::vector<icts::Pin*>& sinks, const std::unordered_set<icts::Inst*>& cluster_buffer_insts) -> void;
 auto AssertNoSingleLoadExternalLeafBuffer(const icts::HTree::Output& htree_output) -> void;
 auto AssertClusterBufferMastersFollowLeafSemantics(const icts::Topology::Build& result, const std::string& min_cluster_master) -> void;
 auto AssertTopologyHTreePayload(const icts::Topology::Build& result) -> void;
 auto AssertBranchBufferedHTreePayload(const icts::HTree::Output& htree_output) -> void;
 auto WriteAndAssertSynthesisArtifacts(const std::string& case_name, const std::string& scenario_name, const std::string& clock_name,
-                                      const synthesis::TopologyArtifactPaths& artifact_paths, icts::Pin* source,
-                                      const std::vector<icts::Pin*>& sinks, const icts::Topology::Build& result)
-    -> synthesis::TopologyArtifactPaths;
+                                      const synthesis::TopologyArtifactPaths& artifact_paths, icts::Pin* source, const std::vector<icts::Pin*>& sinks,
+                                      const icts::Topology::Build& result) -> synthesis::TopologyArtifactPaths;
 auto AssertClusteredArtifacts(const synthesis::TopologyArtifactPaths& artifact_paths) -> void;
 auto AssertNonClusteredArtifacts(const synthesis::TopologyArtifactPaths& artifact_paths) -> void;
 auto CalcFloorPowerOfTwo(std::size_t value) -> std::size_t;

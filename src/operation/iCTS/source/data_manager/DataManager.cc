@@ -11,13 +11,22 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file DataManager.cc
+ * @author Dawn Li (dawnli619215645@gmail.com)
+ * @date 2026-07-30
+ * @brief CTS process-wide state ownership and stage coordination.
+ */
+
 #include "DataManager.hh"
 
 #include <algorithm>
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <set>
 #include <string_view>
 #include <system_error>
@@ -26,13 +35,13 @@
 #include "LogTable.hh"
 #include "Logger.hh"
 #include "Monitor.hh"
-#include "adapter/sdc/SdcClockReader.hh"
+#include "adapter/sdc/SDCClockReader.hh"
 #include "builder.h"
 #include "design/Clock.hh"
 #include "design/Inst.hh"
 #include "design/Pin.hh"
 #include "idm.h"
-#include "routing/ClockRouteSegmentRc.hh"
+#include "routing/ClockRouteSegmentRC.hh"
 
 namespace icts {
 namespace {
@@ -55,16 +64,16 @@ auto clockKindName(SdcClockDecl::Kind kind) -> const char*
 
 auto countTraceStatus(const ClockTraceSummary& summary, std::string_view status) -> std::size_t
 {
-  return static_cast<std::size_t>(
-      std::ranges::count_if(summary.records, [status](const ClockTraceRecord& record) -> bool { return record.status == status; }));
+  return static_cast<std::size_t>(std::ranges::count_if(summary.records, [status](const ClockTraceRecord& record) -> bool { return record.status == status; }));
 }
 
 auto logRuntimeConfiguration(const Config& config, const Wrapper& wrapper, const std::string& config_file) -> void
 {
   const auto& routing_layers = config.get_routing_layers();
   const auto routing_layer = routing_layers.empty() ? 0U : routing_layers.front();
-  ClockRouteSegmentRc wire_rc{.dbu_per_um = wrapper.queryDbUnit()};
-  const bool wire_rc_available = routing_layer > 0U && wrapper.is_layout_ready() && wire_rc.dbu_per_um > 0;
+  const auto dbu_per_um = wrapper.queryDbUnit();
+  std::optional<ClockRouteSegmentRc> wire_rc = std::nullopt;
+  const bool wire_rc_available = routing_layer > 0U && wrapper.is_layout_ready() && dbu_per_um.has_value();
   if (wire_rc_available) {
     wire_rc = wrapper.queryConfiguredClockRouteSegmentRc(config);
   }
@@ -104,9 +113,9 @@ auto logRuntimeConfiguration(const Config& config, const Wrapper& wrapper, const
                {{"Routing Setup Source", "Runtime Configuration"},
                 {"Routing Layer", ToLogTableCell(routing_layer)},
                 {"Query Length (um)", "1"},
-                {"DBU per um", ToLogTableCell(wire_rc.dbu_per_um)},
-                {"Unit Resistance (ohm/um)", ToLogTableCell(wire_rc.resistance_per_um_ohm)},
-                {"Unit Capacitance (pF/um)", ToLogTableCell(wire_rc.capacitance_per_um_pf)},
+                {"DBU per um", wire_rc.has_value() ? ToLogTableCell(wire_rc->dbu_per_um) : "n/a"},
+                {"Unit Resistance (ohm/um)", wire_rc.has_value() ? ToLogTableCell(wire_rc->resistance_per_um_ohm) : "n/a"},
+                {"Unit Capacitance (pF/um)", wire_rc.has_value() ? ToLogTableCell(wire_rc->capacitance_per_um_pf) : "n/a"},
                 {"Status", wire_rc_available ? "available" : "unavailable"}});
 }
 
@@ -134,24 +143,21 @@ auto logClockTraceSummary(const SdcClockData& clock_data, const ClockTraceBuild&
 
   LogTableRows ownership_rows;
   for (const auto& declaration : clock_data.clocks) {
-    const auto record_count = static_cast<std::size_t>(std::ranges::count_if(
-        trace.summary.records, [&declaration](const auto& record) -> bool { return record.clock_name == declaration.clock_name; }));
-    const auto clock_accepted_count
-        = static_cast<std::size_t>(std::ranges::count_if(trace.summary.records, [&declaration](const auto& record) -> bool {
-            return record.clock_name == declaration.clock_name && record.status == "accepted";
-          }));
-    const auto target_count = static_cast<std::size_t>(std::ranges::count_if(
-        trace.output.clock_targets, [&declaration](const auto& target) -> bool { return target.clock_name == declaration.clock_name; }));
+    const auto record_count = static_cast<std::size_t>(
+        std::ranges::count_if(trace.summary.records, [&declaration](const auto& record) -> bool { return record.clock_name == declaration.clock_name; }));
+    const auto clock_accepted_count = static_cast<std::size_t>(std::ranges::count_if(trace.summary.records, [&declaration](const auto& record) -> bool {
+      return record.clock_name == declaration.clock_name && record.status == "accepted";
+    }));
+    const auto target_count = static_cast<std::size_t>(
+        std::ranges::count_if(trace.output.clock_targets, [&declaration](const auto& target) -> bool { return target.clock_name == declaration.clock_name; }));
     ownership_rows.push_back({declaration.clock_name, clockKindName(declaration.kind),
-                              declaration.master_clock_name.empty() ? "n/a" : declaration.master_clock_name,
-                              ToLogTableCell(declaration.period_ns), ToLogTableCell(declaration.period_resolved),
-                              ToLogTableCell(declaration.targets.size()), ToLogTableCell(declaration.generated_sources.size()),
-                              ToLogTableCell(record_count), ToLogTableCell(clock_accepted_count), ToLogTableCell(target_count),
-                              ToLogTableCell(declaration.is_virtual)});
+                              declaration.master_clock_name.empty() ? "n/a" : declaration.master_clock_name, ToLogTableCell(declaration.period_ns),
+                              ToLogTableCell(declaration.period_resolved), ToLogTableCell(declaration.targets.size()),
+                              ToLogTableCell(declaration.generated_sources.size()), ToLogTableCell(record_count), ToLogTableCell(clock_accepted_count),
+                              ToLogTableCell(target_count), ToLogTableCell(declaration.is_virtual)});
   }
   EmitLogTable(Loc::current(), "SDC Clock Ownership Overview",
-               {"Clock", "Kind", "Master", "Period (ns)", "Resolved", "Targets", "Sources", "Trace", "Accepted", "Nets", "Virtual"},
-               ownership_rows);
+               {"Clock", "Kind", "Master", "Period (ns)", "Resolved", "Targets", "Sources", "Trace", "Accepted", "Nets", "Virtual"}, ownership_rows);
 }
 
 auto logDesignDistribution(const Design& design) -> void
@@ -192,23 +198,21 @@ auto logDesignDistribution(const Design& design) -> void
     }
     total_sinks += clock->get_loads().size();
     const auto sequential_sinks = sink_type_counts[InstType::kFlipFlop] + sink_type_counts[InstType::kLatch];
-    const auto boundary_sinks = sink_type_counts[InstType::kClockGate] + sink_type_counts[InstType::kMux]
-                                + sink_type_counts[InstType::kClockLogic] + sink_type_counts[InstType::kBoundaryLoad];
+    const auto boundary_sinks = sink_type_counts[InstType::kClockGate] + sink_type_counts[InstType::kMux] + sink_type_counts[InstType::kClockLogic]
+                                + sink_type_counts[InstType::kBoundaryLoad];
     const auto propagation_sinks = sink_type_counts[InstType::kBuffer] + sink_type_counts[InstType::kInverter];
     distribution_rows.push_back({clock->get_clock_name(), clock->get_clock_net_name(), ToLogTableCell(clock->get_clock_period_ns()),
-                                 clock->get_clock_period_source(), ToLogTableCell(clock->get_nets().size()),
-                                 ToLogTableCell(clock->get_insts().size()), ToLogTableCell(clock->get_loads().size()),
-                                 ToLogTableCell(sequential_sinks), ToLogTableCell(sink_type_counts[InstType::kMacroBlock]),
-                                 ToLogTableCell(boundary_sinks), ToLogTableCell(propagation_sinks), ToLogTableCell(io_sinks),
-                                 ToLogTableCell(clock->is_preclustered_sink_reuse()),
+                                 clock->get_clock_period_source(), ToLogTableCell(clock->get_nets().size()), ToLogTableCell(clock->get_insts().size()),
+                                 ToLogTableCell(clock->get_loads().size()), ToLogTableCell(sequential_sinks),
+                                 ToLogTableCell(sink_type_counts[InstType::kMacroBlock]), ToLogTableCell(boundary_sinks), ToLogTableCell(propagation_sinks),
+                                 ToLogTableCell(io_sinks), ToLogTableCell(clock->is_preclustered_sink_reuse()),
                                  ToLogTableCell(clock->get_preclustered_anchor_input_net_names().size())});
   }
   distribution_rows.push_back({"TOTAL", "-", "-", "-", ToLogTableCell(design.get_nets().size()), ToLogTableCell(design.get_insts().size()),
                                ToLogTableCell(total_sinks), "-", "-", "-", "-", "-", "-", "-"});
-  EmitLogTable(
-      Loc::current(), "Clock Distribution Overview",
-      {"Clock", "Net", "Period", "Source", "Nets", "Insts", "Sinks", "Seq", "Macro", "Boundary", "Propagation", "IO", "Reuse", "Anchors"},
-      distribution_rows);
+  EmitLogTable(Loc::current(), "Clock Distribution Overview",
+               {"Clock", "Net", "Period", "Source", "Nets", "Insts", "Sinks", "Seq", "Macro", "Boundary", "Propagation", "IO", "Reuse", "Anchors"},
+               distribution_rows);
 }
 
 }  // namespace
@@ -364,14 +368,12 @@ auto DataManager::readClockData() -> DataManagerStatus
   return okStatus("CTS input data is ready.");
 }
 
-auto DataManager::commitSynthesis(std::unique_ptr<Design> design, ClockLayout clock_layout, const SynthesisTraceSummary& summary)
-    -> DataManagerStatus
+auto DataManager::commitSynthesis(std::unique_ptr<Design> design, ClockLayout clock_layout, const SynthesisTraceSummary& summary) -> DataManagerStatus
 {
   if (_state != CTSRunState::kInputReady) {
     return failureStatus(DataManagerStatusCode::kInvalidState, "synthesis commit requires input-ready state.");
   }
-  if (design == nullptr || summary.outcome == SynthesisOutcome::kFailed
-      || (summary.outcome == SynthesisOutcome::kFinished && !summary.success)) {
+  if (design == nullptr || summary.outcome == SynthesisOutcome::kFailed || (summary.outcome == SynthesisOutcome::kFinished && !summary.success)) {
     return failureStatus(DataManagerStatusCode::kCommitError, "synthesis result is not committable.");
   }
   if (summary.outcome == SynthesisOutcome::kFinished && !design->rebuildClockDAG()) {
@@ -384,8 +386,7 @@ auto DataManager::commitSynthesis(std::unique_ptr<Design> design, ClockLayout cl
   return okStatus("CTS synthesis result committed.");
 }
 
-auto DataManager::commitOptimization(std::unique_ptr<Design> design, ClockLayout clock_layout, const OptimizationSummary& summary)
-    -> DataManagerStatus
+auto DataManager::commitOptimization(std::unique_ptr<Design> design, ClockLayout clock_layout, const OptimizationSummary& summary) -> DataManagerStatus
 {
   if (_state != CTSRunState::kSynthesisCommitted) {
     return failureStatus(DataManagerStatusCode::kInvalidState, "optimization commit requires synthesized state.");
@@ -425,6 +426,16 @@ auto DataManager::commitEvaluation(EvaluationState state) -> DataManagerStatus
   _evaluation_state = std::move(state);
   _state = CTSRunState::kEvaluationCommitted;
   return okStatus("CTS evaluation result committed.");
+}
+
+auto DataManager::hasCommittedEvaluation() const -> bool
+{
+  return _state == CTSRunState::kEvaluationCommitted && _evaluation_state.summary.has_evaluation_result && _evaluation_state.statistics.valid;
+}
+
+auto DataManager::getCommittedEvaluationState() const -> const EvaluationState*
+{
+  return hasCommittedEvaluation() ? &_evaluation_state : nullptr;
 }
 
 void DataManager::replaceCommittedDesign(std::unique_ptr<Design> design)

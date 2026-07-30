@@ -15,7 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file LevelPlan.cc
+ * @file Plan.cc
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-05-01
  * @brief H-tree topology level length planning.
@@ -86,8 +86,7 @@ auto BuildLevelPlans(const Tree& topology, double length_step_um, int32_t dbu_pe
       continue;
     }
 
-    const int requested_length_dbu
-        = static_cast<int>(std::llround(static_cast<double>(distance_sum) / static_cast<double>(distance_count)));
+    const int requested_length_dbu = static_cast<int>(std::llround(static_cast<double>(distance_sum) / static_cast<double>(distance_count)));
     const double requested_length_um = static_cast<double>(std::max(requested_length_dbu, 0)) / static_cast<double>(dbu_per_um);
     const unsigned aligned_length_idx = MakeCoveringLengthIndex(requested_length_um, length_step_um);
     plans.push_back(HTree::LevelPlan{

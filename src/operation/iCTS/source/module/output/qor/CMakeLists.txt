@@ -1,6 +1,6 @@
 add_library(
   icts_source_module_output_qor
-  ${ICTS_MODULE_OUTPUT_QOR}/QorReport.cc
+  ${ICTS_MODULE_OUTPUT_QOR}/QORReport.cc
 )
 
 target_link_libraries(

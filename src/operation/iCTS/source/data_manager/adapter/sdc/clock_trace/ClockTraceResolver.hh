@@ -25,7 +25,7 @@
 
 #include <cstddef>
 
-#include "SdcClockReader.hh"
+#include "SDCClockReader.hh"
 
 namespace idb {
 class IdbDesign;
@@ -36,8 +36,8 @@ namespace icts {
 class ClockTraceResolver
 {
  public:
-  static auto resolve(const SdcClockData& clock_data, idb::IdbDesign* idb_design, const SdcLibertyCellLookup& liberty_cell_lookup,
-                      std::size_t max_fanout) -> ClockTraceBuild;
+  static auto resolve(const SdcClockData& clock_data, idb::IdbDesign* idb_design, const SdcLibertyCellLookup& liberty_cell_lookup, std::size_t max_fanout)
+      -> ClockTraceBuild;
 };
 
 }  // namespace icts

@@ -103,9 +103,9 @@ class HTree
     std::string selected_leaf_buffer_cell_master;
     std::string selected_terminal_cell_master;
     std::size_t selected_buffer_count = 0U;
-    double selected_buffer_area_um2 = 0.0;
+    std::optional<double> selected_buffer_area_um2 = std::nullopt;
     std::size_t selected_weighted_buffer_count = 0U;
-    double selected_weighted_buffer_area_um2 = 0.0;
+    std::optional<double> selected_weighted_buffer_area_um2 = std::nullopt;
     PatternId segment_pattern_id = PatternId::segment(0);
   };
 

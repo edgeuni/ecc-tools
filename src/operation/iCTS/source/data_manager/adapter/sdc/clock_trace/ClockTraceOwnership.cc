@@ -11,8 +11,15 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file ClockTraceOwnership.cc
+ * @author Dawn Li (dawnli619215645@gmail.com)
+ * @date 2026-07-30
+ * @brief Clock declaration and net ownership resolution for SDC import.
+ */
 
 #include <algorithm>
 #include <map>
@@ -23,8 +30,8 @@
 
 #include "IdbDesign.h"
 #include "IdbNet.h"
-#include "SdcClockReader.hh"
-#include "SdcClockTraceAlgorithm.hh"
+#include "SDCClockReader.hh"
+#include "SDCClockTraceAlgorithm.hh"
 
 namespace icts::clock_trace {
 
@@ -68,8 +75,8 @@ auto CollectTracedNetNames(const std::vector<ClockTraceRecord>& records) -> std:
   return traced_net_names;
 }
 
-auto CollectUnownedClockLikeRecords(const SdcLibertyCellLookup& liberty_cell_lookup, idb::IdbDesign* idb_design,
-                                    const std::vector<ClockTraceRecord>& records) -> std::vector<ClockTraceRecord>
+auto CollectUnownedClockLikeRecords(const SdcLibertyCellLookup& liberty_cell_lookup, idb::IdbDesign* idb_design, const std::vector<ClockTraceRecord>& records)
+    -> std::vector<ClockTraceRecord>
 {
   std::vector<ClockTraceRecord> unowned_records;
   auto* net_list = idb_design == nullptr ? nullptr : idb_design->get_net_list();

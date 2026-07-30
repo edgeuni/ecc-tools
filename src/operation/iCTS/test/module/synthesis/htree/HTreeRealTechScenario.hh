@@ -98,23 +98,22 @@ struct Arm9ExperimentMatrixRunResult
 };
 
 auto ReadEnvFlag(std::string_view env_name) -> bool;
-auto FormatArm9ExperimentReport(std::string_view scenario_name, const std::string& clock_name, std::size_t load_count,
-                                bool omit_wirelength_unit, const std::vector<Arm9ExperimentRecord>& records) -> std::string;
+auto FormatArm9ExperimentReport(std::string_view scenario_name, const std::string& clock_name, std::size_t load_count, bool omit_wirelength_unit,
+                                const std::vector<Arm9ExperimentRecord>& records) -> std::string;
 auto SampleLoadsForSmoke(const std::vector<icts::Pin*>& loads, std::size_t max_count) -> std::vector<icts::Pin*>;
 auto ConnectRootNetForHTreeTest(icts::Net& root_net, icts::Pin& root_driver, const std::vector<icts::Pin*>& loads) -> void;
 auto SelectLargestRealClockLoads(std::size_t max_count) -> std::optional<RealClockLoadSelection>;
 auto CountPinsWithRealContext(const std::vector<icts::Pin*>& loads) -> std::size_t;
 auto MakeExplicitHTreeInput(icts::Net& root_net) -> icts::HTree::Input;
-auto MakeExplicitHTreeConfig(std::optional<bool> force_branch_buffer = std::nullopt,
-                             std::optional<double> min_top_input_slew_ns = std::nullopt) -> icts::HTree::Config;
+auto MakeExplicitHTreeConfig(std::optional<bool> force_branch_buffer = std::nullopt, std::optional<double> min_top_input_slew_ns = std::nullopt)
+    -> icts::HTree::Config;
 auto CollectLeafLoads(const icts::Tree& topology) -> std::unordered_set<icts::Pin*>;
 auto AssertNoSingleLoadExternalLeafBuffer(const icts::htree::DiagnosticBuild& result) -> void;
 auto ReadTextFile(const std::filesystem::path& path) -> std::string;
 auto AssertDepthCandidateCoverage(const icts::htree::DiagnosticBuild& result) -> void;
 auto AssertSelectedHTreeLoadDistribution(const icts::htree::DiagnosticBuild& result) -> void;
-auto WriteAndAssertHTreeArtifacts(const htree::HTreeArtifactPaths& artifact_paths, const std::string& scenario_name,
-                                  const std::string& clock_name, const std::vector<icts::Pin*>& loads,
-                                  const icts::htree::DiagnosticBuild& result) -> void;
+auto WriteAndAssertHTreeArtifacts(const htree::HTreeArtifactPaths& artifact_paths, const std::string& scenario_name, const std::string& clock_name,
+                                  const std::vector<icts::Pin*>& loads, const icts::htree::DiagnosticBuild& result) -> void;
 auto EvaluateArm9FullSinkExperimentMatrix(bool omit_wirelength_unit) -> Arm9ExperimentMatrixRunResult;
 
 #if ICTS_ENABLE_SLOW_REALTECH_REGRESSION

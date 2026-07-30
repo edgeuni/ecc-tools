@@ -34,9 +34,9 @@
 #include "HTreeTopologyChar.hh"
 #include "Net.hh"
 #include "Pin.hh"
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 #include "module/synthesis/htree/HTree.hh"
 #include "module/synthesis/htree/HTreeBuildObservation.hh"
@@ -46,8 +46,8 @@
 namespace icts_test {
 namespace {
 
-namespace common_realtech = common::realtech;
-namespace realtech_fixture = characterization::realtech;
+namespace design_realtech = data_manager::realtech;
+namespace characterization_realtech = characterization::realtech;
 
 auto MakeSkipResult(const std::string& reason) -> Arm9ExperimentMatrixRunResult
 {
@@ -83,8 +83,8 @@ auto MakeArm9CaseScenarioName(bool omit_wirelength_unit, unsigned wirelength_ite
   return scenario_name_stream.str();
 }
 
-auto MakeArm9ExperimentRecord(unsigned wirelength_iterations, unsigned slew_cap_steps, double runtime_s,
-                              const icts::htree::DiagnosticBuild& result, std::size_t load_count) -> Arm9ExperimentRecord
+auto MakeArm9ExperimentRecord(unsigned wirelength_iterations, unsigned slew_cap_steps, double runtime_s, const icts::htree::DiagnosticBuild& result,
+                              std::size_t load_count) -> Arm9ExperimentRecord
 {
   const auto observation = htree::ObserveHTreeBuild(result);
   Arm9ExperimentRecord record{
@@ -109,8 +109,7 @@ auto MakeArm9ExperimentRecord(unsigned wirelength_iterations, unsigned slew_cap_
 }
 
 auto AppendArm9CaseFailures(unsigned wirelength_iterations, unsigned slew_cap_steps, bool omit_wirelength_unit, double runtime_s,
-                            const icts::htree::DiagnosticBuild& result, const Arm9ExperimentRecord& record,
-                            std::vector<std::string>& failure_messages) -> void
+                            const icts::htree::DiagnosticBuild& result, const Arm9ExperimentRecord& record, std::vector<std::string>& failure_messages) -> void
 {
   const std::string prefix = MakeCasePrefix(wirelength_iterations, slew_cap_steps);
   if (!result.summary.success) {
@@ -157,8 +156,8 @@ auto EvaluateArm9FullSinkExperimentMatrix(bool omit_wirelength_unit) -> Arm9Expe
     return MakeSkipResult("Set " + std::string(env_name) + "=1 to run the ARM9 full-sink H-tree experiment matrix.");
   }
 
-  const auto& setup_state = common_realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = design_realtech::EnsureRealTechSetup();
+  if (setup_state.mode != design_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     return MakeSkipResult(setup_state.summary);
   }
 
@@ -178,9 +177,8 @@ auto EvaluateArm9FullSinkExperimentMatrix(bool omit_wirelength_unit) -> Arm9Expe
     for (const unsigned slew_cap_steps : kArm9ExperimentSteps) {
       const std::string scenario_name = MakeArm9CaseScenarioName(omit_wirelength_unit, wirelength_iterations, slew_cap_steps);
 
-      realtech_fixture::RealTechCharFixture char_fixture;
-      if (const auto prepare_error
-          = char_fixture.prepare(scenario_name, std::nullopt, kHTreeSmokeMaxSlewNs, kHTreeSmokeMaxCapPf, omit_wirelength_unit);
+      characterization_realtech::RealTechCharFixture char_fixture;
+      if (const auto prepare_error = char_fixture.prepare(scenario_name, std::nullopt, kHTreeSmokeMaxSlewNs, kHTreeSmokeMaxCapPf, omit_wirelength_unit);
           prepare_error.has_value()) {
         return MakeSkipResult(*prepare_error);
       }
@@ -201,16 +199,15 @@ auto EvaluateArm9FullSinkExperimentMatrix(bool omit_wirelength_unit) -> Arm9Expe
       const Arm9ExperimentRecord record
           = MakeArm9ExperimentRecord(wirelength_iterations, slew_cap_steps, runtime_s, result, matrix_result.selection.loads.size());
       matrix_result.records.push_back(record);
-      AppendArm9CaseFailures(wirelength_iterations, slew_cap_steps, omit_wirelength_unit, runtime_s, result, record,
-                             matrix_result.failure_messages);
+      AppendArm9CaseFailures(wirelength_iterations, slew_cap_steps, omit_wirelength_unit, runtime_s, result, record, matrix_result.failure_messages);
     }
   }
 
   const std::string_view scenario_name = ResolveArm9MatrixScenarioName(omit_wirelength_unit);
-  matrix_result.report_written = realtech_fixture::WriteScenarioReport(
+  matrix_result.report_written = characterization_realtech::WriteScenarioReport(
       std::string(scenario_name), "matrix_report.txt",
-      FormatArm9ExperimentReport(scenario_name, matrix_result.selection.clock_name, matrix_result.selection.loads.size(),
-                                 omit_wirelength_unit, matrix_result.records));
+      FormatArm9ExperimentReport(scenario_name, matrix_result.selection.clock_name, matrix_result.selection.loads.size(), omit_wirelength_unit,
+                                 matrix_result.records));
   return matrix_result;
 }
 

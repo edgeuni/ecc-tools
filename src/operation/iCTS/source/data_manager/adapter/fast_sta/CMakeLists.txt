@@ -22,12 +22,12 @@ set(
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_liberty
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_LIBERTY}/FastStaLiberty.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_LIBERTY}/FastSTALiberty.cc
 )
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_liberty_model
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_LIBERTY}/FastStaLibertyModel.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_LIBERTY}/FastSTALibertyModel.cc
 )
 
 target_link_libraries(
@@ -55,7 +55,7 @@ target_include_directories(
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_clock_net_parasitic
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_CLOCK_NET_PARASITIC}/FastStaParasitics.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_CLOCK_NET_PARASITIC}/FastSTAParasitics.cc
 )
 
 target_link_libraries(
@@ -77,7 +77,7 @@ target_include_directories(
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_clock_tree
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_CLOCK_TREE}/FastStaClockTree.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_CLOCK_TREE}/FastSTAClockTree.cc
 )
 
 target_link_libraries(
@@ -98,11 +98,11 @@ target_include_directories(
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_timing
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastStaDmpCeff.cc
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastStaDmpCeffEquations.cc
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastStaDmpCeffShared.cc
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastStaDmpCeffSolver.cc
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastStaTiming.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastSTADmpCeff.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastSTADmpCeffEquations.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastSTADmpCeffShared.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastSTADmpCeffSolver.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_TIMING}/FastSTATiming.cc
 )
 
 target_link_libraries(
@@ -121,7 +121,7 @@ target_include_directories(
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_power
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_POWER}/FastStaPower.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_POWER}/FastSTAPower.cc
 )
 
 target_link_libraries(
@@ -138,7 +138,7 @@ target_include_directories(
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_clock_sizing
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_CLOCK_SIZING}/FastStaIncremental.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_CLOCK_SIZING}/FastSTAIncremental.cc
 )
 
 target_link_libraries(
@@ -156,7 +156,7 @@ target_include_directories(
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_clock_state
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_CLOCK_STATE}/FastStaBuilder.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_CLOCK_STATE}/FastSTABuilder.cc
 )
 
 target_link_libraries(
@@ -180,7 +180,7 @@ target_include_directories(
 
 add_library(
   icts_source_data_manager_adapter_fast_sta_segment_char
-  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_SEGMENT_CHAR}/FastStaChar.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA_SEGMENT_CHAR}/FastSTAChar.cc
 )
 
 target_link_libraries(
@@ -200,7 +200,7 @@ target_include_directories(
   ${ICTS_DATA_MANAGER}
 )
 
-add_library(icts_source_data_manager_adapter_fast_sta ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA}/FastSta.cc)
+add_library(icts_source_data_manager_adapter_fast_sta ${ICTS_DATA_MANAGER_ADAPTER_FAST_STA}/FastSTA.cc)
 
 target_link_libraries(
   icts_source_data_manager_adapter_fast_sta

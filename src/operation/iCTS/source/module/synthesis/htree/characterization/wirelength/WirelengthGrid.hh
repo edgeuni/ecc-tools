@@ -41,13 +41,12 @@ auto CountUniqueAlignedLengthBins(const std::vector<double>& requested_lengths_u
 auto CollectRequestedLevelLengthsUm(const Tree& topology, int32_t dbu_per_um) -> std::vector<double>;
 auto ResolveCharacterizationGridPlan(const Config& config, const Tree& topology, int32_t dbu_per_um) -> CharacterizationGridPlan;
 auto ResolveCharacterizationGridPlan(const Config& config, const std::vector<double>& requested_lengths_um) -> CharacterizationGridPlan;
-auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& requested_lengths_um)
-    -> CharacterizationGridPlan;
+auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& requested_lengths_um) -> CharacterizationGridPlan;
 auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& direct_lengths_um,
                                      const std::vector<double>& coverage_lengths_um) -> CharacterizationGridPlan;
 auto ResolveDirectCharacterizationLengthIndices(const Tree& topology, const CharacterizationGridPlan& char_grid_plan, int32_t dbu_per_um)
     -> std::vector<unsigned>;
-auto ResolveDirectCharacterizationLengthIndices(const std::vector<double>& requested_lengths_um,
-                                                const CharacterizationGridPlan& char_grid_plan) -> std::vector<unsigned>;
+auto ResolveDirectCharacterizationLengthIndices(const std::vector<double>& requested_lengths_um, const CharacterizationGridPlan& char_grid_plan)
+    -> std::vector<unsigned>;
 
 }  // namespace icts::htree

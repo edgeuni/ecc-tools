@@ -94,8 +94,7 @@ auto BuildSaltTreeFromClockTree(const CBSRouter::ClockSteinerTreeType& clock_tre
   std::vector<std::shared_ptr<salt::TreeNode>> salt_nodes(clock_tree.node_count());
   for (const auto& node : clock_tree.get_nodes()) {
     auto salt_pin = BuildSaltPin(node);
-    salt_nodes.at(node.id)
-        = std::make_shared<salt::TreeNode>(node.location.get_x(), node.location.get_y(), salt_pin, static_cast<int>(node.id));
+    salt_nodes.at(node.id) = std::make_shared<salt::TreeNode>(node.location.get_x(), node.location.get_y(), salt_pin, static_cast<int>(node.id));
   }
 
   for (const auto& edge : clock_tree.get_edges()) {
@@ -260,8 +259,7 @@ auto CustomSaltBuilder::run(const salt::Net& net, salt::Tree& input_tree, double
   }
 }
 
-auto CustomSaltBuilder::relax(const std::shared_ptr<salt::TreeNode>& source_node, const std::shared_ptr<salt::TreeNode>& target_node)
-    -> bool
+auto CustomSaltBuilder::relax(const std::shared_ptr<salt::TreeNode>& source_node, const std::shared_ptr<salt::TreeNode>& target_node) -> bool
 {
   const auto source_index = ToSaltIndex(source_node->id);
   const auto target_index = ToSaltIndex(target_node->id);
@@ -279,8 +277,7 @@ auto CustomSaltBuilder::relax(const std::shared_ptr<salt::TreeNode>& source_node
   return false;
 }
 
-auto CustomSaltBuilder::dfs(const std::shared_ptr<salt::TreeNode>& tree_node, const std::shared_ptr<salt::TreeNode>& cbs_node, double eps)
-    -> void
+auto CustomSaltBuilder::dfs(const std::shared_ptr<salt::TreeNode>& tree_node, const std::shared_ptr<salt::TreeNode>& cbs_node, double eps) -> void
 {
   struct DfsFrame
   {
@@ -322,8 +319,7 @@ auto CustomSaltBuilder::dfs(const std::shared_ptr<salt::TreeNode>& tree_node, co
   }
 }
 
-auto CBSRouter::buildTree(const std::vector<Terminal>& load_terminals, const BSTRoutingConfig& parameters)
-    -> CBSRouter::ClockSteinerTreeType
+auto CBSRouter::buildTree(const std::vector<Terminal>& load_terminals, const BSTRoutingConfig& parameters) -> CBSRouter::ClockSteinerTreeType
 {
   auto initial_tree = BSTRouter::buildTree(load_terminals, parameters);
   if (initial_tree.node_count() == 0) {

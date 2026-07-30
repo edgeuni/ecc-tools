@@ -30,15 +30,14 @@
 #include <optional>
 #include <vector>
 
-#include "FastSta.hh"
+#include "FastSTA.hh"
 #include "optimization/model/ClockSizingOptimizationData.hh"
 
 namespace icts::clock_sizing_optimization {
 
 namespace {
 
-auto CheckCapLegality(const FastSTA& fast_sta, FastStaClockId clock_id, const std::vector<ClockSizingCapLimit>& baseline)
-    -> ClockSizingCapCheck
+auto CheckCapLegality(const FastSTA& fast_sta, FastStaClockId clock_id, const std::vector<ClockSizingCapLimit>& baseline) -> ClockSizingCapCheck
 {
   ClockSizingCapCheck result;
   const auto graph_profile = fast_sta.queryClockGraphProfile(clock_id);
@@ -67,8 +66,8 @@ auto CheckCapLegality(const FastSTA& fast_sta, FastStaClockId clock_id, const st
   return result;
 }
 
-auto ResolveSlewRole(const std::optional<FastStaSlewStatus>& slew_status, FastStaNodeId node_id,
-                     const std::vector<ClockSizingSlewLimit>& baseline) -> FastStaSlewRole
+auto ResolveSlewRole(const std::optional<FastStaSlewStatus>& slew_status, FastStaNodeId node_id, const std::vector<ClockSizingSlewLimit>& baseline)
+    -> FastStaSlewRole
 {
   if (slew_status.has_value()) {
     return slew_status->role;
@@ -94,8 +93,7 @@ auto CountSlewViolationRole(ClockSizingSlewCheck& result, FastStaSlewRole role) 
   }
 }
 
-auto CheckSlewLegality(const FastSTA& fast_sta, FastStaClockId clock_id, const std::vector<ClockSizingSlewLimit>& baseline)
-    -> ClockSizingSlewCheck
+auto CheckSlewLegality(const FastSTA& fast_sta, FastStaClockId clock_id, const std::vector<ClockSizingSlewLimit>& baseline) -> ClockSizingSlewCheck
 {
   ClockSizingSlewCheck result;
   const auto graph_profile = fast_sta.queryClockGraphProfile(clock_id);
@@ -148,10 +146,13 @@ auto CaptureState(const FastSTA& fast_sta, FastStaClockId clock_id, const std::v
 {
   ClockSizingTimingState state;
   state.skew = fast_sta.querySkew(clock_id);
-  state.power = fast_sta.queryPower(clock_id);
+  const auto power = fast_sta.queryPower(clock_id);
+  if (power.has_value()) {
+    state.power = *power;
+  }
   state.cap = CheckCapLegality(fast_sta, clock_id, cap_baseline);
   state.slew = CheckSlewLegality(fast_sta, clock_id, slew_baseline);
-  state.valid = state.skew.valid && state.cap.legal && state.slew.legal;
+  state.valid = state.skew.valid && power.has_value() && state.cap.legal && state.slew.legal;
   return state;
 }
 

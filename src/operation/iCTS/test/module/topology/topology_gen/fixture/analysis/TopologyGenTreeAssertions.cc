@@ -32,8 +32,7 @@
 #include "Logger.hh"
 #include "Point.hh"
 #include "Tree.hh"
-#include "common/dataset/TestDataset.hh"
-#include "common/topology/TopologyAnalysis.hh"
+#include "module/topology/fixture/analysis/TopologyAnalysis.hh"
 #include "module/topology/topology_gen/fixture/TopologyGenCaseFixture.hh"
 #include "toolkit/geometry/Geometry.hh"
 
@@ -89,16 +88,16 @@ auto ValidateNodeEdge(const icts::Tree& tree, std::size_t node_id, EdgeValidatio
   const auto& parent_pos = parent->get_position();
   if (!IsValidPos(parent_pos)) {
     ++stats.missing_edge_count;
-    CTSLOG.warn(icts::Loc::current(), "Edge issue: node=", node_id, " parent=", parent_id, " invalid parent pos=(", parent_pos.get_x(), ",",
-                parent_pos.get_y(), ")");
+    CTSLOG.warn(icts::Loc::current(), "Edge issue: node=", node_id, " parent=", parent_id, " invalid parent pos=(", parent_pos.get_x(), ",", parent_pos.get_y(),
+                ")");
     return;
   }
 
   const auto dist = icts::geometry::Manhattan(child_pos, parent_pos);
   if (dist == 0) {
     ++stats.zero_edge_count;
-    CTSLOG.warn(icts::Loc::current(), "Edge issue: node=", node_id, " parent=", parent_id, " zero-length edge child=(", child_pos.get_x(),
-                ",", child_pos.get_y(), ") parent=(", parent_pos.get_x(), ",", parent_pos.get_y(), ")");
+    CTSLOG.warn(icts::Loc::current(), "Edge issue: node=", node_id, " parent=", parent_id, " zero-length edge child=(", child_pos.get_x(), ",",
+                child_pos.get_y(), ") parent=(", parent_pos.get_x(), ",", parent_pos.get_y(), ")");
   }
 }
 
@@ -108,7 +107,7 @@ auto AnalyzeBuiltTopology(const icts::Tree& tree, const std::vector<icts::Pin*>&
 {
   std::string error;
 
-  ASSERT_TRUE(common::topology::AnalyzeTopology(tree, loads, artifacts.stats, artifacts.cluster_map, artifacts.centers, error)) << error;
+  ASSERT_TRUE(module::topology::fixture::analysis::AnalyzeTopology(tree, loads, artifacts.stats, artifacts.cluster_map, artifacts.centers, error)) << error;
 
   EXPECT_EQ(artifacts.stats.tree_size, tree.get_size());
   EXPECT_GE(artifacts.stats.leaf_count, 1U);
@@ -116,7 +115,7 @@ auto AnalyzeBuiltTopology(const icts::Tree& tree, const std::vector<icts::Pin*>&
   EXPECT_EQ(artifacts.cluster_map.size(), loads.size());
 }
 
-auto LogTopologySummary(const TopologyStats& stats) -> void
+auto LogTopologySummary(const module::topology::fixture::analysis::TopologyStats& stats) -> void
 {
   std::ostringstream summary;
   summary << "Tree size=" << stats.tree_size << ", leafs=" << stats.leaf_count << ", leaf_load[min/max/avg]=" << stats.min_leaf_load << "/"

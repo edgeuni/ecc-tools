@@ -68,9 +68,8 @@ struct CharacterizationSummary
   double length_step_um = 0.0;
 };
 
-auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const CharBuilder::Input& base_char_input,
-                             const CharBuilder::Config& base_char_config, htree::DiagnosticBuild& result,
-                             CharacterizationLibrary& char_library, const HTree::Input& input, const HTree::Config& config)
+auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const CharBuilder::Input& base_char_input, const CharBuilder::Config& base_char_config,
+                             htree::DiagnosticBuild& result, CharacterizationLibrary& char_library, const HTree::Input& input, const HTree::Config& config)
     -> CharacterizationSummary;
 
 }  // namespace icts::htree

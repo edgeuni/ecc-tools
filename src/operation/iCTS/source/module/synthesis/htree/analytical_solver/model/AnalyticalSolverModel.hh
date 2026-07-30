@@ -110,8 +110,8 @@ auto CollectUnitModelRefs(const AnalyticalHTreeSolveProblem& solve_problem) -> s
 auto BuildUnitPatternByCellMaster(const AnalyticalHTreeSolveProblem& solve_problem, const std::vector<UnitModelRef>& unit_models)
     -> std::unordered_map<std::string, PatternId>;
 auto ScoreFunctionalUnitSequence(const AnalyticalHTreeSolveProblem& solve_problem, const std::vector<PatternId>& unit_pattern_ids,
-                                 PatternId materialized_pattern_id, unsigned length_idx, double input_slew_ns, double downstream_cap_pf,
-                                 bool conservative, AnalyticalSolverBuild& result) -> std::optional<ScoredSegment>;
+                                 PatternId materialized_pattern_id, unsigned length_idx, double input_slew_ns, double downstream_cap_pf, bool conservative,
+                                 AnalyticalSolverBuild& result) -> std::optional<ScoredSegment>;
 auto MakeSegmentChoice(std::size_t level_index, const ScoredSegment& selected) -> AnalyticalSegmentChoice;
 auto AccumulateHTreePower(double accumulated_power_w, std::size_t level_index, const ScoredSegment& selected) -> double;
 

@@ -23,13 +23,13 @@
 
 #include "output/visualization/Visualization.hh"
 
-#include "output/visualization/gds/GdsVisualization.hh"
-#include "output/visualization/svg/SvgVisualization.hh"
+#include "output/visualization/gds/GDSVisualization.hh"
+#include "output/visualization/svg/SVGVisualization.hh"
 
 namespace icts {
 
-auto Visualization::emit(const std::filesystem::path& visualization_dir, const Config& cts_config, const Drawing& drawing,
-                         const VisualizationConfig& config) -> VisualizationSummary
+auto Visualization::emit(const std::filesystem::path& visualization_dir, const Config& cts_config, const Drawing& drawing, const VisualizationConfig& config)
+    -> VisualizationSummary
 {
   const auto svg_summary = config.emit_svg ? visualization::EmitSvgVisualizations(visualization_dir, cts_config, drawing)
                                            : visualization::SvgVisualizationSummary{.success = true};

@@ -22,6 +22,7 @@
  */
 
 #pragma once
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -40,16 +41,24 @@ struct BufferPatternLibrary
 {
   explicit BufferPatternLibrary(Wrapper& wrapper) : _strength_table(wrapper) {}
 
-  auto add(BufferingPattern pattern) -> void
+  auto add(BufferingPattern pattern) -> bool
   {
-    pattern = enrichBoundaryState(std::move(pattern));
+    _last_failure_reason.clear();
+    auto enriched_pattern = enrichBoundaryState(std::move(pattern));
+    if (!enriched_pattern.has_value()) {
+      return false;
+    }
+    pattern = std::move(*enriched_pattern);
     const PatternId pattern_id = pattern.get_pattern_id();
     composition_states[pattern_id] = PatternCompositionState{
         .terminal_semantic = pattern.hasTerminalBranchBuffer() ? TerminalSemantic::kBranchBuffered : TerminalSemantic::kLeafUnbuffered,
         .monotonic_boundary_state = pattern.get_monotonic_boundary_state(),
     };
     patterns[pattern_id] = std::move(pattern);
+    return true;
   }
+
+  auto getLastFailureReason() const -> const std::string& { return _last_failure_reason; }
 
   auto find(PatternId pattern_id) const -> const BufferingPattern*
   {
@@ -99,19 +108,27 @@ struct BufferPatternLibrary
   }
 
  private:
-  static auto resolveBoundaryBufferState(const BoundaryBufferState& explicit_state, const std::string& cell_master,
-                                         BufferStrengthTable& strength_table) -> BoundaryBufferState
+  auto resolveBoundaryBufferState(const BoundaryBufferState& explicit_state, const std::string& cell_master) -> std::optional<BoundaryBufferState>
   {
     if (explicit_state.has_buffer) {
-      return explicit_state;
+      if (explicit_state.strength_rank > 0U) {
+        return explicit_state;
+      }
+      _last_failure_reason = "invalid_explicit_buffer_strength_rank:" + cell_master;
+      return std::nullopt;
     }
     if (cell_master.empty()) {
       return explicit_state;
     }
-    return BoundaryBufferState{.has_buffer = true, .strength_rank = strength_table.getStrengthRank(cell_master)};
+    const auto strength_rank = _strength_table.getStrengthRank(cell_master);
+    if (!strength_rank.has_value()) {
+      _last_failure_reason = "unavailable_buffer_strength_rank:" + cell_master;
+      return std::nullopt;
+    }
+    return BoundaryBufferState{.has_buffer = true, .strength_rank = *strength_rank};
   }
 
-  auto resolveBoundaryState(const BufferingPattern& pattern) -> MonotonicBoundaryState
+  auto resolveBoundaryState(const BufferingPattern& pattern) -> std::optional<MonotonicBoundaryState>
   {
     const auto explicit_state = pattern.get_monotonic_boundary_state();
     if (!pattern.isBufferPattern()) {
@@ -123,21 +140,29 @@ struct BufferPatternLibrary
       return explicit_state;
     }
 
-    return MonotonicBoundaryState{
-        .source = resolveBoundaryBufferState(explicit_state.source, cell_masters.front(), _strength_table),
-        .sink = resolveBoundaryBufferState(explicit_state.sink, cell_masters.back(), _strength_table),
-    };
+    const auto source = resolveBoundaryBufferState(explicit_state.source, cell_masters.front());
+    if (!source.has_value()) {
+      return std::nullopt;
+    }
+    const auto sink = resolveBoundaryBufferState(explicit_state.sink, cell_masters.back());
+    if (!sink.has_value()) {
+      return std::nullopt;
+    }
+    return MonotonicBoundaryState{.source = *source, .sink = *sink};
   }
 
-  auto enrichBoundaryState(BufferingPattern pattern) -> BufferingPattern
+  auto enrichBoundaryState(BufferingPattern pattern) -> std::optional<BufferingPattern>
   {
     const auto boundary_state = resolveBoundaryState(pattern);
-    if (boundary_state == pattern.get_monotonic_boundary_state()) {
+    if (!boundary_state.has_value()) {
+      return std::nullopt;
+    }
+    if (*boundary_state == pattern.get_monotonic_boundary_state()) {
       return pattern;
     }
 
     return BufferingPattern(pattern.get_length_idx(), pattern.get_pattern_id(), pattern.get_buffer_positions(), pattern.get_cell_masters(),
-                            pattern.hasTerminalBranchBuffer(), boundary_state);
+                            pattern.hasTerminalBranchBuffer(), *boundary_state);
   }
 
  public:
@@ -146,6 +171,7 @@ struct BufferPatternLibrary
 
  private:
   BufferStrengthTable _strength_table;
+  std::string _last_failure_reason;
 };
 
 class SegmentPatternLibraryCombiner
@@ -176,9 +202,11 @@ class SegmentPatternLibraryCombiner
 
     const PatternId merged_pattern_id = PatternId::segment(_next_id++);
     auto merged_pattern = BufferingPattern::concat(*upstream_pattern, *downstream_pattern);
-    _library->add(BufferingPattern(merged_pattern.get_length_idx(), merged_pattern_id, merged_pattern.get_buffer_positions(),
-                                   merged_pattern.get_cell_masters(), merged_pattern.hasTerminalBranchBuffer(),
-                                   merged_pattern.get_monotonic_boundary_state()));
+    if (!_library->add(BufferingPattern(merged_pattern.get_length_idx(), merged_pattern_id, merged_pattern.get_buffer_positions(),
+                                        merged_pattern.get_cell_masters(), merged_pattern.hasTerminalBranchBuffer(),
+                                        merged_pattern.get_monotonic_boundary_state()))) {
+      CTSLOG.error(Loc::current(), "HTree: composed segment pattern lost a validated buffer-strength rank: ", _library->getLastFailureReason());
+    }
     return merged_pattern_id;
   }
 

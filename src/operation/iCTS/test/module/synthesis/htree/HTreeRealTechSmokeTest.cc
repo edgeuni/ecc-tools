@@ -36,9 +36,9 @@
 #include "Net.hh"
 #include "PatternId.hh"
 #include "Pin.hh"
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 #include "module/synthesis/htree/HTree.hh"
 #include "module/synthesis/htree/HTreeArtifactWriter.hh"
@@ -49,13 +49,13 @@
 namespace icts_test {
 namespace {
 
-namespace common_realtech = common::realtech;
-namespace realtech_fixture = characterization::realtech;
+namespace design_realtech = data_manager::realtech;
+namespace characterization_realtech = characterization::realtech;
 
 TEST(HTreeRealTechSmokeTest, SynthesizesMaterializedHTreeFromRealClockLoads)
 {
-  const auto& setup_state = common_realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = design_realtech::EnsureRealTechSetup();
+  if (setup_state.mode != design_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     GTEST_SKIP() << setup_state.summary;
     return;
   }
@@ -66,16 +66,15 @@ TEST(HTreeRealTechSmokeTest, SynthesizesMaterializedHTreeFromRealClockLoads)
     return;
   }
 
-  realtech_fixture::RealTechCharFixture char_fixture;
-  if (const auto prepare_error = char_fixture.prepare("htree_smoke", std::nullopt, kHTreeSmokeMaxSlewNs, kHTreeSmokeMaxCapPf);
-      prepare_error.has_value()) {
+  characterization_realtech::RealTechCharFixture char_fixture;
+  if (const auto prepare_error = char_fixture.prepare("htree_smoke", std::nullopt, kHTreeSmokeMaxSlewNs, kHTreeSmokeMaxCapPf); prepare_error.has_value()) {
     GTEST_SKIP() << *prepare_error;
     return;
   }
 
-  EXPECT_EQ(CTSDM.getConfig().get_wirelength_iterations(), realtech_fixture::kRealTechCharWirelengthIterations);
-  EXPECT_EQ(CTSDM.getConfig().get_slew_steps(), realtech_fixture::kRealTechCharSlewSteps);
-  EXPECT_EQ(CTSDM.getConfig().get_cap_steps(), realtech_fixture::kRealTechCharCapSteps);
+  EXPECT_EQ(CTSDM.getConfig().get_wirelength_iterations(), characterization_realtech::kRealTechCharWirelengthIterations);
+  EXPECT_EQ(CTSDM.getConfig().get_slew_steps(), characterization_realtech::kRealTechCharSlewSteps);
+  EXPECT_EQ(CTSDM.getConfig().get_cap_steps(), characterization_realtech::kRealTechCharCapSteps);
   EXPECT_TRUE(CTSDM.getConfig().has_max_buf_tran());
   EXPECT_TRUE(CTSDM.getConfig().has_max_cap());
   EXPECT_DOUBLE_EQ(CTSDM.getConfig().get_max_buf_tran(), kHTreeSmokeMaxSlewNs);
@@ -90,8 +89,7 @@ TEST(HTreeRealTechSmokeTest, SynthesizesMaterializedHTreeFromRealClockLoads)
   const auto artifact_paths = htree::PrepareHTreeArtifactPaths("realtech_smoke");
   ASSERT_FALSE(artifact_paths.output_dir.empty());
   CTSLOG.openLogFileStream(artifact_paths.cts_log.string());
-  CTSLOG.info(icts::Loc::current(), "HTree smoke scenario: realtech_smoke, clock=", selected_clock->clock_name,
-              ", loads=", real_loads.size(), ".");
+  CTSLOG.info(icts::Loc::current(), "HTree smoke scenario: realtech_smoke, clock=", selected_clock->clock_name, ", loads=", real_loads.size(), ".");
 
   icts::Pin root_driver("htree_smoke_root_out", icts::PinType::kOut);
   icts::Net root_net("htree_smoke_root_net");

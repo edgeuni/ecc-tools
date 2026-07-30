@@ -39,8 +39,8 @@
 #include "IdbPins.h"
 #include "IdbTerm.h"
 #include "LibParserCpp.hh"
-#include "SdcClockReader.hh"
-#include "SdcClockTraceAlgorithm.hh"
+#include "SDCClockReader.hh"
+#include "SDCClockTraceAlgorithm.hh"
 #include "liberty/Lib.hh"
 
 namespace icts::clock_trace {
@@ -193,8 +193,8 @@ auto LibertyMarksClockInput(idb::IdbPin* input_pin, idb::LibCell* lib_cell) -> b
   return lib_port != nullptr && (lib_port->isClock() || lib_port->get_clock_gate_clock_pin());
 }
 
-auto OtherInputsAreControlCandidates(idb::IdbInstance* inst, idb::IdbPin* clock_input_pin, idb::LibCell* lib_cell,
-                                     const CaseConstraintSet& case_constraints, const SdcLibertyCellLookup& liberty_cell_lookup) -> bool
+auto OtherInputsAreControlCandidates(idb::IdbInstance* inst, idb::IdbPin* clock_input_pin, idb::LibCell* lib_cell, const CaseConstraintSet& case_constraints,
+                                     const SdcLibertyCellLookup& liberty_cell_lookup) -> bool
 {
   bool has_other_input = false;
   for (auto* input_pin : CollectInputPins(inst)) {
@@ -424,8 +424,7 @@ auto BuildCaseConstraintSet(const SdcClockData& clock_data) -> CaseConstraintSet
   return constraints;
 }
 
-auto BuildGeneratedBoundaryOwners(idb::IdbDesign* idb_design, const SdcClockData& clock_data)
-    -> std::unordered_map<idb::IdbNet*, std::string>
+auto BuildGeneratedBoundaryOwners(idb::IdbDesign* idb_design, const SdcClockData& clock_data) -> std::unordered_map<idb::IdbNet*, std::string>
 {
   std::unordered_map<idb::IdbNet*, std::string> boundary_owner_by_net;
   for (const auto& clock : clock_data.clocks) {
@@ -442,8 +441,8 @@ auto BuildGeneratedBoundaryOwners(idb::IdbDesign* idb_design, const SdcClockData
 }
 
 auto TraceClock(const SdcLibertyCellLookup& liberty_cell_lookup, idb::IdbDesign* idb_design, const SdcClockDecl& clock,
-                const CaseConstraintSet& case_constraints,
-                const std::unordered_map<idb::IdbNet*, std::string>& generated_boundary_owner_by_net) -> std::vector<ClockTraceRecord>
+                const CaseConstraintSet& case_constraints, const std::unordered_map<idb::IdbNet*, std::string>& generated_boundary_owner_by_net)
+    -> std::vector<ClockTraceRecord>
 {
   std::vector<ClockTraceRecord> records;
   if (clock.is_virtual || clock.targets.empty()) {
@@ -456,8 +455,7 @@ auto TraceClock(const SdcLibertyCellLookup& liberty_cell_lookup, idb::IdbDesign*
     auto resolved_nets = ResolveRefNets(idb_design, target);
     seed_nets.insert(seed_nets.end(), resolved_nets.begin(), resolved_nets.end());
     if (resolved_nets.empty()) {
-      records.push_back(
-          {clock.clock_name, target.pattern, "rejected", ObjectKindName(target.kind), 0U, 0U, target.pattern, "unresolved_sdc_object"});
+      records.push_back({clock.clock_name, target.pattern, "rejected", ObjectKindName(target.kind), 0U, 0U, target.pattern, "unresolved_sdc_object"});
     }
   }
   std::ranges::sort(seed_nets);
@@ -490,20 +488,19 @@ auto TraceClock(const SdcLibertyCellLookup& liberty_cell_lookup, idb::IdbDesign*
 
     if (const auto boundary_iter = generated_boundary_owner_by_net.find(node.net);
         boundary_iter != generated_boundary_owner_by_net.end() && boundary_iter->second != clock.clock_name) {
-      records.push_back(
-          {clock.clock_name, NetName(node.net), "trace_stop", "generated_clock_boundary", 0U, 0U, node.path, boundary_iter->second});
+      records.push_back({clock.clock_name, NetName(node.net), "trace_stop", "generated_clock_boundary", 0U, 0U, node.path, boundary_iter->second});
       continue;
     }
 
     const auto stats = CountDirectClockSinks(liberty_cell_lookup, node.net);
     if (IsClockTarget(stats)) {
-      records.push_back({clock.clock_name, node.net->get_net_name(), "accepted", TargetKind(stats), stats.sequential_clock_sinks,
-                         stats.macro_clock_sinks, node.path, "sdc_reachable_clock_sink_net"});
+      records.push_back({clock.clock_name, node.net->get_net_name(), "accepted", TargetKind(stats), stats.sequential_clock_sinks, stats.macro_clock_sinks,
+                         node.path, "sdc_reachable_clock_sink_net"});
     }
 
     if (node.depth >= kTraceDepthLimit) {
-      records.push_back({clock.clock_name, NetName(node.net), "trace_stop", "depth_limit", stats.sequential_clock_sinks,
-                         stats.macro_clock_sinks, node.path, "trace_depth_limit"});
+      records.push_back({clock.clock_name, NetName(node.net), "trace_stop", "depth_limit", stats.sequential_clock_sinks, stats.macro_clock_sinks, node.path,
+                         "trace_depth_limit"});
       continue;
     }
 
@@ -517,8 +514,7 @@ auto TraceClock(const SdcLibertyCellLookup& liberty_cell_lookup, idb::IdbDesign*
       }
       next_path += transition.path_step;
       queue.push_back({transition.net, std::move(next_path), node.depth + 1U});
-      records.push_back(
-          {clock.clock_name, transition.net->get_net_name(), "trace_through", transition.reason, 0U, 0U, node.path, transition.reason});
+      records.push_back({clock.clock_name, transition.net->get_net_name(), "trace_through", transition.reason, 0U, 0U, node.path, transition.reason});
     }
   }
   return records;

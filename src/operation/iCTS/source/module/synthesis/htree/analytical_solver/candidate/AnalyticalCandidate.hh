@@ -85,9 +85,8 @@ struct AnalyticalCandidate
 
 auto PreferAnalyticalCandidate(const AnalyticalCandidate& lhs, const AnalyticalCandidate& rhs) -> bool;
 auto LexicographicalPatternIdLess(const std::vector<PatternId>& lhs, const std::vector<PatternId>& rhs) -> bool;
-auto BuildAnalyticalTopologyPattern(const std::vector<PatternId>& level_segment_pattern_ids,
-                                    const BufferPatternLibrary& segment_pattern_library, std::size_t max_fanout)
-    -> std::optional<TopologyPatternLibrary>;
+auto BuildAnalyticalTopologyPattern(const std::vector<PatternId>& level_segment_pattern_ids, const BufferPatternLibrary& segment_pattern_library,
+                                    std::size_t max_fanout) -> std::optional<TopologyPatternLibrary>;
 auto MaterializeAnalyticalTopologyChar(const AnalyticalCandidate& candidate, const icts::UniformValueLattice& slew_lattice,
                                        const icts::UniformValueLattice& cap_lattice) -> std::optional<HTreeTopologyChar>;
 

@@ -4,7 +4,7 @@ set(ICTS_MODULE_OUTPUT_VISUALIZATION_GDS_WRITER ${ICTS_MODULE_OUTPUT_VISUALIZATI
 add_subdirectory(${ICTS_MODULE_OUTPUT_VISUALIZATION_GDS_WRITER})
 add_subdirectory(${ICTS_MODULE_OUTPUT_VISUALIZATION_GDS_LAYER})
 
-add_library(icts_source_module_output_visualization_gds ${ICTS_MODULE_OUTPUT_VISUALIZATION_GDS}/GdsVisualization.cc)
+add_library(icts_source_module_output_visualization_gds ${ICTS_MODULE_OUTPUT_VISUALIZATION_GDS}/GDSVisualization.cc)
 
 target_link_libraries(
   icts_source_module_output_visualization_gds

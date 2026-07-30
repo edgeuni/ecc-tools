@@ -186,16 +186,14 @@ TEST(TopologyGenDepthTest, TopologyToleranceKeepsEdgesInsideBaselineWindow)
 
   icts::BiPartitionConfig exact_config;
   exact_config.htree_topology_tolerance = 0.0;
-  const auto exact_tree
-      = icts::TopologyGen::build(loads, icts::TopologyGen::Input{}, icts::TopologyGen::Config{.partition_config = exact_config});
+  const auto exact_tree = icts::TopologyGen::build(loads, icts::TopologyGen::Input{}, icts::TopologyGen::Config{.partition_config = exact_config});
   const auto exact_distances = CollectFirstLevelDistances(exact_tree);
   ASSERT_EQ(exact_distances.size(), 2U);
   EXPECT_NEAR(exact_distances.at(0), exact_distances.at(1), 1);
 
   icts::BiPartitionConfig tolerant_config;
   tolerant_config.htree_topology_tolerance = 1.0;
-  const auto tolerant_tree
-      = icts::TopologyGen::build(loads, icts::TopologyGen::Input{}, icts::TopologyGen::Config{.partition_config = tolerant_config});
+  const auto tolerant_tree = icts::TopologyGen::build(loads, icts::TopologyGen::Input{}, icts::TopologyGen::Config{.partition_config = tolerant_config});
   const auto tolerant_distances = CollectFirstLevelDistances(tolerant_tree);
   ASSERT_EQ(tolerant_distances.size(), 2U);
   EXPECT_TRUE(std::ranges::any_of(tolerant_distances, [](int distance) -> bool { return distance == 0; }));

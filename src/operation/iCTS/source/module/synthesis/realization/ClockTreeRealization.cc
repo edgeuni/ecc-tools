@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <ranges>
 #include <string>
@@ -92,10 +93,10 @@ auto makeSinkDomainName(SinkDomainKind sink_domain) -> std::string
   return "unknown";
 }
 
-auto resolveBufferDriveCap(Wrapper& wrapper, const std::string& cell_master) -> double
+auto resolveBufferDriveCap(Wrapper& wrapper, const std::string& cell_master) -> std::optional<double>
 {
-  double drive_cap_pf = wrapper.queryCellOutPinCapLimit(cell_master);
-  if (drive_cap_pf <= 0.0) {
+  auto drive_cap_pf = wrapper.queryCellOutPinCapLimit(cell_master);
+  if (!drive_cap_pf.has_value()) {
     drive_cap_pf = wrapper.queryCellOutPinCapTableAxisMax(cell_master);
   }
   return drive_cap_pf;
@@ -111,27 +112,28 @@ auto resolveBufferPortsAndDrive(Wrapper& wrapper, const std::string& cell_master
     return false;
   }
 
-  auto [input_pin, output_pin] = wrapper.queryBufferPorts(cell_master);
-  if (input_pin.empty() || output_pin.empty()) {
+  const auto ports = wrapper.queryBufferPorts(cell_master);
+  if (!ports.has_value()) {
     CTSLOG.warn(Loc::current(), "ClockTreeRealization: skip buffer master \"", cell_master, "\" because buffer ports are unresolved.");
     return false;
   }
 
   if (require_output_drive) {
-    output_drive_cap_pf = resolveBufferDriveCap(wrapper, cell_master);
-    if (output_drive_cap_pf <= 0.0) {
+    const auto drive_cap_pf = resolveBufferDriveCap(wrapper, cell_master);
+    if (!drive_cap_pf.has_value()) {
       CTSLOG.warn(Loc::current(), "ClockTreeRealization: skip buffer master \"", cell_master, "\" because output drive cap is unresolved.");
       return false;
     }
+    output_drive_cap_pf = *drive_cap_pf;
   }
 
-  input_pin_name = std::move(input_pin);
-  output_pin_name = std::move(output_pin);
+  input_pin_name = ports->input;
+  output_pin_name = ports->output;
   return true;
 }
 
-auto resolveMinimumDriveRootBuffer(Wrapper& wrapper, const std::vector<std::string>& buffer_types, std::string& cell_master,
-                                   std::string& input_pin_name, std::string& output_pin_name) -> bool
+auto resolveMinimumDriveRootBuffer(Wrapper& wrapper, const std::vector<std::string>& buffer_types, std::string& cell_master, std::string& input_pin_name,
+                                   std::string& output_pin_name) -> bool
 {
   cell_master.clear();
   input_pin_name.clear();
@@ -150,8 +152,7 @@ auto resolveMinimumDriveRootBuffer(Wrapper& wrapper, const std::vector<std::stri
     std::string candidate_input_pin;
     std::string candidate_output_pin;
     double candidate_drive_cap_pf = 0.0;
-    if (!resolveBufferPortsAndDrive(wrapper, candidate_cell_master, true, candidate_input_pin, candidate_output_pin,
-                                    candidate_drive_cap_pf)) {
+    if (!resolveBufferPortsAndDrive(wrapper, candidate_cell_master, true, candidate_input_pin, candidate_output_pin, candidate_drive_cap_pf)) {
       continue;
     }
 
@@ -202,9 +203,8 @@ auto resolveSinkDomainLocation(Pin* clock_source, const std::vector<Pin*>& sinks
   return Point<int>(0, 0);
 }
 
-auto createInsertedBuffer(Design& design, Clock& clock, const std::string& inst_name, const std::string& cell_master,
-                          const std::string& input_pin_name, const std::string& output_pin_name, const Point<int>& location, Inst*& buffer,
-                          Pin*& input_pin, Pin*& output_pin) -> bool
+auto createInsertedBuffer(Design& design, Clock& clock, const std::string& inst_name, const std::string& cell_master, const std::string& input_pin_name,
+                          const std::string& output_pin_name, const Point<int>& location, Inst*& buffer, Pin*& input_pin, Pin*& output_pin) -> bool
 {
   buffer = nullptr;
   input_pin = nullptr;
@@ -362,9 +362,9 @@ auto ClockTreeRealization::addRootBufferForSinkDomain(const SinkDomainRootBuffer
   }
 
   SinkDomainRootBufferOutput output;
-  if (!createInsertedBuffer(*input.design, *input.clock, input.domain_prefix + "_root_buf", input.cell_master, input.input_pin_name,
-                            input.output_pin_name, resolveSinkDomainLocation(input.clock->get_clock_source(), input.sinks),
-                            output.root_buffer, output.root_input, output.root_output)) {
+  if (!createInsertedBuffer(*input.design, *input.clock, input.domain_prefix + "_root_buf", input.cell_master, input.input_pin_name, input.output_pin_name,
+                            resolveSinkDomainLocation(input.clock->get_clock_source(), input.sinks), output.root_buffer, output.root_input,
+                            output.root_output)) {
     return SinkDomainRootBufferOutput{};
   }
   return output;

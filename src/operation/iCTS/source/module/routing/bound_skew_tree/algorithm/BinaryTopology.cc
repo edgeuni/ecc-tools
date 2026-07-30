@@ -84,8 +84,8 @@ auto assignTreeBuildResult(std::vector<TreeBuildFrame>& frames, const TreeBuildF
 }
 
 template <typename SplitFunc, typename MergeFunc, typename CenterFunc>
-auto buildBinaryTreeIteratively(const std::vector<Area*>& areas, const SplitFunc& split_func, const MergeFunc& merge_func,
-                                const CenterFunc& center_func, std::string_view tree_name) -> Area*
+auto buildBinaryTreeIteratively(const std::vector<Area*>& areas, const SplitFunc& split_func, const MergeFunc& merge_func, const CenterFunc& center_func,
+                                std::string_view tree_name) -> Area*
 {
   if (areas.empty()) {
     CTSLOG.error(Loc::current(), tree_name, " areas are empty.");
@@ -153,8 +153,7 @@ auto calcSquaredDistancesToCenters(const std::vector<Area*>& areas, const std::v
   return squared_distances;
 }
 
-auto expandCentersByKMeansPlus(const std::vector<Area*>& areas, const size_t cluster_count, std::vector<Point>& center_points,
-                               std::mt19937& generator) -> void
+auto expandCentersByKMeansPlus(const std::vector<Area*>& areas, const size_t cluster_count, std::vector<Point>& center_points, std::mt19937& generator) -> void
 {
   while (center_points.size() < cluster_count) {
     auto squared_distances = calcSquaredDistancesToCenters(areas, center_points);
@@ -164,8 +163,7 @@ auto expandCentersByKMeansPlus(const std::vector<Area*>& areas, const size_t clu
   }
 }
 
-auto assignAreasToCenters(const std::vector<Area*>& areas, const std::vector<Point>& center_points, std::vector<size_t>& center_assignments)
-    -> void
+auto assignAreasToCenters(const std::vector<Area*>& areas, const std::vector<Point>& center_points, std::vector<size_t>& center_assignments) -> void
 {
   for (size_t area_index = 0; area_index < areas.size(); ++area_index) {
     double min_distance = std::numeric_limits<double>::max();
@@ -181,8 +179,7 @@ auto assignAreasToCenters(const std::vector<Area*>& areas, const std::vector<Poi
   }
 }
 
-auto calcUpdatedCenters(const std::vector<Area*>& areas, const std::vector<size_t>& center_assignments, const size_t cluster_count)
-    -> std::vector<Point>
+auto calcUpdatedCenters(const std::vector<Area*>& areas, const std::vector<size_t>& center_assignments, const size_t cluster_count) -> std::vector<Point>
 {
   std::vector<Point> center_points(cluster_count, Point(0, 0));
   std::vector<size_t> center_counts(cluster_count, 0);
@@ -199,8 +196,8 @@ auto calcUpdatedCenters(const std::vector<Area*>& areas, const std::vector<size_
   return center_points;
 }
 
-auto calcWithinClusterDistance(const std::vector<Area*>& areas, const std::vector<Point>& center_points,
-                               const std::vector<size_t>& center_assignments) -> double
+auto calcWithinClusterDistance(const std::vector<Area*>& areas, const std::vector<Point>& center_points, const std::vector<size_t>& center_assignments)
+    -> double
 {
   double total_distance = 0.0;
   for (size_t area_index = 0; area_index < areas.size(); ++area_index) {
@@ -216,8 +213,7 @@ auto collectClusters(const std::vector<Area*>& areas, const std::vector<size_t>&
   for (size_t area_index = 0; area_index < areas.size(); ++area_index) {
     clusters.at(center_assignments.at(area_index)).push_back(areas.at(area_index));
   }
-  auto [remove_begin, remove_end]
-      = std::ranges::remove_if(clusters, [](const std::vector<Area*>& cluster) -> bool { return cluster.empty(); });
+  auto [remove_begin, remove_end] = std::ranges::remove_if(clusters, [](const std::vector<Area*>& cluster) -> bool { return cluster.empty(); });
   clusters.erase(remove_begin, remove_end);
   return clusters;
 }
@@ -236,16 +232,14 @@ auto BinaryTopology::biPartition() -> void
 auto BinaryTopology::buildBiPartitionTree(const std::vector<Area*>& areas) -> Area*
 {
   return buildBinaryTreeIteratively(
-      areas,
-      [&](std::vector<Area*>& split_areas) -> std::pair<std::vector<Area*>, std::vector<Area*>> { return octagonDivide(split_areas); },
+      areas, [&](std::vector<Area*>& split_areas) -> std::pair<std::vector<Area*>, std::vector<Area*>> { return octagonDivide(split_areas); },
       [&](Area* left_area, Area* right_area) -> Area* { return _impl.merge(left_area, right_area); },
       [&](const std::vector<Area*>& center_areas) -> Point { return calcAreasCenter(center_areas); }, "Bi-partition");
 }
 
 auto BinaryTopology::octagonDivide(std::vector<Area*>& areas) -> std::pair<std::vector<Area*>, std::vector<Area*>>
 {
-  auto cap_sum
-      = std::accumulate(areas.begin(), areas.end(), 0.0, [](double sum, Area* area) -> double { return sum + area->get_cap_load(); });
+  auto cap_sum = std::accumulate(areas.begin(), areas.end(), 0.0, [](double sum, Area* area) -> double { return sum + area->get_cap_load(); });
   auto half_cap = 1.0 * cap_sum / 2;
 
   auto octagon = calcOctagon(areas);

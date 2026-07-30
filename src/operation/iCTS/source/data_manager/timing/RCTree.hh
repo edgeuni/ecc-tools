@@ -129,8 +129,7 @@ class RCTree
     return arc_id;
   }
 
-  auto addArc(const std::string& source_vertex_name, const std::string& sink_vertex_name, double resistance = 0.0, double capacitance = 0.0)
-      -> std::size_t
+  auto addArc(const std::string& source_vertex_name, const std::string& sink_vertex_name, double resistance = 0.0, double capacitance = 0.0) -> std::size_t
   {
     auto source_vertex_id = findVertexId(source_vertex_name);
     auto sink_vertex_id = findVertexId(sink_vertex_name);

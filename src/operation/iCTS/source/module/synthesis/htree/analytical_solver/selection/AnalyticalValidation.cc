@@ -60,8 +60,7 @@ auto ValidateCandidateLegalityCheck(const AnalyticalCandidateLegalityCheck& lega
 
 }  // namespace
 
-auto ValidateAnalyticalCandidate(AnalyticalCandidate& candidate, const AnalyticalCandidateLegalityCheck& legality_check)
-    -> AnalyticalValidationSummary
+auto ValidateAnalyticalCandidate(AnalyticalCandidate& candidate, const AnalyticalCandidateLegalityCheck& legality_check) -> AnalyticalValidationSummary
 {
   const auto legality_check_failure = ValidateCandidateLegalityCheck(legality_check);
   if (!legality_check_failure.empty()) {
@@ -73,22 +72,21 @@ auto ValidateAnalyticalCandidate(AnalyticalCandidate& candidate, const Analytica
 
   AnalyticalValidationSummary result;
   if (legality_check.validate_sink_load_region) {
-    result.sink_load_region = ResolveSinkLoadRegionLegality(*legality_check.topology, candidate.materialized_char->get_pattern_id(),
-                                                            candidate.topology_pattern_library, *legality_check.segment_pattern_library,
-                                                            *legality_check.sink_load_region_legality_context);
+    result.sink_load_region
+        = ResolveSinkLoadRegionLegality(*legality_check.topology, candidate.materialized_char->get_pattern_id(), candidate.topology_pattern_library,
+                                        *legality_check.segment_pattern_library, *legality_check.sink_load_region_legality_context);
     if (!result.sink_load_region.legal) {
-      result.failure_reason
-          = result.sink_load_region.failure_reason.empty() ? "sink_load_region_illegal" : result.sink_load_region.failure_reason;
+      result.failure_reason = result.sink_load_region.failure_reason.empty() ? "sink_load_region_illegal" : result.sink_load_region.failure_reason;
       return result;
     }
   }
 
   if (legality_check.validate_root_driver_compensation) {
     result.root_driver_compensation = legality_check.root_driver_compensation_pass->evaluate(
-        candidate.materialized_char->get_pattern_id(), candidate.topology_pattern_library, *legality_check.segment_pattern_library,
-        *legality_check.topology);
+        candidate.materialized_char->get_pattern_id(), candidate.topology_pattern_library, *legality_check.segment_pattern_library, *legality_check.topology);
     if (!result.root_driver_compensation.valid) {
-      result.failure_reason = "root_driver_compensation_invalid";
+      result.failure_reason
+          = result.root_driver_compensation.failure_reason.empty() ? "root_driver_compensation_invalid" : result.root_driver_compensation.failure_reason;
       return result;
     }
   }

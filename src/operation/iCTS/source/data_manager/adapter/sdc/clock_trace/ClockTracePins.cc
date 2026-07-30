@@ -35,8 +35,8 @@
 #include "IdbNet.h"
 #include "IdbPins.h"
 #include "IdbTerm.h"
-#include "SdcClockReader.hh"
-#include "SdcClockTraceAlgorithm.hh"
+#include "SDCClockReader.hh"
+#include "SDCClockTraceAlgorithm.hh"
 #include "liberty/Lib.hh"
 
 namespace icts::clock_trace {
@@ -117,8 +117,7 @@ auto CollectNetPins(idb::IdbNet* net) -> IdbNetPins
       continue;
     }
     if (!pin->is_io_pin()
-        && (term->get_direction() == idb::IdbConnectDirection::kOutput
-            || term->get_direction() == idb::IdbConnectDirection::kOutputTriState)) {
+        && (term->get_direction() == idb::IdbConnectDirection::kOutput || term->get_direction() == idb::IdbConnectDirection::kOutputTriState)) {
       net_pins.driver = pin;
       break;
     }
@@ -202,8 +201,7 @@ auto IsClockSinkPin(idb::IdbPin* pin, idb::LibCell* lib_cell) -> bool
   if (pin->is_flip_flop_clk()) {
     return true;
   }
-  return term != nullptr && term->get_type() == idb::IdbConnectType::kClock && pin->get_instance() != nullptr
-         && pin->get_instance()->is_flip_flop();
+  return term != nullptr && term->get_type() == idb::IdbConnectType::kClock && pin->get_instance() != nullptr && pin->get_instance()->is_flip_flop();
 }
 
 auto IsMacroClockSinkPin(idb::IdbPin* pin, idb::LibCell* lib_cell) -> bool
@@ -339,8 +337,7 @@ auto ResolveInstPinByLibPort(idb::IdbInstance* inst, idb::LibPort* lib_port) -> 
   return nullptr;
 }
 
-auto BuildPreclusteredSinkAnchor(const SdcLibertyCellLookup& liberty_cell_lookup, idb::IdbNet* leaf_net)
-    -> std::optional<ClockTracePreclusteredSinkAnchor>
+auto BuildPreclusteredSinkAnchor(const SdcLibertyCellLookup& liberty_cell_lookup, idb::IdbNet* leaf_net) -> std::optional<ClockTracePreclusteredSinkAnchor>
 {
   if (leaf_net == nullptr || !IsClockTarget(CountDirectClockSinks(liberty_cell_lookup, leaf_net))) {
     return std::nullopt;

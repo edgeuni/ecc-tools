@@ -106,9 +106,8 @@ auto ConnectOwnedNet(Net& net, Pin* driver, const std::vector<Pin*>& loads) -> v
   }
 }
 
-auto CreateBufferInstance(SourceTrunkSegment::Build& result, const std::string& inst_name, const std::string& cell_master,
-                          const Point<int>& location, const std::string& input_pin_name, const std::string& output_pin_name)
-    -> std::pair<Pin*, Pin*>
+auto CreateBufferInstance(SourceTrunkSegment::Build& result, const std::string& inst_name, const std::string& cell_master, const Point<int>& location,
+                          const std::string& input_pin_name, const std::string& output_pin_name) -> std::pair<Pin*, Pin*>
 {
   auto inst = std::make_unique<Inst>(inst_name, cell_master, InstType::kBuffer, location);
   auto* inst_ptr = inst.get();
@@ -152,8 +151,8 @@ auto RecordInsertedNetLevel(SourceTrunkSegment::Build& result, Net* net, int top
   });
 }
 
-auto CreateNet(SourceTrunkSegment::Build& result, const std::string& net_name, Pin* driver, const std::vector<Pin*>& loads,
-               int topology_level, std::size_t index_in_level) -> Net*
+auto CreateNet(SourceTrunkSegment::Build& result, const std::string& net_name, Pin* driver, const std::vector<Pin*>& loads, int topology_level,
+               std::size_t index_in_level) -> Net*
 {
   auto net = std::make_unique<Net>(net_name);
   auto* net_ptr = net.get();
@@ -249,8 +248,8 @@ auto FilterSegmentEntries(const std::vector<SegmentChar>& entries, unsigned requ
   return filtered_entries;
 }
 
-auto BuildSourceTrunkSegmentObjects(SourceTrunkSegment::Build& result, Net& source_net, Pin* source, Pin* sink,
-                                    const BufferingPattern& pattern, const SourceTrunkSegment::Input& input) -> bool
+auto BuildSourceTrunkSegmentObjects(SourceTrunkSegment::Build& result, Net& source_net, Pin* source, Pin* sink, const BufferingPattern& pattern,
+                                    const SourceTrunkSegment::Input& input) -> bool
 {
   const auto& cell_masters = pattern.get_cell_masters();
   const auto& positions = pattern.get_buffer_positions();
@@ -266,29 +265,25 @@ auto BuildSourceTrunkSegmentObjects(SourceTrunkSegment::Build& result, Net& sour
   for (std::size_t buffer_index = 0; buffer_index < buffer_count; ++buffer_index) {
     const auto* ports = port_table.get(cell_masters.at(buffer_index));
     if (ports == nullptr) {
-      CTSLOG.warn(Loc::current(), "SourceTrunkSegment: unresolved ports for source-to-root buffer master ", cell_masters.at(buffer_index),
-                  ".");
+      CTSLOG.warn(Loc::current(), "SourceTrunkSegment: unresolved ports for source-to-root buffer master ", cell_masters.at(buffer_index), ".");
       result.summary.failure_reason = "unresolved_buffer_ports";
       return false;
     }
 
     const auto location = htree::InterpolateManhattanPoint(source->get_location(), sink->get_location(), positions.at(buffer_index));
-    auto created_buffer
-        = CreateBufferInstance(result, MakeObjectName(input.object_name_prefix, "top_segment_buf_" + std::to_string(buffer_index)),
-                               cell_masters.at(buffer_index), location, ports->first, ports->second);
-    RecordInsertedInstLevel(result, created_buffer.first == nullptr ? nullptr : created_buffer.first->get_inst(),
-                            static_cast<int>(buffer_index), buffer_index);
+    auto created_buffer = CreateBufferInstance(result, MakeObjectName(input.object_name_prefix, "top_segment_buf_" + std::to_string(buffer_index)),
+                                               cell_masters.at(buffer_index), location, ports->first, ports->second);
+    RecordInsertedInstLevel(result, created_buffer.first == nullptr ? nullptr : created_buffer.first->get_inst(), static_cast<int>(buffer_index), buffer_index);
     segment_buffers.push_back(created_buffer);
   }
 
   ConnectNet(source_net, source, {segment_buffers.front().first});
   for (std::size_t buffer_index = 0; buffer_index + 1U < segment_buffers.size(); ++buffer_index) {
-    CreateNet(result, MakeObjectName(input.object_name_prefix, "top_segment_net_" + std::to_string(buffer_index)),
-              segment_buffers.at(buffer_index).second, {segment_buffers.at(buffer_index + 1U).first}, static_cast<int>(buffer_index),
-              buffer_index);
+    CreateNet(result, MakeObjectName(input.object_name_prefix, "top_segment_net_" + std::to_string(buffer_index)), segment_buffers.at(buffer_index).second,
+              {segment_buffers.at(buffer_index + 1U).first}, static_cast<int>(buffer_index), buffer_index);
   }
-  CreateNet(result, MakeObjectName(input.object_name_prefix, "top_segment_net_" + std::to_string(segment_buffers.size() - 1U)),
-            segment_buffers.back().second, {sink}, static_cast<int>(segment_buffers.size() - 1U), segment_buffers.size() - 1U);
+  CreateNet(result, MakeObjectName(input.object_name_prefix, "top_segment_net_" + std::to_string(segment_buffers.size() - 1U)), segment_buffers.back().second,
+            {sink}, static_cast<int>(segment_buffers.size() - 1U), segment_buffers.size() - 1U);
   return true;
 }
 
@@ -364,11 +359,9 @@ auto SourceTrunkSegment::build(const Input& input, const Config& config) -> Buil
   auto* char_library = input.characterization_library == nullptr ? &local_char_library : input.characterization_library;
   const std::vector<double> requested_lengths_um{result.summary.length_um};
   if (!char_library->isReady()) {
-    const auto ensure_result
-        = char_library->ensure(input.characterization_input, ConfigureCharConfig(input.characterization_config, requested_lengths_um));
+    const auto ensure_result = char_library->ensure(input.characterization_input, ConfigureCharConfig(input.characterization_config, requested_lengths_um));
     if (!ensure_result.success) {
-      result.summary.failure_reason
-          = ensure_result.failure_reason.empty() ? "characterization_library_failed" : ensure_result.failure_reason;
+      result.summary.failure_reason = ensure_result.failure_reason.empty() ? "characterization_library_failed" : ensure_result.failure_reason;
       return result;
     }
   }
@@ -379,10 +372,8 @@ auto SourceTrunkSegment::build(const Input& input, const Config& config) -> Buil
   }
 
   result.summary.length_idx = char_builder.get_length_lattice().coveringIndex(result.summary.length_um);
-  result.summary.required_load_cap_idx
-      = htree::CoveringBoundaryIndex(input.required_load_cap_pf, char_builder.get_cap_lattice()).value_or(0U);
-  result.summary.source_drive_cap_idx
-      = htree::CoveringBoundaryIndex(input.source_drive_cap_pf, char_builder.get_cap_lattice()).value_or(0U);
+  result.summary.required_load_cap_idx = htree::CoveringBoundaryIndex(input.required_load_cap_pf, char_builder.get_cap_lattice()).value_or(0U);
+  result.summary.source_drive_cap_idx = htree::CoveringBoundaryIndex(input.source_drive_cap_pf, char_builder.get_cap_lattice()).value_or(0U);
   if (config.min_input_slew_ns.has_value()) {
     result.summary.min_input_slew_idx = htree::CoveringBoundaryIndex(*config.min_input_slew_ns, char_builder.get_slew_lattice());
   }
@@ -406,21 +397,19 @@ auto SourceTrunkSegment::build(const Input& input, const Config& config) -> Buil
       .required_length_indices = {result.summary.length_idx},
       .required_kinds = htree::SegmentFrontierKindSet::allOnly(),
   };
-  segment_frontier_catalog
-      = htree::SynthesizeSegmentFrontiers(char_builder.get_segment_chars(), pattern_library, required_segment_frontiers);
+  segment_frontier_catalog = htree::SynthesizeSegmentFrontiers(char_builder.get_segment_chars(), pattern_library, required_segment_frontiers);
   all_frontier_entries = segment_frontier_catalog.find(result.summary.length_idx, htree::SegmentFrontierKind::kAll);
   if (all_frontier_entries == nullptr || all_frontier_entries->empty()) {
     result.summary.failure_reason = "missing_required_segment_frontier";
     return result;
   }
 
-  auto strict_entries = FilterSegmentEntries(*all_frontier_entries, result.summary.required_load_cap_idx,
-                                             result.summary.source_drive_cap_idx, result.summary.min_input_slew_idx);
+  auto strict_entries = FilterSegmentEntries(*all_frontier_entries, result.summary.required_load_cap_idx, result.summary.source_drive_cap_idx,
+                                             result.summary.min_input_slew_idx);
   result.summary.strict_candidate_count = strict_entries.size();
   result.output.best_char = SelectBestSegmentEntry(strict_entries);
   if (!result.output.best_char.has_value() && result.summary.min_input_slew_idx.has_value()) {
-    auto relaxed_entries = FilterSegmentEntries(*all_frontier_entries, result.summary.required_load_cap_idx,
-                                                result.summary.source_drive_cap_idx, std::nullopt);
+    auto relaxed_entries = FilterSegmentEntries(*all_frontier_entries, result.summary.required_load_cap_idx, result.summary.source_drive_cap_idx, std::nullopt);
     result.summary.relaxed_candidate_count = relaxed_entries.size();
     result.output.best_char = SelectBestSegmentEntry(relaxed_entries);
     if (result.output.best_char.has_value()) {

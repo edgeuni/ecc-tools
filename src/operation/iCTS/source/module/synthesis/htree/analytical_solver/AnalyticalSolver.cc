@@ -67,8 +67,7 @@ auto SelectedUnitPatternIds(const MathHtreeProblemBuildResult& build_result, con
   unit_pattern_ids.reserve(solution.slots.size());
   for (std::size_t slot_index = 0U; slot_index < solution.slots.size(); ++slot_index) {
     const auto selected_choice_index = solution.slots.at(slot_index).selected_choice_index;
-    if (slot_index >= build_result.choice_refs_by_slot.size()
-        || selected_choice_index >= build_result.choice_refs_by_slot.at(slot_index).size()) {
+    if (slot_index >= build_result.choice_refs_by_slot.size() || selected_choice_index >= build_result.choice_refs_by_slot.at(slot_index).size()) {
       return {};
     }
     unit_pattern_ids.push_back(build_result.choice_refs_by_slot.at(slot_index).at(selected_choice_index).unit_pattern_id);
@@ -93,9 +92,8 @@ auto GroupUnitPatternIdsByLevel(const std::vector<PatternId>& unit_pattern_ids, 
   return cursor == unit_pattern_ids.size() ? grouped : std::vector<std::vector<PatternId>>{};
 }
 
-auto MaterializeLevelSegmentPatterns(const AnalyticalHTreeSolveProblem& solve_problem,
-                                     const std::vector<std::vector<PatternId>>& level_unit_pattern_ids, FunctionalComposeContext& context)
-    -> std::optional<std::vector<PatternId>>
+auto MaterializeLevelSegmentPatterns(const AnalyticalHTreeSolveProblem& solve_problem, const std::vector<std::vector<PatternId>>& level_unit_pattern_ids,
+                                     FunctionalComposeContext& context) -> std::optional<std::vector<PatternId>>
 {
   if (solve_problem.mutable_segment_pattern_library == nullptr) {
     return std::nullopt;
@@ -103,8 +101,7 @@ auto MaterializeLevelSegmentPatterns(const AnalyticalHTreeSolveProblem& solve_pr
   std::vector<PatternId> level_segment_pattern_ids;
   level_segment_pattern_ids.reserve(level_unit_pattern_ids.size());
   for (const auto& unit_pattern_ids : level_unit_pattern_ids) {
-    auto segment_pattern_id
-        = MaterializeFunctionalSegmentPattern(unit_pattern_ids, context, *solve_problem.mutable_segment_pattern_library);
+    auto segment_pattern_id = MaterializeFunctionalSegmentPattern(unit_pattern_ids, context, *solve_problem.mutable_segment_pattern_library);
     if (!segment_pattern_id.has_value()) {
       return std::nullopt;
     }
@@ -113,11 +110,9 @@ auto MaterializeLevelSegmentPatterns(const AnalyticalHTreeSolveProblem& solve_pr
   return level_segment_pattern_ids;
 }
 
-auto ScoreSelectedLevelSegments(const AnalyticalHTreeSolveProblem& solve_problem,
-                                const std::vector<std::vector<PatternId>>& level_unit_pattern_ids,
+auto ScoreSelectedLevelSegments(const AnalyticalHTreeSolveProblem& solve_problem, const std::vector<std::vector<PatternId>>& level_unit_pattern_ids,
                                 const std::vector<PatternId>& level_segment_pattern_ids, const std::vector<unsigned>& level_slot_counts,
-                                const MathHtreeSolution& solution, AnalyticalSolverBuild& result)
-    -> std::optional<std::vector<ScoredSegment>>
+                                const MathHtreeSolution& solution, AnalyticalSolverBuild& result) -> std::optional<std::vector<ScoredSegment>>
 {
   if (solve_problem.levels == nullptr || level_unit_pattern_ids.size() != solve_problem.levels->size()
       || level_segment_pattern_ids.size() != solve_problem.levels->size() || level_slot_counts.size() != solve_problem.levels->size()) {
@@ -133,10 +128,9 @@ auto ScoreSelectedLevelSegments(const AnalyticalHTreeSolveProblem& solve_problem
     }
     const std::size_t level_begin_slot = slot_cursor;
     const std::size_t level_end_slot = slot_cursor + level_slot_count - 1U;
-    auto scored = ScoreFunctionalUnitSequence(
-        solve_problem, level_unit_pattern_ids.at(level_index), level_segment_pattern_ids.at(level_index),
-        solve_problem.levels->at(level_index).aligned_length_idx, solution.slots.at(level_begin_slot).input_slew_ns,
-        solution.slots.at(level_end_slot).load_cap_pf, false, result);
+    auto scored = ScoreFunctionalUnitSequence(solve_problem, level_unit_pattern_ids.at(level_index), level_segment_pattern_ids.at(level_index),
+                                              solve_problem.levels->at(level_index).aligned_length_idx, solution.slots.at(level_begin_slot).input_slew_ns,
+                                              solution.slots.at(level_end_slot).load_cap_pf, false, result);
     if (!scored.has_value()) {
       return std::nullopt;
     }
@@ -146,10 +140,8 @@ auto ScoreSelectedLevelSegments(const AnalyticalHTreeSolveProblem& solve_problem
   return slot_cursor == solution.slots.size() ? std::optional<std::vector<ScoredSegment>>(std::move(scored_levels)) : std::nullopt;
 }
 
-auto BuildCandidateFromScoredLevels(const AnalyticalHTreeSolveProblem& solve_problem,
-                                    const std::vector<PatternId>& level_segment_pattern_ids,
-                                    const std::vector<ScoredSegment>& scored_levels, AnalyticalSolverBuild& result)
-    -> std::optional<AnalyticalCandidate>
+auto BuildCandidateFromScoredLevels(const AnalyticalHTreeSolveProblem& solve_problem, const std::vector<PatternId>& level_segment_pattern_ids,
+                                    const std::vector<ScoredSegment>& scored_levels, AnalyticalSolverBuild& result) -> std::optional<AnalyticalCandidate>
 {
   if (solve_problem.levels == nullptr || level_segment_pattern_ids.size() != scored_levels.size() || scored_levels.empty()) {
     return std::nullopt;
@@ -183,8 +175,8 @@ auto BuildCandidateFromScoredLevels(const AnalyticalHTreeSolveProblem& solve_pro
     candidate.rejection_reason = "missing_segment_pattern_library";
     return std::nullopt;
   }
-  auto topology_pattern_library = BuildAnalyticalTopologyPattern(candidate.level_segment_pattern_ids, *segment_pattern_library,
-                                                                 solve_problem.fanout_config.max_fanout);
+  auto topology_pattern_library
+      = BuildAnalyticalTopologyPattern(candidate.level_segment_pattern_ids, *segment_pattern_library, solve_problem.fanout_config.max_fanout);
   if (!topology_pattern_library.has_value()) {
     candidate.rejection_reason = "topology_pattern_composition_illegal";
     ++result.summary.root_fanout_rejected_count;
@@ -269,15 +261,14 @@ auto SolveAnalyticalHTreeCandidates(const AnalyticalHTreeSolveProblem& solve_pro
     return MarkFailure(result, "math_solution_segment_materialization_failed");
   }
 
-  auto scored_levels = ScoreSelectedLevelSegments(solve_problem, level_unit_pattern_ids, *level_segment_pattern_ids,
-                                                  build_result.level_slot_counts, solution, result);
+  auto scored_levels
+      = ScoreSelectedLevelSegments(solve_problem, level_unit_pattern_ids, *level_segment_pattern_ids, build_result.level_slot_counts, solution, result);
   if (!scored_levels.has_value()) {
     return MarkFailure(result, "math_solution_level_scoring_failed");
   }
   auto candidate = BuildCandidateFromScoredLevels(solve_problem, *level_segment_pattern_ids, *scored_levels, result);
   if (!candidate.has_value()) {
-    return MarkFailure(result,
-                       result.summary.root_fanout_rejected_count > 0U ? "root_fanout_illegal" : "math_candidate_materialization_failed");
+    return MarkFailure(result, result.summary.root_fanout_rejected_count > 0U ? "root_fanout_illegal" : "math_candidate_materialization_failed");
   }
 
   result.output.candidates.push_back(std::move(*candidate));

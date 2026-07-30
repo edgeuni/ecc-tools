@@ -53,17 +53,12 @@ class Clock
   auto get_preclustered_anchor_input_net_names() const -> const std::vector<std::string>& { return _preclustered_anchor_input_net_names; }
 
   // Setter
-  auto set_clock_name(const std::string& clock_name) -> void { _clock_name = clock_name; }
-  auto set_clock_net_name(const std::string& clock_net_name) -> void { _clock_net_name = clock_net_name; }
   auto set_clock_period_ns(double clock_period_ns) -> void { _clock_period_ns = clock_period_ns; }
   auto set_clock_period_source(const std::string& clock_period_source) -> void { _clock_period_source = clock_period_source; }
   auto set_clock_source(Pin* clock_source) -> void { _clock_source = clock_source; }
   auto set_clock_source_net(Net* clock_source_net) -> void { _clock_source_net = clock_source_net; }
   auto set_preclustered_sink_reuse(bool preclustered_sink_reuse) -> void { _preclustered_sink_reuse = preclustered_sink_reuse; }
-  auto add_preclustered_anchor_input_net_name(const std::string& net_name) -> void
-  {
-    appendUnique(_preclustered_anchor_input_net_names, net_name);
-  }
+  auto add_preclustered_anchor_input_net_name(const std::string& net_name) -> void { appendUnique(_preclustered_anchor_input_net_names, net_name); }
   auto clear_preclustered_anchor_input_net_names() -> void { _preclustered_anchor_input_net_names.clear(); }
 
   // Membership helpers.

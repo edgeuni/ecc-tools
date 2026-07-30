@@ -15,7 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file BoundaryConstraints.hh
+ * @file Constraint.hh
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-05-01
  * @brief H-tree pattern search boundary constraints derived from build config.
@@ -46,7 +46,6 @@ struct BoundaryConstraints
 auto CoveringBoundaryIndex(double value, const UniformValueLattice& lattice) -> std::optional<unsigned>;
 auto ResolveBoundaryConstraints(const HTree::Config& config, const CharBuilder& char_builder) -> BoundaryConstraints;
 auto HasBoundaryConstraints(const BoundaryConstraints& constraints) -> bool;
-auto ResolvePatternSearchBoundaryConstraints(const BoundaryConstraints& base_constraints, bool strict_root_boundary_closure)
-    -> BoundaryConstraints;
+auto ResolvePatternSearchBoundaryConstraints(const BoundaryConstraints& base_constraints, bool strict_root_boundary_closure) -> BoundaryConstraints;
 
 }  // namespace icts::htree

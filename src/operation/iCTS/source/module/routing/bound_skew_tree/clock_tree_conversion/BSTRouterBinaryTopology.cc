@@ -38,7 +38,7 @@
 #include "SteinerTree.hh"
 #include "bound_skew_tree/BSTRouter.hh"
 #include "bound_skew_tree/algorithm/BoundSkewTree.hh"
-#include "bound_skew_tree/clock_tree_conversion/BstClockTreeConversion.hh"
+#include "bound_skew_tree/clock_tree_conversion/BSTClockTreeConversion.hh"
 #include "bound_skew_tree/component/Components.hh"
 
 namespace icts {
@@ -158,11 +158,10 @@ auto PushBuildFrame(std::vector<BuildFrame>& frame_stack, std::size_t child_id) 
   frame_stack.push_back(MakeBuildFrame(child_id));
 }
 
-auto CreateSteinerNode(const Point<int>& location, const BSTRoutingConfig& parameters, std::size_t& next_steiner_id,
-                       BinaryNodeStore& owned_nodes) -> BinaryTopologyNode*
+auto CreateSteinerNode(const Point<int>& location, const BSTRoutingConfig& parameters, std::size_t& next_steiner_id, BinaryNodeStore& owned_nodes)
+    -> BinaryTopologyNode*
 {
-  return CreateBinaryNode(std::string("steiner_") + std::to_string(next_steiner_id++), location, false, TerminalElectrical{}, parameters,
-                          owned_nodes);
+  return CreateBinaryNode(std::string("steiner_") + std::to_string(next_steiner_id++), location, false, TerminalElectrical{}, parameters, owned_nodes);
 }
 
 auto CollectNonNullChildren(BinaryTopologyNode* node) -> std::vector<BinaryTopologyNode*>
@@ -179,8 +178,8 @@ auto CollectNonNullChildren(BinaryTopologyNode* node) -> std::vector<BinaryTopol
 }
 
 auto EnterBuildFrame(BuildFrame& frame, const BSTRouter::ClockSteinerTreeType& source_route_tree, const BSTRoutingConfig& parameters,
-                     std::size_t& next_steiner_id, BinaryNodeStore& owned_nodes, BinaryTopologyNode*& return_value,
-                     std::vector<BuildFrame>& frame_stack) -> void
+                     std::size_t& next_steiner_id, BinaryNodeStore& owned_nodes, BinaryTopologyNode*& return_value, std::vector<BuildFrame>& frame_stack)
+    -> void
 {
   const auto* tree_node = source_route_tree.get_node(frame.node_id);
   if (tree_node == nullptr) {
@@ -270,8 +269,8 @@ auto ExitSingleChildFrame(BuildFrame& frame, std::size_t& next_steiner_id, Binar
 }
 
 auto ProcessBuildFrame(BuildFrame& frame, const BSTRouter::ClockSteinerTreeType& source_route_tree, const BSTRoutingConfig& parameters,
-                       std::size_t& next_steiner_id, BinaryNodeStore& owned_nodes, BinaryTopologyNode*& return_value,
-                       std::vector<BuildFrame>& frame_stack) -> void
+                       std::size_t& next_steiner_id, BinaryNodeStore& owned_nodes, BinaryTopologyNode*& return_value, std::vector<BuildFrame>& frame_stack)
+    -> void
 {
   switch (frame.state) {
     case BuildState::kEnter:
@@ -341,9 +340,8 @@ auto ProcessBuildFrame(BuildFrame& frame, const BSTRouter::ClockSteinerTreeType&
   }
 }
 
-auto BuildBinaryTopologyNode(const BSTRouter::ClockSteinerTreeType& source_route_tree, std::size_t node_id,
-                             const BSTRoutingConfig& parameters, std::size_t& next_steiner_id, BinaryNodeStore& owned_nodes)
-    -> BinaryTopologyNode*
+auto BuildBinaryTopologyNode(const BSTRouter::ClockSteinerTreeType& source_route_tree, std::size_t node_id, const BSTRoutingConfig& parameters,
+                             std::size_t& next_steiner_id, BinaryNodeStore& owned_nodes) -> BinaryTopologyNode*
 {
   std::vector<BuildFrame> frame_stack;
   PushBuildFrame(frame_stack, node_id);
@@ -399,8 +397,7 @@ auto FinalizeElectricalState(BinaryTopologyNode* node, const BSTRoutingConfig& p
     double max_delay = 0.0;
     double min_delay = std::numeric_limits<double>::max();
     for (auto* child : children) {
-      auto delay = parameters.unit_h_res * child->sub_len
-                   * ((parameters.unit_h_cap * child->sub_len / kPiElmoreQuadraticFactor) + child->cap_load);
+      auto delay = parameters.unit_h_res * child->sub_len * ((parameters.unit_h_cap * child->sub_len / kPiElmoreQuadraticFactor) + child->cap_load);
       max_delay = std::max(max_delay, child->max_delay + delay);
       min_delay = std::min(min_delay, child->min_delay + delay);
     }
@@ -436,10 +433,10 @@ auto BuildAreaTree(BinaryTopologyNode* node, const BSTRoutingConfig& parameters,
   };
 
   auto create_area = [&](BinaryTopologyNode* current_node) -> Area* {
-    auto area = std::make_unique<Area>(current_node->name, kTreeCoordinateScale * current_node->location.get_x() / parameters.dbu_per_um,
-                                       kTreeCoordinateScale * current_node->location.get_y() / parameters.dbu_per_um,
-                                       current_node->cap_load, current_node->min_delay, current_node->max_delay,
-                                       current_node->sub_len / parameters.dbu_per_um, current_node->rc_pattern, current_node->is_terminal);
+    auto area
+        = std::make_unique<Area>(current_node->name, kTreeCoordinateScale * current_node->location.get_x() / parameters.dbu_per_um,
+                                 kTreeCoordinateScale * current_node->location.get_y() / parameters.dbu_per_um, current_node->cap_load, current_node->min_delay,
+                                 current_node->max_delay, current_node->sub_len / parameters.dbu_per_um, current_node->rc_pattern, current_node->is_terminal);
     auto* area_ptr = area.get();
     owned_areas.push_back(std::move(area));
     return area_ptr;
@@ -447,8 +444,7 @@ auto BuildAreaTree(BinaryTopologyNode* node, const BSTRoutingConfig& parameters,
 
   Area* return_area = nullptr;
   std::vector<BuildAreaFrame> frame_stack;
-  frame_stack.push_back(
-      BuildAreaFrame{.node = node, .area = nullptr, .left_area = nullptr, .right_area = nullptr, .state = BuildAreaState::kEnter});
+  frame_stack.push_back(BuildAreaFrame{.node = node, .area = nullptr, .left_area = nullptr, .right_area = nullptr, .state = BuildAreaState::kEnter});
 
   while (!frame_stack.empty()) {
     auto& frame = frame_stack.back();
@@ -465,14 +461,14 @@ auto BuildAreaTree(BinaryTopologyNode* node, const BSTRoutingConfig& parameters,
           return frame.area;
         }
         frame.state = BuildAreaState::kAfterLeftChild;
-        frame_stack.push_back(BuildAreaFrame{
-            .node = frame.node->left, .area = nullptr, .left_area = nullptr, .right_area = nullptr, .state = BuildAreaState::kEnter});
+        frame_stack.push_back(
+            BuildAreaFrame{.node = frame.node->left, .area = nullptr, .left_area = nullptr, .right_area = nullptr, .state = BuildAreaState::kEnter});
         break;
       case BuildAreaState::kAfterLeftChild:
         frame.left_area = return_area;
         frame.state = BuildAreaState::kAfterRightChild;
-        frame_stack.push_back(BuildAreaFrame{
-            .node = frame.node->right, .area = nullptr, .left_area = nullptr, .right_area = nullptr, .state = BuildAreaState::kEnter});
+        frame_stack.push_back(
+            BuildAreaFrame{.node = frame.node->right, .area = nullptr, .left_area = nullptr, .right_area = nullptr, .state = BuildAreaState::kEnter});
         break;
       case BuildAreaState::kAfterRightChild:
         frame.right_area = return_area;
@@ -494,8 +490,7 @@ auto BuildAreaTree(BinaryTopologyNode* node, const BSTRoutingConfig& parameters,
 
 }  // namespace
 
-auto BuildBstFromSourceRouteTree(const BSTRouter::ClockSteinerTreeType& source_route_tree, BSTRoutingConfig parameters)
-    -> BSTRouter::ClockSteinerTreeType
+auto BuildBstFromSourceRouteTree(const BSTRouter::ClockSteinerTreeType& source_route_tree, BSTRoutingConfig parameters) -> BSTRouter::ClockSteinerTreeType
 {
   parameters.topology_mode = BSTRoutingTopologyMode::kSourceRouteTree;
 

@@ -68,8 +68,7 @@ auto MakeUniqueTempPath(const std::string& file_name) -> std::filesystem::path
   return std::filesystem::temp_directory_path() / ("icts_topology_test_" + file_name);
 }
 
-auto makeDesignInst(const std::string& name, const std::string& cell_master, icts::InstType type, const icts::Point<int>& location)
-    -> icts::Inst*
+auto makeDesignInst(const std::string& name, const std::string& cell_master, icts::InstType type, const icts::Point<int>& location) -> icts::Inst*
 {
   auto* inst = CTSDM.getDesign().makeInst(name);
   if (inst == nullptr) {
@@ -223,8 +222,7 @@ TEST(TopologyTest, DesignCommitRejectsFinalNameCollisions)
   ASSERT_NE(existing_net, nullptr);
 
   auto colliding_inst = std::make_unique<icts::Inst>("u0", "BUF_X1", icts::InstType::kBuffer, icts::Point<int>(0, 0));
-  auto colliding_pin
-      = std::make_unique<icts::Pin>("CLK", icts::PinType::kClock, existing_inst->get_location(), existing_inst, nullptr, false);
+  auto colliding_pin = std::make_unique<icts::Pin>("CLK", icts::PinType::kClock, existing_inst->get_location(), existing_inst, nullptr, false);
   auto colliding_net = std::make_unique<icts::Net>("clk_net");
 
   EXPECT_EQ(CTSDM.getDesign().commitInst(std::move(colliding_inst)), nullptr);
@@ -451,7 +449,12 @@ TEST(TopologyTest, ClockSourceDriveCapUsesRuntimeMaxCapForTopLevelIoPort)
 
   icts::Pin source("clk_i", icts::PinType::kOut, icts::Point<int>(100, 200), nullptr, nullptr, true);
 
-  EXPECT_DOUBLE_EQ(CTSDM.getWrapper().queryClockSourceDriveCapLimit(CTSDM.getConfig(), &source), 0.23);
+  const auto drive_cap_pf = CTSDM.getWrapper().queryClockSourceDriveCapLimit(CTSDM.getConfig(), &source);
+  if (!drive_cap_pf.has_value()) {
+    ADD_FAILURE() << "Configured top-level source drive capacitance is unavailable.";
+    return;
+  }
+  EXPECT_DOUBLE_EQ(drive_cap_pf.value(), 0.23);
 }
 
 }  // namespace

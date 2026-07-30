@@ -11,8 +11,15 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file DataManagerTest.cc
+ * @author Dawn Li (dawnli619215645@gmail.com)
+ * @date 2026-07-30
+ * @brief Tests for process-wide CTS state ownership and reset behavior.
+ */
 
 #include <gtest/gtest.h>
 
@@ -48,7 +55,6 @@ TEST(DataManagerTest, OwnsOneProcessWideCTSState)
 TEST(DataManagerTest, ResetClearsAllStageOwnedState)
 {
   ASSERT_NE(CTSDM.getDesign().makeInst("temporary_buffer"), nullptr);
-  CTSDM.getEvaluationState().summary.has_evaluation_result = true;
 
   CTSDM.reset();
 
@@ -56,6 +62,19 @@ TEST(DataManagerTest, ResetClearsAllStageOwnedState)
   EXPECT_TRUE(CTSDM.getDesign().get_insts().empty());
   EXPECT_FALSE(CTSDM.getEvaluationState().summary.has_evaluation_result);
   EXPECT_FALSE(CTSDM.getClockLayout().isInstantiationDone());
+}
+
+TEST(DataManagerTest, ReadyShapedEvaluationIsNotCommittedWithoutCommittedRunState)
+{
+  icts::EvaluationState ready_shaped_state;
+  ready_shaped_state.summary.has_evaluation_result = true;
+  ready_shaped_state.statistics.valid = true;
+
+  const auto status = CTSDM.commitEvaluation(std::move(ready_shaped_state));
+
+  EXPECT_EQ(status.code, icts::DataManagerStatusCode::kInvalidState);
+  EXPECT_FALSE(CTSDM.hasCommittedEvaluation());
+  EXPECT_EQ(CTSDM.getCommittedEvaluationState(), nullptr);
 }
 
 TEST(DataManagerTest, RejectsOutOfOrderStageCommitWithoutMutatingDesign)

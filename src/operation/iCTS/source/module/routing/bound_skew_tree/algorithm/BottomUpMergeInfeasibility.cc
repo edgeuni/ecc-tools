@@ -50,9 +50,8 @@ auto BottomUpMergeInfeasibility::calcMinSkewSection(Area* current_area) const ->
   FOR_EACH_BST_SIDE(side)
   {
     auto min_side_point_skew = std::numeric_limits<double>::max();
-    std::ranges::for_each(_impl.joiningRegionPoints(side), [&](const Point& point) -> void {
-      min_side_point_skew = std::min(min_side_point_skew, TopDownEmbedding::pointSkew(point));
-    });
+    std::ranges::for_each(_impl.joiningRegionPoints(side),
+                          [&](const Point& point) -> void { min_side_point_skew = std::min(min_side_point_skew, TopDownEmbedding::pointSkew(point)); });
     if (min_side_point_skew < min_skew) {
       min_skew = min_side_point_skew;
       min_skew_side = side;
@@ -80,8 +79,7 @@ auto BottomUpMergeInfeasibility::calcDetourEdgeLength(Area* current_area) const 
   auto [horizontal_distance, vertical_distance] = BoundSkewTreeImpl::calcManhattanDistanceComponents(left_point, right_point);
   if (left_point.max > right_point.max) {
     right_point.max
-        = left_point.max - delta
-          - _impl.topDownEmbedding().calcDelayIncrease(horizontal_distance, vertical_distance, right_point.val, _impl._rc_pattern);
+        = left_point.max - delta - _impl.topDownEmbedding().calcDelayIncrease(horizontal_distance, vertical_distance, right_point.val, _impl._rc_pattern);
     BalancePointResult result;
     _impl.bottomUpMergeBalance().calcBalanceBetweenPoints(BalancePointQuery{.first_point = left_point,
                                                                             .second_point = right_point,
@@ -96,8 +94,7 @@ auto BottomUpMergeInfeasibility::calcDetourEdgeLength(Area* current_area) const 
     current_area->set_edge_len(kRight, result.distance_to_second);
   } else {
     left_point.max
-        = right_point.max - delta
-          - _impl.topDownEmbedding().calcDelayIncrease(horizontal_distance, vertical_distance, left_point.val, _impl._rc_pattern);
+        = right_point.max - delta - _impl.topDownEmbedding().calcDelayIncrease(horizontal_distance, vertical_distance, left_point.val, _impl._rc_pattern);
     BalancePointResult result;
     _impl.bottomUpMergeBalance().calcBalanceBetweenPoints(BalancePointQuery{.first_point = left_point,
                                                                             .second_point = right_point,

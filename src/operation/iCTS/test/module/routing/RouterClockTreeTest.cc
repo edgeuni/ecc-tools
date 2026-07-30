@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "SteinerTree.hh"
 #include "data_manager/spatial/Point.hh"
 #include "module/routing/router/Router.hh"

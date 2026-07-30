@@ -33,19 +33,29 @@
 #include "Point.hh"
 #include "SegmentChar.hh"
 #include "characterization/Characterization.hh"
-#include "common/io/TestArtifactIO.hh"
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/design/Design.hh"
 #include "data_manager/design/Inst.hh"
 #include "data_manager/design/Pin.hh"
 #include "data_manager/io/Wrapper.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
+#include "toolkit/io/TestArtifactIO.hh"
 
 namespace icts_test {
 namespace {
 
 namespace realtech_fixture = characterization::realtech;
+
+auto FormatOptionalValue(const std::optional<double>& value) -> std::string
+{
+  if (!value.has_value()) {
+    return "unavailable";
+  }
+  std::ostringstream stream;
+  stream << *value;
+  return stream.str();
+}
 
 TEST(CharacterizationRealTechLimitResolutionTest, UsesStrongestBufferHeightWhenWirelengthUnitMissing)
 {
@@ -73,8 +83,8 @@ TEST(CharacterizationRealTechLimitResolutionTest, UsesStrongestBufferHeightWhenW
 
 TEST(CharacterizationRealTechLimitResolutionTest, RepresentativePinCapRemainsStableThroughWrapperQuery)
 {
-  const auto& setup_state = common::realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common::realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = data_manager::realtech::EnsureRealTechSetup();
+  if (setup_state.mode != data_manager::realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     GTEST_SKIP() << setup_state.summary;
     return;
   }
@@ -82,7 +92,7 @@ TEST(CharacterizationRealTechLimitResolutionTest, RepresentativePinCapRemainsSta
   const auto buffer_cells = realtech_fixture::CollectConfiguredBufferLimitInfo();
   ASSERT_FALSE(buffer_cells.empty());
 
-  const auto probe = common::realtech::TryFindRepresentativeRealPinCapProbe();
+  const auto probe = data_manager::realtech::TryFindRepresentativeRealPinCapProbe();
   if (!probe.has_value()) {
     GTEST_SKIP() << "Cannot find a representative real-design load pin with resolvable capacitance.";
     return;
@@ -95,10 +105,11 @@ TEST(CharacterizationRealTechLimitResolutionTest, RepresentativePinCapRemainsSta
 
   ASSERT_FALSE(CTSDM.getDesign().get_clocks().empty()) << "Real-tech setup should materialize at least one SDC-declared clock.";
 
-  const double wrapper_cap_pf = CTSDM.getWrapper().queryPinCapacitance(&probe_pin);
-  EXPECT_GT(wrapper_cap_pf, 0.0);
+  const auto wrapper_cap_pf = CTSDM.getWrapper().queryPinCapacitance(&probe_pin);
+  ASSERT_TRUE(wrapper_cap_pf.has_value());
+  EXPECT_GT(*wrapper_cap_pf, 0.0);
   const double cap_tolerance_pf = probe->pre_timing_cap_pf * 1e-6 + 1e-6;
-  EXPECT_NEAR(wrapper_cap_pf, probe->pre_timing_cap_pf, cap_tolerance_pf);
+  EXPECT_NEAR(*wrapper_cap_pf, probe->pre_timing_cap_pf, cap_tolerance_pf);
 
   std::ostringstream report_stream;
   report_stream.setf(std::ostringstream::fixed, std::ostringstream::floatfield);
@@ -110,7 +121,7 @@ TEST(CharacterizationRealTechLimitResolutionTest, RepresentativePinCapRemainsSta
   report_stream << "cell_master=" << probe->cell_master << "\n";
   report_stream << "pin_name=" << probe->pin_name << "\n";
   report_stream << "initial_pin_cap_pf=" << probe->pre_timing_cap_pf << "\n";
-  report_stream << "wrapper_cap_pf=" << wrapper_cap_pf << "\n";
+  report_stream << "wrapper_cap_pf=" << *wrapper_cap_pf << "\n";
   report_stream << "clock_count=" << CTSDM.getDesign().get_clocks().size() << "\n";
   ASSERT_TRUE(realtech_fixture::WriteScenarioReport("wrapper_pin_cap_probe", "wrapper_pin_cap_probe_report.txt", report_stream.str()));
 }
@@ -139,8 +150,10 @@ TEST(CharacterizationRealTechLimitResolutionTest, TableAxisLimitsMatchAvailableA
   report_stream << "buffer_inventory_begin\n";
   for (const auto& info : buffer_cells) {
     report_stream << "buffer{cell=" << info.cell_master << ",input_pin=" << info.input_pin << ",output_pin=" << info.output_pin
-                  << ",port_slew_limit_ns=" << info.port_slew_limit_ns << ",table_slew_limit_ns=" << info.table_slew_limit_ns
-                  << ",port_cap_limit_pf=" << info.port_cap_limit_pf << ",table_cap_limit_pf=" << info.table_cap_limit_pf << "}\n";
+                  << ",port_slew_limit_ns=" << FormatOptionalValue(info.port_slew_limit_ns)
+                  << ",table_slew_limit_ns=" << FormatOptionalValue(info.table_slew_limit_ns)
+                  << ",port_cap_limit_pf=" << FormatOptionalValue(info.port_cap_limit_pf)
+                  << ",table_cap_limit_pf=" << FormatOptionalValue(info.table_cap_limit_pf) << "}\n";
   }
   report_stream << "buffer_inventory_end\n";
 
@@ -148,8 +161,8 @@ TEST(CharacterizationRealTechLimitResolutionTest, TableAxisLimitsMatchAvailableA
   std::vector<std::string> limitation_notes;
 
   const auto cap_table_only_buffers = realtech_fixture::CollectMastersByPredicate(buffer_cells, [](const auto& info) -> bool {
-    const bool has_cap_table_only = info.port_cap_limit_pf <= 0.0 && info.table_cap_limit_pf > 0.0;
-    const bool has_any_slew = info.port_slew_limit_ns > 0.0 || info.table_slew_limit_ns > 0.0;
+    const bool has_cap_table_only = !realtech_fixture::HasPositiveValue(info.port_cap_limit_pf) && realtech_fixture::HasPositiveValue(info.table_cap_limit_pf);
+    const bool has_any_slew = realtech_fixture::HasPositiveValue(info.port_slew_limit_ns) || realtech_fixture::HasPositiveValue(info.table_slew_limit_ns);
     return has_cap_table_only && has_any_slew;
   });
   if (!cap_table_only_buffers.empty()) {
@@ -171,8 +184,9 @@ TEST(CharacterizationRealTechLimitResolutionTest, TableAxisLimitsMatchAvailableA
   }
 
   const auto slew_table_only_buffers = realtech_fixture::CollectMastersByPredicate(buffer_cells, [](const auto& info) -> bool {
-    const bool has_slew_table_only = info.port_slew_limit_ns <= 0.0 && info.table_slew_limit_ns > 0.0;
-    const bool has_any_cap = info.port_cap_limit_pf > 0.0 || info.table_cap_limit_pf > 0.0;
+    const bool has_slew_table_only
+        = !realtech_fixture::HasPositiveValue(info.port_slew_limit_ns) && realtech_fixture::HasPositiveValue(info.table_slew_limit_ns);
+    const bool has_any_cap = realtech_fixture::HasPositiveValue(info.port_cap_limit_pf) || realtech_fixture::HasPositiveValue(info.table_cap_limit_pf);
     return has_slew_table_only && has_any_cap;
   });
   if (!slew_table_only_buffers.empty()) {
@@ -195,12 +209,10 @@ TEST(CharacterizationRealTechLimitResolutionTest, TableAxisLimitsMatchAvailableA
 
   report_stream << "table_axis_limit_exercised=" << (exercised ? "true" : "false") << "\n";
   report_stream << "limitations=" << realtech_fixture::JoinStrings(limitation_notes) << "\n";
-  ASSERT_TRUE(
-      realtech_fixture::WriteScenarioReport("table_axis_limit_resolution", "table_axis_limit_resolution_report.txt", report_stream.str()));
+  ASSERT_TRUE(realtech_fixture::WriteScenarioReport("table_axis_limit_resolution", "table_axis_limit_resolution_report.txt", report_stream.str()));
 
   if (!exercised) {
-    GTEST_SKIP() << "Current real-tech assets cannot directly exercise table-axis-only limit resolution. "
-                 << realtech_fixture::JoinStrings(limitation_notes);
+    GTEST_SKIP() << "Current real-tech assets cannot directly exercise table-axis-only limit resolution. " << realtech_fixture::JoinStrings(limitation_notes);
   }
 }
 
@@ -269,8 +281,8 @@ TEST(CharacterizationRealTechLimitResolutionTest, OverflowSamplesAreSkippedAndRe
 
 TEST(CharacterizationRealTechLimitResolutionTest, RepeatedReducedBuildsRemainUsableWithinOnePreparedFixture)
 {
-  const auto& setup_state = common::realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common::realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = data_manager::realtech::EnsureRealTechSetup();
+  if (setup_state.mode != data_manager::realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     GTEST_SKIP() << setup_state.summary;
     return;
   }

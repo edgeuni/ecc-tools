@@ -52,7 +52,7 @@ namespace icts::topology {
 
 namespace {
 
-auto ResolveSourceDriveCap(const SourceTrunkInput& input, Pin* clock_source) -> double
+auto ResolveSourceDriveCap(const SourceTrunkInput& input, Pin* clock_source) -> std::optional<double>
 {
   const auto& config = *input.config;
   auto& wrapper = *input.wrapper;
@@ -86,7 +86,13 @@ auto BuildTopSegmentConfig(const Config& config) -> SourceTrunkSegment::Config
   };
 }
 
-auto BuildTopSegmentInput(const SourceTrunkInput& input, Pin* clock_source, Pin* root_input) -> SourceTrunkSegment::Input
+struct TopSegmentInputBuild
+{
+  std::optional<SourceTrunkSegment::Input> input = std::nullopt;
+  std::string failure_reason;
+};
+
+auto BuildTopSegmentInput(const SourceTrunkInput& input, Pin* clock_source, Pin* root_input) -> TopSegmentInputBuild
 {
   const auto& config = *input.config;
   auto& wrapper = *input.wrapper;
@@ -109,7 +115,7 @@ auto BuildTopSegmentInput(const SourceTrunkInput& input, Pin* clock_source, Pin*
   };
   const int distance_dbu = geometry::Manhattan(clock_source->get_location(), root_input->get_location());
   if (distance_dbu <= 0) {
-    return segment_input;
+    return TopSegmentInputBuild{.input = std::move(segment_input), .failure_reason = {}};
   }
 
   segment_input.characterization_input = CharacterizationLibrary::buildRuntimeInput(CharacterizationRuntimeInput{
@@ -118,10 +124,22 @@ auto BuildTopSegmentInput(const SourceTrunkInput& input, Pin* clock_source, Pin*
       .fast_sta = &fast_sta,
   });
   segment_input.characterization_config = CharacterizationLibrary::buildRuntimeConfig(config);
-  segment_input.dbu_per_um = wrapper.queryDbUnit();
-  segment_input.required_load_cap_pf = wrapper.queryPinCapacitance(root_input);
-  segment_input.source_drive_cap_pf = ResolveSourceDriveCap(input, clock_source);
-  return segment_input;
+  const auto dbu_per_um = wrapper.queryDbUnit();
+  if (!dbu_per_um.has_value()) {
+    return TopSegmentInputBuild{.failure_reason = "dbu_per_um_unavailable"};
+  }
+  const auto required_load_cap_pf = wrapper.queryPinCapacitance(root_input);
+  if (!required_load_cap_pf.has_value()) {
+    return TopSegmentInputBuild{.failure_reason = "root_input_capacitance_unavailable"};
+  }
+  const auto source_drive_cap_pf = ResolveSourceDriveCap(input, clock_source);
+  if (!source_drive_cap_pf.has_value()) {
+    return TopSegmentInputBuild{.failure_reason = "source_drive_capacitance_unavailable"};
+  }
+  segment_input.dbu_per_um = *dbu_per_um;
+  segment_input.required_load_cap_pf = *required_load_cap_pf;
+  segment_input.source_drive_cap_pf = *source_drive_cap_pf;
+  return TopSegmentInputBuild{.input = std::move(segment_input), .failure_reason = {}};
 }
 
 auto BuildTopHtreeInput(const SourceTrunkInput& input, Net& source_net, Pin* clock_source) -> HTree::Input
@@ -239,12 +257,16 @@ auto BuildSourceTrunkTree(const SourceTrunkInput& input) -> SourceTrunkBuild
   });
   if (valid_root_inputs.size() == 1U) {
     result.summary.stage = SourceTrunkStage::kSegment;
-    auto segment_input = BuildTopSegmentInput(input, clock_source, valid_root_inputs.front());
+    auto segment_input_build = BuildTopSegmentInput(input, clock_source, valid_root_inputs.front());
+    if (!segment_input_build.input.has_value()) {
+      result.summary.failure_reason = segment_input_build.failure_reason.empty() ? "top_segment_input_unavailable" : segment_input_build.failure_reason;
+      source_net_side_effects.restore();
+      return result;
+    }
     auto segment_config = BuildTopSegmentConfig(flow_config);
-    auto segment_build = SourceTrunkSegment::build(segment_input, segment_config);
+    auto segment_build = SourceTrunkSegment::build(*segment_input_build.input, segment_config);
     if (!segment_build.summary.success) {
-      result.summary.failure_reason
-          = segment_build.summary.failure_reason.empty() ? "top_segment_failed" : segment_build.summary.failure_reason;
+      result.summary.failure_reason = segment_build.summary.failure_reason.empty() ? "top_segment_failed" : segment_build.summary.failure_reason;
       result.summary.used_boundary_relaxation = segment_build.summary.used_boundary_relaxation;
       source_net_side_effects.restore();
       return result;

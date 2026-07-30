@@ -34,10 +34,9 @@ auto DefaultOptimizationPolicy() -> const OptimizationPolicy&
 auto ValidateOptimizationPolicy(const OptimizationPolicy& policy) -> bool
 {
   return policy.max_iterations > 0U && policy.max_trials > 0U && policy.max_frontier_sinks > 0U && policy.max_batch_edits > 0U
-         && policy.max_batch_trials_per_iteration > 0U && policy.max_scalable_batch_edits > 0U
-         && policy.max_scalable_exact_trials_per_iteration > 0U && policy.target_window_shrink_ratio > 0.0
-         && policy.target_window_shrink_ratio <= 1.0 && policy.min_branch_purity >= 0.0 && policy.min_branch_purity <= 1.0
-         && policy.max_opposite_violation_ratio >= 0.0;
+         && policy.max_batch_trials_per_iteration > 0U && policy.max_scalable_batch_edits > 0U && policy.max_scalable_exact_trials_per_iteration > 0U
+         && policy.target_window_shrink_ratio > 0.0 && policy.target_window_shrink_ratio <= 1.0 && policy.min_branch_purity >= 0.0
+         && policy.min_branch_purity <= 1.0 && policy.max_opposite_violation_ratio >= 0.0;
 }
 
 }  // namespace icts::clock_sizing_optimization

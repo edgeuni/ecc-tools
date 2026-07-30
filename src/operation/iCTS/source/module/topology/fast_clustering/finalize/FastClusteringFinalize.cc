@@ -127,8 +127,7 @@ auto AppendFinalCluster(const std::vector<Pin*>& cluster, const ClusterConfig& c
     }
 
     if (current_cluster.size() <= 1U) {
-      CTSLOG.warn(Loc::current(),
-                  "Fast clustering could not legalize singleton cluster: violation=", static_cast<int>(evaluation.violation),
+      CTSLOG.warn(Loc::current(), "Fast clustering could not legalize singleton cluster: violation=", static_cast<int>(evaluation.violation),
                   ", pin=", (current_cluster.front() == nullptr ? std::string("<null>") : current_cluster.front()->get_name()));
       return false;
     }

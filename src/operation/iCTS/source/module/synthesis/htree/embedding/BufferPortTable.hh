@@ -43,13 +43,12 @@ class BufferPortTable
       return &it->second;
     }
 
-    auto [input_pin, output_pin] = _wrapper->queryBufferPorts(cell_master);
-    if (input_pin.empty() || output_pin.empty()) {
+    const auto ports = _wrapper->queryBufferPorts(cell_master);
+    if (!ports.has_value()) {
       return nullptr;
     }
 
-    auto [inserted_it, inserted] = _ports_by_master.emplace(cell_master, std::make_pair(std::move(input_pin), std::move(output_pin)));
-    (void) inserted;
+    auto inserted_it = _ports_by_master.emplace(cell_master, std::make_pair(ports->input, ports->output)).first;
     return &inserted_it->second;
   }
 

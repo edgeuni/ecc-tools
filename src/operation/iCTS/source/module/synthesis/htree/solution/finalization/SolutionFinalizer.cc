@@ -84,8 +84,7 @@ auto FinalizeSelectedHTreeSolution(HTreeSynthesisState& state, const HTreeSelect
 
   result.summary.selected_depth = selected_evaluation.depth;
   result.output.best_char = *selected_evaluation.best_char;
-  ApplyRootDriverCompensationSummary(result, selected_solution.compensation_stats, selected_solution.compensation_detail,
-                                     *result.output.best_char);
+  ApplyRootDriverCompensationSummary(result, selected_solution.compensation_stats, selected_solution.compensation_detail, *result.output.best_char);
   result.diagnostics.root_driver_compensation.clock_period_source = selected_solution.root_driver_clock_period_source;
   result.output.levels = selected_evaluation.levels;
   result.diagnostics.selected_final_frontier_count = selected_summary.final_frontier_count;
@@ -116,10 +115,9 @@ auto FinalizeSelectedHTreeSolution(HTreeSynthesisState& state, const HTreeSelect
     return false;
   }
 
-  BuildEmbedding(design, wrapper, result, segment_pattern_library, config);
-  result.summary.success = result.summary.failure_reason.empty() && result.output.best_char.has_value()
-                           && result.output.best_pattern.has_value() && result.output.root_output_pin != nullptr
-                           && result.output.root_net != nullptr;
+  BuildEmbedding(wrapper, result, segment_pattern_library, config);
+  result.summary.success = result.summary.failure_reason.empty() && result.output.best_char.has_value() && result.output.best_pattern.has_value()
+                           && result.output.root_output_pin != nullptr && result.output.root_net != nullptr;
   if (result.summary.success && config.enable_root_driver_sizing) {
     if (!ApplyRootDriverSizing(design, wrapper, result, selected_root_driver_cell_master)) {
       CTSLOG.error(Loc::current(), "HTree: prevalidated root-driver sizing failed during embedding construction.");
@@ -129,10 +127,14 @@ auto FinalizeSelectedHTreeSolution(HTreeSynthesisState& state, const HTreeSelect
   }
   if (result.summary.success) {
     std::size_t selected_level_buffer_count = 0U;
-    double selected_level_buffer_area_um2 = 0.0;
+    std::optional<double> selected_level_buffer_area_um2 = 0.0;
     for (const auto& level : result.output.levels) {
       selected_level_buffer_count += level.selected_buffer_count;
-      selected_level_buffer_area_um2 += level.selected_buffer_area_um2;
+      if (selected_level_buffer_area_um2.has_value() && level.selected_buffer_area_um2.has_value()) {
+        *selected_level_buffer_area_um2 += *level.selected_buffer_area_um2;
+      } else {
+        selected_level_buffer_area_um2 = std::nullopt;
+      }
     }
     EmitLogTable(Loc::current(), "Selected HTree Summary", {"Property", "Value"},
                  {{"Clock", input.log_context.clock_name},
@@ -158,9 +160,8 @@ auto FinalizeSelectedHTreeSolution(HTreeSynthesisState& state, const HTreeSelect
          {"Inserted Pins", ToLogTableCell(result.output.inserted_pins.size())},
          {"Inserted Nets", ToLogTableCell(result.output.inserted_nets.size())},
          {"Selected Level Buffers", ToLogTableCell(selected_level_buffer_count)},
-         {"Selected Level Buffer Area (um^2)", ToLogTableCell(selected_level_buffer_area_um2)},
-         {"Root Driver",
-          result.diagnostics.selected_root_driver_cell_master.empty() ? "n/a" : result.diagnostics.selected_root_driver_cell_master},
+         {"Selected Level Buffer Area (um^2)", selected_level_buffer_area_um2.has_value() ? ToLogTableCell(*selected_level_buffer_area_um2) : "unavailable"},
+         {"Root Driver", result.diagnostics.selected_root_driver_cell_master.empty() ? "n/a" : result.diagnostics.selected_root_driver_cell_master},
          {"Pruned Leaf Single-load Buffers", ToLogTableCell(result.diagnostics.pruned_leaf_single_load_buffers)},
          {"Split Extra Buffers", ToLogTableCell(result.diagnostics.embedded_split_sub_buffer_count)},
          {"Analytical Selected", ToLogTableCell(result.diagnostics.analytical_mode_selected)}});

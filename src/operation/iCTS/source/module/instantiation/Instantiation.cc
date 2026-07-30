@@ -55,8 +55,7 @@ auto Instantiation::run() -> InstantiationSummary
     summary.failure_reason = "design_not_ready";
   }
   if (!summary.success) {
-    CTSLOG.warn(Loc::current(), "CTS instantiation failed for clock \"",
-                write_summary.failed_clock.empty() ? "n/a" : write_summary.failed_clock, "\", net \"",
+    CTSLOG.warn(Loc::current(), "CTS instantiation failed for clock \"", write_summary.failed_clock.empty() ? "n/a" : write_summary.failed_clock, "\", net \"",
                 write_summary.failed_net.empty() ? "n/a" : write_summary.failed_net, "\": ", summary.failure_reason, ".");
   }
   if (summary.success) {

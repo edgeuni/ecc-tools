@@ -47,12 +47,12 @@ class ClockLayoutBuilder
 
   static auto appendSinkInsts(ClockLayout& clock_layout, const Clock& clock, std::size_t clock_index, const std::vector<Pin*>& sinks,
                               SinkDomainKind sink_domain) -> void;
-  static auto appendDirectSinkDomain(ClockLayout& clock_layout, const Clock& clock, std::size_t clock_index,
-                                     const ClockDistributionContext& sink_domain) -> void;
+  static auto appendDirectSinkDomain(ClockLayout& clock_layout, const Clock& clock, std::size_t clock_index, const ClockDistributionContext& sink_domain)
+      -> void;
   static auto makeSinkDomainLayout(const Clock& clock, std::size_t clock_index, const ClockDistributionContext& sink_domain,
                                    const Topology::Build& synthesis_build) -> ClockLayout;
-  static auto makeSourceToRootLayout(const Clock& clock, std::size_t clock_index, const Net& source_net,
-                                     const topology::SourceTrunkBuild& synthesis_build, ClockLayoutPhase synthesis_phase) -> ClockLayout;
+  static auto makeSourceToRootLayout(const Clock& clock, std::size_t clock_index, const Net& source_net, const topology::SourceTrunkBuild& synthesis_build,
+                                     ClockLayoutPhase synthesis_phase) -> ClockLayout;
   static auto merge(ClockLayout& target, const ClockLayout& source) -> void;
 };
 

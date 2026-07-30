@@ -53,6 +53,8 @@ struct RootDriverCompensationDetail
 {
   bool enabled = false;
   bool valid = false;
+  bool power_available = false;
+  std::string failure_reason;
   std::string method;
   std::string cell_master;
   std::string load_source;
@@ -156,10 +158,10 @@ class RootDriverCompensationPass
   auto operator=(RootDriverCompensationPass&&) noexcept -> RootDriverCompensationPass&;
 
   auto beginCandidateBuild() -> void;
-  auto apply(std::vector<HTreeTopologyChar>& entries, const TopologyPatternLibrary& topology_library,
-             const BufferPatternLibrary& segment_pattern_library, const Tree& topology) -> RootDriverCompensationApplySummary;
-  auto evaluate(PatternId pattern_id, const TopologyPatternLibrary& topology_library, const BufferPatternLibrary& segment_pattern_library,
-                const Tree& topology) -> RootDriverCompensationDetail;
+  auto apply(std::vector<HTreeTopologyChar>& entries, const TopologyPatternLibrary& topology_library, const BufferPatternLibrary& segment_pattern_library,
+             const Tree& topology) -> RootDriverCompensationApplySummary;
+  auto evaluate(PatternId pattern_id, const TopologyPatternLibrary& topology_library, const BufferPatternLibrary& segment_pattern_library, const Tree& topology)
+      -> RootDriverCompensationDetail;
   auto get_stats() const -> const RootDriverCompensationStats&;
 
  private:
@@ -172,10 +174,8 @@ inline constexpr double kRootDriverCompensationClockPeriodNs = 10.0;
 auto ResolveRootDriverCompensationInputSlewNs(const HTree::Config& config, double max_slew_ns) -> double;
 auto ResolveRootDriverClockPeriod(const HTree::Input& input) -> std::pair<double, std::string>;
 auto ApplyRootDriverCompensationSummary(htree::DiagnosticBuild& build, const RootDriverCompensationStats& compensation_stats,
-                                        const RootDriverCompensationDetail& compensation_detail, const HTreeTopologyChar& selected_entry)
-    -> void;
+                                        const RootDriverCompensationDetail& compensation_detail, const HTreeTopologyChar& selected_entry) -> void;
 auto ApplyRootDriverCompensationSummary(htree::DiagnosticBuild& build, const DepthSearchBuild& exploration,
-                                        const RootDriverCompensationDetail& compensation_detail, const HTreeTopologyChar& selected_entry)
-    -> void;
+                                        const RootDriverCompensationDetail& compensation_detail, const HTreeTopologyChar& selected_entry) -> void;
 
 }  // namespace icts::htree

@@ -341,8 +341,7 @@ auto CountExposedBoundaryCompatibilityConstraints(const MathHtreeProblem& proble
       if (!upstream_choice.sink_has_buffer) {
         continue;
       }
-      for (std::size_t downstream_slot_index = upstream_slot_index + 1U; downstream_slot_index < problem.slots.size();
-           ++downstream_slot_index) {
+      for (std::size_t downstream_slot_index = upstream_slot_index + 1U; downstream_slot_index < problem.slots.size(); ++downstream_slot_index) {
         for (const auto& downstream_choice : problem.slots.at(downstream_slot_index).choices) {
           if (!downstream_choice.source_has_buffer || upstream_choice.sink_strength_rank >= downstream_choice.source_strength_rank) {
             continue;
@@ -394,13 +393,11 @@ auto MakeModelStats(const MathHtreeProblem& problem) -> MathHtreeModelStats
     stats.continuous_variable_count += slot.choices.size() * 4U;
   }
   stats.binary_variable_count += problem.levels.size();
-  stats.constraint_count
-      = CountChoiceConstraints(problem) + CountExposedBoundaryCompatibilityConstraints(problem) + CountLevelLegalityConstraints(problem);
+  stats.constraint_count = CountChoiceConstraints(problem) + CountExposedBoundaryCompatibilityConstraints(problem) + CountLevelLegalityConstraints(problem);
   return stats;
 }
 
-auto SubtractAffineFunction(const MathHtreeAffineFunction& lhs, const MathHtreeAffineFunction& rhs, double rhs_scale)
-    -> MathHtreeAffineFunction
+auto SubtractAffineFunction(const MathHtreeAffineFunction& lhs, const MathHtreeAffineFunction& rhs, double rhs_scale) -> MathHtreeAffineFunction
 {
   return MathHtreeAffineFunction{
       .constant = lhs.constant - rhs_scale * rhs.constant,
@@ -431,8 +428,7 @@ auto AddLocalSumEquality(HighsMipModelBuilder& builder, HighsInt total_variable,
   builder.addEquality(std::move(terms), 0.0);
 }
 
-auto AddSelectedContributionRange(HighsMipModelBuilder& builder, HighsInt value_variable, HighsInt selected_variable, double lower,
-                                  double upper) -> void
+auto AddSelectedContributionRange(HighsMipModelBuilder& builder, HighsInt value_variable, HighsInt selected_variable, double lower, double upper) -> void
 {
   std::vector<LinearTerm> lower_terms;
   lower_terms.reserve(2U);
@@ -447,9 +443,8 @@ auto AddSelectedContributionRange(HighsMipModelBuilder& builder, HighsInt value_
   builder.addLessOrEqual(std::move(upper_terms), 0.0);
 }
 
-auto AddChoiceAffineSumEquality(HighsMipModelBuilder& builder, HighsInt value_variable, const MathHtreeSlot& slot,
-                                const SlotVariableSet& slot_vars, MathHtreeAffineFunction MathHtreeChoice::* function_member,
-                                AffineVariableKind variable_kind) -> void
+auto AddChoiceAffineSumEquality(HighsMipModelBuilder& builder, HighsInt value_variable, const MathHtreeSlot& slot, const SlotVariableSet& slot_vars,
+                                MathHtreeAffineFunction MathHtreeChoice::* function_member, AffineVariableKind variable_kind) -> void
 {
   std::vector<LinearTerm> terms;
   terms.reserve(slot.choices.size() * 3U + 1U);
@@ -523,8 +518,7 @@ auto AddChoiceConstraints(HighsMipModelBuilder& builder, const MathHtreeProblem&
     AddChoiceAffineSumEquality(builder, slot_vars.s_out, slot, slot_vars, &MathHtreeChoice::output_slew_ns, AffineVariableKind::kEval);
     AddChoiceAffineSumEquality(builder, slot_vars.d, slot, slot_vars, &MathHtreeChoice::delay_ns, AffineVariableKind::kEval);
     AddChoiceAffineSumEquality(builder, slot_vars.p, slot, slot_vars, &MathHtreeChoice::power_w, AffineVariableKind::kEval);
-    AddChoiceAffineSumEquality(builder, slot_vars.pb, slot, slot_vars, &MathHtreeChoice::source_boundary_power_w,
-                               AffineVariableKind::kEval);
+    AddChoiceAffineSumEquality(builder, slot_vars.pb, slot, slot_vars, &MathHtreeChoice::source_boundary_power_w, AffineVariableKind::kEval);
     AddOwnedPowerEquality(builder, slot, slot_vars);
     AddChoiceAffineSumEquality(builder, slot_vars.c_src, slot, slot_vars, &MathHtreeChoice::source_cap_pf, AffineVariableKind::kActual);
 
@@ -533,8 +527,7 @@ auto AddChoiceConstraints(HighsMipModelBuilder& builder, const MathHtreeProblem&
       const auto& choice_vars = slot_vars.choices.at(choice_index);
       AddSelectedContributionRange(builder, choice_vars.si, choice_vars.z, 0.0, choice.domain.input_slew_max_ns);
       AddSelectedContributionRange(builder, choice_vars.cl, choice_vars.z, 0.0, choice.domain.load_cap_max_pf);
-      AddSelectedContributionRange(builder, choice_vars.se, choice_vars.z, choice.domain.input_slew_min_ns,
-                                   choice.domain.input_slew_max_ns);
+      AddSelectedContributionRange(builder, choice_vars.se, choice_vars.z, choice.domain.input_slew_min_ns, choice.domain.input_slew_max_ns);
       AddSelectedContributionRange(builder, choice_vars.ce, choice_vars.z, choice.domain.load_cap_min_pf, choice.domain.load_cap_max_pf);
 
       std::vector<LinearTerm> eval_slew_actual_terms;
@@ -570,8 +563,7 @@ auto AddChoiceConstraints(HighsMipModelBuilder& builder, const MathHtreeProblem&
   }
 }
 
-auto AddExposedBoundaryCompatibilityConstraints(HighsMipModelBuilder& builder, const MathHtreeProblem& problem,
-                                                const BuiltHighsModel& built_model) -> void
+auto AddExposedBoundaryCompatibilityConstraints(HighsMipModelBuilder& builder, const MathHtreeProblem& problem, const BuiltHighsModel& built_model) -> void
 {
   for (std::size_t upstream_slot_index = 0U; upstream_slot_index + 1U < problem.slots.size(); ++upstream_slot_index) {
     const auto& upstream_slot = problem.slots.at(upstream_slot_index);
@@ -580,11 +572,9 @@ auto AddExposedBoundaryCompatibilityConstraints(HighsMipModelBuilder& builder, c
       if (!upstream_choice.sink_has_buffer) {
         continue;
       }
-      for (std::size_t downstream_slot_index = upstream_slot_index + 1U; downstream_slot_index < problem.slots.size();
-           ++downstream_slot_index) {
+      for (std::size_t downstream_slot_index = upstream_slot_index + 1U; downstream_slot_index < problem.slots.size(); ++downstream_slot_index) {
         const auto& downstream_slot = problem.slots.at(downstream_slot_index);
-        for (std::size_t downstream_choice_index = 0U; downstream_choice_index < downstream_slot.choices.size();
-             ++downstream_choice_index) {
+        for (std::size_t downstream_choice_index = 0U; downstream_choice_index < downstream_slot.choices.size(); ++downstream_choice_index) {
           const auto& downstream_choice = downstream_slot.choices.at(downstream_choice_index);
           if (!downstream_choice.source_has_buffer || upstream_choice.sink_strength_rank >= downstream_choice.source_strength_rank) {
             continue;
@@ -593,11 +583,9 @@ auto AddExposedBoundaryCompatibilityConstraints(HighsMipModelBuilder& builder, c
           std::vector<LinearTerm> terms;
           AppendTerm(terms, built_model.slots.at(upstream_slot_index).choices.at(upstream_choice_index).z, 1.0);
           AppendTerm(terms, built_model.slots.at(downstream_slot_index).choices.at(downstream_choice_index).z, 1.0);
-          for (std::size_t intermediate_slot_index = upstream_slot_index + 1U; intermediate_slot_index < downstream_slot_index;
-               ++intermediate_slot_index) {
+          for (std::size_t intermediate_slot_index = upstream_slot_index + 1U; intermediate_slot_index < downstream_slot_index; ++intermediate_slot_index) {
             const auto& intermediate_slot = problem.slots.at(intermediate_slot_index);
-            for (std::size_t intermediate_choice_index = 0U; intermediate_choice_index < intermediate_slot.choices.size();
-                 ++intermediate_choice_index) {
+            for (std::size_t intermediate_choice_index = 0U; intermediate_choice_index < intermediate_slot.choices.size(); ++intermediate_choice_index) {
               if (intermediate_slot.choices.at(intermediate_choice_index).sink_has_buffer) {
                 AppendTerm(terms, built_model.slots.at(intermediate_slot_index).choices.at(intermediate_choice_index).z, -1.0);
               }
@@ -853,8 +841,8 @@ auto ValueOrZero(const HighsSolution& highs_solution, HighsInt variable) -> doub
   return highs_solution.col_value.at(static_cast<std::size_t>(variable));
 }
 
-auto CollectSlotSolutions(const MathHtreeProblem& problem, const BuiltHighsModel& built_model, const HighsSolution& highs_solution,
-                          MathHtreeSolution& solution) -> void
+auto CollectSlotSolutions(const MathHtreeProblem& problem, const BuiltHighsModel& built_model, const HighsSolution& highs_solution, MathHtreeSolution& solution)
+    -> void
 {
   solution.slots.reserve(problem.slots.size());
   for (std::size_t slot_index = 0U; slot_index < problem.slots.size(); ++slot_index) {
@@ -890,8 +878,7 @@ auto RunHighs(const MathHtreeProblem& problem, MathHtreeObjective objective) -> 
   if (!problem.isValid(failure_reason)) {
     return MakeStatusSolution(MathHtreeSolveStatus::kModelInvalid, failure_reason);
   }
-  if (objective == MathHtreeObjective::kNormalizedDelayPower
-      && (problem.min_delay_anchor_ns <= kAnchorFloor || problem.min_power_anchor_w <= kAnchorFloor)) {
+  if (objective == MathHtreeObjective::kNormalizedDelayPower && (problem.min_delay_anchor_ns <= kAnchorFloor || problem.min_power_anchor_w <= kAnchorFloor)) {
     return MakeStatusSolution(MathHtreeSolveStatus::kModelInvalid, "invalid_normalized_objective_anchor");
   }
 
@@ -1007,15 +994,12 @@ auto HighsMathHtreeSolver::solveNormalizedTradeoff(const MathHtreeProblem& probl
   }
   anchored_problem.min_power_anchor_w = min_power_solution.total_power_w;
 
-  auto normalized_solution
-      = solve(MakeTimedProblem(anchored_problem, _options.normalized_time_limit_ms), MathHtreeObjective::kNormalizedDelayPower);
+  auto normalized_solution = solve(MakeTimedProblem(anchored_problem, _options.normalized_time_limit_ms), MathHtreeObjective::kNormalizedDelayPower);
   normalized_solution.min_delay_anchor_ns = anchored_problem.min_delay_anchor_ns;
   normalized_solution.min_power_anchor_w = anchored_problem.min_power_anchor_w;
   normalized_solution.solve_wall_time_ms += min_delay_solution.solve_wall_time_ms + min_power_solution.solve_wall_time_ms;
-  normalized_solution.branch_and_bound_node_count
-      += min_delay_solution.branch_and_bound_node_count + min_power_solution.branch_and_bound_node_count;
-  normalized_solution.optimality_gap
-      = std::max({normalized_solution.optimality_gap, min_delay_solution.optimality_gap, min_power_solution.optimality_gap});
+  normalized_solution.branch_and_bound_node_count += min_delay_solution.branch_and_bound_node_count + min_power_solution.branch_and_bound_node_count;
+  normalized_solution.optimality_gap = std::max({normalized_solution.optimality_gap, min_delay_solution.optimality_gap, min_power_solution.optimality_gap});
   return normalized_solution;
 }
 

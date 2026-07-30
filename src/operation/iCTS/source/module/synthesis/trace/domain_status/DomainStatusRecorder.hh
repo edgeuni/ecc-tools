@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "result/StageResult.hh"
+#include "stage/StageSummary.hh"
 
 namespace icts {
 
@@ -48,8 +48,7 @@ class DomainStatusRecorder
 
   auto append(const Clock& clock, DomainStatus status, SinkDomainKind sink_domain, std::size_t valid_sinks, std::size_t sink_domain_sinks,
               const std::string& detail) -> void;
-  auto appendNoDomain(const Clock& clock, DomainStatus status, std::size_t valid_sinks, std::size_t sink_domain_sinks,
-                      const std::string& detail) -> void;
+  auto appendNoDomain(const Clock& clock, DomainStatus status, std::size_t valid_sinks, std::size_t sink_domain_sinks, const std::string& detail) -> void;
   auto appendNullClock(DomainStatus status, const std::string& detail) -> void;
 
  private:

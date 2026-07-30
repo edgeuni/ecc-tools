@@ -37,24 +37,29 @@
 namespace icts {
 namespace {
 
-auto BuildRuntimeCharacterizationBufferCells(Wrapper& wrapper, const std::vector<std::string>& buffer_types)
-    -> std::vector<CharacterizationBufferCell>
+auto BuildRuntimeCharacterizationBufferCells(Wrapper& wrapper, const std::vector<std::string>& buffer_types) -> std::vector<CharacterizationBufferCell>
 {
   std::vector<CharacterizationBufferCell> buffer_cells;
   buffer_cells.reserve(buffer_types.size());
   for (const auto& cell_master : buffer_types) {
-    auto [input_pin, output_pin] = wrapper.queryBufferPorts(cell_master);
+    const auto ports = wrapper.queryBufferPorts(cell_master);
+    const auto input_cap_pf = wrapper.queryCharInputPinCap(cell_master);
+    if (!ports.has_value() || !input_cap_pf.has_value()) {
+      CTSLOG.warn(Loc::current(), "CharacterizationLibrary: skip buffer master \"", cell_master,
+                  "\" because its Liberty ports or input capacitance are unavailable.");
+      continue;
+    }
     buffer_cells.push_back(CharacterizationBufferCell{
         .cell_master = cell_master,
         .max_cap_pf = 0.0,
-        .input_cap_pf = wrapper.queryCharInputPinCap(cell_master),
+        .input_cap_pf = *input_cap_pf,
         .input_slew_limit_ns = wrapper.queryCellInPinSlewLimit(cell_master),
         .input_slew_table_axis_max_ns = wrapper.queryCellInPinSlewTableAxisMax(cell_master),
         .output_cap_limit_pf = wrapper.queryCellOutPinCapLimit(cell_master),
         .output_cap_table_axis_max_pf = wrapper.queryCellOutPinCapTableAxisMax(cell_master),
         .cell_height_um = wrapper.queryCellHeightUm(cell_master),
-        .input_pin = std::move(input_pin),
-        .output_pin = std::move(output_pin),
+        .input_pin = ports->input,
+        .output_pin = ports->output,
     });
   }
   return buffer_cells;
@@ -62,8 +67,7 @@ auto BuildRuntimeCharacterizationBufferCells(Wrapper& wrapper, const std::vector
 
 }  // namespace
 
-auto CharacterizationLibrary::makeCharacterizationCacheKey(const CharBuilder::Input& input, const CharBuilder::Config& config)
-    -> CharacterizationCacheKey
+auto CharacterizationLibrary::makeCharacterizationCacheKey(const CharBuilder::Input& input, const CharBuilder::Config& config) -> CharacterizationCacheKey
 {
   return CharacterizationCacheKey{
       .wirelength_unit_um = config.wirelength_unit_um,
@@ -123,7 +127,7 @@ auto CharacterizationLibrary::buildRuntimeInput(const CharacterizationRuntimeInp
   char_input.characterization_buffer_cells = BuildRuntimeCharacterizationBufferCells(wrapper, char_input.buffer_types);
   char_input.clock_route_segment_rc = wrapper.queryConfiguredClockRouteSegmentRc(config);
   const auto dbu_per_um = wrapper.queryDbUnit();
-  if (dbu_per_um <= 0) {
+  if (!dbu_per_um.has_value()) {
     CTSLOG.error(Loc::current(), "CharacterizationLibrary: DBU-per-micron must be available before characterization.");
   }
   char_input.dbu_per_um = dbu_per_um;

@@ -94,16 +94,14 @@ auto routeUsesTopologyLevel(const DrawingSegment& segment) -> bool
     return true;
   }
   return segment.net_role == LayoutNetRole::kSourceToRoot
-         && (segment.synthesis_phase == ClockLayoutPhase::kSourceToRootHTree
-             || segment.synthesis_phase == ClockLayoutPhase::kSourceToRootSegment);
+         && (segment.synthesis_phase == ClockLayoutPhase::kSourceToRootHTree || segment.synthesis_phase == ClockLayoutPhase::kSourceToRootSegment);
 }
 
 }  // namespace
 
 auto LayerPolicy::getLayer(const LayerDescriptor& descriptor) -> GdsLayerKey
 {
-  auto iter = std::ranges::find_if(
-      _layers, [&descriptor](const RegisteredLayer& layer) -> bool { return layerKeysEqual(layer.key, descriptor.key); });
+  auto iter = std::ranges::find_if(_layers, [&descriptor](const RegisteredLayer& layer) -> bool { return layerKeysEqual(layer.key, descriptor.key); });
   if (iter != _layers.end()) {
     return iter->property.key;
   }

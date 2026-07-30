@@ -62,6 +62,14 @@ constexpr const char* kRootClosureFluteEstimator = "flute_clock_steiner_tree";
 constexpr const char* kRootClosureSingleLoadEstimator = "single_load_manhattan";
 constexpr const char* kRootClosureHpwlEstimate = "hpwl_bbox_estimate";
 
+auto MakeUnavailableRootClosureLoadEstimate(std::string failure_reason) -> RootClosureLoadEstimate
+{
+  RootClosureLoadEstimate estimate;
+  estimate.failure_reason = std::move(failure_reason);
+  estimate.source = kRootDriverCompensationLoadSource;
+  return estimate;
+}
+
 auto HashCombine(std::size_t seed, std::size_t value) -> std::size_t
 {
   return seed ^ (value + 0x9e3779b97f4a7c15ULL + (seed << 6U) + (seed >> 2U));
@@ -99,10 +107,6 @@ auto QueryWireCapForDbuLength(const RootDriverCompensationInput& input, int64_t 
     CTSLOG.error(Loc::current(), "HTree: Wrapper is unavailable for root-driver compensation.");
   }
   const double wire_cap_pf = input.wrapper->queryRequiredWireCapacitance(ResolveRoutingLayer(input), length_um, ResolveWireWidth(input));
-  if (!std::isfinite(wire_cap_pf) || wire_cap_pf < 0.0) {
-    CTSLOG.warn(Loc::current(), "HTree: root-closure wire-cap query returned an invalid value for length ", length_um, " um.");
-    return 0.0;
-  }
   return wire_cap_pf;
 }
 
@@ -129,8 +133,8 @@ auto InterpolateRootClosurePoint(const Point<int>& source, const Point<int>& sin
   return Point<int>(x, y);
 }
 
-auto EstimateHpwlWire(const RootDriverCompensationInput& input, const Point<int>& root_location,
-                      const std::vector<RootClosureTerminal>& terminals, RootDriverCompensationStats& stats) -> RootClosureWireEstimate
+auto EstimateHpwlWire(const RootDriverCompensationInput& input, const Point<int>& root_location, const std::vector<RootClosureTerminal>& terminals,
+                      RootDriverCompensationStats& stats) -> RootClosureWireEstimate
 {
   int min_x = root_location.get_x();
   int max_x = root_location.get_x();
@@ -152,9 +156,8 @@ auto EstimateHpwlWire(const RootDriverCompensationInput& input, const Point<int>
   };
 }
 
-auto EstimateRootClosureWire(const RootDriverCompensationInput& input, const Point<int>& root_location,
-                             const std::vector<RootClosureTerminal>& terminals, RootDriverCompensationStats& stats)
-    -> RootClosureWireEstimate
+auto EstimateRootClosureWire(const RootDriverCompensationInput& input, const Point<int>& root_location, const std::vector<RootClosureTerminal>& terminals,
+                             RootDriverCompensationStats& stats) -> RootClosureWireEstimate
 {
   if (terminals.empty()) {
     return RootClosureWireEstimate{.route_estimator = "none"};
@@ -206,20 +209,24 @@ auto EstimateRootClosureWire(const RootDriverCompensationInput& input, const Poi
   return EstimateHpwlWire(input, root_location, terminals, stats);
 }
 
-auto MakeBufferRootClosureTerminal(Wrapper& wrapper, const TreeNode& parent_node, const TreeNode& child_node,
-                                   const BufferingPattern& segment_pattern, std::size_t terminal_index) -> RootClosureTerminal
+auto MakeBufferRootClosureTerminal(Wrapper& wrapper, const TreeNode& parent_node, const TreeNode& child_node, const BufferingPattern& segment_pattern,
+                                   std::size_t terminal_index) -> std::optional<RootClosureTerminal>
 {
   const auto& positions = segment_pattern.get_buffer_positions();
   const auto& cell_masters = segment_pattern.get_cell_masters();
   if (positions.empty() || cell_masters.empty()) {
-    return {};
+    return std::nullopt;
   }
 
   const std::string& first_buffer_master = cell_masters.front();
+  const auto pin_cap_pf = wrapper.queryCharInputPinCap(first_buffer_master);
+  if (!pin_cap_pf.has_value()) {
+    return std::nullopt;
+  }
   return RootClosureTerminal{
       .name = "root_closure_buffer_input_" + std::to_string(terminal_index),
       .location = InterpolateRootClosurePoint(parent_node.get_position(), child_node.get_position(), positions.front()),
-      .pin_cap_pf = wrapper.queryCharInputPinCap(first_buffer_master),
+      .pin_cap_pf = *pin_cap_pf,
   };
 }
 
@@ -251,7 +258,7 @@ auto BuildRootClosureLoadSignature(PatternId topology_pattern_id, const Topology
 }
 
 auto CollectExternalLoadTerminals(Wrapper& wrapper, const std::vector<std::size_t>& boundary_node_ids, const Tree& topology)
-    -> std::vector<RootClosureTerminal>
+    -> std::optional<std::vector<RootClosureTerminal>>
 {
   std::vector<RootClosureTerminal> terminals;
   std::unordered_set<const Pin*> seen_pins;
@@ -264,10 +271,14 @@ auto CollectExternalLoadTerminals(Wrapper& wrapper, const std::vector<std::size_
       if (load == nullptr || !seen_pins.insert(load).second) {
         continue;
       }
+      const auto pin_cap_pf = wrapper.queryPinCapacitance(load);
+      if (!pin_cap_pf.has_value()) {
+        return std::nullopt;
+      }
       terminals.push_back(RootClosureTerminal{
           .name = Design::getPinFullName(load),
           .location = load->get_location(),
-          .pin_cap_pf = wrapper.queryPinCapacitance(load),
+          .pin_cap_pf = *pin_cap_pf,
       });
     }
   }
@@ -289,8 +300,8 @@ auto CountLoadedRootBranches(const TreeNode& root_node, const Tree& topology) ->
   return branch_count;
 }
 
-auto SetSourceBoundaryLoadEstimate(RootClosureLoadEstimate& estimate, double source_boundary_load_cap_pf,
-                                   std::size_t source_boundary_branch_count, const UniformValueLattice& cap_lattice) -> void
+auto SetSourceBoundaryLoadEstimate(RootClosureLoadEstimate& estimate, double source_boundary_load_cap_pf, std::size_t source_boundary_branch_count,
+                                   const UniformValueLattice& cap_lattice) -> void
 {
   estimate.source_boundary_load_cap_pf = source_boundary_load_cap_pf;
   estimate.source_boundary_branch_count = source_boundary_branch_count;
@@ -298,9 +309,8 @@ auto SetSourceBoundaryLoadEstimate(RootClosureLoadEstimate& estimate, double sou
       = source_boundary_load_cap_pf > 0.0 && cap_lattice.isValid() ? cap_lattice.coveringIndex(source_boundary_load_cap_pf) : 0U;
 }
 
-auto MakeRootClosureLoadEstimate(const RootDriverCompensationInput& input, const Point<int>& root_location,
-                                 const std::vector<RootClosureTerminal>& terminals, const UniformValueLattice& cap_lattice,
-                                 RootDriverCompensationStats& stats) -> RootClosureLoadEstimate
+auto MakeRootClosureLoadEstimate(const RootDriverCompensationInput& input, const Point<int>& root_location, const std::vector<RootClosureTerminal>& terminals,
+                                 const UniformValueLattice& cap_lattice, RootDriverCompensationStats& stats) -> RootClosureLoadEstimate
 {
   RootClosureLoadEstimate estimate;
   estimate.source = kRootDriverCompensationLoadSource;
@@ -311,7 +321,7 @@ auto MakeRootClosureLoadEstimate(const RootDriverCompensationInput& input, const
   }
 
   for (const auto& terminal : terminals) {
-    estimate.terminal_pin_cap_pf += std::max(0.0, terminal.pin_cap_pf);
+    estimate.terminal_pin_cap_pf += terminal.pin_cap_pf;
   }
   const auto wire_estimate = EstimateRootClosureWire(input, root_location, terminals, stats);
   estimate.route_estimator = wire_estimate.route_estimator;
@@ -325,15 +335,14 @@ auto MakeRootClosureLoadEstimate(const RootDriverCompensationInput& input, const
 }
 
 auto ResolveRootClosureLoadEstimate(PatternId topology_pattern_id, const TopologyPatternLibrary& topology_library,
-                                    const BufferPatternLibrary& segment_pattern_library, const Tree& topology,
-                                    const RootDriverCompensationInput& input, RootDriverCompensationStats& stats) -> RootClosureLoadEstimate
+                                    const BufferPatternLibrary& segment_pattern_library, const Tree& topology, const RootDriverCompensationInput& input,
+                                    RootDriverCompensationStats& stats) -> RootClosureLoadEstimate
 {
   ++stats.load_resolution_count;
   const auto* root_node = topology.get_node(topology.get_root());
   if (root_node == nullptr) {
-    CTSLOG.warn(Loc::current(), "HTree: root-driver compensation load resolution failed because topology root is missing.");
     ++stats.load_resolution_failure_count;
-    return {};
+    return MakeUnavailableRootClosureLoadEstimate("missing_topology_root");
   }
 
   const auto topology_pattern = topology_library.materialize(topology_pattern_id);
@@ -368,8 +377,12 @@ auto ResolveRootClosureLoadEstimate(PatternId topology_pattern_id, const Topolog
           if (input.wrapper == nullptr) {
             CTSLOG.error(Loc::current(), "HTree: Wrapper is unavailable for root-driver load resolution.");
           }
-          buffer_input_terminals.push_back(
-              MakeBufferRootClosureTerminal(*input.wrapper, *parent_node, *child_node, *segment_pattern, buffer_input_terminals.size()));
+          const auto terminal = MakeBufferRootClosureTerminal(*input.wrapper, *parent_node, *child_node, *segment_pattern, buffer_input_terminals.size());
+          if (!terminal.has_value()) {
+            ++stats.load_resolution_failure_count;
+            return MakeUnavailableRootClosureLoadEstimate("buffer_input_capacitance_unavailable");
+          }
+          buffer_input_terminals.push_back(*terminal);
         } else {
           next_active_node_ids.push_back(child_id);
         }
@@ -379,8 +392,8 @@ auto ResolveRootClosureLoadEstimate(PatternId topology_pattern_id, const Topolog
     if (segment_has_real_buffer) {
       auto estimate = MakeRootClosureLoadEstimate(input, root_node->get_position(), buffer_input_terminals, input.cap_lattice, stats);
       if (loaded_root_branch_count > 0U) {
-        SetSourceBoundaryLoadEstimate(estimate, estimate.total_load_cap_pf / static_cast<double>(loaded_root_branch_count),
-                                      loaded_root_branch_count, input.cap_lattice);
+        SetSourceBoundaryLoadEstimate(estimate, estimate.total_load_cap_pf / static_cast<double>(loaded_root_branch_count), loaded_root_branch_count,
+                                      input.cap_lattice);
       }
       if (!estimate.valid) {
         ++stats.load_resolution_failure_count;
@@ -397,11 +410,15 @@ auto ResolveRootClosureLoadEstimate(PatternId topology_pattern_id, const Topolog
   if (input.wrapper == nullptr) {
     CTSLOG.error(Loc::current(), "HTree: Wrapper is unavailable for root-driver load resolution.");
   }
-  auto estimate = MakeRootClosureLoadEstimate(
-      input, root_node->get_position(), CollectExternalLoadTerminals(*input.wrapper, active_node_ids, topology), input.cap_lattice, stats);
+  const auto external_load_terminals = CollectExternalLoadTerminals(*input.wrapper, active_node_ids, topology);
+  if (!external_load_terminals.has_value()) {
+    ++stats.load_resolution_failure_count;
+    return MakeUnavailableRootClosureLoadEstimate("external_load_pin_capacitance_unavailable");
+  }
+  auto estimate = MakeRootClosureLoadEstimate(input, root_node->get_position(), *external_load_terminals, input.cap_lattice, stats);
   if (loaded_root_branch_count > 0U) {
-    SetSourceBoundaryLoadEstimate(estimate, estimate.total_load_cap_pf / static_cast<double>(loaded_root_branch_count),
-                                  loaded_root_branch_count, input.cap_lattice);
+    SetSourceBoundaryLoadEstimate(estimate, estimate.total_load_cap_pf / static_cast<double>(loaded_root_branch_count), loaded_root_branch_count,
+                                  input.cap_lattice);
   }
   if (!estimate.valid) {
     ++stats.load_resolution_failure_count;
@@ -420,9 +437,8 @@ auto RootClosureLoadSignatureHash::operator()(const RootClosureLoadSignature& si
   return seed;
 }
 
-auto QueryRootClosureLoadEstimate(PatternId pattern_id, const TopologyPatternLibrary& topology_library,
-                                  const BufferPatternLibrary& segment_pattern_library, const Tree& topology,
-                                  RootDriverCompensationState& state) -> RootClosureLoadEstimate
+auto QueryRootClosureLoadEstimate(PatternId pattern_id, const TopologyPatternLibrary& topology_library, const BufferPatternLibrary& segment_pattern_library,
+                                  const Tree& topology, RootDriverCompensationState& state) -> RootClosureLoadEstimate
 {
   auto signature = BuildRootClosureLoadSignature(pattern_id, topology_library, segment_pattern_library);
   auto cache_it = state.root_load_by_signature.find(signature);
@@ -433,8 +449,7 @@ auto QueryRootClosureLoadEstimate(PatternId pattern_id, const TopologyPatternLib
 
   const auto resolution_start = std::chrono::steady_clock::now();
   auto estimate = ResolveRootClosureLoadEstimate(pattern_id, topology_library, segment_pattern_library, topology, state.input, state.stats);
-  state.stats.load_resolution_runtime_ms
-      += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - resolution_start).count();
+  state.stats.load_resolution_runtime_ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - resolution_start).count();
   return state.root_load_by_signature.emplace(std::move(signature), std::move(estimate)).first->second;
 }
 

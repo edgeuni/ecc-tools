@@ -28,7 +28,7 @@
 #include <string_view>
 #include <vector>
 
-#include "FastSta.hh"
+#include "FastSTA.hh"
 #include "optimization/model/ClockSizingOptimizationData.hh"
 
 namespace icts {
@@ -47,19 +47,25 @@ struct ClockSizingMasterQueryInput
   const std::vector<std::string>* buffer_cell_masters = nullptr;
 };
 
+struct ClockSizingMasterCollection
+{
+  std::vector<ClockSizingBufferMaster> masters;
+  std::size_t configured_candidate_count = 0U;
+  std::size_t unavailable_candidate_count = 0U;
+};
+
 auto BuildClockRouteGeometry(const ClockLayout& clock_layout, std::size_t clock_index) -> FastStaClockRouteGeometry;
 auto CaptureGraphProfile(const FastSTA& fast_sta, FastStaClockId clock_id) -> ClockSizingRuntimeProfile;
 auto CopyOuterProfile(ClockSizingRuntimeProfile& destination, const ClockSizingRuntimeProfile& source) -> void;
-auto CollectClockSizingBufferMasters(const ClockSizingMasterQueryInput& input) -> std::vector<ClockSizingBufferMaster>;
+auto CollectClockSizingBufferMasters(const ClockSizingMasterQueryInput& input) -> ClockSizingMasterCollection;
 auto BuildClockSizingRouteTrees(const Design& design, const std::vector<Clock*>& clocks) -> ClockSizingRouteTreeCache;
-auto FindMasterInfo(const std::vector<ClockSizingBufferMaster>& master_infos, std::string_view cell_master)
-    -> const ClockSizingBufferMaster*;
+auto FindMasterInfo(const std::vector<ClockSizingBufferMaster>& master_infos, std::string_view cell_master) -> const ClockSizingBufferMaster*;
 auto CollectClockSizingCapLimits(const FastSTA& fast_sta, FastStaClockId clock_id) -> std::vector<ClockSizingCapLimit>;
 auto CollectClockSizingSlewLimits(const FastSTA& fast_sta, FastStaClockId clock_id) -> std::vector<ClockSizingSlewLimit>;
-auto CollectClockSizingBuffers(const Design& design, const FastSTA& fast_sta, FastStaClockId clock_id,
-                               const std::vector<ClockSizingBufferMaster>& master_infos) -> std::vector<ClockSizingBuffer>;
-auto InjectRouteTrees(const Design& design, FastSTA& fast_sta, FastStaClockId clock_id, const Clock& clock,
-                      const ClockSizingRouteTreeCache& route_tree_by_net) -> bool;
+auto CollectClockSizingBuffers(const Design& design, const FastSTA& fast_sta, FastStaClockId clock_id, const std::vector<ClockSizingBufferMaster>& master_infos)
+    -> std::vector<ClockSizingBuffer>;
+auto InjectRouteTrees(const Design& design, FastSTA& fast_sta, FastStaClockId clock_id, const Clock& clock, const ClockSizingRouteTreeCache& route_tree_by_net)
+    -> bool;
 auto ResolveClockTargetSkewNs(const Config& config) -> double;
 
 }  // namespace icts::clock_sizing_optimization

@@ -73,8 +73,8 @@ class HTreeTopologyChar
 
   auto withPatternId(PatternId pattern_id) const -> HTreeTopologyChar
   {
-    CharCore core(get_input_slew_idx(), get_output_slew_idx(), get_driven_cap_idx(), get_load_cap_idx(), get_raw_delay(), get_raw_power(),
-                  pattern_id, get_source_boundary_net_switch_power());
+    CharCore core(get_input_slew_idx(), get_output_slew_idx(), get_driven_cap_idx(), get_load_cap_idx(), get_raw_delay(), get_raw_power(), pattern_id,
+                  get_source_boundary_net_switch_power());
     HTreeTopologyChar result(std::move(core), _levels);
     result.set_root_driver_compensation(_root_driver_delay_ns, _root_driver_power_w);
     return result;
@@ -100,8 +100,7 @@ class HTreeTopologyChar
    * @param downstream Downstream H-tree (closer to leaves)
    * @param merged_topo_pid Pattern ID for the composed topology
    */
-  static auto compose(const HTreeTopologyChar& upstream, const HTreeTopologyChar& downstream, PatternId merged_topo_pid)
-      -> HTreeTopologyChar
+  static auto compose(const HTreeTopologyChar& upstream, const HTreeTopologyChar& downstream, PatternId merged_topo_pid) -> HTreeTopologyChar
   {
     CharCore merged_core(upstream.get_input_slew_idx(),                          // input from upstream
                          downstream.get_output_slew_idx(),                       // output from downstream
@@ -109,8 +108,8 @@ class HTreeTopologyChar
                          downstream.get_load_cap_idx(),                          // load_cap from downstream
                          upstream.get_raw_delay() + downstream.get_raw_delay(),  // additive delay
                          // Binary fan-out: downstream source-boundary switching is owned by the upstream branch point.
-                         upstream.get_raw_power() + 2.0 * (downstream.get_raw_power() - downstream.get_source_boundary_net_switch_power()),
-                         merged_topo_pid, upstream.get_source_boundary_net_switch_power());
+                         upstream.get_raw_power() + 2.0 * (downstream.get_raw_power() - downstream.get_source_boundary_net_switch_power()), merged_topo_pid,
+                         upstream.get_source_boundary_net_switch_power());
     return HTreeTopologyChar(std::move(merged_core), upstream._levels + downstream._levels);
   }
 

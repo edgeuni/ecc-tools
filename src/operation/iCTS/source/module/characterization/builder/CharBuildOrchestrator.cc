@@ -50,6 +50,7 @@ auto calcRatio(std::size_t numerator, std::size_t denominator) -> double
 
 auto CharBuildOrchestrator::build() -> void
 {
+  _impl._build_failure_reason.clear();
   _impl._executed_sta_samples = 0U;
   _impl._skipped_sta_samples = 0U;
   _impl._output_slew_overflow_samples = 0U;
@@ -69,8 +70,8 @@ auto CharBuildOrchestrator::build() -> void
     return;
   }
   if (_impl._slews_to_test.empty() || _impl._loads_to_test.empty()) {
-    CTSLOG.warn(Loc::current(), "CharBuilder: characterization limits are unresolved", " (max_slew=", _impl._max_slew,
-                " ns, max_cap=", _impl._max_cap, " pF), skip characterization build");
+    CTSLOG.warn(Loc::current(), "CharBuilder: characterization limits are unresolved", " (max_slew=", _impl._max_slew, " ns, max_cap=", _impl._max_cap,
+                " pF), skip characterization build");
     return;
   }
 
@@ -78,8 +79,7 @@ auto CharBuildOrchestrator::build() -> void
     const unsigned length_idx = _impl._wirelength_indices.at(wirelength_index);
     const double wirelength_um = _impl._wirelengths_um.at(wirelength_index);
     const std::size_t estimated_patterns_per_wirelength = _impl.patternEnumerator().estimatePatternCountPerWirelength(wirelength_um);
-    const std::size_t estimated_sta_samples_per_wirelength
-        = estimated_patterns_per_wirelength * _impl._loads_to_test.size() * _impl._slews_to_test.size();
+    const std::size_t estimated_sta_samples_per_wirelength = estimated_patterns_per_wirelength * _impl._loads_to_test.size() * _impl._slews_to_test.size();
     BuildProgress build_progress;
     build_progress.wirelength_um = wirelength_um;
     build_progress.estimated_patterns = estimated_patterns_per_wirelength;

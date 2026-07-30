@@ -112,8 +112,7 @@ auto ValidateClusteredSinkConnectivity(const std::vector<icts::Pin*>& sinks, con
   return validation;
 }
 
-auto ValidateClusterBufferMastersFollowLeafSemantics(const icts::Topology::Build& result, const std::string& min_cluster_master)
-    -> TopologyValidationResult
+auto ValidateClusterBufferMastersFollowLeafSemantics(const icts::Topology::Build& result, const std::string& min_cluster_master) -> TopologyValidationResult
 {
   TopologyValidationResult validation;
   if (!result.output.cluster_output.has_value()) {

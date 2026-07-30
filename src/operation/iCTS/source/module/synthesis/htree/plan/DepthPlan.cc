@@ -15,7 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file DepthSearch.cc
+ * @file DepthPlan.cc
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-04-24
  * @brief H-tree topology depth search and global frontier pool construction.
@@ -40,9 +40,8 @@ namespace icts::htree {
 
 auto EvaluateTopologyDepthCandidate(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans, unsigned depth,
                                     const SegmentFrontierCatalog& segment_frontier_catalog, BufferPatternLibrary& segment_pattern_library,
-                                    const BoundaryConstraints& base_boundary_constraints,
-                                    SinkLoadRegionLegalityContext& sink_load_region_legality_context, unsigned char_slew_steps,
-                                    RootDriverCompensationPass& compensation_pass, const HTreeFanoutPruningConfig& fanout_config)
+                                    const BoundaryConstraints& base_boundary_constraints, SinkLoadRegionLegalityContext& sink_load_region_legality_context,
+                                    unsigned char_slew_steps, RootDriverCompensationPass& compensation_pass, const HTreeFanoutPruningConfig& fanout_config)
     -> DepthCandidateBuild
 {
   auto candidate_levels = MakeCandidateLevelPlans(full_level_plans, depth);
@@ -51,9 +50,8 @@ auto EvaluateTopologyDepthCandidate(const Tree& topology, const std::vector<HTre
 
   DepthCandidateBuild candidate_result;
   candidate_result.leaf_count = leaf_count;
-  candidate_result.evaluation
-      = EvaluateCandidateBuild(candidate_levels, segment_frontier_catalog, segment_pattern_library, candidate_constraints, topology,
-                               sink_load_region_legality_context, leaf_count, depth, char_slew_steps, compensation_pass, fanout_config);
+  candidate_result.evaluation = EvaluateCandidateBuild(candidate_levels, segment_frontier_catalog, segment_pattern_library, candidate_constraints, topology,
+                                                       sink_load_region_legality_context, leaf_count, depth, char_slew_steps, compensation_pass, fanout_config);
   return candidate_result;
 }
 
@@ -82,9 +80,8 @@ auto RecordTopologyDepthCandidateBuild(unsigned depth, bool used_explicit_target
   });
 }
 
-auto AppendGlobalCandidateRefs(std::size_t candidate_index, const CandidateBuildEvaluation& evaluation,
-                               std::vector<CandidateCharRef>& global_feasible_pool, std::vector<CandidateCharRef>& global_candidate_pool)
-    -> void
+auto AppendGlobalCandidateRefs(std::size_t candidate_index, const CandidateBuildEvaluation& evaluation, std::vector<CandidateCharRef>& global_feasible_pool,
+                               std::vector<CandidateCharRef>& global_candidate_pool) -> void
 {
   for (const auto& entry : evaluation.feasible_frontier_entries) {
     global_feasible_pool.push_back(CandidateCharRef{
@@ -106,13 +103,11 @@ auto AppendGlobalCandidateRefs(std::size_t candidate_index, const CandidateBuild
   }
 }
 
-auto SearchTopologyDepthCandidates(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans,
-                                   const std::vector<unsigned>& depth_candidates, const SegmentFrontierCatalog& segment_frontier_catalog,
-                                   BufferPatternLibrary& segment_pattern_library, const BoundaryConstraints& base_boundary_constraints,
-                                   const UniformValueLattice& cap_lattice, unsigned char_slew_steps, bool used_explicit_target_depth,
-                                   const RootDriverCompensationInput& compensation_input,
-                                   const SinkLoadRegionLegalityInput& sink_load_region_input, const HTreeFanoutPruningConfig& fanout_config)
-    -> DepthSearchBuild
+auto SearchTopologyDepthCandidates(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans, const std::vector<unsigned>& depth_candidates,
+                                   const SegmentFrontierCatalog& segment_frontier_catalog, BufferPatternLibrary& segment_pattern_library,
+                                   const BoundaryConstraints& base_boundary_constraints, const UniformValueLattice& cap_lattice, unsigned char_slew_steps,
+                                   bool used_explicit_target_depth, const RootDriverCompensationInput& compensation_input,
+                                   const SinkLoadRegionLegalityInput& sink_load_region_input, const HTreeFanoutPruningConfig& fanout_config) -> DepthSearchBuild
 {
   DepthSearchBuild exploration;
   exploration.output.candidate_evaluations.reserve(depth_candidates.size());
@@ -127,21 +122,19 @@ auto SearchTopologyDepthCandidates(const Tree& topology, const std::vector<HTree
   RootDriverCompensationPass compensation_pass(compensation_input);
 
   for (const unsigned depth : depth_candidates) {
-    auto candidate_result = EvaluateTopologyDepthCandidate(
-        topology, full_level_plans, depth, segment_frontier_catalog, segment_pattern_library, base_boundary_constraints,
-        exploration.output.sink_load_region_legality_context, char_slew_steps, compensation_pass, fanout_config);
+    auto candidate_result
+        = EvaluateTopologyDepthCandidate(topology, full_level_plans, depth, segment_frontier_catalog, segment_pattern_library, base_boundary_constraints,
+                                         exploration.output.sink_load_region_legality_context, char_slew_steps, compensation_pass, fanout_config);
     RecordTopologyDepthCandidateBuild(depth, used_explicit_target_depth, candidate_result, exploration.summary.depth_summaries);
     ReduceCandidateBuildEvaluationForGlobalSelection(candidate_result.evaluation, topology, segment_pattern_library,
-                                                     exploration.output.sink_load_region_legality_context,
-                                                     fanout_config.allow_boundary_relaxation);
+                                                     exploration.output.sink_load_region_legality_context, fanout_config.allow_boundary_relaxation);
     exploration.output.candidate_evaluations.push_back(std::move(candidate_result.evaluation));
     const auto candidate_index = exploration.output.candidate_evaluations.size() - 1U;
     AppendGlobalCandidateRefs(candidate_index, exploration.output.candidate_evaluations.back(), exploration.output.global_feasible_pool,
                               exploration.output.global_candidate_pool);
   }
   exploration.summary.root_driver_compensation_stats = compensation_pass.get_stats();
-  exploration.summary.first_monotone_hard_fail_reason
-      = exploration.output.sink_load_region_legality_context.first_monotone_hard_fail_reason;
+  exploration.summary.first_monotone_hard_fail_reason = exploration.output.sink_load_region_legality_context.first_monotone_hard_fail_reason;
 
   return exploration;
 }

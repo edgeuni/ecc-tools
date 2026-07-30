@@ -131,9 +131,8 @@ auto ReconnectExistingNet(const TopologyNetConnectionInput& input) -> void
   ConnectNet(input);
 }
 
-auto CreateBufferInstance(Topology::Build& result, const std::string& inst_name, const std::string& cell_master,
-                          const std::string& input_pin_name, const std::string& output_pin_name, const Point<int>& location)
-    -> BufferCreation
+auto CreateBufferInstance(Topology::Build& result, const std::string& inst_name, const std::string& cell_master, const std::string& input_pin_name,
+                          const std::string& output_pin_name, const Point<int>& location) -> BufferCreation
 {
   auto inst = std::make_unique<Inst>(inst_name, cell_master, InstType::kBuffer, location);
   auto* inst_ptr = inst.get();

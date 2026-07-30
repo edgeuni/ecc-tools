@@ -1,4 +1,4 @@
-add_library(icts_source_module_output_visualization_svg ${ICTS_MODULE_OUTPUT_VISUALIZATION_SVG}/SvgVisualization.cc)
+add_library(icts_source_module_output_visualization_svg ${ICTS_MODULE_OUTPUT_VISUALIZATION_SVG}/SVGVisualization.cc)
 
 target_link_libraries(
   icts_source_module_output_visualization_svg

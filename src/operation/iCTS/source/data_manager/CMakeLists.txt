@@ -24,7 +24,7 @@ target_sources(
   icts_source_data_manager
   PUBLIC
   ${ICTS_DATA_MANAGER}/DataManager.hh
-  ${ICTS_DATA_MANAGER}/result/StageResult.hh
+  ${ICTS_DATA_MANAGER}/stage/StageSummary.hh
 )
 
 target_include_directories(

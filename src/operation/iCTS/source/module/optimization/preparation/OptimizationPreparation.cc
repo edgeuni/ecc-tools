@@ -35,7 +35,7 @@
 #include <utility>
 #include <vector>
 
-#include "FastSta.hh"
+#include "FastSTA.hh"
 #include "Logger.hh"
 #include "Point.hh"
 #include "SteinerTree.hh"
@@ -116,10 +116,10 @@ auto CopyOuterProfile(ClockSizingRuntimeProfile& destination, const ClockSizingR
 
 namespace {
 
-auto ResolveOutputCapLimit(Wrapper& wrapper, const std::string& cell_master) -> double
+auto ResolveOutputCapLimit(Wrapper& wrapper, const std::string& cell_master) -> std::optional<double>
 {
-  double max_cap_pf = wrapper.queryCellOutPinCapLimit(cell_master);
-  if (max_cap_pf <= 0.0) {
+  auto max_cap_pf = wrapper.queryCellOutPinCapLimit(cell_master);
+  if (!max_cap_pf.has_value()) {
     max_cap_pf = wrapper.queryCellOutPinCapTableAxisMax(cell_master);
   }
   return max_cap_pf;
@@ -127,7 +127,7 @@ auto ResolveOutputCapLimit(Wrapper& wrapper, const std::string& cell_master) -> 
 
 }  // namespace
 
-auto CollectClockSizingBufferMasters(const ClockSizingMasterQueryInput& input) -> std::vector<ClockSizingBufferMaster>
+auto CollectClockSizingBufferMasters(const ClockSizingMasterQueryInput& input) -> ClockSizingMasterCollection
 {
   if (input.wrapper == nullptr) {
     CTSLOG.error(Loc::current(), "Optimization: buffer master query requires Wrapper.");
@@ -136,22 +136,23 @@ auto CollectClockSizingBufferMasters(const ClockSizingMasterQueryInput& input) -
     CTSLOG.error(Loc::current(), "Optimization: buffer master query requires candidate masters.");
   }
   auto& wrapper = *input.wrapper;
-  std::vector<ClockSizingBufferMaster> infos;
+  ClockSizingMasterCollection collection;
+  collection.configured_candidate_count = input.buffer_cell_masters->size();
+  auto& infos = collection.masters;
   infos.reserve(input.buffer_cell_masters->size());
   for (const auto& cell_master : *input.buffer_cell_masters) {
     if (cell_master.empty()) {
       continue;
     }
-    const double output_cap_limit_pf = ResolveOutputCapLimit(wrapper, cell_master);
-    const double input_cap_pf = wrapper.queryCharInputPinCap(cell_master);
-    if (output_cap_limit_pf <= 0.0 || input_cap_pf <= 0.0) {
+    const auto output_cap_limit_pf = ResolveOutputCapLimit(wrapper, cell_master);
+    const auto input_cap_pf = wrapper.queryCharInputPinCap(cell_master);
+    const auto area_um2 = wrapper.queryCellAreaUm2(cell_master);
+    if (!output_cap_limit_pf.has_value() || !input_cap_pf.has_value() || !area_um2.has_value()) {
+      ++collection.unavailable_candidate_count;
       continue;
     }
-    infos.push_back(ClockSizingBufferMaster{.cell_master = cell_master,
-                                            .input_cap_pf = input_cap_pf,
-                                            .output_cap_limit_pf = output_cap_limit_pf,
-                                            .area_um2 = std::max(0.0, wrapper.queryCellAreaUm2(cell_master)),
-                                            .drive_rank = 0U});
+    infos.push_back(ClockSizingBufferMaster{
+        .cell_master = cell_master, .input_cap_pf = *input_cap_pf, .output_cap_limit_pf = *output_cap_limit_pf, .area_um2 = *area_um2, .drive_rank = 0U});
   }
 
   std::ranges::sort(infos, [](const ClockSizingBufferMaster& lhs, const ClockSizingBufferMaster& rhs) -> bool {
@@ -166,7 +167,7 @@ auto CollectClockSizingBufferMasters(const ClockSizingMasterQueryInput& input) -
   for (std::size_t index = 0U; index < infos.size(); ++index) {
     infos.at(index).drive_rank = static_cast<unsigned>(index);
   }
-  return infos;
+  return collection;
 }
 
 auto BuildClockSizingRouteTrees(const Design& design, const std::vector<Clock*>& clocks) -> ClockSizingRouteTreeCache
@@ -191,11 +192,9 @@ auto BuildClockSizingRouteTrees(const Design& design, const std::vector<Clock*>&
   return route_tree_by_net;
 }
 
-auto FindMasterInfo(const std::vector<ClockSizingBufferMaster>& master_infos, std::string_view cell_master)
-    -> const ClockSizingBufferMaster*
+auto FindMasterInfo(const std::vector<ClockSizingBufferMaster>& master_infos, std::string_view cell_master) -> const ClockSizingBufferMaster*
 {
-  const auto iter = std::ranges::find_if(
-      master_infos, [cell_master](const ClockSizingBufferMaster& info) -> bool { return info.cell_master == cell_master; });
+  const auto iter = std::ranges::find_if(master_infos, [cell_master](const ClockSizingBufferMaster& info) -> bool { return info.cell_master == cell_master; });
   return iter == master_infos.end() ? nullptr : &(*iter);
 }
 
@@ -235,8 +234,8 @@ auto CollectClockSizingSlewLimits(const FastSTA& fast_sta, FastStaClockId clock_
   return baseline;
 }
 
-auto CollectClockSizingBuffers(const Design& design, const FastSTA& fast_sta, FastStaClockId clock_id,
-                               const std::vector<ClockSizingBufferMaster>& master_infos) -> std::vector<ClockSizingBuffer>
+auto CollectClockSizingBuffers(const Design& design, const FastSTA& fast_sta, FastStaClockId clock_id, const std::vector<ClockSizingBufferMaster>& master_infos)
+    -> std::vector<ClockSizingBuffer>
 {
   std::vector<ClockSizingBuffer> buffers;
   if (master_infos.empty()) {
@@ -258,8 +257,8 @@ auto CollectClockSizingBuffers(const Design& design, const FastSTA& fast_sta, Fa
   return buffers;
 }
 
-auto InjectRouteTrees(const Design& design, FastSTA& fast_sta, FastStaClockId clock_id, const Clock& clock,
-                      const ClockSizingRouteTreeCache& route_tree_by_net) -> bool
+auto InjectRouteTrees(const Design& design, FastSTA& fast_sta, FastStaClockId clock_id, const Clock& clock, const ClockSizingRouteTreeCache& route_tree_by_net)
+    -> bool
 {
   const auto* graph = design.get_clock_dag().graphForClock(&clock);
   if (graph == nullptr) {

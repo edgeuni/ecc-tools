@@ -37,7 +37,7 @@
 #include "design/Pin.hh"
 #include "geometry/Geometry.hh"
 #include "io/Wrapper.hh"
-#include "result/StageResult.hh"
+#include "stage/StageSummary.hh"
 #include "synthesis/distribution/ClockDistribution.hh"
 #include "synthesis/realization/ClockTreeRealization.hh"
 #include "synthesis/topology/SourceTrunkStage.hh"
@@ -84,8 +84,7 @@ auto sourceTrunkSynthesisPhase(SourceTrunkStage stage) -> ClockLayoutPhase
   return ClockLayoutPhase::kUnknown;
 }
 
-auto makeLogContext(const Clock& clock, const std::string& sink_domain, const std::string& stage, const std::string& object_name_prefix)
-    -> HTree::LogContext
+auto makeLogContext(const Clock& clock, const std::string& sink_domain, const std::string& stage, const std::string& object_name_prefix) -> HTree::LogContext
 {
   return HTree::LogContext{
       .clock_name = clock.get_clock_name(),
@@ -114,7 +113,7 @@ auto collectRootInputs(const std::vector<ClockDistributionContext>& sink_domains
   return root_inputs;
 }
 
-auto collectSourceTrunkLengthsUm(Wrapper& wrapper, Pin* clock_source, const std::vector<Pin*>& root_inputs) -> std::vector<double>
+auto collectSourceTrunkLengthsUm(Wrapper& wrapper, Pin* clock_source, const std::vector<Pin*>& root_inputs) -> std::optional<std::vector<double>>
 {
   std::vector<double> lengths_um;
   if (clock_source == nullptr || root_inputs.empty()) {
@@ -122,10 +121,10 @@ auto collectSourceTrunkLengthsUm(Wrapper& wrapper, Pin* clock_source, const std:
   }
 
   const auto dbu_per_um_value = wrapper.queryDbUnit();
-  if (dbu_per_um_value <= 0) {
-    CTSLOG.error(Loc::current(), "Topology: DBU-per-micron is unavailable for characterization length estimation.");
+  if (!dbu_per_um_value.has_value()) {
+    return std::nullopt;
   }
-  const auto dbu_per_um = static_cast<double>(dbu_per_um_value);
+  const auto dbu_per_um = static_cast<double>(*dbu_per_um_value);
   lengths_um.reserve(root_inputs.size());
   for (const auto* root_input : root_inputs) {
     if (root_input == nullptr) {
@@ -163,8 +162,12 @@ class ClockTopologySynthesis
   {
     auto root_inputs = collectRootInputs(*_sink_domains);
     const auto source_trunk_lengths_um = collectSourceTrunkLengthsUm(*_wrapper, _clock->get_clock_source(), root_inputs);
+    if (!source_trunk_lengths_um.has_value()) {
+      CTSLOG.warn(Loc::current(), "Topology: DBU-per-micron is unavailable for clock \"", _clock->get_clock_name(), "\".");
+      return false;
+    }
     for (const auto& context : *_sink_domains) {
-      if (!buildAndCommitSinkDomain(context, source_trunk_lengths_um)) {
+      if (!buildAndCommitSinkDomain(context, *source_trunk_lengths_um)) {
         return false;
       }
     }
@@ -226,16 +229,14 @@ class ClockTopologySynthesis
     std::string failure_reason;
     auto synthesis_build = Topology::build(synthesis_input, synthesis_config);
     if (!synthesis_build.summary.success) {
-      failure_reason
-          = synthesis_build.summary.failure_reason.empty() ? "sink-domain synthesis failed" : synthesis_build.summary.failure_reason;
+      failure_reason = synthesis_build.summary.failure_reason.empty() ? "sink-domain synthesis failed" : synthesis_build.summary.failure_reason;
     } else {
       (void) commitSinkDomainBuild(context, synthesis_build, failure_reason);
     }
 
     if (!failure_reason.empty()) {
       _status_recorder->append(*_clock, DomainStatus::kFailed, context.sink_domain, _valid_sinks, context.sinks.size(), failure_reason);
-      CTSLOG.warn(Loc::current(), "Topology: clock \"", _clock->get_clock_name(), "\" sink domain ", sink_domain_label,
-                  " failed: ", failure_reason);
+      CTSLOG.warn(Loc::current(), "Topology: clock \"", _clock->get_clock_name(), "\" sink domain ", sink_domain_label, " failed: ", failure_reason);
       Topology::resetClockTopology(*_design, *_clock);
       return false;
     }
@@ -255,10 +256,8 @@ class ClockTopologySynthesis
       _clock->set_clock_source_net(clock_source_net);
     }
     if (clock_source == nullptr || clock_source_net == nullptr) {
-      _status_recorder->append(*_clock, DomainStatus::kFailed, source_trunk_domain, _valid_sinks, root_inputs.size(),
-                               "missing clock source or source net");
-      CTSLOG.warn(Loc::current(), "Topology: clock \"", _clock->get_clock_name(),
-                  "\" source trunk formation failed because the source pin or net is missing.");
+      _status_recorder->append(*_clock, DomainStatus::kFailed, source_trunk_domain, _valid_sinks, root_inputs.size(), "missing clock source or source net");
+      CTSLOG.warn(Loc::current(), "Topology: clock \"", _clock->get_clock_name(), "\" source trunk formation failed because the source pin or net is missing.");
       Topology::resetClockTopology(*_design, *_clock);
       return false;
     }
@@ -289,8 +288,7 @@ class ClockTopologySynthesis
       return false;
     }
 
-    auto pending_clock_layout
-        = ClockLayoutBuilder::makeSourceToRootLayout(*_clock, _clock_index, *clock_source_net, source_trunk_build, source_trunk_phase);
+    auto pending_clock_layout = ClockLayoutBuilder::makeSourceToRootLayout(*_clock, _clock_index, *clock_source_net, source_trunk_build, source_trunk_phase);
     if (!ClockTreeRealization::commitInsertedObjects(InsertedObjectCommitInput{
             .design = _design,
             .clock = _clock,
@@ -298,10 +296,8 @@ class ClockTopologySynthesis
             .inserted_pins = &source_trunk_build.output.inserted_pins,
             .inserted_nets = &source_trunk_build.output.inserted_nets,
         })) {
-      _status_recorder->append(*_clock, DomainStatus::kFailed, source_trunk_domain, _valid_sinks, root_inputs.size(),
-                               "failed to commit source trunk objects");
-      CTSLOG.warn(Loc::current(), "Topology: clock \"", _clock->get_clock_name(),
-                  "\" source trunk formation failed while committing inserted objects.");
+      _status_recorder->append(*_clock, DomainStatus::kFailed, source_trunk_domain, _valid_sinks, root_inputs.size(), "failed to commit source trunk objects");
+      CTSLOG.warn(Loc::current(), "Topology: clock \"", _clock->get_clock_name(), "\" source trunk formation failed while committing inserted objects.");
       Topology::resetClockTopology(*_design, *_clock);
       return false;
     }

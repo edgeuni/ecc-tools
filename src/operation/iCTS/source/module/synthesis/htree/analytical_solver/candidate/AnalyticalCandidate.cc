@@ -72,9 +72,8 @@ auto PreferAnalyticalCandidate(const AnalyticalCandidate& lhs, const AnalyticalC
   return LexicographicalPatternIdLess(lhs.level_segment_pattern_ids, rhs.level_segment_pattern_ids);
 }
 
-auto BuildAnalyticalTopologyPattern(const std::vector<PatternId>& level_segment_pattern_ids,
-                                    const BufferPatternLibrary& segment_pattern_library, std::size_t max_fanout)
-    -> std::optional<TopologyPatternLibrary>
+auto BuildAnalyticalTopologyPattern(const std::vector<PatternId>& level_segment_pattern_ids, const BufferPatternLibrary& segment_pattern_library,
+                                    std::size_t max_fanout) -> std::optional<TopologyPatternLibrary>
 {
   TopologyPatternLibrary library;
   if (level_segment_pattern_ids.empty()) {
@@ -89,8 +88,7 @@ auto BuildAnalyticalTopologyPattern(const std::vector<PatternId>& level_segment_
   for (std::size_t reverse_index = level_segment_pattern_ids.size() - 1U; reverse_index > 0U; --reverse_index) {
     const PatternId upstream_topology_id = PatternId::topology(next_pattern_id++);
     const PatternId upstream_segment_id = level_segment_pattern_ids.at(reverse_index - 1U);
-    BuildSeedTopologyPattern(library, upstream_topology_id, upstream_segment_id,
-                             segment_pattern_library.getCompositionState(upstream_segment_id));
+    BuildSeedTopologyPattern(library, upstream_topology_id, upstream_segment_id, segment_pattern_library.getCompositionState(upstream_segment_id));
 
     TopologyPatternLibraryCombiner combiner(library, next_pattern_id, max_fanout);
     if (!combiner.canCompose(upstream_topology_id, current_pattern_id)) {
@@ -119,8 +117,7 @@ auto MaterializeAnalyticalTopologyChar(const AnalyticalCandidate& candidate, con
 
   const PatternId topology_pattern_id = PatternId::topology(
       candidate.topology_pattern_library.nodes.empty() ? 0U : static_cast<unsigned>(candidate.topology_pattern_library.nodes.size() - 1U));
-  CharCore core(*input_slew_idx, *output_slew_idx, *driven_cap_idx, *load_cap_idx, candidate.raw_delay_ns, candidate.raw_power_w,
-                topology_pattern_id, 0.0);
+  CharCore core(*input_slew_idx, *output_slew_idx, *driven_cap_idx, *load_cap_idx, candidate.raw_delay_ns, candidate.raw_power_w, topology_pattern_id, 0.0);
   return HTreeTopologyChar(std::move(core), candidate.depth);
 }
 

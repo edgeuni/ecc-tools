@@ -82,13 +82,18 @@ auto ResolveRootDriverCellMaster(PatternId topology_pattern_id, const TopologyPa
   return default_cell_master;
 }
 
-auto MakeRootDriverCompensationDetail(const Wrapper::RootDriverCost& cost, double input_slew_ns,
-                                      const RootClosureLoadEstimate& load_estimate, double clock_period_ns,
-                                      const UniformValueLattice& slew_lattice) -> RootDriverCompensationDetail
+auto MakeRootDriverCompensationDetail(const Wrapper::RootDriverCost& cost, double input_slew_ns, const RootClosureLoadEstimate& load_estimate,
+                                      double clock_period_ns, const UniformValueLattice& slew_lattice) -> RootDriverCompensationDetail
 {
   RootDriverCompensationDetail detail;
   detail.enabled = true;
-  detail.valid = cost.valid;
+  detail.valid = cost.valid && cost.power_available;
+  detail.power_available = cost.power_available;
+  if (!cost.valid) {
+    detail.failure_reason = "root_driver_timing_unavailable:" + cost.cell_master;
+  } else if (!cost.power_available) {
+    detail.failure_reason = "root_driver_power_unavailable:" + cost.cell_master;
+  }
   detail.method = kRootDriverCompensationMethod;
   detail.cell_master = cost.cell_master;
   detail.load_source = load_estimate.source;
@@ -113,8 +118,8 @@ auto MakeRootDriverCompensationDetail(const Wrapper::RootDriverCost& cost, doubl
   return detail;
 }
 
-auto QueryRootDriverCompensation(const RootDriverCompensationCacheKey& key, const RootClosureLoadEstimate& load_estimate,
-                                 RootDriverCompensationState& state) -> RootDriverCompensationDetail
+auto QueryRootDriverCompensation(const RootDriverCompensationCacheKey& key, const RootClosureLoadEstimate& load_estimate, RootDriverCompensationState& state)
+    -> RootDriverCompensationDetail
 {
   auto& stats = state.stats;
   const auto cache_it = state.cost_by_key.find(key);
@@ -139,12 +144,20 @@ auto QueryRootDriverCompensation(const RootDriverCompensationCacheKey& key, cons
   if (state.input.wrapper == nullptr) {
     CTSLOG.error(Loc::current(), "HTree: Wrapper is unavailable for root-driver compensation.");
   }
-  const auto cost
-      = state.input.wrapper->queryRootDriverCostDirect(key.cell_master, key.input_slew_ns, key.load_cap_pf, key.clock_period_ns);
+  const auto cost = state.input.wrapper->queryRootDriverCostDirect(key.cell_master, key.input_slew_ns, key.load_cap_pf, key.clock_period_ns);
   stats.total_runtime_ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - lookup_start).count();
   ++stats.unique_direct_lookup_count;
-  auto compensation
-      = MakeRootDriverCompensationDetail(cost, key.input_slew_ns, load_estimate, key.clock_period_ns, state.input.slew_lattice);
+  RootDriverCompensationDetail compensation;
+  if (!cost.valid || !cost.power_available) {
+    compensation.enabled = true;
+    compensation.failure_reason = !cost.valid ? "root_driver_timing_unavailable:" + key.cell_master : "root_driver_power_unavailable:" + key.cell_master;
+    compensation.power_available = cost.power_available;
+    compensation.cell_master = key.cell_master;
+    compensation.load_source = load_estimate.source;
+    compensation.route_estimator = load_estimate.route_estimator;
+  } else {
+    compensation = MakeRootDriverCompensationDetail(cost, key.input_slew_ns, load_estimate, key.clock_period_ns, state.input.slew_lattice);
+  }
   return state.cost_by_key.emplace(key, std::move(compensation)).first->second;
 }
 
@@ -174,24 +187,24 @@ auto CompensationInputIsValid(RootDriverCompensationState& state) -> bool
   return false;
 }
 
-auto EvaluateRootDriverCompensation(PatternId pattern_id, const TopologyPatternLibrary& topology_library,
-                                    const BufferPatternLibrary& segment_pattern_library, const Tree& topology,
-                                    RootDriverCompensationState& compensation_state) -> RootDriverCompensationDetail
+auto EvaluateRootDriverCompensation(PatternId pattern_id, const TopologyPatternLibrary& topology_library, const BufferPatternLibrary& segment_pattern_library,
+                                    const Tree& topology, RootDriverCompensationState& compensation_state) -> RootDriverCompensationDetail
 {
   if (!compensation_state.input.enabled || !CompensationInputIsValid(compensation_state)) {
     return {};
   }
 
-  const auto cell_master
-      = ResolveRootDriverCellMaster(pattern_id, topology_library, segment_pattern_library, compensation_state.input.default_cell_master);
+  const auto cell_master = ResolveRootDriverCellMaster(pattern_id, topology_library, segment_pattern_library, compensation_state.input.default_cell_master);
   if (cell_master.empty()) {
     return {};
   }
 
-  const auto load_estimate
-      = QueryRootClosureLoadEstimate(pattern_id, topology_library, segment_pattern_library, topology, compensation_state);
+  const auto load_estimate = QueryRootClosureLoadEstimate(pattern_id, topology_library, segment_pattern_library, topology, compensation_state);
   if (!load_estimate.valid) {
-    return {};
+    RootDriverCompensationDetail detail;
+    detail.enabled = true;
+    detail.failure_reason = load_estimate.failure_reason.empty() ? "root_closure_load_unavailable" : load_estimate.failure_reason;
+    return detail;
   }
 
   const RootDriverCompensationCacheKey key{
@@ -205,14 +218,13 @@ auto EvaluateRootDriverCompensation(PatternId pattern_id, const TopologyPatternL
 }
 
 auto CheckRootDriverBoundaryClosure(const HTreeTopologyChar& entry, const TopologyPatternLibrary& topology_library,
-                                    const BufferPatternLibrary& segment_pattern_library, const Tree& topology,
-                                    RootDriverCompensationState& compensation_state) -> RootDriverBoundaryClosureCheck
+                                    const BufferPatternLibrary& segment_pattern_library, const Tree& topology, RootDriverCompensationState& compensation_state)
+    -> RootDriverBoundaryClosureCheck
 {
-  auto compensation
-      = EvaluateRootDriverCompensation(entry.get_pattern_id(), topology_library, segment_pattern_library, topology, compensation_state);
+  auto compensation = EvaluateRootDriverCompensation(entry.get_pattern_id(), topology_library, segment_pattern_library, topology, compensation_state);
   RootDriverBoundaryClosureCheck check;
-  check.compensation_valid = compensation.enabled && compensation.valid && compensation.load_bucket_idx > 0U
-                             && compensation.source_boundary_bucket_idx > 0U && compensation.output_slew_bucket_idx > 0U;
+  check.compensation_valid = compensation.enabled && compensation.valid && compensation.load_bucket_idx > 0U && compensation.source_boundary_bucket_idx > 0U
+                             && compensation.output_slew_bucket_idx > 0U;
   check.raw_cap_bucket_idx = entry.get_driven_cap_idx();
   check.physical_load_bucket_idx = compensation.load_bucket_idx;
   check.physical_source_boundary_bucket_idx = compensation.source_boundary_bucket_idx;
@@ -243,12 +255,12 @@ auto ResolveRootDriverClockPeriod(const HTree::Input& input) -> std::pair<double
 }
 
 auto ApplyRootDriverCompensationSummary(htree::DiagnosticBuild& build, const RootDriverCompensationStats& compensation_stats,
-                                        const RootDriverCompensationDetail& compensation_detail, const HTreeTopologyChar& selected_entry)
-    -> void
+                                        const RootDriverCompensationDetail& compensation_detail, const HTreeTopologyChar& selected_entry) -> void
 {
   auto& report = build.diagnostics.root_driver_compensation;
   report.enabled = compensation_stats.enabled;
   report.valid = compensation_detail.valid;
+  report.power_available = compensation_detail.power_available;
   report.method = compensation_detail.method.empty() ? compensation_stats.method : compensation_detail.method;
   report.cell_master = compensation_detail.cell_master;
   report.load_source = compensation_detail.load_source.empty() ? compensation_stats.load_source : compensation_detail.load_source;
@@ -263,8 +275,7 @@ auto ApplyRootDriverCompensationSummary(htree::DiagnosticBuild& build, const Roo
   report.wire_cap_pf = compensation_detail.wire_cap_pf;
   report.routed_wirelength_um = compensation_detail.routed_wirelength_um;
   report.terminal_count = compensation_detail.terminal_count;
-  report.clock_period_ns
-      = compensation_detail.clock_period_ns > 0.0 ? compensation_detail.clock_period_ns : compensation_stats.clock_period_ns;
+  report.clock_period_ns = compensation_detail.clock_period_ns > 0.0 ? compensation_detail.clock_period_ns : compensation_stats.clock_period_ns;
   report.output_slew_ns = compensation_detail.output_slew_ns;
   report.output_slew_bucket_idx = compensation_detail.output_slew_bucket_idx;
   report.cell_delay_ns = compensation_detail.cell_delay_ns;
@@ -278,8 +289,7 @@ auto ApplyRootDriverCompensationSummary(htree::DiagnosticBuild& build, const Roo
 }
 
 auto ApplyRootDriverCompensationSummary(htree::DiagnosticBuild& build, const DepthSearchBuild& exploration,
-                                        const RootDriverCompensationDetail& compensation_detail, const HTreeTopologyChar& selected_entry)
-    -> void
+                                        const RootDriverCompensationDetail& compensation_detail, const HTreeTopologyChar& selected_entry) -> void
 {
   ApplyRootDriverCompensationSummary(build, exploration.summary.root_driver_compensation_stats, compensation_detail, selected_entry);
 }
@@ -325,8 +335,7 @@ auto RootDriverCompensationPass::beginCandidateBuild() -> void
 }
 
 auto RootDriverCompensationPass::apply(std::vector<HTreeTopologyChar>& entries, const TopologyPatternLibrary& topology_library,
-                                       const BufferPatternLibrary& segment_pattern_library, const Tree& topology)
-    -> RootDriverCompensationApplySummary
+                                       const BufferPatternLibrary& segment_pattern_library, const Tree& topology) -> RootDriverCompensationApplySummary
 {
   RootDriverCompensationApplySummary apply_result;
   auto& compensation_state = _impl->state;
@@ -357,6 +366,7 @@ auto RootDriverCompensationPass::apply(std::vector<HTreeTopologyChar>& entries, 
         }
         continue;
       }
+      continue;
     } else if (compensation_state.input.strict_boundary_closure) {
       if (!boundary_check.cap_bucket_matches) {
         ++compensation_state.stats.boundary_cap_bucket_mismatch_count;
@@ -392,8 +402,7 @@ auto RootDriverCompensationPass::apply(std::vector<HTreeTopologyChar>& entries, 
 }
 
 auto RootDriverCompensationPass::evaluate(PatternId pattern_id, const TopologyPatternLibrary& topology_library,
-                                          const BufferPatternLibrary& segment_pattern_library, const Tree& topology)
-    -> RootDriverCompensationDetail
+                                          const BufferPatternLibrary& segment_pattern_library, const Tree& topology) -> RootDriverCompensationDetail
 {
   auto& compensation_state = _impl->state;
   RefreshCompensationStats(compensation_state);

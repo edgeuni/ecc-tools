@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "ClockLayout.hh"
-#include "output/visualization/gds/writer/GdsStream.hh"
+#include "output/visualization/gds/writer/GDSStream.hh"
 
 namespace icts {
 struct DrawingInst;

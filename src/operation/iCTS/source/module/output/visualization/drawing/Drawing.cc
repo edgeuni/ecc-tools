@@ -111,8 +111,8 @@ auto appendViewInsts(const ClockLayout& clock_layout, Drawing& model) -> void
   }
 }
 
-auto appendDegradedRouteTreeSegments(const Clock& clock, std::size_t clock_index, const Net& net, LayoutNetRole role,
-                                     std::vector<DrawingSegment>& segments) -> bool
+auto appendDegradedRouteTreeSegments(const Clock& clock, std::size_t clock_index, const Net& net, LayoutNetRole role, std::vector<DrawingSegment>& segments)
+    -> bool
 {
   auto route_tree = Router::buildClockNetTree(net);
   if (route_tree.node_count() == 0U || route_tree.edge_count() == 0U) {
@@ -224,8 +224,7 @@ auto appendDegradedSegments(Design& design, Drawing& model) -> void
       if (!appendDegradedRouteTreeSegments(*clock, clock_index, *net, role, model.design_segments)) {
         const bool appended = appendDegradedPinSegments(*clock, clock_index, *net, role, ClockLayoutMode::kDesign, model.design_segments);
         if (appended) {
-          CTSLOG.warn(Loc::current(), "CTS visualization model: design view uses degraded driver-to-load segments for net ",
-                      net->get_name());
+          CTSLOG.warn(Loc::current(), "CTS visualization model: design view uses degraded driver-to-load segments for net ", net->get_name());
         }
       }
       (void) appendDegradedPinSegments(*clock, clock_index, *net, role, ClockLayoutMode::kFlyline, model.flyline_segments);
@@ -244,8 +243,7 @@ auto appendPinMarkers(Design& design, Drawing& model) -> void
       if (net == nullptr) {
         continue;
       }
-      if (const auto* driver = net->get_driver();
-          driver != nullptr && isValidLocation(driver->get_location()) && seen_pins.insert(driver).second) {
+      if (const auto* driver = net->get_driver(); driver != nullptr && isValidLocation(driver->get_location()) && seen_pins.insert(driver).second) {
         model.pins.push_back(DrawingPin{.location = driver->get_location(), .driver = true});
       }
       for (const auto* load : net->get_loads()) {

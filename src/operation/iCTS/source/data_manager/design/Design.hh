@@ -89,6 +89,7 @@ class Design
   std::vector<std::unique_ptr<Inst>> _insts;
   std::vector<std::unique_ptr<Pin>> _pins;
   std::vector<std::unique_ptr<Net>> _nets;
+  std::unordered_map<std::string, std::unordered_map<std::string, Clock*>> _clock_by_name_and_net;
   std::unordered_map<std::string, Inst*> _inst_by_name;
   std::unordered_map<const Inst*, std::string> _inst_name_by_inst;
   std::unordered_map<std::string, Pin*> _pin_by_full_name;

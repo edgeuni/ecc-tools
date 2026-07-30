@@ -15,7 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file CandidateSelection.hh
+ * @file TopologyPruning.hh
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-05-01
  * @brief H-tree pattern candidate assembly and global selection contracts.
@@ -112,25 +112,21 @@ struct GlobalSelectionDecision
 };
 
 auto EvaluateCandidateBuild(const std::vector<HTree::LevelPlan>& levels, const SegmentFrontierCatalog& segment_frontier_catalog,
-                            const BufferPatternLibrary& segment_pattern_library, const BoundaryConstraints& boundary_constraints,
-                            const Tree& topology, SinkLoadRegionLegalityContext& sink_load_region_legality_context, std::size_t leaf_count,
-                            unsigned depth, unsigned char_slew_steps, RootDriverCompensationPass& compensation_pass,
-                            const HTreeFanoutPruningConfig& fanout_config) -> CandidateBuildEvaluation;
-auto FilterGlobalEntriesBySinkLoadRegionCoverage(const std::vector<CandidateCharRef>& entries,
-                                                 const std::vector<CandidateBuildEvaluation>& evaluations, const Tree& topology,
-                                                 const BufferPatternLibrary& segment_pattern_library,
+                            const BufferPatternLibrary& segment_pattern_library, const BoundaryConstraints& boundary_constraints, const Tree& topology,
+                            SinkLoadRegionLegalityContext& sink_load_region_legality_context, std::size_t leaf_count, unsigned depth, unsigned char_slew_steps,
+                            RootDriverCompensationPass& compensation_pass, const HTreeFanoutPruningConfig& fanout_config) -> CandidateBuildEvaluation;
+auto FilterGlobalEntriesBySinkLoadRegionCoverage(const std::vector<CandidateCharRef>& entries, const std::vector<CandidateBuildEvaluation>& evaluations,
+                                                 const Tree& topology, const BufferPatternLibrary& segment_pattern_library,
                                                  SinkLoadRegionLegalityContext& legality_context) -> CandidateCharRefFilterBuild;
 auto ReduceCandidateBuildEvaluationForGlobalSelection(CandidateBuildEvaluation& evaluation, const Tree& topology,
-                                                      const BufferPatternLibrary& segment_pattern_library,
-                                                      SinkLoadRegionLegalityContext& legality_context, bool retain_relaxed_candidates)
-    -> void;
+                                                      const BufferPatternLibrary& segment_pattern_library, SinkLoadRegionLegalityContext& legality_context,
+                                                      bool retain_relaxed_candidates) -> void;
 auto BuildPerDepthDelayPowerParetoRefs(const std::vector<CandidateCharRef>& entries) -> std::vector<CandidateCharRef>;
 auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries, GlobalSelectionDecision* selection_decision = nullptr)
     -> std::optional<CandidateCharRef>;
 auto SelectAdaptiveGlobalEntry(const std::vector<CandidateCharRef>& entries, const std::vector<CandidateBuildEvaluation>& evaluations,
                                const BufferPatternLibrary& segment_pattern_library, GlobalSelectionDecision* selection_decision = nullptr)
     -> std::optional<CandidateCharRef>;
-auto CalcBoundaryRelaxationScore(const HTreeTopologyChar& entry, const BoundaryConstraints& boundary_constraints, unsigned slew_steps)
-    -> double;
+auto CalcBoundaryRelaxationScore(const HTreeTopologyChar& entry, const BoundaryConstraints& boundary_constraints, unsigned slew_steps) -> double;
 
 }  // namespace icts::htree

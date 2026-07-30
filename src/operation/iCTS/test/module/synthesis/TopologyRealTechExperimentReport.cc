@@ -36,21 +36,21 @@
 #include "Pin.hh"
 #include "TopologyRealTechScenario.hh"
 #include "Tree.hh"
-#include "common/io/TestArtifactIO.hh"
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
 #include "data_manager/design/Net.hh"
 #include "data_manager/io/Wrapper.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "synthesis/topology/Topology.hh"
+#include "toolkit/io/TestArtifactIO.hh"
 
 namespace icts_test::synthesis_realtech_smoke {
 namespace {
 
-auto ResolveBufferDriveCap(const std::string& cell_master) -> double
+auto ResolveBufferDriveCap(const std::string& cell_master) -> std::optional<double>
 {
-  double drive_cap_pf = CTSDM.getWrapper().queryCellOutPinCapLimit(cell_master);
-  if (drive_cap_pf <= 0.0) {
+  auto drive_cap_pf = CTSDM.getWrapper().queryCellOutPinCapLimit(cell_master);
+  if (!drive_cap_pf.has_value()) {
     drive_cap_pf = CTSDM.getWrapper().queryCellOutPinCapTableAxisMax(cell_master);
   }
   return drive_cap_pf;
@@ -77,10 +77,9 @@ auto FormatTopologyExperimentReport(std::string_view scenario_name, const RealCl
   report_stream << "columns=iter,step,runtime_s,success,selected_depth,best_pattern_id,best_delay_ns,best_power_w,"
                    "used_boundary_relaxation,failure_reason\n";
   for (const auto& record : records) {
-    report_stream << record.wirelength_iterations << "," << record.slew_cap_steps << "," << record.runtime_s << ","
-                  << (record.success ? "true" : "false") << "," << record.selected_depth << "," << record.best_pattern_id << ","
-                  << record.best_delay_ns << "," << record.best_power_w << "," << (record.used_boundary_relaxation ? "true" : "false")
-                  << "," << record.failure_reason << "\n";
+    report_stream << record.wirelength_iterations << "," << record.slew_cap_steps << "," << record.runtime_s << "," << (record.success ? "true" : "false")
+                  << "," << record.selected_depth << "," << record.best_pattern_id << "," << record.best_delay_ns << "," << record.best_power_w << ","
+                  << (record.used_boundary_relaxation ? "true" : "false") << "," << record.failure_reason << "\n";
   }
   return report_stream.str();
 }
@@ -107,27 +106,26 @@ auto FormatTopologyToleranceComparisonReport(std::string_view scenario_name, con
   report_stream << "columns=tolerance,runtime_s,success,sink_count,leaf_load_distance_mean_dbu,leaf_load_distance_max_dbu,"
                    "sta_arrival_skew_ns,wirelength_skew_dbu,sta_sink_count,selected_char_delay_ns,failure_reason\n";
   for (const auto& record : comparison.records) {
-    report_stream << record.htree_topology_tolerance << "," << record.runtime_s << "," << (record.success ? "true" : "false") << ","
-                  << record.sink_count << "," << record.leaf_load_distance_mean_dbu << "," << record.leaf_load_distance_max_dbu << ","
-                  << record.sta_arrival_skew_ns << "," << record.wirelength_skew_dbu << "," << record.sta_sink_count << ","
-                  << record.selected_char_delay_ns << "," << record.failure_reason << "\n";
+    report_stream << record.htree_topology_tolerance << "," << record.runtime_s << "," << (record.success ? "true" : "false") << "," << record.sink_count << ","
+                  << record.leaf_load_distance_mean_dbu << "," << record.leaf_load_distance_max_dbu << "," << record.sta_arrival_skew_ns << ","
+                  << record.wirelength_skew_dbu << "," << record.sta_sink_count << "," << record.selected_char_delay_ns << "," << record.failure_reason << "\n";
   }
   return report_stream.str();
 }
 
 auto WriteTopologyMatrixReport(std::string_view scenario_name, const std::string& file_name, const std::string& content) -> bool
 {
-  const auto output_dir = common::io::PrepareCleanOutputDir(common::io::ResolveOutputDir() / "module" / "synthesis"
-                                                            / common::io::SanitizeOutputName(std::string(scenario_name)));
+  const auto output_dir = toolkit::io::PrepareCleanOutputDir(toolkit::io::ResolveOutputDir() / "module" / "synthesis"
+                                                             / toolkit::io::SanitizeOutputName(std::string(scenario_name)));
   if (output_dir.empty()) {
     return false;
   }
-  return common::io::WriteTextArtifact(output_dir / file_name, content);
+  return toolkit::io::WriteTextArtifact(output_dir / file_name, content);
 }
 
 auto SelectLargestRealClock(std::size_t max_count, std::size_t min_required_load_count) -> std::optional<RealClockSelection>
 {
-  return common::realtech::SelectLargestDefClock(max_count, min_required_load_count);
+  return data_manager::realtech::SelectLargestDefClock(max_count, min_required_load_count);
 }
 
 auto SetEnableSinkClustering(icts::Topology::Config& config, bool enabled) -> void
@@ -179,20 +177,19 @@ auto ResolveExpectedMinClusterBufferMaster() -> std::optional<std::string>
       continue;
     }
 
-    const auto [input_pin, output_pin] = CTSDM.getWrapper().queryBufferPorts(cell_master);
-    if (input_pin.empty() || output_pin.empty()) {
+    const auto ports = CTSDM.getWrapper().queryBufferPorts(cell_master);
+    if (!ports.has_value()) {
       continue;
     }
 
-    const double drive_cap_pf = ResolveBufferDriveCap(cell_master);
-    if (drive_cap_pf <= 0.0) {
+    const auto drive_cap_pf = ResolveBufferDriveCap(cell_master);
+    if (!drive_cap_pf.has_value() || *drive_cap_pf <= 0.0) {
       continue;
     }
 
-    if (!expected_master.has_value() || drive_cap_pf < best_drive_cap_pf
-        || (drive_cap_pf == best_drive_cap_pf && cell_master < *expected_master)) {
+    if (!expected_master.has_value() || *drive_cap_pf < best_drive_cap_pf || (*drive_cap_pf == best_drive_cap_pf && cell_master < *expected_master)) {
       expected_master = cell_master;
-      best_drive_cap_pf = drive_cap_pf;
+      best_drive_cap_pf = *drive_cap_pf;
     }
   }
 

@@ -42,12 +42,10 @@
 
 namespace icts {
 
-auto FLUTERouter::buildTree(const ClockTerminal& driver_terminal, const std::vector<ClockTerminal>& load_terminals)
-    -> FLUTERouter::ClockSteinerTreeType
+auto FLUTERouter::buildTree(const ClockTerminal& driver_terminal, const std::vector<ClockTerminal>& load_terminals) -> FLUTERouter::ClockSteinerTreeType
 {
   ClockSteinerTreeType clock_tree;
-  auto root_id
-      = clock_tree.addNode(driver_terminal.name, driver_terminal.location, true, driver_terminal.pin_cap, driver_terminal.insertion_delay);
+  auto root_id = clock_tree.addNode(driver_terminal.name, driver_terminal.location, true, driver_terminal.pin_cap, driver_terminal.insertion_delay);
   clock_tree.setRoot(root_id);
 
   std::unordered_map<int, std::size_t> salt_to_tree_id;
@@ -77,8 +75,7 @@ auto FLUTERouter::buildTree(const ClockTerminal& driver_terminal, const std::vec
       return iter->second;
     }
 
-    auto node_id = clock_tree.addNode(std::string("steiner_") + std::to_string(salt_node->id),
-                                      Point<int>(salt_node->loc.x, salt_node->loc.y), false, 0.0, 0.0);
+    auto node_id = clock_tree.addNode(std::string("steiner_") + std::to_string(salt_node->id), Point<int>(salt_node->loc.x, salt_node->loc.y), false, 0.0, 0.0);
     salt_to_tree_id[salt_node->id] = node_id;
     return node_id;
   };

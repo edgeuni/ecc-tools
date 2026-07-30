@@ -50,8 +50,7 @@ class Router
   Router() = delete;
   ~Router() = default;
 
-  static auto buildFluteTree(const ClockTerminal& driver_terminal, const std::vector<ClockTerminal>& load_terminals)
-      -> ClockSteinerTreeType;
+  static auto buildFluteTree(const ClockTerminal& driver_terminal, const std::vector<ClockTerminal>& load_terminals) -> ClockSteinerTreeType;
   static auto buildSaltTree(const ClockTerminal& driver_terminal, const std::vector<ClockTerminal>& load_terminals) -> ClockSteinerTreeType;
   static auto buildBstTree(const std::vector<ClockTerminal>& load_terminals, const BSTRoutingConfig& parameters) -> ClockSteinerTreeType;
   static auto buildCbsTree(const std::vector<ClockTerminal>& load_terminals, const BSTRoutingConfig& parameters) -> ClockSteinerTreeType;

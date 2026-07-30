@@ -97,6 +97,7 @@ class Wrapper
   struct RootDriverCost
   {
     bool valid = false;
+    bool power_available = false;
     std::string method;
     std::string cell_master;
     double input_slew_ns = 0.0;
@@ -106,6 +107,12 @@ class Wrapper
     double internal_power_w = 0.0;
     double leakage_power_w = 0.0;
     double cell_power_w = 0.0;
+  };
+
+  struct BufferPorts
+  {
+    std::string input;
+    std::string output;
   };
 
   struct ClockSourceDriveCapLimitInput
@@ -131,34 +138,32 @@ class Wrapper
     double timing_effective_cap_pf = 0.0;
   };
 
-  auto queryDbUnit() const -> int32_t;
+  auto queryDbUnit() const -> std::optional<int32_t>;
   auto is_design_ready() const -> bool { return _idb_design != nullptr; }
   auto is_layout_ready() const -> bool { return _idb != nullptr && _idb_layout != nullptr; }
-  auto queryWireResistance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const -> double;
-  auto queryWireCapacitance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const -> double;
+  auto queryWireResistance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const -> std::optional<double>;
+  auto queryWireCapacitance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const -> std::optional<double>;
   auto queryRequiredWireResistance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const -> double;
-  auto queryRequiredWireCapacitance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const
-      -> double;
+  auto queryRequiredWireCapacitance(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const -> double;
   auto queryRequiredWireCapacitanceProfile(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const
       -> WireCapacitanceProfile;
-  auto queryRequiredClockTimingWireCapacitanceProfile(int routing_layer, double length_um,
-                                                      std::optional<double> wire_width_um = std::nullopt) const -> WireCapacitanceProfile;
+  auto queryRequiredClockTimingWireCapacitanceProfile(int routing_layer, double length_um, std::optional<double> wire_width_um = std::nullopt) const
+      -> WireCapacitanceProfile;
   auto queryConfiguredClockRouteSegmentRc(const Config& config) const -> ClockRouteSegmentRc;
-  auto queryCellOutPinCapLimit(const std::string& cell_master) const -> double;
-  auto queryCellOutPinCapTableAxisMax(const std::string& cell_master) const -> double;
-  auto queryClockSourceDriveCapLimit(const ClockSourceDriveCapLimitInput& input) const -> double;
-  auto queryClockSourceDriveCapLimit(const Config& config, const Pin* clock_source) const -> double;
-  auto queryCellInPinSlewLimit(const std::string& cell_master) const -> double;
-  auto queryCellInPinSlewTableAxisMax(const std::string& cell_master) const -> double;
-  auto queryCellHeightUm(const std::string& cell_master) const -> double;
-  auto queryCellAreaUm2(const std::string& cell_master) const -> double;
-  auto queryCharInputPinCap(const std::string& cell_master) const -> double;
-  auto queryPinCapacitance(const Pin* pin) const -> double;
-  auto queryPinSlewLimit(const PinSlewLimitInput& input) const -> double;
-  auto queryPinSlewLimit(const Config& config, const Pin* pin) const -> double;
-  auto queryRootDriverCostDirect(const std::string& cell_master, double input_slew_ns, double output_load_pf, double clock_period_ns) const
-      -> RootDriverCost;
-  auto queryBufferPorts(const std::string& cell_master) const -> std::pair<std::string, std::string>;
+  auto queryCellOutPinCapLimit(const std::string& cell_master) const -> std::optional<double>;
+  auto queryCellOutPinCapTableAxisMax(const std::string& cell_master) const -> std::optional<double>;
+  auto queryClockSourceDriveCapLimit(const ClockSourceDriveCapLimitInput& input) const -> std::optional<double>;
+  auto queryClockSourceDriveCapLimit(const Config& config, const Pin* clock_source) const -> std::optional<double>;
+  auto queryCellInPinSlewLimit(const std::string& cell_master) const -> std::optional<double>;
+  auto queryCellInPinSlewTableAxisMax(const std::string& cell_master) const -> std::optional<double>;
+  auto queryCellHeightUm(const std::string& cell_master) const -> std::optional<double>;
+  auto queryCellAreaUm2(const std::string& cell_master) const -> std::optional<double>;
+  auto queryCharInputPinCap(const std::string& cell_master) const -> std::optional<double>;
+  auto queryPinCapacitance(const Pin* pin) const -> std::optional<double>;
+  auto queryPinSlewLimit(const PinSlewLimitInput& input) const -> std::optional<double>;
+  auto queryPinSlewLimit(const Config& config, const Pin* pin) const -> std::optional<double>;
+  auto queryRootDriverCostDirect(const std::string& cell_master, double input_slew_ns, double output_load_pf, double clock_period_ns) const -> RootDriverCost;
+  auto queryBufferPorts(const std::string& cell_master) const -> std::optional<BufferPorts>;
   auto findLibertyCell(const std::string& cell_master) const -> idb::LibCell*;
 
   // Setter
@@ -175,7 +180,7 @@ class Wrapper
   auto writeClocks(Design& design, const std::vector<Clock*>& clocks) -> bool;
   auto collectLogicCellGeometries() const -> std::vector<WrapperCellGeometry>;
   auto queryInstGeometry(const std::string& inst_name) const -> std::optional<WrapperCellGeometry>;
-  auto withinCore(int32_t point_x, int32_t point_y) const -> bool;
+  auto withinCore(int32_t point_x, int32_t point_y) const -> std::optional<bool>;
 
  private:
   class CtsClockReader;

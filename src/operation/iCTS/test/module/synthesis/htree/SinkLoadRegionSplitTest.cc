@@ -39,8 +39,7 @@ class SplitPinFactory
  public:
   auto make(int x, int y) -> icts::Pin*
   {
-    auto pin = std::make_unique<icts::Pin>("split_pin_" + std::to_string(_pins.size()), icts::PinType::kIn, icts::Point<int>(x, y), nullptr,
-                                           nullptr, false);
+    auto pin = std::make_unique<icts::Pin>("split_pin_" + std::to_string(_pins.size()), icts::PinType::kIn, icts::Point<int>(x, y), nullptr, nullptr, false);
     _pins.push_back(std::move(pin));
     return _pins.back().get();
   }

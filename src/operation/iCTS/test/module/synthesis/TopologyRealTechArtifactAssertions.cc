@@ -59,8 +59,7 @@ auto AssertLoggerContract(const std::string& cts_log_content) -> void
 auto AssertReportContract(const std::string& report_content, bool sink_clustering_enabled) -> void
 {
   EXPECT_NE(report_content.find("success=true\n"), std::string::npos);
-  EXPECT_NE(report_content.find(std::string{"sink_clustering_enabled="} + (sink_clustering_enabled ? "true\n" : "false\n")),
-            std::string::npos);
+  EXPECT_NE(report_content.find(std::string{"sink_clustering_enabled="} + (sink_clustering_enabled ? "true\n" : "false\n")), std::string::npos);
   EXPECT_TRUE(std::regex_search(report_content, std::regex(R"((^|\n)input_sink_count=[1-9][0-9]*(\n|$))")));
   EXPECT_TRUE(std::regex_search(report_content, std::regex(R"((^|\n)htree_node_count=[1-9][0-9]*(\n|$))")));
   EXPECT_NE(report_content.find("artifacts=cts.log,synthesis_topology.svg,synthesis_report.txt\n"), std::string::npos);
@@ -69,9 +68,8 @@ auto AssertReportContract(const std::string& report_content, bool sink_clusterin
 }  // namespace
 
 auto WriteAndAssertSynthesisArtifacts(const std::string& case_name, const std::string& scenario_name, const std::string& clock_name,
-                                      const synthesis::TopologyArtifactPaths& artifact_paths, icts::Pin* source,
-                                      const std::vector<icts::Pin*>& sinks, const icts::Topology::Build& result)
-    -> synthesis::TopologyArtifactPaths
+                                      const synthesis::TopologyArtifactPaths& artifact_paths, icts::Pin* source, const std::vector<icts::Pin*>& sinks,
+                                      const icts::Topology::Build& result) -> synthesis::TopologyArtifactPaths
 {
   if (artifact_paths.output_dir.empty()) {
     ADD_FAILURE() << "Failed to prepare synthesis artifact output dir for case " << case_name;

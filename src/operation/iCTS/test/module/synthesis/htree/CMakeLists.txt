@@ -7,7 +7,7 @@ icts_add_test_executable(
     ${ICTS_TEST}/module/synthesis/htree/SinkLoadRegionSplitTest.cc
     ${ICTS_TEST}/module/synthesis/htree/WirelengthGridTest.cc
   LIBS
-    icts_test_common_data_pin_factory
+    icts_test_data_manager_design_fixture_data_pin_factory
 )
 
 if(ICTS_BUILD_REALTECH_TESTS)
@@ -23,10 +23,10 @@ if(ICTS_BUILD_REALTECH_TESTS)
       ${ICTS_TEST}/module/synthesis/htree/HTreeRealTechMatrixTest.cc
       ${ICTS_TEST}/module/synthesis/htree/HTreeRealTechSmokeTest.cc
     LIBS
-      icts_test_common_data_pin_factory
-      icts_test_common_io
-      icts_test_common_realtech_setup
-      icts_test_common_visualization
+      icts_test_data_manager_design_fixture_data_pin_factory
+      icts_test_toolkit_io
+      icts_test_data_manager_realtech_setup
+      icts_test_toolkit_visualization
       icts_test_module_characterization_fixture
   )
 
@@ -48,10 +48,10 @@ if(ICTS_BUILD_REALTECH_TESTS AND ICTS_BUILD_SLOW_REALTECH_TESTS)
       ${ICTS_TEST}/module/synthesis/htree/HTreeArtifactWriter.cc
       ${ICTS_TEST}/module/synthesis/htree/HTreeRealTechBranchBufferRegressionTest.cc
     LIBS
-      icts_test_common_data_pin_factory
-      icts_test_common_io
-      icts_test_common_realtech_setup
-      icts_test_common_visualization
+      icts_test_data_manager_design_fixture_data_pin_factory
+      icts_test_toolkit_io
+      icts_test_data_manager_realtech_setup
+      icts_test_toolkit_visualization
       icts_test_module_characterization_fixture
   )
 

@@ -163,8 +163,7 @@ auto SelectMinDelayIndex(const std::vector<CandidateCharRef>& front) -> std::opt
   for (std::size_t index = 1U; index < front.size(); ++index) {
     const auto& entry = *front.at(index).entry;
     const auto& selected_entry = *front.at(selected_index).entry;
-    if (entry.get_delay() < selected_entry.get_delay()
-        || (entry.get_delay() == selected_entry.get_delay() && entry.get_power() < selected_entry.get_power())) {
+    if (entry.get_delay() < selected_entry.get_delay() || (entry.get_delay() == selected_entry.get_delay() && entry.get_power() < selected_entry.get_power())) {
       selected_index = index;
     }
   }
@@ -193,8 +192,7 @@ auto SelectDelayMidpointPowerIndex(const std::vector<CandidateCharRef>& front, s
       continue;
     }
     const auto& selected_entry = *front.at(*selected_index).entry;
-    if (entry.get_power() < selected_entry.get_power()
-        || (entry.get_power() == selected_entry.get_power() && entry.get_delay() < selected_entry.get_delay())) {
+    if (entry.get_power() < selected_entry.get_power() || (entry.get_power() == selected_entry.get_power() && entry.get_delay() < selected_entry.get_delay())) {
       selected_index = index;
     }
   }
@@ -285,8 +283,7 @@ auto BuildGlobalCandidateShape(const CandidateCharRef& entry_ref, const std::vec
                                                                      segment_pattern_library, evaluation.topology_branching_factor);
   return GlobalCandidateShape{
       .depth = evaluation.depth,
-      .buffered_levels
-      = CountBufferedLevels(entry_ref.entry->get_pattern_id(), evaluation.topology_pattern_library, segment_pattern_library),
+      .buffered_levels = CountBufferedLevels(entry_ref.entry->get_pattern_id(), evaluation.topology_pattern_library, segment_pattern_library),
       .physical_depth = evaluation.depth + entry_ref.split_local_depth,
       .weighted_htree_buffer_count = weighted_htree_buffer_count,
       .split_extra_buffer_count = entry_ref.split_extra_buffer_count,
@@ -302,8 +299,7 @@ auto IsSameGlobalCandidateShape(const GlobalCandidateShape& lhs, const GlobalCan
 
 auto IsNoMoreComplexShape(const GlobalCandidateShape& candidate_shape, const GlobalCandidateShape& reference_shape) -> bool
 {
-  return candidate_shape.physical_depth <= reference_shape.physical_depth
-         && candidate_shape.physical_buffer_count <= reference_shape.physical_buffer_count;
+  return candidate_shape.physical_depth <= reference_shape.physical_depth && candidate_shape.physical_buffer_count <= reference_shape.physical_buffer_count;
 }
 
 auto FillSelectionDecision(const std::vector<CandidateCharRef>& front, GlobalSelectionDecision& selection_decision) -> void
@@ -315,8 +311,7 @@ auto FillSelectionDecision(const std::vector<CandidateCharRef>& front, GlobalSel
   selection_decision.front_min_delay_ns = CalcFrontMinDelayNs(front);
 }
 
-auto PreferPhysicalComplexityOrder(const CandidateCharRef& lhs, const CandidateCharRef& rhs,
-                                   const std::vector<CandidateBuildEvaluation>& evaluations,
+auto PreferPhysicalComplexityOrder(const CandidateCharRef& lhs, const CandidateCharRef& rhs, const std::vector<CandidateBuildEvaluation>& evaluations,
                                    const BufferPatternLibrary& segment_pattern_library) -> bool
 {
   const auto lhs_shape = BuildGlobalCandidateShape(lhs, evaluations, segment_pattern_library);
@@ -342,16 +337,13 @@ auto DominatesPhysically(const CandidateCharRef& lhs, const CandidateCharRef& rh
   const auto lhs_shape = BuildGlobalCandidateShape(lhs, evaluations, segment_pattern_library);
   const auto rhs_shape = BuildGlobalCandidateShape(rhs, evaluations, segment_pattern_library);
   const bool no_worse = lhs.entry->get_delay() <= rhs.entry->get_delay() && lhs.entry->get_power() <= rhs.entry->get_power()
-                        && lhs_shape.physical_depth <= rhs_shape.physical_depth
-                        && lhs_shape.physical_buffer_count <= rhs_shape.physical_buffer_count;
+                        && lhs_shape.physical_depth <= rhs_shape.physical_depth && lhs_shape.physical_buffer_count <= rhs_shape.physical_buffer_count;
   const bool strictly_better = lhs.entry->get_delay() < rhs.entry->get_delay() || lhs.entry->get_power() < rhs.entry->get_power()
-                               || lhs_shape.physical_depth < rhs_shape.physical_depth
-                               || lhs_shape.physical_buffer_count < rhs_shape.physical_buffer_count;
+                               || lhs_shape.physical_depth < rhs_shape.physical_depth || lhs_shape.physical_buffer_count < rhs_shape.physical_buffer_count;
   return no_worse && strictly_better;
 }
 
-auto BuildPhysicalDelayPowerParetoFront(const std::vector<CandidateCharRef>& entries,
-                                        const std::vector<CandidateBuildEvaluation>& evaluations,
+auto BuildPhysicalDelayPowerParetoFront(const std::vector<CandidateCharRef>& entries, const std::vector<CandidateBuildEvaluation>& evaluations,
                                         const BufferPatternLibrary& segment_pattern_library) -> std::vector<CandidateCharRef>
 {
   std::vector<CandidateCharRef> filtered_entries;
@@ -370,8 +362,7 @@ auto BuildPhysicalDelayPowerParetoFront(const std::vector<CandidateCharRef>& ent
       if (candidate_index == other_index) {
         continue;
       }
-      if (DominatesPhysically(filtered_entries.at(other_index), filtered_entries.at(candidate_index), evaluations,
-                              segment_pattern_library)) {
+      if (DominatesPhysically(filtered_entries.at(other_index), filtered_entries.at(candidate_index), evaluations, segment_pattern_library)) {
         dominated = true;
         break;
       }
@@ -381,17 +372,15 @@ auto BuildPhysicalDelayPowerParetoFront(const std::vector<CandidateCharRef>& ent
     }
   }
 
-  std::ranges::sort(pareto_front,
-                    [&evaluations, &segment_pattern_library](const CandidateCharRef& lhs, const CandidateCharRef& rhs) -> bool {
-                      return PreferPhysicalComplexityOrder(lhs, rhs, evaluations, segment_pattern_library);
-                    });
+  std::ranges::sort(pareto_front, [&evaluations, &segment_pattern_library](const CandidateCharRef& lhs, const CandidateCharRef& rhs) -> bool {
+    return PreferPhysicalComplexityOrder(lhs, rhs, evaluations, segment_pattern_library);
+  });
   return pareto_front;
 }
 
 }  // namespace
 
-auto CalcBoundaryRelaxationScore(const HTreeTopologyChar& entry, const BoundaryConstraints& boundary_constraints, unsigned slew_steps)
-    -> double
+auto CalcBoundaryRelaxationScore(const HTreeTopologyChar& entry, const BoundaryConstraints& boundary_constraints, unsigned slew_steps) -> double
 {
   double score = 0.0;
   if (boundary_constraints.top_input_slew_covering_idx.has_value() && slew_steps > 0U) {
@@ -428,8 +417,7 @@ auto BuildPerDepthDelayPowerParetoRefs(const std::vector<CandidateCharRef>& entr
   return pareto_entries;
 }
 
-auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries, GlobalSelectionDecision* selection_decision)
-    -> std::optional<CandidateCharRef>
+auto SelectBestGlobalEntry(const std::vector<CandidateCharRef>& entries, GlobalSelectionDecision* selection_decision) -> std::optional<CandidateCharRef>
 {
   if (entries.empty()) {
     return std::nullopt;
@@ -501,9 +489,8 @@ auto SelectAdaptiveGlobalEntry(const std::vector<CandidateCharRef>& entries, con
   return pareto_front.at(selected_index);
 }
 
-auto FilterGlobalEntriesBySinkLoadRegionCoverage(const std::vector<CandidateCharRef>& entries,
-                                                 const std::vector<CandidateBuildEvaluation>& evaluations, const Tree& topology,
-                                                 const BufferPatternLibrary& segment_pattern_library,
+auto FilterGlobalEntriesBySinkLoadRegionCoverage(const std::vector<CandidateCharRef>& entries, const std::vector<CandidateBuildEvaluation>& evaluations,
+                                                 const Tree& topology, const BufferPatternLibrary& segment_pattern_library,
                                                  SinkLoadRegionLegalityContext& legality_context) -> CandidateCharRefFilterBuild
 {
   CandidateCharRefFilterBuild result;
@@ -526,13 +513,11 @@ auto FilterGlobalEntriesBySinkLoadRegionCoverage(const std::vector<CandidateChar
       continue;
     }
 
-    if (legality.required_leaf_load_cap_covering_idx.has_value()
-        && entry_ref.entry->get_leaf_load_cap_idx() < *legality.required_leaf_load_cap_covering_idx) {
+    if (legality.required_leaf_load_cap_covering_idx.has_value() && entry_ref.entry->get_leaf_load_cap_idx() < *legality.required_leaf_load_cap_covering_idx) {
       if (result.summary.first_failure_reason.empty()) {
         std::ostringstream detail;
-        detail << "sink_load_region_boundary_load_coverage_violation required_leaf_load_cap_idx="
-               << *legality.required_leaf_load_cap_covering_idx << ", entry_leaf_load_cap_idx=" << entry_ref.entry->get_leaf_load_cap_idx()
-               << ", max_real_load_cap_pf=" << legality.required_leaf_load_cap_pf;
+        detail << "sink_load_region_boundary_load_coverage_violation required_leaf_load_cap_idx=" << *legality.required_leaf_load_cap_covering_idx
+               << ", entry_leaf_load_cap_idx=" << entry_ref.entry->get_leaf_load_cap_idx() << ", max_real_load_cap_pf=" << legality.required_leaf_load_cap_pf;
         result.summary.first_failure_reason = detail.str();
       }
       continue;

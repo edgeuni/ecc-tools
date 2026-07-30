@@ -81,8 +81,8 @@ auto BuildCapHeavyClusterOrder(const std::vector<ClusterDraft>& clusters) -> Bou
     return lhs < rhs;
   });
 
-  const auto max_source_count = std::max<std::size_t>(
-      1U, static_cast<std::size_t>(std::ceil(static_cast<double>(order.active_count) * kBoundaryMaxSourceFraction)));
+  const auto max_source_count
+      = std::max<std::size_t>(1U, static_cast<std::size_t>(std::ceil(static_cast<double>(order.active_count) * kBoundaryMaxSourceFraction)));
   order.cluster_ids.reserve(max_source_count);
   for (const auto cluster_id : cluster_order) {
     if (cluster_id >= clusters.size() || !clusters.at(cluster_id).active || clusters.at(cluster_id).entry_ids.size() <= 1U) {

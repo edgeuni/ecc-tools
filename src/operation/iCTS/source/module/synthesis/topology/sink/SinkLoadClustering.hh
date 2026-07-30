@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "synthesis/topology/Topology.hh"
 
 namespace icts {

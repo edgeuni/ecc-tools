@@ -44,7 +44,7 @@ struct TopologyArtifactPaths
 };
 
 auto PrepareTopologyArtifactPaths(const std::string& case_name) -> TopologyArtifactPaths;
-auto WriteTopologyArtifacts(const TopologyArtifactPaths& paths, const std::string& scenario_name, const std::string& clock_name,
-                            icts::Pin* source, const std::vector<icts::Pin*>& original_sinks, const icts::Topology::Build& result) -> bool;
+auto WriteTopologyArtifacts(const TopologyArtifactPaths& paths, const std::string& scenario_name, const std::string& clock_name, icts::Pin* source,
+                            const std::vector<icts::Pin*>& original_sinks, const icts::Topology::Build& result) -> bool;
 
 }  // namespace icts_test::synthesis

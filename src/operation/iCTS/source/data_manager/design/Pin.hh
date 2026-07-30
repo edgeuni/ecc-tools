@@ -43,8 +43,8 @@ enum class PinType
 class Pin
 {
  public:
-  Pin(const std::string& name, PinType type = PinType::kOther, Point<int> location = Point<int>(-1, -1), Inst* inst = nullptr,
-      Net* net = nullptr, bool b_io = false)
+  Pin(const std::string& name, PinType type = PinType::kOther, Point<int> location = Point<int>(-1, -1), Inst* inst = nullptr, Net* net = nullptr,
+      bool b_io = false)
       : _name(name), _type(type), _location(location), _inst(inst), _net(net), _b_io(b_io)
   {
   }

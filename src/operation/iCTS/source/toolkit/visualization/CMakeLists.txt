@@ -1,8 +1,8 @@
 add_library(
   icts_source_toolkit_visualization
   STATIC
-  ${ICTS_TOOLKIT_VISUALIZATION}/cluster/ClusterSvgWriter.cc
-  ${ICTS_TOOLKIT_VISUALIZATION}/topology/TopologySvgWriter.cc
+  ${ICTS_TOOLKIT_VISUALIZATION}/cluster/ClusterSVGWriter.cc
+  ${ICTS_TOOLKIT_VISUALIZATION}/topology/TopologySVGWriter.cc
 )
 
 target_link_libraries(

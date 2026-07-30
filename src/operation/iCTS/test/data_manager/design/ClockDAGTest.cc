@@ -23,9 +23,11 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "IdbDesign.h"
 #include "data_manager/DataManager.hh"
 #include "data_manager/design/Clock.hh"
 #include "data_manager/design/ClockDAG.hh"
@@ -35,7 +37,7 @@
 #include "data_manager/design/Pin.hh"
 #include "data_manager/io/Wrapper.hh"
 #include "data_manager/spatial/Point.hh"
-#include "module/evaluation/qor/QorEvaluation.hh"
+#include "module/evaluation/qor/QOREvaluation.hh"
 
 namespace icts_test {
 namespace {
@@ -43,16 +45,21 @@ namespace {
 class ScopedDesignReset
 {
  public:
-  ScopedDesignReset()
+  ScopedDesignReset() : _idb_design(std::make_unique<idb::IdbDesign>())
   {
     CTSDM.getWrapper().reset();
     CTSDM.getDesign().reset();
+    _idb_design->get_units()->set_microns_dbu(1000);
+    CTSDM.getWrapper().set_idb_design(_idb_design.get());
   }
   ~ScopedDesignReset()
   {
     CTSDM.getWrapper().reset();
     CTSDM.getDesign().reset();
   }
+
+ private:
+  std::unique_ptr<idb::IdbDesign> _idb_design;
 };
 
 struct BufferPins
@@ -119,8 +126,6 @@ auto connectNet(const std::string& name, icts::Pin* driver, const std::vector<ic
 auto makeClock(const std::string& clock_name, const std::string& net_name) -> ClockPins
 {
   auto* clock = CTSDM.getDesign().makeClock(clock_name, net_name);
-  clock->set_clock_name(clock_name);
-  clock->set_clock_net_name(net_name);
   auto* source = makePin(clock_name + "_src", icts::PinType::kOut, nullptr, icts::Point<int>(0, 0));
   auto* source_net = connectNet(net_name, source, {});
   clock->set_clock_source(source);
@@ -165,6 +170,41 @@ TEST(DesignIndexTest, RemoveClockMembershipObjectsErasesRecordedInstAndNetNames)
   EXPECT_EQ(design.findInst("renamed_buffer_to_remove"), nullptr);
   EXPECT_EQ(design.findNet("net_to_remove"), nullptr);
   EXPECT_EQ(design.findNet("renamed_net_to_remove"), nullptr);
+}
+
+TEST(DesignIndexTest, ClockIdentityIndexTracksMakeClearResetAndClone)
+{
+  icts::Design design;
+  auto* first = design.makeClock("clk", "clk_net_a");
+  auto* second = design.makeClock("clk", "clk_net_b");
+  auto* third = design.makeClock("generated_clk", "clk_net_a");
+
+  ASSERT_NE(first, nullptr);
+  ASSERT_NE(second, nullptr);
+  ASSERT_NE(third, nullptr);
+  EXPECT_NE(first, second);
+  EXPECT_NE(first, third);
+  EXPECT_EQ(design.makeClock("clk", "clk_net_a"), first);
+  EXPECT_EQ(design.findClock("clk", "clk_net_a"), first);
+  EXPECT_EQ(design.findClock("clk", "clk_net_b"), second);
+  EXPECT_EQ(design.findClock("generated_clk", "clk_net_a"), third);
+
+  auto cloned = design.clone();
+  ASSERT_NE(cloned, nullptr);
+  ASSERT_NE(cloned->findClock("clk", "clk_net_a"), nullptr);
+  EXPECT_NE(cloned->findClock("clk", "clk_net_a"), first);
+  EXPECT_EQ(cloned->makeClock("clk", "clk_net_a"), cloned->findClock("clk", "clk_net_a"));
+
+  design.clearClocks();
+  EXPECT_EQ(design.findClock("clk", "clk_net_a"), nullptr);
+  EXPECT_EQ(design.findClock("clk", "clk_net_b"), nullptr);
+  EXPECT_EQ(design.findClock("generated_clk", "clk_net_a"), nullptr);
+  EXPECT_TRUE(design.get_clocks().empty());
+
+  ASSERT_NE(design.makeClock("clk", "clk_net_a"), nullptr);
+  design.reset();
+  EXPECT_EQ(design.findClock("clk", "clk_net_a"), nullptr);
+  EXPECT_TRUE(design.get_clocks().empty());
 }
 
 TEST(ClockDAGTest, BranchPathsReportSourceToFlipFlopBufferDepths)
@@ -378,6 +418,8 @@ TEST(ClockDAGTest, QorEvaluationPathDepthFieldsUseSourceToFlipFlopDAGStats)
   EXPECT_EQ(summary.clock_path_min_buffer, 1);
   EXPECT_EQ(summary.clock_path_max_buffer, 2);
   EXPECT_EQ(summary.max_clock_network_level, 2);
+  EXPECT_FALSE(summary.final_buffer_area_um2.has_value());
+  EXPECT_EQ(summary.qor_metric_status, "partial");
 }
 
 TEST(ClockDAGTest, QorEvaluationNoFlipFlopPathDepthIsUnavailableZeroNotTotalBuffers)

@@ -48,18 +48,19 @@ auto Evaluation::run() -> EvaluationBuild
   const bool evaluation_ready = isEvaluationReady(evaluation_state);
   const auto& qor_summary = evaluation_state.summary;
   const auto& statistics = evaluation_state.statistics;
-  EmitLogTable(Loc::current(), "CTS Evaluation Overview", {"Metric", "Value"},
-               {{"Ready", ToLogTableCell(evaluation_ready)},
-                {"QoR Metric Status", qor_summary.qor_metric_status},
-                {"Physical Metric Source", qor_summary.physical_metric_source},
-                {"Path Depth Status", qor_summary.path_depth_metric_status},
-                {"DBU per um", ToLogTableCell(qor_summary.design_dbu_per_um)},
-                {"Final Clock Buffers", ToLogTableCell(qor_summary.final_clock_buffer_count)},
-                {"Final Buffer Area (um^2)", ToLogTableCell(qor_summary.final_buffer_area_um2)},
-                {"Clock Member Buffers", ToLogTableCell(qor_summary.clock_member_buffer_count)},
-                {"Path Buffer Minimum", ToLogTableCell(qor_summary.clock_path_min_buffer)},
-                {"Path Buffer Maximum", ToLogTableCell(qor_summary.clock_path_max_buffer)},
-                {"Maximum Clock Level", ToLogTableCell(qor_summary.max_clock_network_level)}});
+  EmitLogTable(
+      Loc::current(), "CTS Evaluation Overview", {"Metric", "Value"},
+      {{"Ready", ToLogTableCell(evaluation_ready)},
+       {"QoR Metric Status", qor_summary.qor_metric_status},
+       {"Physical Metric Source", qor_summary.physical_metric_source},
+       {"Path Depth Status", qor_summary.path_depth_metric_status},
+       {"DBU per um", qor_summary.design_dbu_per_um.has_value() ? ToLogTableCell(*qor_summary.design_dbu_per_um) : "unavailable"},
+       {"Final Clock Buffers", ToLogTableCell(qor_summary.final_clock_buffer_count)},
+       {"Final Buffer Area (um^2)", qor_summary.final_buffer_area_um2.has_value() ? ToLogTableCell(*qor_summary.final_buffer_area_um2) : "unavailable"},
+       {"Clock Member Buffers", ToLogTableCell(qor_summary.clock_member_buffer_count)},
+       {"Path Buffer Minimum", ToLogTableCell(qor_summary.clock_path_min_buffer)},
+       {"Path Buffer Maximum", ToLogTableCell(qor_summary.clock_path_max_buffer)},
+       {"Maximum Clock Level", ToLogTableCell(qor_summary.max_clock_network_level)}});
   EmitLogTable(Loc::current(), "CTS Evaluation Wirelength", {"Region", "Routed (um)", "HPWL (um)"},
                {{"Top", ToLogTableCell(statistics.top_wirelength_um), ToLogTableCell(statistics.hpwl_top_wirelength_um)},
                 {"Trunk", ToLogTableCell(statistics.trunk_wirelength_um), ToLogTableCell(statistics.hpwl_trunk_wirelength_um)},

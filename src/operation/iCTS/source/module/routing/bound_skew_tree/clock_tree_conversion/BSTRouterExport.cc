@@ -33,7 +33,7 @@
 #include "Point.hh"
 #include "SteinerTree.hh"
 #include "bound_skew_tree/BSTRouter.hh"
-#include "bound_skew_tree/clock_tree_conversion/BstClockTreeConversion.hh"
+#include "bound_skew_tree/clock_tree_conversion/BSTClockTreeConversion.hh"
 #include "bound_skew_tree/component/Components.hh"
 
 namespace icts {
@@ -102,10 +102,10 @@ auto ExportAreaNode(const Area* area, const BSTRoutingConfig& parameters, BSTRou
         const auto& location = frame.area->get_location();
         auto insertion_delay = frame.area->is_fixed_terminal() ? location.max : 0.0;
         auto pin_cap = frame.area->is_fixed_terminal() ? frame.area->get_cap_load() : 0.0;
-        frame.node_id = tree.addNode(frame.area->get_name(),
-                                     Point<int>(static_cast<int>(std::lround(location.x * parameters.dbu_per_um)),
-                                                static_cast<int>(std::lround(location.y * parameters.dbu_per_um))),
-                                     frame.area->is_fixed_terminal(), pin_cap, insertion_delay);
+        frame.node_id = tree.addNode(
+            frame.area->get_name(),
+            Point<int>(static_cast<int>(std::lround(location.x * parameters.dbu_per_um)), static_cast<int>(std::lround(location.y * parameters.dbu_per_um))),
+            frame.area->is_fixed_terminal(), pin_cap, insertion_delay);
         if (frame.node_id == BSTRouter::ClockSteinerTreeType::kInvalidId) {
           CTSLOG.error(Loc::current(), "Failed to add node when exporting BST ClockSteinerTree.");
         }

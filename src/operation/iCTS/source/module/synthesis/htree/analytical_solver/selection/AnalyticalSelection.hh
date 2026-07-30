@@ -110,14 +110,12 @@ struct AnalyticalValidatedCandidate
   std::size_t original_index = 0U;
 };
 
-auto TrySolveAnalyticalHTree(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans,
-                             const std::vector<unsigned>& depth_candidates, BufferPatternLibrary& segment_pattern_library,
-                             const BoundaryConstraints& search_boundary_constraints, const HTreeFanoutPruningConfig& fanout_pruning_config,
-                             const RootDriverCompensationInput& root_driver_compensation_input,
-                             const SinkLoadRegionLegalityInput& sink_load_region_input, const CharBuilder& char_builder,
-                             unsigned char_slew_steps) -> AnalyticalHTreeAttempt;
-auto ApplyAnalyticalRootDriverStats(DepthSearchBuild& exploration, const AnalyticalHTreeAttempt& attempt,
-                                    const RootDriverCompensationInput& compensation_input) -> void;
+auto TrySolveAnalyticalHTree(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans, const std::vector<unsigned>& depth_candidates,
+                             BufferPatternLibrary& segment_pattern_library, const BoundaryConstraints& search_boundary_constraints,
+                             const HTreeFanoutPruningConfig& fanout_pruning_config, const RootDriverCompensationInput& root_driver_compensation_input,
+                             const SinkLoadRegionLegalityInput& sink_load_region_input, const CharBuilder& char_builder) -> AnalyticalHTreeAttempt;
+auto ApplyAnalyticalRootDriverStats(DepthSearchBuild& exploration, const AnalyticalHTreeAttempt& attempt, const RootDriverCompensationInput& compensation_input)
+    -> void;
 
 }  // namespace htree::analytical_selection
 }  // namespace icts

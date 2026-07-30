@@ -35,11 +35,11 @@
 
 #include "Logger.hh"
 #include "Point.hh"
+#include "bound_skew_tree/algorithm/BSTPipeline.hh"
 #include "bound_skew_tree/algorithm/BinaryTopology.hh"
 #include "bound_skew_tree/algorithm/BottomUpMergeBalance.hh"
 #include "bound_skew_tree/algorithm/BottomUpMergeInfeasibility.hh"
 #include "bound_skew_tree/algorithm/BottomUpMergeJoining.hh"
-#include "bound_skew_tree/algorithm/BstPipeline.hh"
 #include "bound_skew_tree/algorithm/TopDownEmbedding.hh"
 
 namespace icts::bst::detail {
@@ -175,8 +175,8 @@ auto BoundSkewTreeImpl::mergeCost(Area* left, Area* right) const -> double
   auto left_max = closest_left_point.max;
   auto right_max = closest_right_point.max;
   auto factor = left->get_cap_load() + right->get_cap_load() + (_unit_horizontal_capacitance * min_distance);
-  auto len_to_left = (((right_max - left_max) / _unit_horizontal_resistance)
-                      + (kHalfFactor * _unit_horizontal_capacitance * min_distance * min_distance) + (min_distance * right->get_cap_load()))
+  auto len_to_left = (((right_max - left_max) / _unit_horizontal_resistance) + (kHalfFactor * _unit_horizontal_capacitance * min_distance * min_distance)
+                      + (min_distance * right->get_cap_load()))
                      / factor;
   if (len_to_left < 0) {
     len_to_left = -len_to_left;

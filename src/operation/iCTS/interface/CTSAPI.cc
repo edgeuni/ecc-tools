@@ -31,7 +31,7 @@
 #include "Monitor.hh"
 #include "data_manager/DataManager.hh"
 #include "evaluation/Evaluation.hh"
-#include "evaluation/qor/QorEvaluation.hh"
+#include "evaluation/qor/QOREvaluation.hh"
 #include "feature_icts.h"
 #include "instantiation/Instantiation.hh"
 #include "optimization/Optimization.hh"
@@ -130,7 +130,7 @@ auto CTSAPI::runCTS() -> CTSStatus
   const auto& qor = CTSDM.getEvaluationState().summary;
   EmitLogTable(Loc::current(), "CTS Key Results", {"Metric", "Value"},
                {{"Final Clock Buffers", ToLogTableCell(qor.final_clock_buffer_count)},
-                {"Final Buffer Area (um^2)", ToLogTableCell(qor.final_buffer_area_um2)},
+                {"Final Buffer Area (um^2)", qor.final_buffer_area_um2.has_value() ? ToLogTableCell(*qor.final_buffer_area_um2) : "unavailable"},
                 {"Accepted Sizing Edits", ToLogTableCell(optimization.accepted_edit_count)},
                 {"Maximum Clock Net Wirelength (um)", ToLogTableCell(qor.max_clock_net_wirelength_um)},
                 {"Total Clock Network Wirelength (um)", ToLogTableCell(qor.total_clock_network_wirelength_um)},
@@ -148,9 +148,8 @@ auto CTSAPI::report(const std::string& save_dir) -> CTSStatus
     return api.setLastStatus(CTSStatus{.code = CTSStatusCode::kNotInitialized, .message = "CTS is not initialized.", .diagnostics = {}});
   }
   const auto report = Output::run(save_dir);
-  return api.setLastStatus(
-      report.success ? buildOkStatus("CTS reports emitted.")
-                     : CTSStatus{.code = CTSStatusCode::kReportError, .message = "CTS report generation failed.", .diagnostics = {}});
+  return api.setLastStatus(report.success ? buildOkStatus("CTS reports emitted.")
+                                          : CTSStatus{.code = CTSStatusCode::kReportError, .message = "CTS report generation failed.", .diagnostics = {}});
 }
 
 auto CTSAPI::resetAPI() -> void

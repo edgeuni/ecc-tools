@@ -83,8 +83,7 @@ auto MakeBufferedBoundaryState() -> icts::MonotonicBoundaryState
   };
 }
 
-auto AddSingleLevelTopologyPattern(icts::htree::TopologyPatternLibrary& topology_pattern_library, icts::PatternId segment_pattern_id)
-    -> void
+auto AddSingleLevelTopologyPattern(icts::htree::TopologyPatternLibrary& topology_pattern_library, icts::PatternId segment_pattern_id) -> void
 {
   topology_pattern_library.addSeed(icts::PatternId::topology(0U), segment_pattern_id, icts::PatternCompositionState{});
 }
@@ -115,8 +114,7 @@ auto BuildSegmentFrontierTestData(icts::htree::SegmentFrontierKindSet required_k
   return test_data;
 }
 
-auto BuildSegmentFrontierSignatures(const SegmentFrontierTestData& test_data, icts::htree::SegmentFrontierKind kind)
-    -> std::vector<std::string>
+auto BuildSegmentFrontierSignatures(const SegmentFrontierTestData& test_data, icts::htree::SegmentFrontierKind kind) -> std::vector<std::string>
 {
   std::vector<std::string> signatures;
   const auto* frontier = test_data.catalog.find(2U, kind);
@@ -129,8 +127,7 @@ auto BuildSegmentFrontierSignatures(const SegmentFrontierTestData& test_data, ic
     const auto* pattern = test_data.pattern_library.find(entry.get_pattern_id());
     std::string signature = std::to_string(entry.get_length_idx()) + "/" + std::to_string(entry.get_input_slew_idx()) + "/"
                             + std::to_string(entry.get_output_slew_idx()) + "/" + std::to_string(entry.get_driven_cap_idx()) + "/"
-                            + std::to_string(entry.get_load_cap_idx()) + "/" + std::to_string(entry.get_delay()) + "/"
-                            + std::to_string(entry.get_power());
+                            + std::to_string(entry.get_load_cap_idx()) + "/" + std::to_string(entry.get_delay()) + "/" + std::to_string(entry.get_power());
     if (pattern == nullptr) {
       signature += "/missing_pattern";
     } else {
@@ -423,8 +420,7 @@ TEST(HTreeTest, AdaptiveGlobalSelectionChoosesTimingShapeWhenItIsNoMoreComplex)
 {
   icts::htree::BufferPatternLibrary segment_pattern_library(CTSDM.getWrapper());
   segment_pattern_library.add(icts::BufferingPattern(1U, icts::PatternId::segment(0U), {}, {}, false));
-  segment_pattern_library.add(
-      icts::BufferingPattern(1U, icts::PatternId::segment(1U), {0.5}, {"BUF_X1"}, false, MakeBufferedBoundaryState()));
+  segment_pattern_library.add(icts::BufferingPattern(1U, icts::PatternId::segment(1U), {0.5}, {"BUF_X1"}, false, MakeBufferedBoundaryState()));
 
   std::vector<icts::htree::CandidateBuildEvaluation> evaluations(3);
   evaluations.at(0).depth = 5U;
@@ -463,8 +459,7 @@ TEST(HTreeTest, AdaptiveGlobalSelectionKeepsMedianWhenTimingShapeAddsComplexity)
 {
   icts::htree::BufferPatternLibrary segment_pattern_library(CTSDM.getWrapper());
   segment_pattern_library.add(icts::BufferingPattern(1U, icts::PatternId::segment(0U), {}, {}, false));
-  segment_pattern_library.add(
-      icts::BufferingPattern(1U, icts::PatternId::segment(1U), {0.5}, {"BUF_X1"}, false, MakeBufferedBoundaryState()));
+  segment_pattern_library.add(icts::BufferingPattern(1U, icts::PatternId::segment(1U), {0.5}, {"BUF_X1"}, false, MakeBufferedBoundaryState()));
 
   std::vector<icts::htree::CandidateBuildEvaluation> evaluations(3);
   evaluations.at(0).depth = 1U;

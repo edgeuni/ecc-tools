@@ -35,8 +35,8 @@ namespace icts {
  *
  * `has_buffer=false` represents a pure-wire boundary with no exposed buffer.
  * `has_buffer=true` with `strength_rank>0` represents the monotonic size class
- * used by group/compose semantics. `strength_rank=0` is reserved for an
- * unresolved size class and is kept distinct from pure wire by `has_buffer`.
+ * used by group/compose semantics. A buffered state with rank zero is invalid
+ * and must be rejected before composition.
  */
 struct BoundaryBufferState
 {
@@ -61,6 +61,10 @@ struct MonotonicBoundaryState
 
   auto canComposeWith(const MonotonicBoundaryState& downstream) const -> bool
   {
+    const auto is_resolved = [](const BoundaryBufferState& state) -> bool { return !state.has_buffer || state.strength_rank > 0U; };
+    if (!is_resolved(source) || !is_resolved(sink) || !is_resolved(downstream.source) || !is_resolved(downstream.sink)) {
+      return false;
+    }
     if (!sink.has_buffer || !downstream.source.has_buffer) {
       return true;
     }

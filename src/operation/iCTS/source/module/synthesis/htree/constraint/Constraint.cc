@@ -15,7 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file BoundaryConstraints.cc
+ * @file Constraint.cc
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-05-01
  * @brief Resolves H-tree pattern search boundary constraints.
@@ -61,8 +61,7 @@ auto HasBoundaryConstraints(const BoundaryConstraints& constraints) -> bool
   return constraints.top_input_slew_covering_idx.has_value();
 }
 
-auto ResolvePatternSearchBoundaryConstraints(const BoundaryConstraints& base_constraints, bool strict_root_boundary_closure)
-    -> BoundaryConstraints
+auto ResolvePatternSearchBoundaryConstraints(const BoundaryConstraints& base_constraints, bool strict_root_boundary_closure) -> BoundaryConstraints
 {
   auto constraints = base_constraints;
   if (strict_root_boundary_closure) {

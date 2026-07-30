@@ -36,8 +36,7 @@ namespace {
 
 auto writeConfigFile(const std::string& file_name, const std::string& content) -> std::filesystem::path
 {
-  const auto config_dir
-      = std::filesystem::temp_directory_path() / ("icts_config_contract_test_" + std::to_string(static_cast<long long>(getpid())));
+  const auto config_dir = std::filesystem::temp_directory_path() / ("icts_config_contract_test_" + std::to_string(static_cast<long long>(getpid())));
   std::filesystem::create_directories(config_dir);
   const auto config_path = config_dir / file_name;
   std::ofstream output_stream(config_path);

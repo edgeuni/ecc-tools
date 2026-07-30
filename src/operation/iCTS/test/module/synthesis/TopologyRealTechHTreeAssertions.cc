@@ -44,8 +44,7 @@ namespace {
 
 auto FindLeafLevelPlan(const icts::HTree::Output& htree_output) -> const icts::HTree::LevelPlan*
 {
-  const auto level_it
-      = std::ranges::find_if(htree_output.levels, [](const icts::HTree::LevelPlan& level) -> bool { return level.is_leaf_level; });
+  const auto level_it = std::ranges::find_if(htree_output.levels, [](const icts::HTree::LevelPlan& level) -> bool { return level.is_leaf_level; });
   if (level_it == htree_output.levels.end()) {
     return nullptr;
   }
@@ -78,8 +77,8 @@ auto AssertNoSingleLoadExternalLeafBuffer(const icts::HTree::Output& htree_outpu
     const auto* downstream_load = output_net->get_loads().front();
     const auto* downstream_inst = downstream_load->get_inst();
     const bool drives_internal_htree_inst = downstream_inst != nullptr && inserted_insts.contains(downstream_inst);
-    EXPECT_TRUE(drives_internal_htree_inst) << "Expected leaf single-load buffer pruning to remove " << inst->get_name()
-                                            << " but it still drives " << downstream_load->get_name();
+    EXPECT_TRUE(drives_internal_htree_inst) << "Expected leaf single-load buffer pruning to remove " << inst->get_name() << " but it still drives "
+                                            << downstream_load->get_name();
   }
 }
 

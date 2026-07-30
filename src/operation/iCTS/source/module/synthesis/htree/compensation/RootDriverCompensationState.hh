@@ -74,6 +74,7 @@ struct RootDriverCompensationCacheKeyHash
 struct RootClosureLoadEstimate
 {
   bool valid = false;
+  std::string failure_reason;
   std::string source;
   std::string route_estimator;
   unsigned bucket_idx = 0U;
@@ -109,8 +110,7 @@ struct RootDriverCompensationState
   bool warned_invalid_input = false;
 };
 
-auto QueryRootClosureLoadEstimate(PatternId pattern_id, const TopologyPatternLibrary& topology_library,
-                                  const BufferPatternLibrary& segment_pattern_library, const Tree& topology,
-                                  RootDriverCompensationState& state) -> RootClosureLoadEstimate;
+auto QueryRootClosureLoadEstimate(PatternId pattern_id, const TopologyPatternLibrary& topology_library, const BufferPatternLibrary& segment_pattern_library,
+                                  const Tree& topology, RootDriverCompensationState& state) -> RootClosureLoadEstimate;
 
 }  // namespace icts::htree

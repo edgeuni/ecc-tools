@@ -91,11 +91,11 @@ auto RenamePin(Design& design, Pin* pin, const std::string& local_name) -> bool
 
 auto ResolveBufferPorts(Wrapper& wrapper, const std::string& cell_master) -> std::optional<std::pair<std::string, std::string>>
 {
-  auto [input_pin_name, output_pin_name] = wrapper.queryBufferPorts(cell_master);
-  if (input_pin_name.empty() || output_pin_name.empty() || input_pin_name == output_pin_name) {
+  const auto ports = wrapper.queryBufferPorts(cell_master);
+  if (!ports.has_value()) {
     return std::nullopt;
   }
-  return std::make_pair(std::move(input_pin_name), std::move(output_pin_name));
+  return std::make_pair(ports->input, ports->output);
 }
 
 auto UpdateClockLayoutInstMaster(ClockLayout& clock_layout, const std::string& inst_name, const std::string& cell_master) -> void
@@ -128,8 +128,8 @@ auto ApplyClockSizingAcceptedEdits(Design& design, Wrapper& wrapper, const std::
       return false;
     }
     if (expected_iter->second != accepted_edit.from_master) {
-      CTSLOG.warn(Loc::current(), "Optimization: cannot apply clock sizing edit for inst \"", accepted_edit.inst_name,
-                  "\" because current master is \"", expected_iter->second, "\" but solver expected \"", accepted_edit.from_master, "\".");
+      CTSLOG.warn(Loc::current(), "Optimization: cannot apply clock sizing edit for inst \"", accepted_edit.inst_name, "\" because current master is \"",
+                  expected_iter->second, "\" but solver expected \"", accepted_edit.from_master, "\".");
       return false;
     }
     expected_iter->second = accepted_edit.to_master;
@@ -141,8 +141,8 @@ auto ApplyClockSizingAcceptedEdits(Design& design, Wrapper& wrapper, const std::
     auto* input_pin = FindSingleBufferInputPin(inst);
     auto* output_pin = inst == nullptr ? nullptr : inst->findDriverPin();
     const auto ports = ResolveBufferPorts(wrapper, final_master);
-    if (inst == nullptr || input_pin == nullptr || output_pin == nullptr || !ports.has_value()
-        || !CanRenamePin(design, input_pin, ports->first) || !CanRenamePin(design, output_pin, ports->second)) {
+    if (inst == nullptr || input_pin == nullptr || output_pin == nullptr || !ports.has_value() || !CanRenamePin(design, input_pin, ports->first)
+        || !CanRenamePin(design, output_pin, ports->second)) {
       CTSLOG.warn(Loc::current(), "Optimization: cannot apply final master \"", final_master, "\" to buffer inst \"", inst_name,
                   "\" because its pin pair cannot be updated.");
       return false;

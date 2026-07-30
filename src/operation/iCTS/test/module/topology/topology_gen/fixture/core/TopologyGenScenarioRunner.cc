@@ -30,11 +30,10 @@
 #include <vector>
 
 #include "Logger.hh"
-#include "common/dataset/TestDataset.hh"
-#include "common/io/TestArtifactIO.hh"
 #include "module/topology/TopologyGen.hh"
 #include "module/topology/topology_gen/fixture/TopologyGenCaseFixture.hh"
 #include "module/topology/topology_gen/fixture/TopologyGenScenario.hh"
+#include "toolkit/io/TestArtifactIO.hh"
 
 namespace icts_test::topology_gen {
 
@@ -43,8 +42,8 @@ static_assert(std::is_same_v<decltype(TopologyCase::name), std::string>);
 auto RunBuildAndVisualize(const TopologyCase& test_case) -> void
 {
   const auto case_dir_name
-      = common::io::SanitizeOutputName(test_case.name + "_" + std::to_string(test_case.count) + "_seed_" + std::to_string(test_case.seed));
-  const auto output_dir = common::io::PrepareCleanOutputDir(common::io::ResolveTopologyGenOutputDir() / case_dir_name);
+      = toolkit::io::SanitizeOutputName(test_case.name + "_" + std::to_string(test_case.count) + "_seed_" + std::to_string(test_case.seed));
+  const auto output_dir = toolkit::io::PrepareCleanOutputDir(toolkit::io::ResolveTopologyGenOutputDir() / case_dir_name);
   ASSERT_FALSE(output_dir.empty()) << "Failed to prepare topology output dir for case: " << test_case.name;
 
   CTSLOG.info(icts::Loc::current(), "Topology test start: ", test_case.name, ", count=", test_case.count, ", seed=", test_case.seed);

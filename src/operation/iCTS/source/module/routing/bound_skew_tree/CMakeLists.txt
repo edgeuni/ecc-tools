@@ -7,7 +7,7 @@ add_library(
   ${ICTS_MODULE_ROUTING}/bound_skew_tree/algorithm/BottomUpMergeJoining.cc
   ${ICTS_MODULE_ROUTING}/bound_skew_tree/algorithm/BoundSkewTree.cc
   ${ICTS_MODULE_ROUTING}/bound_skew_tree/algorithm/BoundSkewTreeImpl.cc
-  ${ICTS_MODULE_ROUTING}/bound_skew_tree/algorithm/BstPipeline.cc
+  ${ICTS_MODULE_ROUTING}/bound_skew_tree/algorithm/BSTPipeline.cc
   ${ICTS_MODULE_ROUTING}/bound_skew_tree/algorithm/TopDownEmbedding.cc
   ${ICTS_MODULE_ROUTING}/bound_skew_tree/clock_tree_conversion/BSTRouterBinaryTopology.cc
   ${ICTS_MODULE_ROUTING}/bound_skew_tree/clock_tree_conversion/BSTRouterExport.cc

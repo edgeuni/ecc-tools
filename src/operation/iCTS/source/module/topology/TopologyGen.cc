@@ -102,8 +102,8 @@ auto CalcClusterCenter(const std::vector<Pin*>& loads) -> Point<int>
   return Point<int>(static_cast<int>(std::lround(center.get_x())), static_cast<int>(std::lround(center.get_y())));
 }
 
-auto BuildKWayChildPartitions(const std::vector<Pin*>& loads, std::size_t child_count, std::size_t leaf_need_per_child,
-                              const BiPartitionConfig& config) -> ClusterOutput
+auto BuildKWayChildPartitions(const std::vector<Pin*>& loads, std::size_t child_count, std::size_t leaf_need_per_child, const BiPartitionConfig& config)
+    -> ClusterOutput
 {
   ClusterOutput output;
   if (child_count == 0U) {
@@ -209,8 +209,7 @@ auto TopologyGen::buildWithConfig(const std::vector<Pin*>& loads, const Input& i
 
   const auto root = tree.create_node();
   tree.set_root(root);
-  tree.get_node(root)->get_position()
-      = input.fixed_root_location.value_or(geometry::CalcMedian(loads, [](Pin* pin) -> auto { return pin->get_location(); }));
+  tree.get_node(root)->get_position() = input.fixed_root_location.value_or(geometry::CalcMedian(loads, [](Pin* pin) -> auto { return pin->get_location(); }));
 
   buildFullTree(tree, BuildCursor{.node_id = root, .depth = 0}, static_cast<int>(height), branching_factor);
   embedPositions(tree, root, loads, leaf_count, config.partition_config, branching_factor);
@@ -262,8 +261,8 @@ auto TopologyGen::buildFullTree(Tree& tree, const BuildCursor& cursor, int heigh
   }
 }
 
-auto TopologyGen::embedPositions(Tree& tree, std::size_t node, const std::vector<Pin*>& loads, std::size_t leaf_need,
-                                 const BiPartitionConfig& config, std::size_t branching_factor) -> void
+auto TopologyGen::embedPositions(Tree& tree, std::size_t node, const std::vector<Pin*>& loads, std::size_t leaf_need, const BiPartitionConfig& config,
+                                 std::size_t branching_factor) -> void
 {
   struct EmbedFrame
   {
@@ -378,8 +377,7 @@ auto TopologyGen::balanceTopology(Tree& tree, int min_x, int min_y, int max_x, i
         continue;
       }
       const double target_dist = current_dist < min_allowed_dist ? min_allowed_dist : max_allowed_dist;
-      node->get_position()
-          = geometry::ProjectToL1Circle(parent->get_position(), node->get_position(), target_dist, min_x, min_y, max_x, max_y);
+      node->get_position() = geometry::ProjectToL1Circle(parent->get_position(), node->get_position(), target_dist, min_x, min_y, max_x, max_y);
     }
   }
 }

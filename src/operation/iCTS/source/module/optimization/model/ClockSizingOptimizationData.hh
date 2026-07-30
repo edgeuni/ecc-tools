@@ -28,7 +28,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "FastSta.hh"
+#include "FastSTA.hh"
 #include "routing/router/Router.hh"
 
 namespace icts {

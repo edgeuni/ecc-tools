@@ -45,8 +45,8 @@
 namespace icts::bst::detail {
 namespace {
 
-auto checkMatchingEndpoint(const Point& joining_segment_point, const Point& line_point, const std::string_view side_name,
-                           const std::string_view endpoint_name) -> void
+auto checkMatchingEndpoint(const Point& joining_segment_point, const Point& line_point, const std::string_view side_name, const std::string_view endpoint_name)
+    -> void
 {
   if (!Geom::isSame(joining_segment_point, line_point)) {
     CTSLOG.error(Loc::current(), side_name, " joining segment is not same as ", side_name, " line at ", endpoint_name);
@@ -265,8 +265,7 @@ auto BottomUpMergeJoining::addJoiningSegmentPoints(const MergeAreas& merge_areas
     }
     auto merge_region = side == kLeft ? left->get_merge_region() : right->get_merge_region();
     for (auto point : merge_region) {
-      if (Geom::onLine(point, _impl.topDownEmbedding().getJoiningSegmentLine(side))
-          && !Geom::isSame(point, BoundSkewTreeImpl::pointAt(segment_points, kHead))
+      if (Geom::onLine(point, _impl.topDownEmbedding().getJoiningSegmentLine(side)) && !Geom::isSame(point, BoundSkewTreeImpl::pointAt(segment_points, kHead))
           && !Geom::isSame(point, BoundSkewTreeImpl::pointAt(segment_points, kTail))) {
         segment_points.push_back(point);
       }
@@ -279,8 +278,8 @@ auto BottomUpMergeJoining::addJoiningSegmentPoints(const MergeAreas& merge_areas
   {
     const auto other_side = BoundSkewTreeImpl::otherSide(side);
     const auto other_merge_region = other_side == kLeft ? left->get_merge_region() : right->get_merge_region();
-    const auto relative_type = Geom::lineRelative(_impl.topDownEmbedding().getJoiningSegmentLine(kLeft),
-                                                  _impl.topDownEmbedding().getJoiningSegmentLine(kRight), other_side);
+    const auto relative_type
+        = Geom::lineRelative(_impl.topDownEmbedding().getJoiningSegmentLine(kLeft), _impl.topDownEmbedding().getJoiningSegmentLine(kRight), other_side);
     const auto& segment_points = _impl.joiningSegmentPoints(side);
     auto& updated_segment_points = updated_joining_segments.forSide(side);
     for (auto point : other_merge_region) {
@@ -346,11 +345,10 @@ auto BottomUpMergeJoining::calcNonManhattanJoiningRegionEndpoints(const MergeAre
   auto* left = merge_areas.left;
   auto* right = merge_areas.right;
   addJoiningSegmentPoints(merge_areas);
-  const SideDelay delay_from{
-      .left = _impl.topDownEmbedding().pointDelayIncrease(_impl.joiningSegmentPoint(kLeft, kHead), _impl.joiningSegmentPoint(kRight, kHead),
-                                                          left->get_cap_load(), _impl._rc_pattern),
-      .right = _impl.topDownEmbedding().pointDelayIncrease(
-          _impl.joiningSegmentPoint(kLeft, kHead), _impl.joiningSegmentPoint(kRight, kHead), right->get_cap_load(), _impl._rc_pattern)};
+  const SideDelay delay_from{.left = _impl.topDownEmbedding().pointDelayIncrease(
+                                 _impl.joiningSegmentPoint(kLeft, kHead), _impl.joiningSegmentPoint(kRight, kHead), left->get_cap_load(), _impl._rc_pattern),
+                             .right = _impl.topDownEmbedding().pointDelayIncrease(
+                                 _impl.joiningSegmentPoint(kLeft, kHead), _impl.joiningSegmentPoint(kRight, kHead), right->get_cap_load(), _impl._rc_pattern)};
   FOR_EACH_BST_SIDE(side)
   {
     const auto other_side = BoundSkewTreeImpl::otherSide(side);
@@ -372,17 +370,15 @@ auto BottomUpMergeJoining::calcNonManhattanJoiningRegionEndpoints(const MergeAre
     const auto other_side = BoundSkewTreeImpl::otherSide(side);
     const auto section_count = _impl.joiningRegionPoints(side).size() - 1;
     for (size_t point_index = 0; point_index < section_count; ++point_index) {
-      const auto min_delta = (_impl.joiningSegmentPoint(side, point_index).min - _impl.joiningSegmentPoint(other_side, point_index).min
-                              - delay_from.get(other_side))
-                             * (_impl.joiningSegmentPoint(side, point_index + 1).min
-                                - _impl.joiningSegmentPoint(other_side, point_index + 1).min - delay_from.get(other_side));
+      const auto min_delta
+          = (_impl.joiningSegmentPoint(side, point_index).min - _impl.joiningSegmentPoint(other_side, point_index).min - delay_from.get(other_side))
+            * (_impl.joiningSegmentPoint(side, point_index + 1).min - _impl.joiningSegmentPoint(other_side, point_index + 1).min - delay_from.get(other_side));
       if (min_delta < -kEpsilon) {
         addTurnPoint(side, point_index, kMin, delay_from);
       }
-      const auto max_delta = (_impl.joiningSegmentPoint(side, point_index).max - _impl.joiningSegmentPoint(other_side, point_index).max
-                              - delay_from.get(other_side))
-                             * (_impl.joiningSegmentPoint(side, point_index + 1).max
-                                - _impl.joiningSegmentPoint(other_side, point_index + 1).max - delay_from.get(other_side));
+      const auto max_delta
+          = (_impl.joiningSegmentPoint(side, point_index).max - _impl.joiningSegmentPoint(other_side, point_index).max - delay_from.get(other_side))
+            * (_impl.joiningSegmentPoint(side, point_index + 1).max - _impl.joiningSegmentPoint(other_side, point_index + 1).max - delay_from.get(other_side));
       if (max_delta < -kEpsilon) {
         addTurnPoint(side, point_index, kMax, delay_from);
       }
@@ -409,8 +405,7 @@ auto BottomUpMergeJoining::calcNonManhattanJoiningRegionEndpoints(const MergeAre
       const auto current_value = increasing_points.back().val;
       const auto next_value = BoundSkewTreeImpl::pointAt(joining_region_points, point_index).val;
       if (current_value > next_value + (100 * kEpsilon)) {
-        CTSLOG.error(Loc::current(), "current_value: ", current_value, "> next_value: ", next_value,
-                     ", skew slope is not strictly monotone increasing");
+        CTSLOG.error(Loc::current(), "current_value: ", current_value, "> next_value: ", next_value, ", skew slope is not strictly monotone increasing");
       }
       if (next_value > current_value) {
         increasing_points.push_back(BoundSkewTreeImpl::pointAt(joining_region_points, point_index));
@@ -421,13 +416,11 @@ auto BottomUpMergeJoining::calcNonManhattanJoiningRegionEndpoints(const MergeAre
   }
 }
 
-auto BottomUpMergeJoining::addTurnPoint(const size_t& side, const size_t& point_index, const size_t& timing_type,
-                                        const SideDelay& delay_from) -> void
+auto BottomUpMergeJoining::addTurnPoint(const size_t& side, const size_t& point_index, const size_t& timing_type, const SideDelay& delay_from) -> void
 {
   const auto first_point = _impl.joiningRegionPoint(side, point_index);
   const auto second_point = _impl.joiningRegionPoint(side, point_index + 1);
-  const double alpha
-      = Equal(first_point.x, second_point.x) ? _impl._delay_quadratic_factor.vertical : _impl._delay_quadratic_factor.horizontal;
+  const double alpha = Equal(first_point.x, second_point.x) ? _impl._delay_quadratic_factor.vertical : _impl._delay_quadratic_factor.horizontal;
   const auto distance = Geom::distance(first_point, second_point);
   if (Equal(distance, 0)) {
     CTSLOG.error(Loc::current(), "distance is zero");
@@ -439,24 +432,20 @@ auto BottomUpMergeJoining::addTurnPoint(const size_t& side, const size_t& point_
     FOR_EACH_BST_SIDE(current_timing_type)
     {
       const auto first_delay = delayFromJoiningSegment(
-          JoiningSegmentDelayQuery{
-              .joining_region_side = side, .segment_side = segment_side, .point_index = point_index, .timing_type = current_timing_type},
+          JoiningSegmentDelayQuery{.joining_region_side = side, .segment_side = segment_side, .point_index = point_index, .timing_type = current_timing_type},
           delay_from);
-      const auto second_delay = delayFromJoiningSegment(JoiningSegmentDelayQuery{.joining_region_side = side,
-                                                                                 .segment_side = segment_side,
-                                                                                 .point_index = point_index + 1,
-                                                                                 .timing_type = current_timing_type},
-                                                        delay_from);
+      const auto second_delay = delayFromJoiningSegment(
+          JoiningSegmentDelayQuery{
+              .joining_region_side = side, .segment_side = segment_side, .point_index = point_index + 1, .timing_type = current_timing_type},
+          delay_from);
       beta.forSide(segment_side).forTiming(current_timing_type) = ((second_delay - first_delay) / distance) - (alpha * distance);
     }
   }
 
   const auto left_delay = delayFromJoiningSegment(
-      JoiningSegmentDelayQuery{.joining_region_side = kLeft, .segment_side = side, .point_index = point_index, .timing_type = timing_type},
-      delay_from);
+      JoiningSegmentDelayQuery{.joining_region_side = kLeft, .segment_side = side, .point_index = point_index, .timing_type = timing_type}, delay_from);
   const auto right_delay = delayFromJoiningSegment(
-      JoiningSegmentDelayQuery{.joining_region_side = kRight, .segment_side = side, .point_index = point_index, .timing_type = timing_type},
-      delay_from);
+      JoiningSegmentDelayQuery{.joining_region_side = kRight, .segment_side = side, .point_index = point_index, .timing_type = timing_type}, delay_from);
   const auto beta_delta = beta.right.forTiming(timing_type) - beta.left.forTiming(timing_type);
   const auto turn_distance = (left_delay - right_delay) / beta_delta;
   if (turn_distance <= 0 || turn_distance >= distance) {
@@ -472,11 +461,10 @@ auto BottomUpMergeJoining::addTurnPoint(const size_t& side, const size_t& point_
     FOR_EACH_BST_SIDE(current_timing_type)
     {
       delay_bound.forSide(segment_side).forTiming(current_timing_type)
-          = delayFromJoiningSegment(JoiningSegmentDelayQuery{.joining_region_side = side,
-                                                             .segment_side = segment_side,
-                                                             .point_index = point_index,
-                                                             .timing_type = current_timing_type},
-                                    delay_from)
+          = delayFromJoiningSegment(
+                JoiningSegmentDelayQuery{
+                    .joining_region_side = side, .segment_side = segment_side, .point_index = point_index, .timing_type = current_timing_type},
+                delay_from)
             + (alpha * turn_distance * turn_distance) + (beta.forSide(segment_side).forTiming(current_timing_type) * turn_distance);
     }
   }

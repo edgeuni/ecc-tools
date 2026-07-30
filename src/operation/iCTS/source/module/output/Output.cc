@@ -30,10 +30,8 @@
 #include "Monitor.hh"
 #include "config/Config.hh"
 #include "data_manager/DataManager.hh"
-#include "evaluation/Evaluation.hh"
-#include "evaluation/qor/QorEvaluation.hh"
 #include "output/export/OutputPathResolver.hh"
-#include "output/qor/QorReport.hh"
+#include "output/qor/QORReport.hh"
 #include "output/visualization/Visualization.hh"
 #include "output/visualization/drawing/Drawing.hh"
 
@@ -43,24 +41,19 @@ auto Output::run(const std::string& save_dir) -> OutputSummary
 {
   Monitor monitor;
   CTSLOG.info(Loc::current(), "Starting CTS output...");
-  if (!Evaluation::isEvaluationReady(CTSDM.getEvaluationState())) {
-    const auto evaluation = Evaluation::run();
-    if (!evaluation.summary.evaluation_ready) {
-      CTSLOG.warn(Loc::current(), "CTS output requires a committed evaluation result.");
-      CTSLOG.info(Loc::current(), "Completed CTS output with failure", monitor.getStatsInfo());
-      return {};
-    }
+  const auto* evaluation_state = CTSDM.getCommittedEvaluationState();
+  if (evaluation_state == nullptr) {
+    CTSLOG.warn(Loc::current(), "CTS output requires a committed evaluation result.");
+    CTSLOG.info(Loc::current(), "Completed CTS output with failure", monitor.getStatsInfo());
+    return {};
   }
   const auto& config = CTSDM.getConfig();
-  auto& evaluation_state = CTSDM.getEvaluationState();
   if (config.get_work_dir().empty()) {
     CTSLOG.error(Loc::current(), "CTS output requires an initialized CTS session.");
   }
 
   const auto paths = OutputPathResolver::resolvePaths(config, save_dir);
-  const bool current_evaluation_ready = Evaluation::isEvaluationReady(evaluation_state);
-
-  const bool statistics_success = current_evaluation_ready && QorReport::write(evaluation_state, paths.statistics_dir.string());
+  const bool statistics_success = QorReport::write(*evaluation_state, paths.statistics_dir.string());
   const auto drawing = DrawingBuilder::build(DrawingInput{
       .design = &CTSDM.getDesign(),
       .wrapper = &CTSDM.getWrapper(),
@@ -71,22 +64,20 @@ auto Output::run(const std::string& save_dir) -> OutputSummary
 
   auto summary = OutputSummary{
       .success = output_success,
-      .evaluation_ready = current_evaluation_ready,
+      .evaluation_ready = true,
       .statistics_success = statistics_success,
       .svg_success = visualization_summary.svg_success,
       .gds_success = visualization_summary.gds_success,
   };
-  EmitLogTable(
-      Loc::current(), "CTS Report Artifacts", {"Artifact", "Path", "Status"},
-      {{"Output Root", paths.output_root_dir.string(), summary.success ? "ready" : "incomplete"},
-       {"Statistics Directory", paths.statistics_dir.string(), summary.statistics_success ? "ready" : "failed"},
-       {"Visualization Directory", paths.visualization_dir.string(), visualization_summary.success ? "ready" : "failed"},
-       {"Wirelength Report", (paths.statistics_dir / "wirelength.rpt").string(), summary.statistics_success ? "written" : "failed"},
-       {"Cell Statistics Report", (paths.statistics_dir / "cell_stats.rpt").string(), summary.statistics_success ? "written" : "failed"},
-       {"Library Cell Distribution Report", (paths.statistics_dir / "lib_cell_dist.rpt").string(),
-        summary.statistics_success ? "written" : "failed"},
-       {"SVG", paths.visualization_dir.string(), summary.svg_success ? "written" : "failed"},
-       {"GDS", paths.visualization_dir.string(), summary.gds_success ? "written" : "failed"}});
+  EmitLogTable(Loc::current(), "CTS Report Artifacts", {"Artifact", "Path", "Status"},
+               {{"Output Root", paths.output_root_dir.string(), summary.success ? "ready" : "incomplete"},
+                {"Statistics Directory", paths.statistics_dir.string(), summary.statistics_success ? "ready" : "failed"},
+                {"Visualization Directory", paths.visualization_dir.string(), visualization_summary.success ? "ready" : "failed"},
+                {"Wirelength Report", (paths.statistics_dir / "wirelength.rpt").string(), summary.statistics_success ? "written" : "failed"},
+                {"Cell Statistics Report", (paths.statistics_dir / "cell_stats.rpt").string(), summary.statistics_success ? "written" : "failed"},
+                {"Library Cell Distribution Report", (paths.statistics_dir / "lib_cell_dist.rpt").string(), summary.statistics_success ? "written" : "failed"},
+                {"SVG", paths.visualization_dir.string(), summary.svg_success ? "written" : "failed"},
+                {"GDS", paths.visualization_dir.string(), summary.gds_success ? "written" : "failed"}});
   CTSLOG.info(Loc::current(), output_success ? "Completed CTS output" : "Completed CTS output with failure", monitor.getStatsInfo());
   return summary;
 }

@@ -15,7 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file BufferStrengthTable.hh
+ * @file BufferStrength.hh
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-05-01
  * @brief H-tree pattern-side buffer drive-strength ranking table.
@@ -24,6 +24,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -38,27 +39,22 @@ class BufferStrengthTable
  public:
   explicit BufferStrengthTable(Wrapper& wrapper) : _wrapper(&wrapper) {}
 
-  auto getStrengthRank(const std::string& cell_master) -> unsigned
+  auto getStrengthRank(const std::string& cell_master) -> std::optional<unsigned>
   {
     if (cell_master.empty()) {
-      return 0U;
+      return std::nullopt;
     }
 
     if (!_drive_caps.contains(cell_master)) {
       if (_wrapper == nullptr) {
         CTSLOG.error(Loc::current(), "HTree: Wrapper is unavailable for buffer drive-strength ranking.");
       }
-      double drive_cap_pf = _wrapper->queryCellOutPinCapLimit(cell_master);
-      if (drive_cap_pf <= 0.0) {
+      auto drive_cap_pf = _wrapper->queryCellOutPinCapLimit(cell_master);
+      if (!drive_cap_pf.has_value()) {
         drive_cap_pf = _wrapper->queryCellOutPinCapTableAxisMax(cell_master);
       }
       _drive_caps[cell_master] = drive_cap_pf;
       _ranks_dirty = true;
-
-      if (drive_cap_pf <= 0.0) {
-        CTSLOG.warn(Loc::current(), "HTree: failed to resolve drive-strength rank for buffer master ", cell_master,
-                    "; monotonic composition keeps an explicit boundary buffer with unresolved size class.");
-      }
     }
 
     if (_ranks_dirty) {
@@ -66,7 +62,7 @@ class BufferStrengthTable
     }
 
     const auto rank_it = _strength_ranks.find(cell_master);
-    return rank_it == _strength_ranks.end() ? 0U : rank_it->second;
+    return rank_it == _strength_ranks.end() ? std::nullopt : std::optional<unsigned>{rank_it->second};
   }
 
  private:
@@ -75,8 +71,8 @@ class BufferStrengthTable
     std::vector<std::pair<std::string, double>> ordered_caps;
     ordered_caps.reserve(_drive_caps.size());
     for (const auto& [cell_master, drive_cap_pf] : _drive_caps) {
-      if (drive_cap_pf > 0.0) {
-        ordered_caps.emplace_back(cell_master, drive_cap_pf);
+      if (drive_cap_pf.has_value()) {
+        ordered_caps.emplace_back(cell_master, *drive_cap_pf);
       }
     }
 
@@ -103,7 +99,7 @@ class BufferStrengthTable
     _ranks_dirty = false;
   }
 
-  std::unordered_map<std::string, double> _drive_caps;
+  std::unordered_map<std::string, std::optional<double>> _drive_caps;
   std::unordered_map<std::string, unsigned> _strength_ranks;
   Wrapper* _wrapper = nullptr;
   bool _ranks_dirty = false;

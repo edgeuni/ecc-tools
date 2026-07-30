@@ -64,8 +64,8 @@ auto ResolveAnalyticalRootProbeSlewNs(const AnalyticalHTreeSolveProblem& solve_p
 
 namespace {
 
-auto EvaluateMetric(const AnalyticalModelSet& model_set, AnalyticalMetric metric, double input_slew_ns, double load_cap_pf,
-                    bool conservative) -> std::optional<double>
+auto EvaluateMetric(const AnalyticalModelSet& model_set, AnalyticalMetric metric, double input_slew_ns, double load_cap_pf, bool conservative)
+    -> std::optional<double>
 {
   const auto* model = model_set.findMetric(metric);
   if (model == nullptr) {
@@ -82,8 +82,8 @@ auto ResolveAnalyticalModelProbe(const AnalyticalModelSet& model_set, double inp
   };
   double slew_floor_ns = 0.0;
   double cap_floor_pf = 0.0;
-  for (const auto metric : {AnalyticalMetric::kOutputSlew, AnalyticalMetric::kDelay, AnalyticalMetric::kPower,
-                            AnalyticalMetric::kSourceBoundaryNetSwitchPower}) {
+  for (const auto metric :
+       {AnalyticalMetric::kOutputSlew, AnalyticalMetric::kDelay, AnalyticalMetric::kPower, AnalyticalMetric::kSourceBoundaryNetSwitchPower}) {
     const auto* model = model_set.findMetric(metric);
     if (model == nullptr || !model->domain.isValid()) {
       continue;
@@ -127,8 +127,7 @@ auto CollectUnitModelRefs(const AnalyticalHTreeSolveProblem& solve_problem) -> s
         .composition_state = segment_pattern_library->getCompositionState(key.pattern_id),
     });
   }
-  std::ranges::sort(unit_models,
-                    [](const UnitModelRef& lhs, const UnitModelRef& rhs) -> bool { return lhs.pattern_id.pack() < rhs.pattern_id.pack(); });
+  std::ranges::sort(unit_models, [](const UnitModelRef& lhs, const UnitModelRef& rhs) -> bool { return lhs.pattern_id.pack() < rhs.pattern_id.pack(); });
   return unit_models;
 }
 
@@ -145,8 +144,7 @@ auto BuildUnitPatternByCellMaster(const AnalyticalHTreeSolveProblem& solve_probl
     if (pattern == nullptr) {
       continue;
     }
-    const std::string cell_master
-        = pattern->isBufferPattern() && !pattern->get_cell_masters().empty() ? pattern->get_cell_masters().front() : std::string{};
+    const std::string cell_master = pattern->isBufferPattern() && !pattern->get_cell_masters().empty() ? pattern->get_cell_masters().front() : std::string{};
     const std::string lookup_key = (pattern->hasTerminalBranchBuffer() ? "branch:" : "leaf:") + cell_master;
     auto [it, inserted] = unit_pattern_by_cell_master.emplace(lookup_key, unit_model.pattern_id);
     if (!inserted && unit_model.pattern_id.pack() < it->second.pack()) {
@@ -169,14 +167,13 @@ auto FindUnitModel(const AnalyticalHTreeSolveProblem& solve_problem, PatternId p
   });
 }
 
-auto RecordMetricEvaluationRejection(const AnalyticalModelSet& model_set, double input_slew_ns, double load_cap_pf,
-                                     AnalyticalSolverBuild& result) -> void
+auto RecordMetricEvaluationRejection(const AnalyticalModelSet& model_set, double input_slew_ns, double load_cap_pf, AnalyticalSolverBuild& result) -> void
 {
   ++result.summary.metric_evaluation_rejected_count;
   bool slew_rejected = false;
   bool cap_rejected = false;
-  for (const auto metric : {AnalyticalMetric::kOutputSlew, AnalyticalMetric::kDelay, AnalyticalMetric::kPower,
-                            AnalyticalMetric::kSourceBoundaryNetSwitchPower}) {
+  for (const auto metric :
+       {AnalyticalMetric::kOutputSlew, AnalyticalMetric::kDelay, AnalyticalMetric::kPower, AnalyticalMetric::kSourceBoundaryNetSwitchPower}) {
     const auto* model = model_set.findMetric(metric);
     if (model == nullptr || !model->domain.isValid()) {
       continue;
@@ -200,8 +197,8 @@ auto RecordMetricEvaluationRejection(const AnalyticalModelSet& model_set, double
 }  // namespace
 
 auto ScoreFunctionalUnitSequence(const AnalyticalHTreeSolveProblem& solve_problem, const std::vector<PatternId>& unit_pattern_ids,
-                                 PatternId materialized_pattern_id, unsigned length_idx, double input_slew_ns, double downstream_cap_pf,
-                                 bool conservative, AnalyticalSolverBuild& result) -> std::optional<ScoredSegment>
+                                 PatternId materialized_pattern_id, unsigned length_idx, double input_slew_ns, double downstream_cap_pf, bool conservative,
+                                 AnalyticalSolverBuild& result) -> std::optional<ScoredSegment>
 {
   if (unit_pattern_ids.empty()) {
     return std::nullopt;
@@ -238,14 +235,11 @@ auto ScoreFunctionalUnitSequence(const AnalyticalHTreeSolveProblem& solve_proble
     if (model_probe.cap_floored) {
       ++result.summary.domain_cap_floor_count;
     }
-    const auto output_slew
-        = EvaluateMetric(model_set, AnalyticalMetric::kOutputSlew, model_probe.input_slew_ns, model_probe.load_cap_pf, conservative);
-    const auto delay
-        = EvaluateMetric(model_set, AnalyticalMetric::kDelay, model_probe.input_slew_ns, model_probe.load_cap_pf, conservative);
-    const auto power
-        = EvaluateMetric(model_set, AnalyticalMetric::kPower, model_probe.input_slew_ns, model_probe.load_cap_pf, conservative);
-    const auto source_boundary_power = EvaluateMetric(model_set, AnalyticalMetric::kSourceBoundaryNetSwitchPower, model_probe.input_slew_ns,
-                                                      model_probe.load_cap_pf, conservative);
+    const auto output_slew = EvaluateMetric(model_set, AnalyticalMetric::kOutputSlew, model_probe.input_slew_ns, model_probe.load_cap_pf, conservative);
+    const auto delay = EvaluateMetric(model_set, AnalyticalMetric::kDelay, model_probe.input_slew_ns, model_probe.load_cap_pf, conservative);
+    const auto power = EvaluateMetric(model_set, AnalyticalMetric::kPower, model_probe.input_slew_ns, model_probe.load_cap_pf, conservative);
+    const auto source_boundary_power
+        = EvaluateMetric(model_set, AnalyticalMetric::kSourceBoundaryNetSwitchPower, model_probe.input_slew_ns, model_probe.load_cap_pf, conservative);
     if (!output_slew.has_value() || !delay.has_value() || !power.has_value() || !source_boundary_power.has_value()) {
       RecordMetricEvaluationRejection(model_set, model_probe.input_slew_ns, model_probe.load_cap_pf, result);
       return std::nullopt;

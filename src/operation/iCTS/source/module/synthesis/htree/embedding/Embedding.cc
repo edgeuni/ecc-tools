@@ -99,8 +99,7 @@ auto RecordInsertedNetLevel(HTree::Build& result, Net* net, int topology_level) 
     return;
   }
   const auto index_in_level = static_cast<std::size_t>(std::ranges::count_if(
-      result.output.inserted_net_levels,
-      [topology_level](const HTree::InsertedNetLevel& level) -> bool { return level.topology_level == topology_level; }));
+      result.output.inserted_net_levels, [topology_level](const HTree::InsertedNetLevel& level) -> bool { return level.topology_level == topology_level; }));
   result.output.inserted_net_levels.push_back(HTree::InsertedNetLevel{
       .net = net,
       .topology_level = topology_level,
@@ -159,9 +158,8 @@ auto CreateNet(HTree::Build& result, const std::string& net_name, Pin* driver, c
 template <typename T>
 auto EraseOwnedPointer(std::vector<std::unique_ptr<T>>& objects, T* target) -> void
 {
-  objects.erase(
-      std::remove_if(objects.begin(), objects.end(), [target](const std::unique_ptr<T>& object) -> bool { return object.get() == target; }),
-      objects.end());
+  objects.erase(std::remove_if(objects.begin(), objects.end(), [target](const std::unique_ptr<T>& object) -> bool { return object.get() == target; }),
+                objects.end());
 }
 
 template <typename T>
@@ -255,11 +253,11 @@ auto ResolveBufferPorts(Wrapper& wrapper, const std::string& cell_master) -> std
     return std::nullopt;
   }
 
-  auto [input_pin_name, output_pin_name] = wrapper.queryBufferPorts(cell_master);
-  if (input_pin_name.empty() || output_pin_name.empty()) {
+  const auto ports = wrapper.queryBufferPorts(cell_master);
+  if (!ports.has_value()) {
     return std::nullopt;
   }
-  return std::make_pair(std::move(input_pin_name), std::move(output_pin_name));
+  return std::make_pair(ports->input, ports->output);
 }
 
 auto ReplaceNetLoad(Net* net, Pin* old_load, Pin* new_load) -> bool
@@ -356,8 +354,8 @@ auto MaterializeSplitNode(EmbeddingState& context, const SinkLoadRegionSplitNode
       CTSLOG.error(Loc::current(), "HTree: null split node during materialization.");
     }
 
-    auto created_buffer = CreateBufferInstance(*context.result, context.nextSplitBufferName(), context.split_buffer_master,
-                                               current_node->center, ports->first, ports->second);
+    auto created_buffer
+        = CreateBufferInstance(*context.result, context.nextSplitBufferName(), context.split_buffer_master, current_node->center, ports->first, ports->second);
     RecordInsertedInstLevel(*context.result, created_buffer.first == nullptr ? nullptr : created_buffer.first->get_inst(), topology_level,
                             context.split_sub_buffer_count);
     ++context.split_sub_buffer_count;
@@ -448,8 +446,8 @@ auto MaterializeSplitSubBuffers(EmbeddingState& context, const std::vector<Pin*>
 }
 
 auto BuildSegmentObjectsAndGetEntryLoads(EmbeddingState& context, const TreeNode& parent_node, const TreeNode& child_node,
-                                         const BufferingPattern& segment_pattern, const std::vector<Pin*>& child_entry_loads,
-                                         int topology_level) -> std::vector<Pin*>
+                                         const BufferingPattern& segment_pattern, const std::vector<Pin*>& child_entry_loads, int topology_level)
+    -> std::vector<Pin*>
 {
   if (child_node.get_loads().empty()) {
     return {};
@@ -480,18 +478,16 @@ auto BuildSegmentObjectsAndGetEntryLoads(EmbeddingState& context, const TreeNode
       CTSLOG.error(Loc::current(), "HTree: unresolved ports for edge buffer master ", cell_masters.at(buffer_index));
     }
 
-    const auto buffer_location
-        = InterpolateManhattanPoint(parent_node.get_position(), child_node.get_position(), positions.at(buffer_index));
-    auto created_buffer = CreateBufferInstance(*context.result, context.nextBufferName(), cell_masters.at(buffer_index), buffer_location,
-                                               ports->first, ports->second);
-    RecordInsertedInstLevel(*context.result, created_buffer.first == nullptr ? nullptr : created_buffer.first->get_inst(), topology_level,
-                            buffer_index);
+    const auto buffer_location = InterpolateManhattanPoint(parent_node.get_position(), child_node.get_position(), positions.at(buffer_index));
+    auto created_buffer
+        = CreateBufferInstance(*context.result, context.nextBufferName(), cell_masters.at(buffer_index), buffer_location, ports->first, ports->second);
+    RecordInsertedInstLevel(*context.result, created_buffer.first == nullptr ? nullptr : created_buffer.first->get_inst(), topology_level, buffer_index);
     segment_buffers.push_back(created_buffer);
   }
 
   for (std::size_t buffer_index = 0; buffer_index + 1U < segment_buffers.size(); ++buffer_index) {
-    CreateNet(*context.result, context.nextNetName(), segment_buffers.at(buffer_index).second,
-              std::vector<Pin*>{segment_buffers.at(buffer_index + 1U).first}, topology_level);
+    CreateNet(*context.result, context.nextNetName(), segment_buffers.at(buffer_index).second, std::vector<Pin*>{segment_buffers.at(buffer_index + 1U).first},
+              topology_level);
   }
 
   const auto net_terminal_loads = MaterializeSplitSubBuffers(context, terminal_loads, topology_level);
@@ -535,8 +531,7 @@ auto ValidateRootDriverSizing(Design& design, Wrapper& wrapper, const HTree::Bui
 
   const auto ports = ResolveBufferPorts(wrapper, cell_master);
   if (!ports.has_value()) {
-    CTSLOG.warn(Loc::current(), "HTree: cannot apply selected root driver master ", cell_master,
-                " because its buffer ports could not be resolved.");
+    CTSLOG.warn(Loc::current(), "HTree: cannot apply selected root driver master ", cell_master, " because its buffer ports could not be resolved.");
     return false;
   }
 
@@ -585,10 +580,8 @@ auto ApplyRootDriverSizing(Design& design, Wrapper& wrapper, htree::DiagnosticBu
   return true;
 }
 
-auto BuildEmbedding(Design& design, Wrapper& wrapper, htree::DiagnosticBuild& result, const BufferPatternLibrary& segment_pattern_library,
-                    const HTree::Config& config) -> void
+auto BuildEmbedding(Wrapper& wrapper, htree::DiagnosticBuild& result, const BufferPatternLibrary& segment_pattern_library, const HTree::Config& config) -> void
 {
-  (void) design;
   if (!result.output.best_pattern.has_value()) {
     return;
   }
@@ -675,8 +668,8 @@ auto BuildEmbedding(Design& design, Wrapper& wrapper, htree::DiagnosticBuild& re
 
         const auto child_it = entry_loads_by_node.find(child_id);
         const auto& child_entry_loads = (child_it != entry_loads_by_node.end()) ? child_it->second : child_node->get_loads();
-        auto segment_entry_loads = BuildSegmentObjectsAndGetEntryLoads(context, *node, *child_node, *segment_pattern, child_entry_loads,
-                                                                       static_cast<int>(depth));
+        auto segment_entry_loads
+            = BuildSegmentObjectsAndGetEntryLoads(context, *node, *child_node, *segment_pattern, child_entry_loads, static_cast<int>(depth));
         node_entry_loads.insert(node_entry_loads.end(), segment_entry_loads.begin(), segment_entry_loads.end());
       }
 

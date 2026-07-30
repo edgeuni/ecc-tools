@@ -245,13 +245,10 @@ auto ClockSynthesisRun::run() -> ClockSynthesisSummary
   const auto valid_sinks = sink_partition.valid_sink_count;
   _counters->hard_macro_sinks += sink_partition.macro_sinks.size();
   _counters->regular_sinks += sink_partition.regular_sinks.size();
-  const auto active_domains
-      = static_cast<unsigned>(!sink_partition.macro_sinks.empty()) + static_cast<unsigned>(!sink_partition.regular_sinks.empty());
-  EmitLogTable(Loc::current(), "CTS Sink Domain Overview",
-               {"Clock", "Net", "Valid Sinks", "Hard Macro", "Regular", "Active Domains", "Preclustered Reuse"},
-               {{_clock->get_clock_name(), _clock->get_clock_net_name(), ToLogTableCell(valid_sinks),
-                 ToLogTableCell(sink_partition.macro_sinks.size()), ToLogTableCell(sink_partition.regular_sinks.size()),
-                 ToLogTableCell(active_domains), ToLogTableCell(_clock->is_preclustered_sink_reuse())}});
+  const auto active_domains = static_cast<unsigned>(!sink_partition.macro_sinks.empty()) + static_cast<unsigned>(!sink_partition.regular_sinks.empty());
+  EmitLogTable(Loc::current(), "CTS Sink Domain Overview", {"Clock", "Net", "Valid Sinks", "Hard Macro", "Regular", "Active Domains", "Preclustered Reuse"},
+               {{_clock->get_clock_name(), _clock->get_clock_net_name(), ToLogTableCell(valid_sinks), ToLogTableCell(sink_partition.macro_sinks.size()),
+                 ToLogTableCell(sink_partition.regular_sinks.size()), ToLogTableCell(active_domains), ToLogTableCell(_clock->is_preclustered_sink_reuse())}});
   if (valid_sinks == 0U) {
     _status_recorder.appendNoDomain(*_clock, DomainStatus::kSkipped, 0U, 0U, "no valid sinks");
     CTSLOG.warn(Loc::current(), "Synthesis: skip clock \"", _clock->get_clock_name(), "\" because no valid sinks are available.");
@@ -267,8 +264,7 @@ auto ClockSynthesisRun::run() -> ClockSynthesisSummary
   if (!prepareSinkDomain(SinkDomainKind::kRegular, sink_partition.regular_sinks, valid_sinks)) {
     return ClockSynthesisSummary{.success = false, .skipped = false};
   }
-  return formClockTopology(valid_sinks) ? ClockSynthesisSummary{.success = true, .skipped = false}
-                                        : ClockSynthesisSummary{.success = false, .skipped = false};
+  return formClockTopology(valid_sinks) ? ClockSynthesisSummary{.success = true, .skipped = false} : ClockSynthesisSummary{.success = false, .skipped = false};
 }
 
 }  // namespace
@@ -314,10 +310,21 @@ auto Synthesis::run() -> SynthesisTraceSummary
     const auto sink_partition = ClockDistribution::partitionSinkDomains(*clock);
     if (sink_partition.valid_sink_count > 0U && wrapper.is_design_ready()) {
       const auto dbu_per_um = wrapper.queryDbUnit();
-      if (dbu_per_um <= 0) {
-        CTSLOG.error(Loc::current(), "Synthesis: DBU-per-micron is unavailable.");
+      if (!dbu_per_um.has_value()) {
+        CTSLOG.warn(Loc::current(), "Synthesis: clock \"", clock->get_clock_name(), "\" failed because DBU-per-micron is unavailable.");
+        ++failed_clocks;
+        summary.domain_status.push_back(SynthesisTraceStatusRecord{
+            .clock_name = clock->get_clock_name(),
+            .clock_net_name = clock->get_clock_net_name(),
+            .status = "failed",
+            .sink_domain = "none",
+            .valid_sink_count = sink_partition.valid_sink_count,
+            .sink_domain_sink_count = 0U,
+            .detail = "dbu_per_um_unavailable",
+        });
+        continue;
       }
-      clock_layout.set_design_dbu_per_um(dbu_per_um);
+      clock_layout.set_design_dbu_per_um(*dbu_per_um);
     }
 
     ClockSynthesisRun clock_synthesis(ClockSynthesisRunInput{
@@ -379,13 +386,11 @@ auto Synthesis::run() -> SynthesisTraceSummary
 
   LogTableRows domain_rows;
   for (const auto& status : summary.domain_status) {
-    domain_rows.push_back({status.clock_name.empty() ? "n/a" : status.clock_name,
-                           status.clock_net_name.empty() ? "n/a" : status.clock_net_name, status.sink_domain, status.status,
-                           ToLogTableCell(status.valid_sink_count), ToLogTableCell(status.sink_domain_sink_count),
+    domain_rows.push_back({status.clock_name.empty() ? "n/a" : status.clock_name, status.clock_net_name.empty() ? "n/a" : status.clock_net_name,
+                           status.sink_domain, status.status, ToLogTableCell(status.valid_sink_count), ToLogTableCell(status.sink_domain_sink_count),
                            status.detail.empty() ? "n/a" : status.detail});
   }
-  EmitLogTable(Loc::current(), "CTS Clock Tree Sink Domains", {"Clock", "Net", "Domain", "Status", "Valid", "Domain Sinks", "Detail"},
-               domain_rows);
+  EmitLogTable(Loc::current(), "CTS Clock Tree Sink Domains", {"Clock", "Net", "Domain", "Status", "Valid", "Domain Sinks", "Detail"}, domain_rows);
   if (summary.outcome != SynthesisOutcome::kFailed) {
     const auto commit_status = CTSDM.commitSynthesis(std::move(local_design), std::move(clock_layout), summary);
     if (!commit_status.ok()) {

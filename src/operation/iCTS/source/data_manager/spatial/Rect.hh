@@ -62,29 +62,19 @@ class Rect
     return point.get_x() >= _min_x && point.get_x() <= _max_x && point.get_y() >= _min_y && point.get_y() <= _max_y;
   }
 
-  auto overlaps(const Rect& other) const -> bool
-  {
-    return !(_max_x < other._min_x || other._max_x < _min_x || _max_y < other._min_y || other._max_y < _min_y);
-  }
+  auto overlaps(const Rect& other) const -> bool { return !(_max_x < other._min_x || other._max_x < _min_x || _max_y < other._min_y || other._max_y < _min_y); }
 
   auto intersect(const Rect& other) const -> std::optional<Rect>
   {
     if (!overlaps(other)) {
       return std::nullopt;
     }
-    return Rect(std::max(_min_x, other._min_x), std::max(_min_y, other._min_y), std::min(_max_x, other._max_x),
-                std::min(_max_y, other._max_y));
+    return Rect(std::max(_min_x, other._min_x), std::max(_min_y, other._min_y), std::min(_max_x, other._max_x), std::min(_max_y, other._max_y));
   }
 
-  auto clamp(const Point<T>& point) const -> Point<T>
-  {
-    return Point<T>(std::clamp(point.get_x(), _min_x, _max_x), std::clamp(point.get_y(), _min_y, _max_y));
-  }
+  auto clamp(const Point<T>& point) const -> Point<T> { return Point<T>(std::clamp(point.get_x(), _min_x, _max_x), std::clamp(point.get_y(), _min_y, _max_y)); }
 
-  auto operator==(const Rect& rhs) const -> bool
-  {
-    return _min_x == rhs._min_x && _min_y == rhs._min_y && _max_x == rhs._max_x && _max_y == rhs._max_y;
-  }
+  auto operator==(const Rect& rhs) const -> bool { return _min_x == rhs._min_x && _min_y == rhs._min_y && _max_x == rhs._max_x && _max_y == rhs._max_y; }
 
   auto operator!=(const Rect& rhs) const -> bool { return !(*this == rhs); }
 

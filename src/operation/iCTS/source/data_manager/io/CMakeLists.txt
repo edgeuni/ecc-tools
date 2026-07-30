@@ -2,7 +2,7 @@ add_library(
   icts_source_data_manager_io
   ${ICTS_DATA_MANAGER_IO}/Wrapper.cc
   ${ICTS_DATA_MANAGER_IO}/WrapperLiberty.cc
-  ${ICTS_DATA_MANAGER_IO}/WrapperRc.cc
+  ${ICTS_DATA_MANAGER_IO}/WrapperRC.cc
   ${ICTS_DATA_MANAGER_IO}/WrapperClockReader.cc
   ${ICTS_DATA_MANAGER_IO}/WrapperClockWriter.cc
 )

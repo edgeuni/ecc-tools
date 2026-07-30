@@ -56,9 +56,9 @@ auto isValidLocation(const Point<int>& point) -> bool
   return point.get_x() >= 0 && point.get_y() >= 0;
 }
 
-auto makeSegment(const Clock& clock, std::size_t clock_index, const Net& net, const Point<int>& begin, const Point<int>& end,
-                 LayoutNetRole role, SinkDomainKind sink_domain, ClockLayoutPhase synthesis_phase, int selected_depth, int topology_level,
-                 bool routed, bool degraded) -> ClockLayoutSegment
+auto makeSegment(const Clock& clock, std::size_t clock_index, const Net& net, const Point<int>& begin, const Point<int>& end, LayoutNetRole role,
+                 SinkDomainKind sink_domain, ClockLayoutPhase synthesis_phase, int selected_depth, int topology_level, bool routed, bool degraded)
+    -> ClockLayoutSegment
 {
   return ClockLayoutSegment{
       .clock_name = clock.get_clock_name(),
@@ -90,8 +90,8 @@ auto appendPinToPinSegments(const Clock& clock, std::size_t clock_index, const N
     if (load == nullptr || !isValidLocation(load->get_location())) {
       continue;
     }
-    auto segment = makeSegment(clock, clock_index, net, driver_location, load->get_location(), role, sink_domain, synthesis_phase,
-                               layout_net.selected_depth, layout_net.topology_level, false, degraded);
+    auto segment = makeSegment(clock, clock_index, net, driver_location, load->get_location(), role, sink_domain, synthesis_phase, layout_net.selected_depth,
+                               layout_net.topology_level, false, degraded);
     if (segment_source == ClockLayoutSegmentSource::kFlylinePins) {
       layout_net.flyline_segments.push_back(std::move(segment));
     } else {
@@ -101,8 +101,7 @@ auto appendPinToPinSegments(const Clock& clock, std::size_t clock_index, const N
 }
 
 auto appendClockTreeNetSegments(const Clock& clock, std::size_t clock_index, const Net& net, LayoutNetRole role, SinkDomainKind sink_domain,
-                                ClockLayoutPhase synthesis_phase, ClockLayoutNet& layout_net, ClockLayoutSegmentSource segment_source)
-    -> void
+                                ClockLayoutPhase synthesis_phase, ClockLayoutNet& layout_net, ClockLayoutSegmentSource segment_source) -> void
 {
   if (segment_source != ClockLayoutSegmentSource::kRoutedTree) {
     appendPinToPinSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net, segment_source);
@@ -111,8 +110,7 @@ auto appendClockTreeNetSegments(const Clock& clock, std::size_t clock_index, con
 
   auto route_tree = Router::buildClockNetTree(net);
   if (route_tree.node_count() == 0U || route_tree.edge_count() == 0U) {
-    appendPinToPinSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net,
-                           ClockLayoutSegmentSource::kDegradedPins);
+    appendPinToPinSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net, ClockLayoutSegmentSource::kDegradedPins);
     return;
   }
 
@@ -123,14 +121,13 @@ auto appendClockTreeNetSegments(const Clock& clock, std::size_t clock_index, con
     if (source == nullptr || target == nullptr || !isValidLocation(source->location) || !isValidLocation(target->location)) {
       continue;
     }
-    layout_net.routed_segments.push_back(makeSegment(clock, clock_index, net, source->location, target->location, role, sink_domain,
-                                                     synthesis_phase, layout_net.selected_depth, layout_net.topology_level, true, false));
+    layout_net.routed_segments.push_back(makeSegment(clock, clock_index, net, source->location, target->location, role, sink_domain, synthesis_phase,
+                                                     layout_net.selected_depth, layout_net.topology_level, true, false));
     appended_routed_segment = true;
   }
 
   if (!appended_routed_segment) {
-    appendPinToPinSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net,
-                           ClockLayoutSegmentSource::kDegradedPins);
+    appendPinToPinSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net, ClockLayoutSegmentSource::kDegradedPins);
   }
 }
 
@@ -150,10 +147,8 @@ auto makeLayoutNet(const Clock& clock, std::size_t clock_index, const Net& net, 
       .routed_segments = {},
       .flyline_segments = {},
   };
-  appendClockTreeNetSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net,
-                             ClockLayoutSegmentSource::kRoutedTree);
-  appendClockTreeNetSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net,
-                             ClockLayoutSegmentSource::kFlylinePins);
+  appendClockTreeNetSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net, ClockLayoutSegmentSource::kRoutedTree);
+  appendClockTreeNetSegments(clock, clock_index, net, role, sink_domain, synthesis_phase, layout_net, ClockLayoutSegmentSource::kFlylinePins);
   return layout_net;
 }
 
@@ -176,16 +171,14 @@ auto makeLayoutInst(const Clock& clock, std::size_t clock_index, const Inst& ins
   };
 }
 
-auto makeSinkLayoutInst(const Clock& clock, std::size_t clock_index, const Pin& sink, SinkDomainKind sink_domain)
-    -> std::optional<ClockLayoutInst>
+auto makeSinkLayoutInst(const Clock& clock, std::size_t clock_index, const Pin& sink, SinkDomainKind sink_domain) -> std::optional<ClockLayoutInst>
 {
   auto* inst = sink.get_inst();
   if (inst == nullptr) {
     return std::nullopt;
   }
 
-  auto layout_inst
-      = makeLayoutInst(clock, clock_index, *inst, LayoutInstRole::kClockLoad, sink_domain, ClockLayoutPhase::kReadData, -1, -1);
+  auto layout_inst = makeLayoutInst(clock, clock_index, *inst, LayoutInstRole::kClockLoad, sink_domain, ClockLayoutPhase::kReadData, -1, -1);
   if (!isValidLocation(layout_inst.origin) && isValidLocation(sink.get_location())) {
     layout_inst.origin = sink.get_location();
   }
@@ -226,8 +219,8 @@ auto findInsertedNetLevel(const std::vector<HTree::InsertedNetLevel>& levels, co
   return iter == levels.end() ? std::nullopt : std::optional<int>{iter->topology_level};
 }
 
-auto resolveNetTopologyLevel(const std::vector<HTree::InsertedNetLevel>& levels, const Net* net, LayoutNetRole role,
-                             ClockLayoutPhase synthesis_phase, int selected_depth) -> int
+auto resolveNetTopologyLevel(const std::vector<HTree::InsertedNetLevel>& levels, const Net* net, LayoutNetRole role, ClockLayoutPhase synthesis_phase,
+                             int selected_depth) -> int
 {
   const auto inserted_level = findInsertedNetLevel(levels, net);
   return inserted_level.has_value() ? *inserted_level : inferNetTopologyLevel(role, synthesis_phase, selected_depth);
@@ -235,8 +228,8 @@ auto resolveNetTopologyLevel(const std::vector<HTree::InsertedNetLevel>& levels,
 
 }  // namespace
 
-auto ClockLayoutBuilder::appendSinkInsts(ClockLayout& clock_layout, const Clock& clock, std::size_t clock_index,
-                                         const std::vector<Pin*>& sinks, SinkDomainKind sink_domain) -> void
+auto ClockLayoutBuilder::appendSinkInsts(ClockLayout& clock_layout, const Clock& clock, std::size_t clock_index, const std::vector<Pin*>& sinks,
+                                         SinkDomainKind sink_domain) -> void
 {
   std::unordered_set<const Inst*> seen_insts;
   for (const auto* sink : sinks) {
@@ -277,52 +270,46 @@ auto ClockLayoutBuilder::makeSinkDomainLayout(const Clock& clock, std::size_t cl
                                         ClockLayoutPhase::kDownstreamHTree, selected_depth, -1));
   }
   if (sink_domain.downstream_net != nullptr) {
-    clock_layout.addNet(
-        makeLayoutNet(clock, clock_index, *sink_domain.downstream_net, LayoutNetRole::kDownstream, sink_domain.sink_domain,
-                      ClockLayoutPhase::kDownstreamHTree, selected_depth, topology_level_count,
-                      inferNetTopologyLevel(LayoutNetRole::kDownstream, ClockLayoutPhase::kDownstreamHTree, selected_depth)));
+    clock_layout.addNet(makeLayoutNet(clock, clock_index, *sink_domain.downstream_net, LayoutNetRole::kDownstream, sink_domain.sink_domain,
+                                      ClockLayoutPhase::kDownstreamHTree, selected_depth, topology_level_count,
+                                      inferNetTopologyLevel(LayoutNetRole::kDownstream, ClockLayoutPhase::kDownstreamHTree, selected_depth)));
   }
   for (const auto& inst : synthesis_build.output.inserted_insts) {
     if (inst != nullptr) {
-      clock_layout.addInst(makeLayoutInst(clock, clock_index, *inst, LayoutInstRole::kHTreeBuffer, sink_domain.sink_domain,
-                                          ClockLayoutPhase::kDownstreamHTree, selected_depth,
-                                          findInsertedInstLevel(synthesis_build.output.inserted_inst_levels, inst.get())));
+      clock_layout.addInst(makeLayoutInst(clock, clock_index, *inst, LayoutInstRole::kHTreeBuffer, sink_domain.sink_domain, ClockLayoutPhase::kDownstreamHTree,
+                                          selected_depth, findInsertedInstLevel(synthesis_build.output.inserted_inst_levels, inst.get())));
     }
   }
   for (const auto& net : synthesis_build.output.inserted_nets) {
     if (net != nullptr) {
-      clock_layout.addNet(
-          makeLayoutNet(clock, clock_index, *net, LayoutNetRole::kSinkTree, sink_domain.sink_domain, ClockLayoutPhase::kDownstreamHTree,
-                        selected_depth, topology_level_count,
-                        resolveNetTopologyLevel(synthesis_build.output.inserted_net_levels, net.get(), LayoutNetRole::kSinkTree,
-                                                ClockLayoutPhase::kDownstreamHTree, selected_depth)));
+      clock_layout.addNet(makeLayoutNet(clock, clock_index, *net, LayoutNetRole::kSinkTree, sink_domain.sink_domain, ClockLayoutPhase::kDownstreamHTree,
+                                        selected_depth, topology_level_count,
+                                        resolveNetTopologyLevel(synthesis_build.output.inserted_net_levels, net.get(), LayoutNetRole::kSinkTree,
+                                                                ClockLayoutPhase::kDownstreamHTree, selected_depth)));
     }
   }
   return clock_layout;
 }
 
 auto ClockLayoutBuilder::makeSourceToRootLayout(const Clock& clock, std::size_t clock_index, const Net& source_net,
-                                                const topology::SourceTrunkBuild& synthesis_build, ClockLayoutPhase synthesis_phase)
-    -> ClockLayout
+                                                const topology::SourceTrunkBuild& synthesis_build, ClockLayoutPhase synthesis_phase) -> ClockLayout
 {
   const int selected_depth = selectedDepthToInt(synthesis_build.summary.selected_depth);
   const int topology_level_count = static_cast<int>(synthesis_build.summary.selected_level_count);
   ClockLayout clock_layout;
-  clock_layout.addNet(makeLayoutNet(clock, clock_index, source_net, LayoutNetRole::kSourceToRoot, SinkDomainKind::kSourceToRoot,
-                                    synthesis_phase, selected_depth, topology_level_count, 0));
+  clock_layout.addNet(makeLayoutNet(clock, clock_index, source_net, LayoutNetRole::kSourceToRoot, SinkDomainKind::kSourceToRoot, synthesis_phase,
+                                    selected_depth, topology_level_count, 0));
   for (const auto& inst : synthesis_build.output.inserted_insts) {
     if (inst != nullptr) {
-      clock_layout.addInst(makeLayoutInst(clock, clock_index, *inst, LayoutInstRole::kSourceRootBuffer, SinkDomainKind::kSourceToRoot,
-                                          synthesis_phase, selected_depth,
-                                          findInsertedInstLevel(synthesis_build.output.inserted_inst_levels, inst.get())));
+      clock_layout.addInst(makeLayoutInst(clock, clock_index, *inst, LayoutInstRole::kSourceRootBuffer, SinkDomainKind::kSourceToRoot, synthesis_phase,
+                                          selected_depth, findInsertedInstLevel(synthesis_build.output.inserted_inst_levels, inst.get())));
     }
   }
   for (const auto& net : synthesis_build.output.inserted_nets) {
     if (net != nullptr) {
-      clock_layout.addNet(makeLayoutNet(clock, clock_index, *net, LayoutNetRole::kSourceToRoot, SinkDomainKind::kSourceToRoot,
-                                        synthesis_phase, selected_depth, topology_level_count,
-                                        resolveNetTopologyLevel(synthesis_build.output.inserted_net_levels, net.get(),
-                                                                LayoutNetRole::kSourceToRoot, synthesis_phase, selected_depth)));
+      clock_layout.addNet(makeLayoutNet(
+          clock, clock_index, *net, LayoutNetRole::kSourceToRoot, SinkDomainKind::kSourceToRoot, synthesis_phase, selected_depth, topology_level_count,
+          resolveNetTopologyLevel(synthesis_build.output.inserted_net_levels, net.get(), LayoutNetRole::kSourceToRoot, synthesis_phase, selected_depth)));
     }
   }
   return clock_layout;

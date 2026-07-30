@@ -31,7 +31,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "HTreeTopologyChar.hh"
 #include "PatternId.hh"
 #include "Point.hh"
@@ -91,6 +91,7 @@ enum class SinkLoadRegionViolation
   kMissingSegmentPattern,
   kMissingBufferPosition,
   kEmptyLoadGroup,
+  kPinCapUnavailable,
   kFanout,
   kPinCapLowerBound,
   kRoutingFailed,
@@ -126,8 +127,7 @@ struct SinkLoadRegionLegalityInput
 
 struct SinkLoadRegionLegalityContext
 {
-  std::unordered_map<SinkLoadRegionLegalitySignature, SinkLoadRegionLegalitySummary, SinkLoadRegionLegalitySignatureHash>
-      result_by_signature;
+  std::unordered_map<SinkLoadRegionLegalitySignature, SinkLoadRegionLegalitySummary, SinkLoadRegionLegalitySignatureHash> result_by_signature;
   int max_monotone_failed_level = std::numeric_limits<int>::min();
   std::string first_monotone_hard_fail_reason;
   UniformValueLattice cap_lattice;
@@ -183,9 +183,9 @@ auto SplitSinkLoadRegionGroup(const std::vector<Pin*>& loads, std::size_t max_fa
 auto ResolveSinkLoadRegionLegality(const Tree& topology, PatternId topology_pattern_id, const TopologyPatternLibrary& topology_library,
                                    const BufferPatternLibrary& segment_pattern_library, SinkLoadRegionLegalityContext& legality_context)
     -> SinkLoadRegionLegalitySummary;
-auto FilterSinkLoadRegionLegalEntries(const std::vector<HTreeTopologyChar>& entries, const Tree& topology,
-                                      const TopologyPatternLibrary& topology_library, const BufferPatternLibrary& segment_pattern_library,
-                                      SinkLoadRegionLegalityContext& legality_context) -> SinkLoadRegionEntryFilterBuild;
+auto FilterSinkLoadRegionLegalEntries(const std::vector<HTreeTopologyChar>& entries, const Tree& topology, const TopologyPatternLibrary& topology_library,
+                                      const BufferPatternLibrary& segment_pattern_library, SinkLoadRegionLegalityContext& legality_context)
+    -> SinkLoadRegionEntryFilterBuild;
 
 }  // namespace htree
 }  // namespace icts

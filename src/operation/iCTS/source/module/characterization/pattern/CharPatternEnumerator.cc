@@ -38,7 +38,7 @@
 #include "characterization/buffer_cell/CharacterizationBufferCell.hh"
 #include "characterization/builder/CharBuilderImpl.hh"
 #include "characterization/builder/CharTopologyPlanner.hh"
-#include "characterization/sampling/CharStaSampler.hh"
+#include "characterization/sampling/CharSTASampler.hh"
 
 namespace icts::char_builder::detail {
 namespace {

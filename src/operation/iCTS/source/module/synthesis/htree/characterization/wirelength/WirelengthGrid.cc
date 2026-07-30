@@ -143,8 +143,7 @@ auto ScoreGridUnitCandidate(const std::vector<double>& direct_lengths_um, const 
   score.unique_direct_bins = static_cast<unsigned>(direct_length_indices.size());
 
   const double max_required_length_um = std::max(MaxPositiveLength(direct_lengths_um), MaxPositiveLength(coverage_lengths_um));
-  score.required_covering_iterations
-      = max_required_length_um > 0.0 ? std::max(1U, static_cast<unsigned>(std::ceil(max_required_length_um / unit_um))) : 0U;
+  score.required_covering_iterations = max_required_length_um > 0.0 ? std::max(1U, static_cast<unsigned>(std::ceil(max_required_length_um / unit_um))) : 0U;
   return score;
 }
 
@@ -199,8 +198,7 @@ auto AppendUniqueUnitCandidate(std::vector<double>& candidates, double unit_um) 
   candidates.push_back(unit_um);
 }
 
-auto ResolveAutoDerivedGridUnit(const std::vector<double>& direct_lengths_um, const std::vector<double>& coverage_lengths_um)
-    -> GridUnitCandidateScore
+auto ResolveAutoDerivedGridUnit(const std::vector<double>& direct_lengths_um, const std::vector<double>& coverage_lengths_um) -> GridUnitCandidateScore
 {
   if (direct_lengths_um.empty()) {
     return {};
@@ -315,8 +313,7 @@ auto CollectRequestedLevelLengthsUm(const Tree& topology, int32_t dbu_per_um) ->
       continue;
     }
 
-    const int requested_length_dbu
-        = static_cast<int>(std::llround(static_cast<double>(distance_sum) / static_cast<double>(distance_count)));
+    const int requested_length_dbu = static_cast<int>(std::llround(static_cast<double>(distance_sum) / static_cast<double>(distance_count)));
     const double requested_length_um = static_cast<double>(std::max(requested_length_dbu, 0)) / static_cast<double>(dbu_per_um);
     if (requested_length_um > 0.0) {
       requested_lengths_um.push_back(requested_length_um);
@@ -336,8 +333,7 @@ auto ResolveCharacterizationGridPlan(const Config& config, const std::vector<dou
   return ResolveCharacterizationGridPlan(char_config, requested_lengths_um);
 }
 
-auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& requested_lengths_um)
-    -> CharacterizationGridPlan
+auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const std::vector<double>& requested_lengths_um) -> CharacterizationGridPlan
 {
   return ResolveCharacterizationGridPlan(config, requested_lengths_um, {});
 }
@@ -384,8 +380,7 @@ auto ResolveCharacterizationGridPlan(const CharBuilder::Config& config, const st
   }
 
   plan.wirelength_unit_um = effective_unit_um;
-  const double max_required_length_um
-      = std::max(MaxPositiveLength(direct_positive_lengths_um), MaxPositiveLength(coverage_positive_lengths_um));
+  const double max_required_length_um = std::max(MaxPositiveLength(direct_positive_lengths_um), MaxPositiveLength(coverage_positive_lengths_um));
   plan.required_covering_iterations = std::max(1U, static_cast<unsigned>(std::ceil(max_required_length_um / effective_unit_um)));
   plan.wirelength_iterations = plan.required_covering_iterations;
   return plan;
@@ -402,8 +397,8 @@ auto ResolveDirectCharacterizationLengthIndices(const Tree& topology, const Char
   return ResolveDirectCharacterizationLengthIndices(CollectRequestedLevelLengthsUm(topology, dbu_per_um), char_grid_plan);
 }
 
-auto ResolveDirectCharacterizationLengthIndices(const std::vector<double>& requested_lengths_um,
-                                                const CharacterizationGridPlan& char_grid_plan) -> std::vector<unsigned>
+auto ResolveDirectCharacterizationLengthIndices(const std::vector<double>& requested_lengths_um, const CharacterizationGridPlan& char_grid_plan)
+    -> std::vector<unsigned>
 {
   if (!char_grid_plan.adapted || char_grid_plan.wirelength_iterations == 0U) {
     return {};

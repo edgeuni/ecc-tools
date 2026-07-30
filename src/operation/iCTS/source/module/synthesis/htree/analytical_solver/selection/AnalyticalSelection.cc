@@ -37,7 +37,7 @@
 
 #include "AnalyticalCharacterization.hh"
 #include "AnalyticalModel.hh"
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "HTreeTopologyChar.hh"
 #include "Logger.hh"
 #include "SegmentChar.hh"
@@ -70,8 +70,7 @@ auto ResolveAnalyticalRepresentativeLeafLoadCapPf(const UniformValueLattice& cap
   return cap_lattice.valueForIndex(1U);
 }
 
-auto ShouldPreferAnalyticalCandidate(const analytical_solver::AnalyticalCandidate& lhs, const analytical_solver::AnalyticalCandidate& rhs)
-    -> bool
+auto ShouldPreferAnalyticalCandidate(const analytical_solver::AnalyticalCandidate& lhs, const analytical_solver::AnalyticalCandidate& rhs) -> bool
 {
   if (lhs.materialized_char.has_value() && rhs.materialized_char.has_value()) {
     const auto& lhs_char = *lhs.materialized_char;
@@ -86,8 +85,7 @@ auto ShouldPreferAnalyticalCandidate(const analytical_solver::AnalyticalCandidat
   return analytical_solver::PreferAnalyticalCandidate(lhs, rhs);
 }
 
-auto PreferAnalyticalPowerOrder(const analytical_solver::AnalyticalCandidate& lhs, const analytical_solver::AnalyticalCandidate& rhs)
-    -> bool
+auto PreferAnalyticalPowerOrder(const analytical_solver::AnalyticalCandidate& lhs, const analytical_solver::AnalyticalCandidate& rhs) -> bool
 {
   if (lhs.materialized_char.has_value() && rhs.materialized_char.has_value()) {
     const auto& lhs_char = *lhs.materialized_char;
@@ -116,8 +114,7 @@ auto RequireMaterializedAnalyticalChar(const AnalyticalValidatedCandidate& candi
   return *candidate.candidate.materialized_char;
 }
 
-auto CollectAnalyticalDelayPowerParetoRefs(const std::vector<AnalyticalValidatedCandidate>& candidates)
-    -> std::vector<const AnalyticalValidatedCandidate*>
+auto CollectAnalyticalDelayPowerParetoRefs(const std::vector<AnalyticalValidatedCandidate>& candidates) -> std::vector<const AnalyticalValidatedCandidate*>
 {
   std::vector<const AnalyticalValidatedCandidate*> sorted_candidates;
   sorted_candidates.reserve(candidates.size());
@@ -177,8 +174,8 @@ auto CollectAnalyticalDelayPowerParetoRefs(const std::vector<AnalyticalValidated
   return pareto_front;
 }
 
-auto SelectAnalyticalParetoPowerGuardedMinDelay(const std::vector<AnalyticalValidatedCandidate>& candidates,
-                                                AnalyticalHTreeAttempt& attempt) -> const AnalyticalValidatedCandidate*
+auto SelectAnalyticalParetoPowerGuardedMinDelay(const std::vector<AnalyticalValidatedCandidate>& candidates, AnalyticalHTreeAttempt& attempt)
+    -> const AnalyticalValidatedCandidate*
 {
   auto pareto_front = CollectAnalyticalDelayPowerParetoRefs(candidates);
   attempt.validated_pareto_count = pareto_front.size();
@@ -209,23 +206,20 @@ auto SelectAnalyticalParetoPowerGuardedMinDelay(const std::vector<AnalyticalVali
   }
 
   auto power_ordered_pareto_front = pareto_front;
-  std::ranges::sort(power_ordered_pareto_front,
-                    [](const AnalyticalValidatedCandidate* lhs, const AnalyticalValidatedCandidate* rhs) -> bool {
-                      if (lhs == nullptr || rhs == nullptr) {
-                        CTSLOG.error(Loc::current(), "HTree: null analytical candidate during selected power rank calculation.");
-                      }
-                      return PreferAnalyticalPowerOrder(lhs->candidate, rhs->candidate);
-                    });
+  std::ranges::sort(power_ordered_pareto_front, [](const AnalyticalValidatedCandidate* lhs, const AnalyticalValidatedCandidate* rhs) -> bool {
+    if (lhs == nullptr || rhs == nullptr) {
+      CTSLOG.error(Loc::current(), "HTree: null analytical candidate during selected power rank calculation.");
+    }
+    return PreferAnalyticalPowerOrder(lhs->candidate, rhs->candidate);
+  });
   const auto selected_rank_it = std::ranges::find(power_ordered_pareto_front, selected_candidate);
-  attempt.selected_pareto_power_rank
-      = selected_rank_it == power_ordered_pareto_front.end()
-            ? 0U
-            : static_cast<std::size_t>(std::distance(power_ordered_pareto_front.begin(), selected_rank_it)) + 1U;
+  attempt.selected_pareto_power_rank = selected_rank_it == power_ordered_pareto_front.end()
+                                           ? 0U
+                                           : static_cast<std::size_t>(std::distance(power_ordered_pareto_front.begin(), selected_rank_it)) + 1U;
   return selected_candidate;
 }
 
-auto RecordAnalyticalValidatedDistribution(const std::vector<AnalyticalValidatedCandidate>& candidates, AnalyticalHTreeAttempt& attempt)
-    -> void
+auto RecordAnalyticalValidatedDistribution(const std::vector<AnalyticalValidatedCandidate>& candidates, AnalyticalHTreeAttempt& attempt) -> void
 {
   std::vector<double> delays;
   std::vector<double> powers;
@@ -254,8 +248,7 @@ auto RecordAnalyticalValidatedDistribution(const std::vector<AnalyticalValidated
 }
 
 auto MakeAnalyticalCandidateEvaluation(const analytical_solver::AnalyticalCandidate& candidate, const std::vector<HTree::LevelPlan>& levels,
-                                       const BoundaryConstraints& boundary_constraints, std::size_t final_frontier_count)
-    -> htree::CandidateBuildEvaluation
+                                       const BoundaryConstraints& boundary_constraints, std::size_t final_frontier_count) -> htree::CandidateBuildEvaluation
 {
   htree::CandidateBuildEvaluation evaluation;
   evaluation.depth = candidate.depth;
@@ -276,8 +269,7 @@ auto MakeAnalyticalCandidateEvaluation(const analytical_solver::AnalyticalCandid
   return evaluation;
 }
 
-auto MakeAnalyticalDepthSummary(const CandidateBuildEvaluation& evaluation, const SinkLoadRegionLegalitySummary& sink_legality)
-    -> DepthSummary
+auto MakeAnalyticalDepthSummary(const CandidateBuildEvaluation& evaluation, const SinkLoadRegionLegalitySummary& sink_legality) -> DepthSummary
 {
   return htree::DepthSummary{
       .depth = evaluation.depth,
@@ -314,8 +306,7 @@ auto CollectAnalyticalUnitSegmentChars(const CharBuilder& char_builder, unsigned
 }
 
 auto BuildAnalyticalModelCatalog(const std::vector<SegmentChar>& segment_chars, const std::vector<BufferingPattern>& buffering_patterns,
-                                 const CharBuilder& char_builder, AnalyticalHTreeAttempt& attempt)
-    -> analytical::AnalyticalCharacterizationBuild
+                                 const CharBuilder& char_builder, AnalyticalHTreeAttempt& attempt) -> analytical::AnalyticalCharacterizationBuild
 {
   analytical::AnalyticalCharacterizationConfig analytical_options;
   analytical_options.require_monotonic_output_slew = false;
@@ -330,8 +321,8 @@ auto BuildAnalyticalModelCatalog(const std::vector<SegmentChar>& segment_chars, 
     analytical_options.buffer_input_cap_pf_by_cell_master[buffer_cell.cell_master] = buffer_cell.input_cap_pf;
   }
 
-  auto char_result = analytical::AnalyticalCharacterization::buildFromSegmentChars(
-      segment_chars, buffering_patterns, char_builder.get_slew_lattice(), char_builder.get_cap_lattice(), analytical_options);
+  auto char_result = analytical::AnalyticalCharacterization::buildFromSegmentChars(segment_chars, buffering_patterns, char_builder.get_slew_lattice(),
+                                                                                   char_builder.get_cap_lattice(), analytical_options);
   attempt.model_set_count = char_result.summary.model_set_count;
   attempt.rejected_fit_count = char_result.summary.rejected_fit_count;
   attempt.structural_cap_operator_count = char_result.summary.structural_cap_operator_count;
@@ -340,12 +331,10 @@ auto BuildAnalyticalModelCatalog(const std::vector<SegmentChar>& segment_chars, 
 
 }  // namespace
 
-auto TrySolveAnalyticalHTree(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans,
-                             const std::vector<unsigned>& depth_candidates, BufferPatternLibrary& segment_pattern_library,
-                             const BoundaryConstraints& search_boundary_constraints, const HTreeFanoutPruningConfig& fanout_pruning_config,
-                             const RootDriverCompensationInput& root_driver_compensation_input,
-                             const SinkLoadRegionLegalityInput& sink_load_region_input, const CharBuilder& char_builder,
-                             unsigned char_slew_steps) -> AnalyticalHTreeAttempt
+auto TrySolveAnalyticalHTree(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans, const std::vector<unsigned>& depth_candidates,
+                             BufferPatternLibrary& segment_pattern_library, const BoundaryConstraints& search_boundary_constraints,
+                             const HTreeFanoutPruningConfig& fanout_pruning_config, const RootDriverCompensationInput& root_driver_compensation_input,
+                             const SinkLoadRegionLegalityInput& sink_load_region_input, const CharBuilder& char_builder) -> AnalyticalHTreeAttempt
 {
   AnalyticalHTreeAttempt attempt;
   if (depth_candidates.empty()) {
@@ -357,8 +346,7 @@ auto TrySolveAnalyticalHTree(const Tree& topology, const std::vector<HTree::Leve
   const auto& analytical_buffering_patterns = char_builder.get_buffering_patterns();
   auto char_result = BuildAnalyticalModelCatalog(analytical_segment_chars, analytical_buffering_patterns, char_builder, attempt);
   if (char_result.output.catalog.empty()) {
-    attempt.failure_reason
-        = char_result.summary.failures.empty() ? "empty_analytical_model_catalog" : char_result.summary.failures.front().reason;
+    attempt.failure_reason = char_result.summary.failures.empty() ? "empty_analytical_model_catalog" : char_result.summary.failures.front().reason;
     return attempt;
   }
 
@@ -427,27 +415,25 @@ auto TrySolveAnalyticalHTree(const Tree& topology, const std::vector<HTree::Leve
     attempt.solver_total_power_w = solver_result.summary.solver_total_power_w;
     if (!solver_result.summary.success) {
       if (first_solver_failure.empty()) {
-        first_solver_failure
-            = solver_result.summary.failure_reason.empty() ? "analytical_solver_failed" : solver_result.summary.failure_reason;
+        first_solver_failure = solver_result.summary.failure_reason.empty() ? "analytical_solver_failed" : solver_result.summary.failure_reason;
       }
       continue;
     }
 
     for (auto& candidate : solver_result.output.candidates) {
       htree::RootDriverCompensationPass candidate_compensation_pass(root_driver_compensation_input);
-      auto validation = analytical_solver::ValidateAnalyticalCandidate(
-          candidate, analytical_solver::AnalyticalCandidateLegalityCheck{
-                         .topology = &topology,
-                         .segment_pattern_library = &segment_pattern_library,
-                         .sink_load_region_legality_context = &sink_load_region_legality_context,
-                         .root_driver_compensation_pass = &candidate_compensation_pass,
-                         .validate_sink_load_region = true,
-                         .validate_root_driver_compensation = root_driver_compensation_input.enabled,
-                     });
+      auto validation
+          = analytical_solver::ValidateAnalyticalCandidate(candidate, analytical_solver::AnalyticalCandidateLegalityCheck{
+                                                                          .topology = &topology,
+                                                                          .segment_pattern_library = &segment_pattern_library,
+                                                                          .sink_load_region_legality_context = &sink_load_region_legality_context,
+                                                                          .root_driver_compensation_pass = &candidate_compensation_pass,
+                                                                          .validate_sink_load_region = true,
+                                                                          .validate_root_driver_compensation = root_driver_compensation_input.enabled,
+                                                                      });
       if (!validation.legal) {
         if (first_validation_failure.empty()) {
-          first_validation_failure
-              = validation.failure_reason.empty() ? "analytical_candidate_validation_failed" : validation.failure_reason;
+          first_validation_failure = validation.failure_reason.empty() ? "analytical_candidate_validation_failed" : validation.failure_reason;
         }
         continue;
       }
@@ -484,19 +470,18 @@ auto TrySolveAnalyticalHTree(const Tree& topology, const std::vector<HTree::Leve
   }
 
   attempt.selected = true;
-  attempt.selected_evaluation = MakeAnalyticalCandidateEvaluation(
-      selected_candidate->candidate, htree::MakeCandidateLevelPlans(full_level_plans, selected_candidate->candidate.depth),
-      search_boundary_constraints, attempt.validated_pareto_count);
+  attempt.selected_evaluation
+      = MakeAnalyticalCandidateEvaluation(selected_candidate->candidate, htree::MakeCandidateLevelPlans(full_level_plans, selected_candidate->candidate.depth),
+                                          search_boundary_constraints, attempt.validated_pareto_count);
   attempt.selected_sink_load_region_legality = selected_candidate->validation.sink_load_region;
   attempt.selected_compensation_detail = selected_candidate->validation.root_driver_compensation;
   attempt.selected_summary = MakeAnalyticalDepthSummary(attempt.selected_evaluation, attempt.selected_sink_load_region_legality);
   attempt.root_driver_compensation_stats = compensation_pass.get_stats();
-  (void) char_slew_steps;
   return attempt;
 }
 
-auto ApplyAnalyticalRootDriverStats(DepthSearchBuild& exploration, const AnalyticalHTreeAttempt& attempt,
-                                    const RootDriverCompensationInput& compensation_input) -> void
+auto ApplyAnalyticalRootDriverStats(DepthSearchBuild& exploration, const AnalyticalHTreeAttempt& attempt, const RootDriverCompensationInput& compensation_input)
+    -> void
 {
   exploration.summary.root_driver_compensation_stats = attempt.root_driver_compensation_stats;
   exploration.summary.root_driver_compensation_stats.enabled = compensation_input.enabled;

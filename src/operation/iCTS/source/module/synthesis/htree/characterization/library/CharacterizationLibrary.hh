@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "characterization/Characterization.hh"
 
 namespace icts {

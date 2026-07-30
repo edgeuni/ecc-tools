@@ -31,7 +31,7 @@
 #include <utility>
 #include <vector>
 
-#include "FastSta.hh"
+#include "FastSTA.hh"
 #include "LogTable.hh"
 #include "Logger.hh"
 #include "Monitor.hh"
@@ -94,11 +94,11 @@ class FastStaClockContextGuard
   FastStaClockId _clock_id = kInvalidFastStaClockId;
 };
 
-auto resolveRoutingLayer(const Config& config) -> int
+auto resolveRoutingLayer(const Config& config) -> std::optional<int>
 {
   const auto& routing_layers = config.get_routing_layers();
   if (routing_layers.empty() || routing_layers.front() == 0U) {
-    CTSLOG.error(Loc::current(), "Optimization: routing layer must be configured before FastSTA context construction.");
+    return std::nullopt;
   }
   return static_cast<int>(routing_layers.front());
 }
@@ -109,16 +109,17 @@ auto resolveWireWidth(const Config& config) -> std::optional<double>
   return wire_width_um > 0.0 ? std::optional<double>{wire_width_um} : std::nullopt;
 }
 
-auto buildFastStaEnvironment(const Config& config, Wrapper& wrapper) -> FastStaEnvironment
+auto buildFastStaEnvironment(const Config& config, Wrapper& wrapper) -> std::optional<FastStaEnvironment>
 {
   const auto dbu_per_um = wrapper.queryDbUnit();
-  if (dbu_per_um <= 0) {
-    CTSLOG.error(Loc::current(), "Optimization: DBU-per-micron is unavailable before FastSTA context construction.");
+  const auto routing_layer = resolveRoutingLayer(config);
+  if (!dbu_per_um.has_value() || !routing_layer.has_value()) {
+    return std::nullopt;
   }
   return FastStaEnvironment{
       .wrapper = &wrapper,
-      .dbu_per_um = dbu_per_um,
-      .routing_layer = resolveRoutingLayer(config),
+      .dbu_per_um = *dbu_per_um,
+      .routing_layer = *routing_layer,
       .wire_width_um = resolveWireWidth(config),
       .root_input_slew_ns = std::max(0.0, config.get_root_input_slew()),
       .max_cap_pf = config.has_max_cap() && config.get_max_cap() > 0.0 ? std::optional<double>{config.get_max_cap()} : std::nullopt,
@@ -126,8 +127,8 @@ auto buildFastStaEnvironment(const Config& config, Wrapper& wrapper) -> FastStaE
   };
 }
 
-auto captureClockTimingSummary(const Clock& clock, const FastSTA& fast_sta, FastStaClockId clock_id,
-                               const oi::ClockSizingSummary& optimization, double target_skew_ns) -> std::optional<ClockTimingSummary>
+auto captureClockTimingSummary(const Clock& clock, const FastSTA& fast_sta, FastStaClockId clock_id, const oi::ClockSizingSummary& optimization,
+                               double target_skew_ns) -> std::optional<ClockTimingSummary>
 {
   const auto sink_arrivals = fast_sta.collectClockSinkArrivals(clock_id);
   if (!optimization.valid || sink_arrivals.empty()) {
@@ -162,8 +163,7 @@ struct MasterTransitionAggregate
   double area_delta_um2 = 0.0;
 };
 
-auto logClockSizingSummary(const Clock& clock, double target_skew_ns, std::size_t buffer_master_candidate_count,
-                           const oi::ClockSizingSummary& summary) -> void
+auto logClockSizingSummary(const Clock& clock, double target_skew_ns, std::size_t buffer_master_candidate_count, const oi::ClockSizingSummary& summary) -> void
 {
   const auto& profile = summary.profile;
   EmitLogTable(Loc::current(), "CTS Optimization Setup", {"Property", "Value"},
@@ -180,25 +180,24 @@ auto logClockSizingSummary(const Clock& clock, double target_skew_ns, std::size_
                 {"Optimizable Buffers", ToLogTableCell(profile.optimizable_buffer_count)},
                 {"Generated Candidates", ToLogTableCell(profile.generated_candidate_count)}});
 
-  EmitLogTable(
-      Loc::current(), "CTS Optimization Evolution", {"Metric", "Before", "After / Result"},
-      {{"Skew (ns)", ToLogTableCell(summary.before.skew.skew_ns), ToLogTableCell(summary.after.skew.skew_ns)},
-       {"Area (um^2)", ToLogTableCell(summary.before.power.area_um2), ToLogTableCell(summary.after.power.area_um2)},
-       {"Power (W)", ToLogTableCell(summary.before.power.total_power_w), ToLogTableCell(summary.after.power.total_power_w)},
-       {"Capacitance Violations", ToLogTableCell(summary.before.cap.violation_count), ToLogTableCell(summary.after.cap.violation_count)},
-       {"Slew Violations", ToLogTableCell(summary.before.slew.violation_count), ToLogTableCell(summary.after.slew.violation_count)},
-       {"Valid", "-", ToLogTableCell(summary.valid)},
-       {"Target Met", "-", ToLogTableCell(summary.target_met)},
-       {"Changed", "-", ToLogTableCell(summary.changed)},
-       {"Iterations", "-", ToLogTableCell(summary.iteration_count)},
-       {"Trials", "-", ToLogTableCell(summary.trial_count)},
-       {"Batch Trials", "-", ToLogTableCell(summary.batch_trial_count)},
-       {"Accepted Edits", "-", ToLogTableCell(summary.accepted_edit_count)},
-       {"Accepted Batches", "-", ToLogTableCell(summary.accepted_batch_count)},
-       {"Rejected Candidates", "-", ToLogTableCell(summary.rejected_candidate_count)},
-       {"Capacitance Rejected", "-", ToLogTableCell(summary.cap_rejected_count)},
-       {"Slew Rejected", "-", ToLogTableCell(summary.slew_rejected_count)},
-       {"Stop Reason", "-", summary.stop_reason.empty() ? "n/a" : summary.stop_reason}});
+  EmitLogTable(Loc::current(), "CTS Optimization Evolution", {"Metric", "Before", "After / Result"},
+               {{"Skew (ns)", ToLogTableCell(summary.before.skew.skew_ns), ToLogTableCell(summary.after.skew.skew_ns)},
+                {"Area (um^2)", ToLogTableCell(summary.before.power.area_um2), ToLogTableCell(summary.after.power.area_um2)},
+                {"Power (W)", ToLogTableCell(summary.before.power.total_power_w), ToLogTableCell(summary.after.power.total_power_w)},
+                {"Capacitance Violations", ToLogTableCell(summary.before.cap.violation_count), ToLogTableCell(summary.after.cap.violation_count)},
+                {"Slew Violations", ToLogTableCell(summary.before.slew.violation_count), ToLogTableCell(summary.after.slew.violation_count)},
+                {"Valid", "-", ToLogTableCell(summary.valid)},
+                {"Target Met", "-", ToLogTableCell(summary.target_met)},
+                {"Changed", "-", ToLogTableCell(summary.changed)},
+                {"Iterations", "-", ToLogTableCell(summary.iteration_count)},
+                {"Trials", "-", ToLogTableCell(summary.trial_count)},
+                {"Batch Trials", "-", ToLogTableCell(summary.batch_trial_count)},
+                {"Accepted Edits", "-", ToLogTableCell(summary.accepted_edit_count)},
+                {"Accepted Batches", "-", ToLogTableCell(summary.accepted_batch_count)},
+                {"Rejected Candidates", "-", ToLogTableCell(summary.rejected_candidate_count)},
+                {"Capacitance Rejected", "-", ToLogTableCell(summary.cap_rejected_count)},
+                {"Slew Rejected", "-", ToLogTableCell(summary.slew_rejected_count)},
+                {"Stop Reason", "-", summary.stop_reason.empty() ? "n/a" : summary.stop_reason}});
 
   std::map<std::pair<std::string, std::string>, MasterTransitionAggregate> transitions;
   for (const auto& edit : summary.accepted_edits) {
@@ -214,8 +213,7 @@ auto logClockSizingSummary(const Clock& clock, double target_skew_ns, std::size_
   if (transition_rows.empty()) {
     transition_rows.push_back({clock.get_clock_name(), "none", "none", "0", "0"});
   }
-  EmitLogTable(Loc::current(), "CTS Optimization Master Transitions", {"Clock", "From", "To", "Count", "Area Delta (um^2)"},
-               transition_rows);
+  EmitLogTable(Loc::current(), "CTS Optimization Master Transitions", {"Clock", "From", "To", "Count", "Area Delta (um^2)"}, transition_rows);
 
   const double stage_total_s = profile.build_route_tree_cache_s + profile.build_fast_sta_context_s + profile.inject_route_trees_s
                                + profile.collect_optimizable_buffers_s + profile.collect_cap_baseline_s + profile.collect_slew_baseline_s
@@ -264,19 +262,35 @@ auto Optimization::run() -> OptimizationSummary
 
   const auto clocks = design.get_clocks();
   optimization_summary.clock_count = clocks.size();
-  fast_sta.bindEnvironment(buildFastStaEnvironment(config, wrapper));
-  const auto master_infos = oi::CollectClockSizingBufferMasters(oi::ClockSizingMasterQueryInput{
+  const auto fast_sta_environment = buildFastStaEnvironment(config, wrapper);
+  if (!fast_sta_environment.has_value()) {
+    CTSLOG.warn(Loc::current(), "Optimization: FastSTA environment inputs are unavailable.");
+    optimization_summary.success = false;
+    optimization_summary.status = "failed";
+    optimization_summary.reason = "fast_sta_environment_unavailable";
+    return optimization_summary;
+  }
+  fast_sta.bindEnvironment(*fast_sta_environment);
+  const auto master_collection = oi::CollectClockSizingBufferMasters(oi::ClockSizingMasterQueryInput{
       .wrapper = &wrapper,
       .buffer_cell_masters = &config.get_buffer_types(),
   });
+  const auto& master_infos = master_collection.masters;
   EmitLogTable(Loc::current(), "CTS Optimization Stage Setup", {"Property", "Value"},
                {{"Clocks", ToLogTableCell(clocks.size())},
                 {"Configured Buffer Masters", ToLogTableCell(config.get_buffer_types().size())},
                 {"Legal Buffer Master Candidates", ToLogTableCell(master_infos.size())},
                 {"Target Skew (ns)", ToLogTableCell(oi::ResolveClockTargetSkewNs(config))}});
   if (master_infos.empty()) {
-    CTSLOG.warn(Loc::current(), "Optimization: skip because no legal buffer sizing candidates are available.");
-    optimization_summary.reason = "no_sizing_candidates";
+    if (master_collection.configured_candidate_count > 0U && master_collection.unavailable_candidate_count > 0U) {
+      CTSLOG.warn(Loc::current(), "Optimization: configured sizing candidates are unavailable because required Liberty data is missing.");
+      optimization_summary.success = false;
+      optimization_summary.status = "failed";
+      optimization_summary.reason = "sizing_candidate_data_unavailable";
+      return optimization_summary;
+    }
+    CTSLOG.warn(Loc::current(), "Optimization: skip because no sizing candidates are configured.");
+    optimization_summary.reason = "no_sizing_candidates_configured";
     const auto commit_status = CTSDM.commitOptimization(std::move(local_design), std::move(clock_layout), optimization_summary);
     if (!commit_status.ok()) {
       optimization_summary.success = false;
@@ -302,10 +316,18 @@ auto Optimization::run() -> OptimizationSummary
     outer_profile.build_route_tree_cache_s = route_tree_cache_runtime_s;
     stage_start = std::chrono::steady_clock::now();
     const auto route_geometry = oi::BuildClockRouteGeometry(clock_layout, clock_index);
-    FastStaClockContextGuard clock_context(fast_sta, fast_sta.buildClockContext(FastStaClockBuildInput{
-                                                         .clock = clock,
-                                                         .route_geometry = &route_geometry,
-                                                     }));
+    const auto context_build = fast_sta.buildClockContext(FastStaClockBuildInput{
+        .clock = clock,
+        .route_geometry = &route_geometry,
+    });
+    if (!context_build.clock_id.has_value()) {
+      optimization_summary.success = false;
+      optimization_summary.status = "failed";
+      optimization_summary.reason = context_build.failure_reason.empty() ? "fast_sta_context_input_unavailable" : context_build.failure_reason;
+      CTSLOG.warn(Loc::current(), "Optimization: FastSTA context build failed for clock \"", clock->get_clock_name(), "\": ", optimization_summary.reason, ".");
+      return optimization_summary;
+    }
+    FastStaClockContextGuard clock_context(fast_sta, context_build.clock_id.value());
     const auto clock_id = clock_context.id();
     outer_profile.build_fast_sta_context_s = Utility::getElapsedSeconds(stage_start);
 
@@ -351,18 +373,16 @@ auto Optimization::run() -> OptimizationSummary
     oi::CopyOuterProfile(summary.profile, outer_profile);
     if (!summary.valid) {
       logClockSizingSummary(*clock, target_skew_ns, master_infos.size(), summary);
-      CTSLOG.warn(Loc::current(), "Optimization: skip clock \"", clock->get_clock_name(), "\" because fast STA solver failed with reason ",
-                  summary.stop_reason, ".");
+      CTSLOG.warn(Loc::current(), "Optimization: skip clock \"", clock->get_clock_name(), "\" because fast STA solver failed with reason ", summary.stop_reason,
+                  ".");
       no_op_reason = summary.stop_reason.empty() ? "solver_failed" : summary.stop_reason;
       continue;
     }
-    if (const auto timing_summary = captureClockTimingSummary(*clock, fast_sta, clock_id, summary, target_skew_ns);
-        timing_summary.has_value()) {
+    if (const auto timing_summary = captureClockTimingSummary(*clock, fast_sta, clock_id, summary, target_skew_ns); timing_summary.has_value()) {
       optimization_summary.clock_timing.push_back(*timing_summary);
     }
     stage_start = std::chrono::steady_clock::now();
-    if (!summary.accepted_edits.empty()
-        && !oi::ApplyClockSizingAcceptedEdits(design, wrapper, summary.accepted_edits, buffers, clock_layout)) {
+    if (!summary.accepted_edits.empty() && !oi::ApplyClockSizingAcceptedEdits(design, wrapper, summary.accepted_edits, buffers, clock_layout)) {
       summary.profile.apply_accepted_edits_s = Utility::getElapsedSeconds(stage_start);
       logClockSizingSummary(*clock, target_skew_ns, master_infos.size(), summary);
       optimization_summary.success = false;
@@ -372,8 +392,7 @@ auto Optimization::run() -> OptimizationSummary
     }
     summary.profile.apply_accepted_edits_s = Utility::getElapsedSeconds(stage_start);
     logClockSizingSummary(*clock, target_skew_ns, master_infos.size(), summary);
-    if (summary.accepted_edits.empty() && !summary.stop_reason.empty()
-        && (no_op_reason == "no_optimizable_clock" || no_op_reason == "target_met")) {
+    if (summary.accepted_edits.empty() && !summary.stop_reason.empty() && (no_op_reason == "no_optimizable_clock" || no_op_reason == "target_met")) {
       no_op_reason = summary.stop_reason;
     }
     optimization_summary.optimized = optimization_summary.optimized || !summary.accepted_edits.empty();
@@ -383,17 +402,15 @@ auto Optimization::run() -> OptimizationSummary
 
   LogTableRows result_rows;
   for (const auto& timing : optimization_summary.clock_timing) {
-    result_rows.push_back({timing.clock, ToLogTableCell(timing.sink_count), ToLogTableCell(timing.initial_skew_ns),
-                           ToLogTableCell(timing.optimized_skew_ns), ToLogTableCell(timing.target_skew_ns),
-                           ToLogTableCell(timing.target_met), ToLogTableCell(timing.min_insertion_latency_ns),
+    result_rows.push_back({timing.clock, ToLogTableCell(timing.sink_count), ToLogTableCell(timing.initial_skew_ns), ToLogTableCell(timing.optimized_skew_ns),
+                           ToLogTableCell(timing.target_skew_ns), ToLogTableCell(timing.target_met), ToLogTableCell(timing.min_insertion_latency_ns),
                            ToLogTableCell(timing.max_insertion_latency_ns), ToLogTableCell(timing.mean_insertion_latency_ns)});
   }
   if (result_rows.empty()) {
     result_rows.push_back({"none", "0", "n/a", "n/a", ToLogTableCell(oi::ResolveClockTargetSkewNs(config)), "false", "n/a", "n/a", "n/a"});
   }
   EmitLogTable(Loc::current(), "CTS Optimization Result",
-               {"Clock", "Sinks", "Initial Skew", "Optimized Skew", "Target", "Target Met", "Min Latency", "Max Latency", "Mean Latency"},
-               result_rows);
+               {"Clock", "Sinks", "Initial Skew", "Optimized Skew", "Target", "Target Met", "Min Latency", "Max Latency", "Mean Latency"}, result_rows);
   EmitLogTable(Loc::current(), "CTS Optimization Selection Summary", {"Metric", "Value"},
                {{"Accepted Sizing Edits", ToLogTableCell(optimization_summary.accepted_edit_count)},
                 {"Optimized Clocks", ToLogTableCell(optimization_summary.optimized_clock_count)}});

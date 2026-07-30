@@ -37,8 +37,8 @@
 #include "IdbDesign.h"
 #include "IdbNet.h"
 #include "Logger.hh"
-#include "SdcClockReader.hh"
-#include "clock_trace/SdcClockTraceAlgorithm.hh"
+#include "SDCClockReader.hh"
+#include "clock_trace/SDCClockTraceAlgorithm.hh"
 
 namespace icts {
 namespace {
@@ -105,8 +105,8 @@ auto tryBuildPreclusteredClockTarget(const SdcLibertyCellLookup& liberty_cell_lo
 
 }  // namespace
 
-auto ClockTraceResolver::resolve(const SdcClockData& clock_data, idb::IdbDesign* idb_design,
-                                 const SdcLibertyCellLookup& liberty_cell_lookup, std::size_t max_fanout) -> ClockTraceBuild
+auto ClockTraceResolver::resolve(const SdcClockData& clock_data, idb::IdbDesign* idb_design, const SdcLibertyCellLookup& liberty_cell_lookup,
+                                 std::size_t max_fanout) -> ClockTraceBuild
 {
   ClockTraceBuild build;
   if (idb_design == nullptr || idb_design->get_net_list() == nullptr) {
@@ -137,16 +137,14 @@ auto ClockTraceResolver::resolve(const SdcClockData& clock_data, idb::IdbDesign*
   for (const auto& record : candidate_records) {
     if (record.status == "accepted" && !record.net_name.empty()) {
       accepted_clock_names_by_net[record.net_name].insert(record.clock_name);
-      has_strong_target_by_clock[record.clock_name]
-          = has_strong_target_by_clock[record.clock_name] || clock_trace::IsStrongClockTarget(record, sink_threshold);
+      has_strong_target_by_clock[record.clock_name] = has_strong_target_by_clock[record.clock_name] || clock_trace::IsStrongClockTarget(record, sink_threshold);
     }
   }
 
   std::vector<ClockTraceRecord> resolved_records;
   resolved_records.reserve(candidate_records.size());
   for (auto record : candidate_records) {
-    if (record.status == "accepted" && has_strong_target_by_clock[record.clock_name]
-        && !clock_trace::IsStrongClockTarget(record, sink_threshold)) {
+    if (record.status == "accepted" && has_strong_target_by_clock[record.clock_name] && !clock_trace::IsStrongClockTarget(record, sink_threshold)) {
       record.status = "trace_stop";
       record.reason = "source_side_clock_sinks_below_target_threshold";
     }
@@ -186,8 +184,7 @@ auto ClockTraceResolver::resolve(const SdcClockData& clock_data, idb::IdbDesign*
   }
 
   build.summary.records = std::move(resolved_records);
-  build.summary.unowned_clock_like_records
-      = clock_trace::CollectUnownedClockLikeRecords(liberty_cell_lookup, idb_design, build.summary.records);
+  build.summary.unowned_clock_like_records = clock_trace::CollectUnownedClockLikeRecords(liberty_cell_lookup, idb_design, build.summary.records);
   return build;
 }
 

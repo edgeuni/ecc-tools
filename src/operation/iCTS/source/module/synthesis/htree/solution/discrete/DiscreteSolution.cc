@@ -64,22 +64,19 @@ auto EmitDepthCandidateSummary(const HTree::LogContext& context, const std::vect
     } else if (summary.success) {
       status = "feasible";
     }
-    rows.push_back({ToLogTableCell(summary.depth), ToLogTableCell(summary.leaf_count), status,
-                    ToLogTableCell(summary.used_explicit_target_depth), ToLogTableCell(summary.candidate_solution_count),
-                    ToLogTableCell(summary.candidate_frontier_entry_count), ToLogTableCell(summary.feasible_solution_count),
-                    ToLogTableCell(summary.feasible_frontier_entry_count), ToLogTableCell(summary.final_frontier_count),
-                    ToLogTableCell(summary.split_group_count), ToLogTableCell(summary.split_extra_buffer_count),
-                    ToLogTableCell(summary.split_local_depth), ToLogTableCell(summary.used_boundary_relaxation),
-                    ToLogTableCell(summary.selected_delay_ns), ToLogTableCell(summary.selected_power_w),
-                    summary.failure_reason.empty() ? "n/a" : summary.failure_reason});
+    rows.push_back({ToLogTableCell(summary.depth), ToLogTableCell(summary.leaf_count), status, ToLogTableCell(summary.used_explicit_target_depth),
+                    ToLogTableCell(summary.candidate_solution_count), ToLogTableCell(summary.candidate_frontier_entry_count),
+                    ToLogTableCell(summary.feasible_solution_count), ToLogTableCell(summary.feasible_frontier_entry_count),
+                    ToLogTableCell(summary.final_frontier_count), ToLogTableCell(summary.split_group_count), ToLogTableCell(summary.split_extra_buffer_count),
+                    ToLogTableCell(summary.split_local_depth), ToLogTableCell(summary.used_boundary_relaxation), ToLogTableCell(summary.selected_delay_ns),
+                    ToLogTableCell(summary.selected_power_w), summary.failure_reason.empty() ? "n/a" : summary.failure_reason});
   }
   EmitLogTable(Loc::current(), "HTree Depth Candidate Summary",
-               {"Depth", "Leaves", "Status", "Explicit", "Candidates", "Candidate Front", "Feasible", "Feasible Front", "Final Front",
-                "Split Groups", "Extra Buffers", "Local Depth", "Relaxed", "Delay (ns)", "Power (W)", "Failure"},
+               {"Depth", "Leaves", "Status", "Explicit", "Candidates", "Candidate Front", "Feasible", "Feasible Front", "Final Front", "Split Groups",
+                "Extra Buffers", "Local Depth", "Relaxed", "Delay (ns)", "Power (W)", "Failure"},
                rows);
-  EmitLogTable(
-      Loc::current(), "HTree Candidate Scope", {"Property", "Value"},
-      {{"Clock", context.clock_name}, {"Net", context.clock_net_name}, {"Sink Domain", context.sink_domain}, {"Stage", context.stage}});
+  EmitLogTable(Loc::current(), "HTree Candidate Scope", {"Property", "Value"},
+               {{"Clock", context.clock_name}, {"Net", context.clock_net_name}, {"Sink Domain", context.sink_domain}, {"Stage", context.stage}});
 }
 
 }  // namespace
@@ -97,8 +94,8 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
   auto& segment_pattern_library = state.segmentPatterns();
   const auto& char_builder = state.charBuilder();
 
-  const auto required_segment_frontiers = htree::ResolveRequiredSegmentFrontiers(
-      htree::CollectRequiredLengthIndices(state.full_level_plans), state.search_boundary_constraints);
+  const auto required_segment_frontiers
+      = htree::ResolveRequiredSegmentFrontiers(htree::CollectRequiredLengthIndices(state.full_level_plans), state.search_boundary_constraints);
   const auto segment_frontier_catalog
       = htree::SynthesizeSegmentFrontiers(char_builder.get_segment_chars(), segment_pattern_library, required_segment_frontiers);
   if (segment_frontier_catalog.empty()) {
@@ -108,10 +105,10 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
     selection_build.failure_reason = "missing_required_segment_frontiers";
     return selection_build;
   }
-  auto exploration = htree::SearchTopologyDepthCandidates(
-      result.output.topology, state.full_level_plans, state.depth_candidates, segment_frontier_catalog, segment_pattern_library,
-      state.search_boundary_constraints, char_builder.get_cap_lattice(), result.diagnostics.char_slew_steps,
-      config.target_depth.has_value(), state.root_driver_compensation_input, state.sink_load_region_input, state.fanout_pruning_config);
+  auto exploration = htree::SearchTopologyDepthCandidates(result.output.topology, state.full_level_plans, state.depth_candidates, segment_frontier_catalog,
+                                                          segment_pattern_library, state.search_boundary_constraints, char_builder.get_cap_lattice(),
+                                                          result.diagnostics.char_slew_steps, config.target_depth.has_value(),
+                                                          state.root_driver_compensation_input, state.sink_load_region_input, state.fanout_pruning_config);
   result.diagnostics.depth_candidate_count = exploration.summary.depth_summaries.size();
 
   auto covered_global_feasible_pool = htree::FilterGlobalEntriesBySinkLoadRegionCoverage(
@@ -125,12 +122,10 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
   std::optional<htree::CandidateCharRef> selected_feasible_ref;
   std::optional<htree::CandidateCharRef> selected_relaxed_ref;
   per_depth_feasible_pareto_pool = htree::BuildPerDepthDelayPowerParetoRefs(covered_global_feasible_pool.output.entries);
-  selected_feasible_ref
-      = htree::SelectAdaptiveGlobalEntry(per_depth_feasible_pareto_pool, exploration.output.candidate_evaluations, segment_pattern_library);
+  selected_feasible_ref = htree::SelectAdaptiveGlobalEntry(per_depth_feasible_pareto_pool, exploration.output.candidate_evaluations, segment_pattern_library);
   if (!selected_feasible_ref.has_value() && config.allow_boundary_relaxation) {
     const auto per_depth_candidate_pareto_pool = htree::BuildPerDepthDelayPowerParetoRefs(covered_global_candidate_pool.output.entries);
-    selected_relaxed_ref = htree::SelectAdaptiveGlobalEntry(per_depth_candidate_pareto_pool, exploration.output.candidate_evaluations,
-                                                            segment_pattern_library);
+    selected_relaxed_ref = htree::SelectAdaptiveGlobalEntry(per_depth_candidate_pareto_pool, exploration.output.candidate_evaluations, segment_pattern_library);
   }
   const auto selected_ref = selected_feasible_ref.has_value() ? selected_feasible_ref : selected_relaxed_ref;
   if (!selected_ref.has_value() || selected_ref->entry == nullptr) {
@@ -157,9 +152,9 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
   selected_summary.split_group_count = selected_ref->split_group_count;
   selected_summary.split_extra_buffer_count = selected_ref->split_extra_buffer_count;
   selected_summary.split_local_depth = selected_ref->split_local_depth;
-  const auto selected_sink_load_region_legality = htree::ResolveSinkLoadRegionLegality(
-      result.output.topology, selected_ref->entry->get_pattern_id(), selected_evaluation.topology_pattern_library, segment_pattern_library,
-      exploration.output.sink_load_region_legality_context);
+  const auto selected_sink_load_region_legality
+      = htree::ResolveSinkLoadRegionLegality(result.output.topology, selected_ref->entry->get_pattern_id(), selected_evaluation.topology_pattern_library,
+                                             segment_pattern_library, exploration.output.sink_load_region_legality_context);
   if (!selected_sink_load_region_legality.legal) {
     EmitDepthCandidateSummary(state.input->log_context, exploration.summary.depth_summaries);
     CTSLOG.warn(Loc::current(), "HTree: selected global frontier entry is missing sink-load-region legality coverage.");
@@ -185,10 +180,9 @@ auto SelectDiscreteHTreeSolution(HTreeSynthesisState& state) -> HTreeSelectionBu
   const bool used_boundary_relaxation = !selected_feasible_ref.has_value();
   const std::string boundary_relaxation_reason = used_boundary_relaxation ? "no_strict_boundary_feasible_solution_any_depth" : "";
   const std::optional<double> boundary_relaxation_score
-      = used_boundary_relaxation
-            ? std::optional<double>(htree::CalcBoundaryRelaxationScore(
-                  *selected_evaluation.best_char, selected_evaluation.boundary_constraints, result.diagnostics.char_slew_steps))
-            : std::nullopt;
+      = used_boundary_relaxation ? std::optional<double>(htree::CalcBoundaryRelaxationScore(
+                                       *selected_evaluation.best_char, selected_evaluation.boundary_constraints, result.diagnostics.char_slew_steps))
+                                 : std::nullopt;
 
   HTreeSelectionBuild selection_build;
   selection_build.selected = true;

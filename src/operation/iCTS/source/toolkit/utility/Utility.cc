@@ -14,6 +14,12 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file Utility.cc
+ * @author Dawn Li (dawnli619215645@gmail.com)
+ * @date 2026-07-30
+ * @brief Common timing utility implementation.
+ */
 
 #include "Utility.hh"
 

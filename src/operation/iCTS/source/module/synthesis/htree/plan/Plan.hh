@@ -15,7 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file LevelPlan.hh
+ * @file Plan.hh
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-05-01
  * @brief H-tree topology level planning contracts.

@@ -1,10 +1,10 @@
 add_library(
   icts_source_data_manager_adapter_sdc
-  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/SdcClockReader.cc
-  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_parser/SdcClockParser.cc
-  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_parser/SdcClockCommands.cc
-  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_parser/SdcClockEvaluator.cc
-  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_parser/SdcClockValue.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/SDCClockReader.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_parser/SDCClockParser.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_parser/SDCClockCommands.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_parser/SDCClockEvaluator.cc
+  ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_parser/SDCClockValue.cc
   ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_trace/ClockTraceResolver.cc
   ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_trace/ClockTracePins.cc
   ${ICTS_DATA_MANAGER_ADAPTER_SDC}/clock_trace/ClockTraceOwnership.cc

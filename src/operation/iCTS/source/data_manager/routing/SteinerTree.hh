@@ -167,8 +167,7 @@ class SteinerTree
   auto get_node_name_map() const -> const std::unordered_map<std::string, std::size_t>& { return _node_name_to_id; }
 
   template <typename... EdgeArgs>
-  auto addEdge(const std::string& source_node_name, const std::string& target_node_name, const T& distance, EdgeArgs&&... edge_args)
-      -> std::size_t
+  auto addEdge(const std::string& source_node_name, const std::string& target_node_name, const T& distance, EdgeArgs&&... edge_args) -> std::size_t
   {
     auto source_iter = _node_name_to_id.find(source_node_name);
     auto target_iter = _node_name_to_id.find(target_node_name);
@@ -209,8 +208,7 @@ class SteinerTree
     std::vector<std::size_t> indegree(_nodes.size(), 0);
     for (std::size_t edge_id = 0; edge_id < _edges.size(); ++edge_id) {
       const auto& edge = _edges[edge_id];
-      if (edge.id != edge_id || edge.source_node_id >= _nodes.size() || edge.target_node_id >= _nodes.size()
-          || edge.source_node_id == edge.target_node_id) {
+      if (edge.id != edge_id || edge.source_node_id >= _nodes.size() || edge.target_node_id >= _nodes.size() || edge.source_node_id == edge.target_node_id) {
         return false;
       }
       ++indegree[edge.target_node_id];

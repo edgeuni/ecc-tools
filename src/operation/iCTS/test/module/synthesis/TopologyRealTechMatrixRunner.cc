@@ -43,11 +43,11 @@
 #include "SteinerTree.hh"
 #include "TopologyRealTechScenario.hh"
 #include "Tree.hh"
-#include "common/realtech/setup/RealTechDesignSetup.hh"
 #include "data_manager/DataManager.hh"
 #include "data_manager/config/Config.hh"
 #include "data_manager/design/Net.hh"
 #include "data_manager/io/Wrapper.hh"
+#include "data_manager/realtech/setup/RealTechDesignSetup.hh"
 #include "geometry/Geometry.hh"
 #include "module/characterization/fixture/CharacterizationRealTechFixture.hh"
 #include "module/synthesis/topology/Topology.hh"
@@ -58,8 +58,8 @@
 namespace icts_test::synthesis_realtech_smoke {
 namespace {
 
-namespace common_realtech = common::realtech;
-namespace realtech_fixture = characterization::realtech;
+namespace design_realtech = data_manager::realtech;
+namespace characterization_realtech = characterization::realtech;
 
 auto MakeSkipResult(const std::string& reason) -> TopologyMatrixRunResult
 {
@@ -161,13 +161,12 @@ struct NetRouteTimingSummary
   std::unordered_map<const icts::Pin*, double> load_wirelengths_dbu;
 };
 
-auto GetPinCap(const icts::Pin* pin) -> double
+auto GetPinCap(const icts::Pin* pin) -> std::optional<double>
 {
   if (pin == nullptr) {
-    return 0.0;
+    return std::nullopt;
   }
-  const double pin_cap = CTSDM.getWrapper().queryPinCapacitance(pin);
-  return std::max(0.0, pin_cap);
+  return CTSDM.getWrapper().queryPinCapacitance(pin);
 }
 
 auto BuildClockRouteSegmentRcFromRealTech() -> icts::ClockRouteSegmentRc
@@ -215,8 +214,7 @@ auto BuildRouteTimingForNet(const icts::Net* net) -> NetRouteTimingSummary
   icts::Router::ClockSteinerTreeType route_tree;
   route_tree.reserveNodes(net->get_loads().size() + 1U);
   route_tree.reserveEdges(net->get_loads().size());
-  const auto root_node_id
-      = route_tree.addNode(net->get_driver()->get_name(), net->get_driver()->get_location(), true, GetPinCap(net->get_driver()), 0.0);
+  const auto root_node_id = route_tree.addNode(net->get_driver()->get_name(), net->get_driver()->get_location(), true, 0.0, 0.0);
   if (root_node_id == icts::Router::ClockSteinerTreeType::kInvalidId) {
     return summary;
   }
@@ -226,7 +224,11 @@ auto BuildRouteTimingForNet(const icts::Net* net) -> NetRouteTimingSummary
     if (load == nullptr) {
       continue;
     }
-    const auto load_node_id = route_tree.addNode(load->get_name(), load->get_location(), true, GetPinCap(load), 0.0);
+    const auto load_cap_pf = GetPinCap(load);
+    if (!load_cap_pf.has_value()) {
+      return {};
+    }
+    const auto load_node_id = route_tree.addNode(load->get_name(), load->get_location(), true, *load_cap_pf, 0.0);
     if (load_node_id == icts::Router::ClockSteinerTreeType::kInvalidId) {
       continue;
     }
@@ -401,8 +403,8 @@ auto AppendToleranceCaseFailures(const TopologyToleranceComparisonRecord& record
 
 auto EvaluateBpBeTopFullSinkNonClusteredExperimentMatrix() -> TopologyMatrixRunResult
 {
-  const auto& setup_state = common_realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = design_realtech::EnsureRealTechSetup();
+  if (setup_state.mode != design_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     return MakeSkipResult(setup_state.summary);
   }
 
@@ -422,9 +424,8 @@ auto EvaluateBpBeTopFullSinkNonClusteredExperimentMatrix() -> TopologyMatrixRunR
       scenario_name_stream << "topology_bp_be_top_full_sink_iter" << wirelength_iterations << "_step" << slew_cap_steps;
       const std::string scenario_name = scenario_name_stream.str();
 
-      realtech_fixture::RealTechCharFixture char_fixture;
-      if (const auto prepare_error
-          = char_fixture.prepare(scenario_name, std::nullopt, kSynthesisSmokeMaxSlewNs, kSynthesisSmokeMaxCapPf, true);
+      characterization_realtech::RealTechCharFixture char_fixture;
+      if (const auto prepare_error = char_fixture.prepare(scenario_name, std::nullopt, kSynthesisSmokeMaxSlewNs, kSynthesisSmokeMaxCapPf, true);
           prepare_error.has_value()) {
         return MakeSkipResult(*prepare_error);
       }
@@ -462,16 +463,16 @@ auto EvaluateBpBeTopFullSinkNonClusteredExperimentMatrix() -> TopologyMatrixRunR
     }
   }
 
-  matrix_result.report_written = WriteTopologyMatrixReport(
-      kBpBeTopTopologyScenario, "matrix_report.txt",
-      FormatTopologyExperimentReport(kBpBeTopTopologyScenario, selected_clock_data, true, matrix_result.records));
+  matrix_result.report_written
+      = WriteTopologyMatrixReport(kBpBeTopTopologyScenario, "matrix_report.txt",
+                                  FormatTopologyExperimentReport(kBpBeTopTopologyScenario, selected_clock_data, true, matrix_result.records));
   return matrix_result;
 }
 
 auto EvaluateArm9FullSinkTopologyToleranceComparison() -> TopologyToleranceComparisonResult
 {
-  const auto& setup_state = common_realtech::EnsureRealTechSetup();
-  if (setup_state.mode != common_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
+  const auto& setup_state = design_realtech::EnsureRealTechSetup();
+  if (setup_state.mode != design_realtech::RealTechMode::kRealTech || !setup_state.setup_succeeded) {
     return MakeToleranceSkipResult(setup_state.summary);
   }
 
@@ -481,9 +482,9 @@ auto EvaluateArm9FullSinkTopologyToleranceComparison() -> TopologyToleranceCompa
   }
   const auto& selected_clock_data = selected_clock.value();
 
-  realtech_fixture::RealTechCharFixture char_fixture;
-  if (const auto prepare_error = char_fixture.prepare("topology_arm9_full_sink_topology_tolerance", std::nullopt, kSynthesisSmokeMaxSlewNs,
-                                                      kSynthesisSmokeMaxCapPf, true);
+  characterization_realtech::RealTechCharFixture char_fixture;
+  if (const auto prepare_error
+      = char_fixture.prepare("topology_arm9_full_sink_topology_tolerance", std::nullopt, kSynthesisSmokeMaxSlewNs, kSynthesisSmokeMaxCapPf, true);
       prepare_error.has_value()) {
     return MakeToleranceSkipResult(*prepare_error);
   }
@@ -523,8 +524,7 @@ auto EvaluateArm9FullSinkTopologyToleranceComparison() -> TopologyToleranceCompa
         .sta_arrival_skew_ns = timing_summary.sta_arrival_skew_ns,
         .wirelength_skew_dbu = timing_summary.wirelength_skew_dbu,
         .sta_sink_count = timing_summary.sink_count,
-        .selected_char_delay_ns
-        = result.output.htree_output.best_char.has_value() ? result.output.htree_output.best_char->get_delay() : 0.0,
+        .selected_char_delay_ns = result.output.htree_output.best_char.has_value() ? result.output.htree_output.best_char->get_delay() : 0.0,
         .failure_reason = result.summary.failure_reason,
     };
     AppendToleranceCaseFailures(record, comparison_result.failure_messages);

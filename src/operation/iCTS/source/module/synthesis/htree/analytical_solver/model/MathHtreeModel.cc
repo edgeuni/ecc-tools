@@ -98,8 +98,7 @@ auto MathHtreeProblem::isValid(std::string& failure_reason) const -> bool
       failure_reason = "invalid_slot_level_index";
       return false;
     }
-    if (!IsPositiveFinite(slot.delay_weight) || !IsPositiveFinite(slot.power_weight)
-        || !IsNonNegativeFinite(slot.source_boundary_power_weight)) {
+    if (!IsPositiveFinite(slot.delay_weight) || !IsPositiveFinite(slot.power_weight) || !IsNonNegativeFinite(slot.source_boundary_power_weight)) {
       failure_reason = "invalid_slot_weight";
       return false;
     }
@@ -131,8 +130,7 @@ auto MathHtreeProblem::isValid(std::string& failure_reason) const -> bool
 
 auto MathHtreeSolution::hasUsableIntegerSolution() const -> bool
 {
-  return status == MathHtreeSolveStatus::kOptimal || status == MathHtreeSolveStatus::kFeasible
-         || status == MathHtreeSolveStatus::kFeasibleWithGap;
+  return status == MathHtreeSolveStatus::kOptimal || status == MathHtreeSolveStatus::kFeasible || status == MathHtreeSolveStatus::kFeasibleWithGap;
 }
 
 auto ToString(MathHtreeSolveStatus status) -> std::string

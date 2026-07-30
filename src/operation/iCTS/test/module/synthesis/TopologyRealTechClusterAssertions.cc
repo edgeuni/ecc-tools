@@ -47,8 +47,7 @@ auto EmitValidationFailures(const TopologyValidationResult& validation) -> void
 
 }  // namespace
 
-auto AssertClusteredSinkConnectivity(const std::vector<icts::Pin*>& sinks, const std::unordered_set<icts::Inst*>& cluster_buffer_insts)
-    -> void
+auto AssertClusteredSinkConnectivity(const std::vector<icts::Pin*>& sinks, const std::unordered_set<icts::Inst*>& cluster_buffer_insts) -> void
 {
   EmitValidationFailures(ValidateClusteredSinkConnectivity(sinks, cluster_buffer_insts));
 }

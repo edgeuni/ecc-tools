@@ -212,9 +212,8 @@ class SegmentFrontierCatalog
   auto countEntries(SegmentFrontierKindSet kinds) const -> std::size_t
   {
     std::size_t total_entries = 0U;
-    for (const auto& [length_idx, entry_set] : _entry_sets_by_length) {
-      (void) length_idx;
-      total_entries += entry_set.countEntries(kinds);
+    for (const auto& frontier_entry : _entry_sets_by_length) {
+      total_entries += frontier_entry.second.countEntries(kinds);
     }
     return total_entries;
   }

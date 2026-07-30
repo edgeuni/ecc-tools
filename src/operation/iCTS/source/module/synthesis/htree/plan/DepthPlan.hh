@@ -15,7 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 /**
- * @file DepthSearch.hh
+ * @file DepthPlan.hh
  * @author Dawn Li (dawnli619215645@gmail.com)
  * @date 2026-05-01
  * @brief H-tree topology depth search contracts and result data.
@@ -99,20 +99,17 @@ struct DepthCandidateBuild
 
 auto EvaluateTopologyDepthCandidate(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans, unsigned depth,
                                     const SegmentFrontierCatalog& segment_frontier_catalog, BufferPatternLibrary& segment_pattern_library,
-                                    const BoundaryConstraints& base_boundary_constraints,
-                                    SinkLoadRegionLegalityContext& sink_load_region_legality_context, unsigned char_slew_steps,
-                                    RootDriverCompensationPass& compensation_pass, const HTreeFanoutPruningConfig& fanout_config)
+                                    const BoundaryConstraints& base_boundary_constraints, SinkLoadRegionLegalityContext& sink_load_region_legality_context,
+                                    unsigned char_slew_steps, RootDriverCompensationPass& compensation_pass, const HTreeFanoutPruningConfig& fanout_config)
     -> DepthCandidateBuild;
 auto RecordTopologyDepthCandidateBuild(unsigned depth, bool used_explicit_target_depth, const DepthCandidateBuild& candidate_result,
                                        std::vector<DepthSummary>& depth_summaries) -> void;
-auto AppendGlobalCandidateRefs(std::size_t candidate_index, const CandidateBuildEvaluation& evaluation,
-                               std::vector<CandidateCharRef>& global_feasible_pool, std::vector<CandidateCharRef>& global_candidate_pool)
-    -> void;
-auto SearchTopologyDepthCandidates(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans,
-                                   const std::vector<unsigned>& depth_candidates, const SegmentFrontierCatalog& segment_frontier_catalog,
-                                   BufferPatternLibrary& segment_pattern_library, const BoundaryConstraints& base_boundary_constraints,
-                                   const UniformValueLattice& cap_lattice, unsigned char_slew_steps, bool used_explicit_target_depth,
-                                   const RootDriverCompensationInput& compensation_input,
+auto AppendGlobalCandidateRefs(std::size_t candidate_index, const CandidateBuildEvaluation& evaluation, std::vector<CandidateCharRef>& global_feasible_pool,
+                               std::vector<CandidateCharRef>& global_candidate_pool) -> void;
+auto SearchTopologyDepthCandidates(const Tree& topology, const std::vector<HTree::LevelPlan>& full_level_plans, const std::vector<unsigned>& depth_candidates,
+                                   const SegmentFrontierCatalog& segment_frontier_catalog, BufferPatternLibrary& segment_pattern_library,
+                                   const BoundaryConstraints& base_boundary_constraints, const UniformValueLattice& cap_lattice, unsigned char_slew_steps,
+                                   bool used_explicit_target_depth, const RootDriverCompensationInput& compensation_input,
                                    const SinkLoadRegionLegalityInput& sink_load_region_input, const HTreeFanoutPruningConfig& fanout_config)
     -> DepthSearchBuild;
 

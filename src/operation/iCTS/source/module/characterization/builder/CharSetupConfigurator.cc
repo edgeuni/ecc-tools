@@ -33,7 +33,7 @@
 #include <vector>
 
 #include "BufferingPattern.hh"
-#include "ClockRouteSegmentRc.hh"
+#include "ClockRouteSegmentRC.hh"
 #include "Logger.hh"
 #include "SegmentChar.hh"
 #include "Utility.hh"
@@ -133,13 +133,12 @@ auto resolveWireWidth(const ::icts::CharBuilder::Config& config) -> std::optiona
   return config.wire_width_um.has_value() && *config.wire_width_um > 0.0 ? config.wire_width_um : std::nullopt;
 }
 
-auto resolveBufferDriveCap(const ::icts::CharacterizationBufferCell& buffer_cell) -> double
+auto resolveBufferDriveCap(const ::icts::CharacterizationBufferCell& buffer_cell) -> std::optional<double>
 {
-  double max_cap = buffer_cell.output_cap_limit_pf;
-  if (max_cap <= 0.0) {
-    max_cap = buffer_cell.output_cap_table_axis_max_pf;
+  if (buffer_cell.output_cap_limit_pf.has_value()) {
+    return buffer_cell.output_cap_limit_pf;
   }
-  return max_cap;
+  return buffer_cell.output_cap_table_axis_max_pf;
 }
 
 auto resolveClockRouteSegmentRc(const ::icts::CharBuilder::Input& input) -> ::icts::ClockRouteSegmentRc
@@ -163,8 +162,8 @@ auto resolveMaxSlew(const ::icts::CharBuilder::Input& input, const ::icts::CharB
   double liberty_port_min_slew = std::numeric_limits<double>::infinity();
   bool found_port_limit = false;
   for (const auto& buffer_cell : input.characterization_buffer_cells) {
-    if (buffer_cell.input_slew_limit_ns > 0.0) {
-      liberty_port_min_slew = std::min(liberty_port_min_slew, buffer_cell.input_slew_limit_ns);
+    if (buffer_cell.input_slew_limit_ns.has_value()) {
+      liberty_port_min_slew = std::min(liberty_port_min_slew, *buffer_cell.input_slew_limit_ns);
       found_port_limit = true;
     }
   }
@@ -179,8 +178,8 @@ auto resolveMaxSlew(const ::icts::CharBuilder::Input& input, const ::icts::CharB
   double liberty_table_min_slew = std::numeric_limits<double>::infinity();
   bool found_table_limit = false;
   for (const auto& buffer_cell : input.characterization_buffer_cells) {
-    if (buffer_cell.input_slew_table_axis_max_ns > 0.0) {
-      liberty_table_min_slew = std::min(liberty_table_min_slew, buffer_cell.input_slew_table_axis_max_ns);
+    if (buffer_cell.input_slew_table_axis_max_ns.has_value()) {
+      liberty_table_min_slew = std::min(liberty_table_min_slew, *buffer_cell.input_slew_table_axis_max_ns);
       found_table_limit = true;
     }
   }
@@ -213,8 +212,8 @@ auto resolveMaxCap(const ::icts::CharBuilder::Input& input, const ::icts::CharBu
   double liberty_port_min_cap = std::numeric_limits<double>::infinity();
   bool found_port_limit = false;
   for (const auto& buffer_cell : input.characterization_buffer_cells) {
-    if (buffer_cell.output_cap_limit_pf > 0.0) {
-      liberty_port_min_cap = std::min(liberty_port_min_cap, buffer_cell.output_cap_limit_pf);
+    if (buffer_cell.output_cap_limit_pf.has_value()) {
+      liberty_port_min_cap = std::min(liberty_port_min_cap, *buffer_cell.output_cap_limit_pf);
       found_port_limit = true;
     }
   }
@@ -229,8 +228,8 @@ auto resolveMaxCap(const ::icts::CharBuilder::Input& input, const ::icts::CharBu
   double liberty_table_min_cap = std::numeric_limits<double>::infinity();
   bool found_table_limit = false;
   for (const auto& buffer_cell : input.characterization_buffer_cells) {
-    if (buffer_cell.output_cap_table_axis_max_pf > 0.0) {
-      liberty_table_min_cap = std::min(liberty_table_min_cap, buffer_cell.output_cap_table_axis_max_pf);
+    if (buffer_cell.output_cap_table_axis_max_pf.has_value()) {
+      liberty_table_min_cap = std::min(liberty_table_min_cap, *buffer_cell.output_cap_table_axis_max_pf);
       found_table_limit = true;
     }
   }
@@ -250,8 +249,7 @@ auto resolveMaxCap(const ::icts::CharBuilder::Input& input, const ::icts::CharBu
   };
 }
 
-auto collectSortedBuffers(const ::icts::CharBuilder::Input& input, const ::icts::CharBuilder::Config& config)
-    -> std::vector<::icts::CharacterizationBufferCell>
+auto collectSortedBuffers(const ::icts::CharBuilder::Input& input, const ::icts::CharBuilder::Config& config) -> std::vector<::icts::CharacterizationBufferCell>
 {
   std::vector<::icts::CharacterizationBufferCell> sorted_buffers;
   if (input.characterization_buffer_cells.empty()) {
@@ -260,14 +258,13 @@ auto collectSortedBuffers(const ::icts::CharBuilder::Input& input, const ::icts:
   }
 
   for (auto buffer_cell : input.characterization_buffer_cells) {
-    const double max_cap = resolveBufferDriveCap(buffer_cell);
-    if (max_cap <= 0.0) {
-      CTSLOG.warn(Loc::current(), "CharBuilder: buffer ", buffer_cell.cell_master, " has invalid max_cap (", max_cap, " pF), skipped");
+    const auto max_cap = resolveBufferDriveCap(buffer_cell);
+    if (!max_cap.has_value()) {
+      CTSLOG.warn(Loc::current(), "CharBuilder: buffer ", buffer_cell.cell_master, " has no available output cap boundary and was skipped.");
       continue;
     }
     if (buffer_cell.input_cap_pf <= 0.0) {
-      CTSLOG.warn(Loc::current(), "CharBuilder: buffer ", buffer_cell.cell_master, " has invalid input cap (", buffer_cell.input_cap_pf,
-                  " pF), skipped");
+      CTSLOG.warn(Loc::current(), "CharBuilder: buffer ", buffer_cell.cell_master, " has invalid input cap (", buffer_cell.input_cap_pf, " pF), skipped");
       continue;
     }
     if (buffer_cell.input_pin.empty() || buffer_cell.output_pin.empty()) {
@@ -275,15 +272,14 @@ auto collectSortedBuffers(const ::icts::CharBuilder::Input& input, const ::icts:
       continue;
     }
 
-    buffer_cell.max_cap_pf = max_cap;
+    buffer_cell.max_cap_pf = *max_cap;
     sorted_buffers.push_back(std::move(buffer_cell));
   }
 
-  std::ranges::sort(
-      sorted_buffers,
-      [](const ::icts::CharacterizationBufferCell& lhs_buffer_cell, const ::icts::CharacterizationBufferCell& rhs_buffer_cell) -> bool {
-        return lhs_buffer_cell.max_cap_pf < rhs_buffer_cell.max_cap_pf;
-      });
+  std::ranges::sort(sorted_buffers,
+                    [](const ::icts::CharacterizationBufferCell& lhs_buffer_cell, const ::icts::CharacterizationBufferCell& rhs_buffer_cell) -> bool {
+                      return lhs_buffer_cell.max_cap_pf < rhs_buffer_cell.max_cap_pf;
+                    });
 
   const double buffer_redundancy_pct = config.char_buf_redundancy_pct.value_or(0.0);
   if (buffer_redundancy_pct > 0.0 && sorted_buffers.size() > 1U) {
@@ -308,15 +304,14 @@ auto resolveWirelengthUnitUm(const std::vector<::icts::CharacterizationBufferCel
   double strongest_height_um = 0.0;
   std::string strongest_master;
   for (const auto& buffer_cell : sorted_buffers) {
-    if (buffer_cell.cell_height_um <= 0.0) {
-      CTSLOG.warn(Loc::current(), "CharBuilder: cannot derive wirelength_unit from ", buffer_cell.cell_master,
-                  " because its physical height is unavailable");
+    if (!buffer_cell.cell_height_um.has_value()) {
+      CTSLOG.warn(Loc::current(), "CharBuilder: cannot derive wirelength_unit from ", buffer_cell.cell_master, " because its physical height is unavailable");
       continue;
     }
 
     if (buffer_cell.max_cap_pf >= strongest_cap_pf) {
       strongest_cap_pf = buffer_cell.max_cap_pf;
-      strongest_height_um = buffer_cell.cell_height_um;
+      strongest_height_um = *buffer_cell.cell_height_um;
       strongest_master = buffer_cell.cell_master;
     }
   }
@@ -340,8 +335,8 @@ auto resolveWirelengthUnitUm(const std::vector<::icts::CharacterizationBufferCel
   };
 }
 
-auto resolveWirelengthUnitUm(const ::icts::CharBuilder::Config& config,
-                             const std::vector<::icts::CharacterizationBufferCell>& sorted_buffers, bool caller_override) -> ResolvedValue
+auto resolveWirelengthUnitUm(const ::icts::CharBuilder::Config& config, const std::vector<::icts::CharacterizationBufferCell>& sorted_buffers,
+                             bool caller_override) -> ResolvedValue
 {
   if (config.wirelength_unit_um.has_value() && *config.wirelength_unit_um > 0.0) {
     return ResolvedValue{
@@ -352,8 +347,7 @@ auto resolveWirelengthUnitUm(const ::icts::CharBuilder::Config& config,
   }
 
   if (!config.allow_auto_wirelength_unit) {
-    CTSLOG.warn(Loc::current(),
-                "CharBuilder: wirelength_unit_um must be explicitly provided or allow_auto_wirelength_unit must be enabled.");
+    CTSLOG.warn(Loc::current(), "CharBuilder: wirelength_unit_um must be explicitly provided or allow_auto_wirelength_unit must be enabled.");
     return ResolvedValue{
         .value = 0.0,
         .source = ResolutionSource::kUnresolved,
@@ -406,8 +400,7 @@ auto CharSetupConfigurator::init(const ::icts::CharBuilder::Input& input, const 
   _impl._sorted_buffers = collectSortedBuffers(effective_input, effective_config);
   const ResolvedValue max_slew_resolution = resolveMaxSlew(effective_input, effective_config);
   const ResolvedValue max_cap_resolution = resolveMaxCap(effective_input, effective_config);
-  const ResolvedValue wirelength_unit_resolution
-      = resolveWirelengthUnitUm(effective_config, _impl._sorted_buffers, config.wirelength_unit_um.has_value());
+  const ResolvedValue wirelength_unit_resolution = resolveWirelengthUnitUm(effective_config, _impl._sorted_buffers, config.wirelength_unit_um.has_value());
   const auto routing_layer_resolution = resolveRoutingLayer(effective_config);
   const auto clock_route_segment_rc = resolveClockRouteSegmentRc(effective_input);
   _impl._max_slew = max_slew_resolution.value;

@@ -11,8 +11,15 @@
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 // MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+//
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+/**
+ * @file main.cc
+ * @author Dawn Li (dawnli619215645@gmail.com)
+ * @date 2026-07-30
+ * @brief Shared GoogleTest entry point with isolated CTS global state.
+ */
 
 #include <gtest/gtest.h>
 

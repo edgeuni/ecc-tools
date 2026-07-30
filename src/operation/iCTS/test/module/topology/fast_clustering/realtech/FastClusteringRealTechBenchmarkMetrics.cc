@@ -154,8 +154,7 @@ auto CalcPopulationVariance(const std::vector<double>& values, double mean) -> d
   return variance / static_cast<double>(values.size());
 }
 
-auto ScoreCluster(const std::vector<icts::Pin*>& cluster, const icts::ClusterElectricalSummary* summary, const icts::ClusterConfig& config)
-    -> double
+auto ScoreCluster(const std::vector<icts::Pin*>& cluster, const icts::ClusterElectricalSummary* summary, const icts::ClusterConfig& config) -> double
 {
   const auto diameter = CalcClusterDiameter(cluster);
   if (config.scoring_strategy == icts::ClusterScoringStrategy::kTotalWirelength) {
@@ -172,7 +171,7 @@ auto ScoreCluster(const std::vector<icts::Pin*>& cluster, const icts::ClusterEle
 
 }  // namespace
 
-auto BuildBenchmarkConfig(const std::vector<icts::Pin*>& loads) -> icts::ClusterConfig
+auto BuildBenchmarkConfig(const std::vector<icts::Pin*>& loads) -> std::optional<icts::ClusterConfig>
 {
   auto config = icts::FastClustering::buildElectricalBaseConfig(CTSDM.getConfig().get_max_fanout(), CTSDM.getConfig().get_max_cap());
   config.clock_route_segment_rc = CTSDM.getWrapper().queryConfiguredClockRouteSegmentRc(CTSDM.getConfig());
@@ -181,15 +180,19 @@ auto BuildBenchmarkConfig(const std::vector<icts::Pin*>& loads) -> icts::Cluster
     if (pin == nullptr) {
       continue;
     }
-    config.sink_pin_cap_pf_by_pin.emplace(pin, std::max(0.0, CTSDM.getWrapper().queryPinCapacitance(pin)));
+    const auto pin_cap_pf = CTSDM.getWrapper().queryPinCapacitance(pin);
+    if (!pin_cap_pf.has_value()) {
+      return std::nullopt;
+    }
+    config.sink_pin_cap_pf_by_pin.emplace(pin, *pin_cap_pf);
   }
   config.enable_exact_cap = false;
   config.always_build_exact_cap = false;
   return config;
 }
 
-auto EvaluateResult(const std::string& algorithm, const icts::ClusterOutput& result, const icts::ClusterConfig& config,
-                    std::size_t expected_load_count, double runtime_ms) -> ResultMetrics
+auto EvaluateResult(const std::string& algorithm, const icts::ClusterOutput& result, const icts::ClusterConfig& config, std::size_t expected_load_count,
+                    double runtime_ms) -> ResultMetrics
 {
   ResultMetrics metrics;
   metrics.algorithm = algorithm;

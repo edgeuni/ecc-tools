@@ -47,12 +47,10 @@ auto resolveSegmentCompositionState(const BufferPatternLibrary& pattern_library,
   return pattern_library.getCompositionState(pattern_id);
 }
 
-auto BuildSegmentStateFrontier(const std::vector<SegmentChar>& chars, const BufferPatternLibrary& pattern_library)
-    -> std::vector<SegmentChar>
+auto BuildSegmentStateFrontier(const std::vector<SegmentChar>& chars, const BufferPatternLibrary& pattern_library) -> std::vector<SegmentChar>
 {
-  return icts::BuildSegmentStateFrontier(chars, [&](const SegmentChar& entry) -> PatternCompositionState {
-    return resolveSegmentCompositionState(pattern_library, entry.get_pattern_id());
-  });
+  return icts::BuildSegmentStateFrontier(
+      chars, [&](const SegmentChar& entry) -> PatternCompositionState { return resolveSegmentCompositionState(pattern_library, entry.get_pattern_id()); });
 }
 
 auto FindNextSegmentPatternId(const std::vector<SegmentChar>& chars) -> unsigned
@@ -78,15 +76,14 @@ auto CountSegmentCandidateFrontierEntries(const SegmentCandidateFrontierSet& ent
 auto CountTotalSegmentCandidateFrontierEntries(const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& entry_sets) -> std::size_t
 {
   std::size_t total_entries = 0U;
-  for (const auto& [length_idx, entry_set] : entry_sets) {
-    (void) length_idx;
-    total_entries += CountSegmentCandidateFrontierEntries(entry_set);
+  for (const auto& frontier_entry : entry_sets) {
+    total_entries += CountSegmentCandidateFrontierEntries(frontier_entry.second);
   }
   return total_entries;
 }
 
-auto AppendRetainedSegmentPatternIds(const SegmentCandidateFrontierSet& entry_set, SegmentFrontierKindSet required_kinds,
-                                     std::vector<PatternId>& pattern_ids) -> void
+auto AppendRetainedSegmentPatternIds(const SegmentCandidateFrontierSet& entry_set, SegmentFrontierKindSet required_kinds, std::vector<PatternId>& pattern_ids)
+    -> void
 {
   static constexpr std::array<SegmentFrontierKind, 3> frontier_kinds
       = {SegmentFrontierKind::kAll, SegmentFrontierKind::kTerminalBranchBuffered, SegmentFrontierKind::kTerminalLeafUnbuffered};
@@ -105,13 +102,12 @@ auto AppendRetainedSegmentPatternIds(const SegmentCandidateFrontierSet& entry_se
   }
 }
 
-auto RetainSegmentPatternsForEntrySets(const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& entry_sets,
-                                       SegmentFrontierKindSet required_kinds, BufferPatternLibrary& pattern_library) -> void
+auto RetainSegmentPatternsForEntrySets(const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& entry_sets, SegmentFrontierKindSet required_kinds,
+                                       BufferPatternLibrary& pattern_library) -> void
 {
   std::vector<PatternId> retained_pattern_ids;
-  for (const auto& [length_idx, entry_set] : entry_sets) {
-    (void) length_idx;
-    AppendRetainedSegmentPatternIds(entry_set, required_kinds, retained_pattern_ids);
+  for (const auto& frontier_entry : entry_sets) {
+    AppendRetainedSegmentPatternIds(frontier_entry.second, required_kinds, retained_pattern_ids);
   }
   pattern_library.retainOnly(retained_pattern_ids);
 }
@@ -124,8 +120,7 @@ auto FindSegmentCandidateFrontierSet(const std::unordered_map<unsigned, SegmentC
 }
 
 auto ComposeSegmentCandidateFrontierEntries(const std::vector<SegmentChar>& upstream, const std::vector<SegmentChar>& downstream,
-                                            BufferPatternLibrary& pattern_library, unsigned start_pattern_id)
-    -> std::pair<std::vector<SegmentChar>, unsigned>
+                                            BufferPatternLibrary& pattern_library, unsigned start_pattern_id) -> std::pair<std::vector<SegmentChar>, unsigned>
 {
   if (upstream.empty() || downstream.empty()) {
     return {{}, start_pattern_id};
@@ -141,8 +136,8 @@ auto ComposeSegmentCandidateFrontierEntries(const std::vector<SegmentChar>& upst
 }
 
 auto ComposeSegmentCandidateFrontierSet(const SegmentCandidateFrontierSet& upstream, const SegmentCandidateFrontierSet& downstream,
-                                        BufferPatternLibrary& pattern_library, unsigned start_pattern_id,
-                                        SegmentFrontierKindSet required_kinds) -> std::pair<SegmentCandidateFrontierSet, unsigned>
+                                        BufferPatternLibrary& pattern_library, unsigned start_pattern_id, SegmentFrontierKindSet required_kinds)
+    -> std::pair<SegmentCandidateFrontierSet, unsigned>
 {
   SegmentCandidateFrontierSet result;
   unsigned next_pattern_id = start_pattern_id;
@@ -156,16 +151,14 @@ auto ComposeSegmentCandidateFrontierSet(const SegmentCandidateFrontierSet& upstr
 
   if (required_kinds.contains(SegmentFrontierKind::kTerminalBranchBuffered)) {
     auto [branch_frontier_entries, after_branch_pattern_id] = ComposeSegmentCandidateFrontierEntries(
-        upstream.require(SegmentFrontierKind::kAll), downstream.require(SegmentFrontierKind::kTerminalBranchBuffered), pattern_library,
-        next_pattern_id);
+        upstream.require(SegmentFrontierKind::kAll), downstream.require(SegmentFrontierKind::kTerminalBranchBuffered), pattern_library, next_pattern_id);
     result.mutableEntries(SegmentFrontierKind::kTerminalBranchBuffered) = std::move(branch_frontier_entries);
     next_pattern_id = after_branch_pattern_id;
   }
 
   if (required_kinds.contains(SegmentFrontierKind::kTerminalLeafUnbuffered)) {
     auto [leaf_frontier_entries, after_leaf_pattern_id] = ComposeSegmentCandidateFrontierEntries(
-        upstream.require(SegmentFrontierKind::kAll), downstream.require(SegmentFrontierKind::kTerminalLeafUnbuffered), pattern_library,
-        next_pattern_id);
+        upstream.require(SegmentFrontierKind::kAll), downstream.require(SegmentFrontierKind::kTerminalLeafUnbuffered), pattern_library, next_pattern_id);
     result.mutableEntries(SegmentFrontierKind::kTerminalLeafUnbuffered) = std::move(leaf_frontier_entries);
     next_pattern_id = after_leaf_pattern_id;
   }
@@ -174,8 +167,7 @@ auto ComposeSegmentCandidateFrontierSet(const SegmentCandidateFrontierSet& upstr
 }
 
 auto BuildBaseSegmentCandidateLengthEntrySets(const std::vector<SegmentChar>& chars, const BufferPatternLibrary& pattern_library,
-                                              SegmentFrontierKindSet required_kinds)
-    -> std::unordered_map<unsigned, SegmentCandidateFrontierSet>
+                                              SegmentFrontierKindSet required_kinds) -> std::unordered_map<unsigned, SegmentCandidateFrontierSet>
 {
   std::unordered_map<unsigned, std::vector<SegmentChar>> raw_all_by_length;
   std::unordered_map<unsigned, std::vector<SegmentChar>> raw_leaf_unbuffered_by_length;
@@ -213,13 +205,13 @@ auto BuildBaseSegmentCandidateLengthEntrySets(const std::vector<SegmentChar>& ch
     entry_set.mutableEntries(SegmentFrontierKind::kAll) = BuildSegmentStateFrontier(raw_entries, pattern_library);
   }
 
-  for (auto& [length_idx, entry_set] : entry_sets_by_length) {
-    (void) length_idx;
+  for (auto& frontier_entry : entry_sets_by_length) {
+    auto& entry_set = frontier_entry.second;
     if (build_branch) {
-      (void) entry_set.mutableEntries(SegmentFrontierKind::kTerminalBranchBuffered);
+      entry_set.mutableEntries(SegmentFrontierKind::kTerminalBranchBuffered);
     }
     if (build_leaf) {
-      (void) entry_set.mutableEntries(SegmentFrontierKind::kTerminalLeafUnbuffered);
+      entry_set.mutableEntries(SegmentFrontierKind::kTerminalLeafUnbuffered);
     }
   }
 
@@ -247,8 +239,8 @@ auto NormalizeRequiredLengths(std::vector<unsigned> lengths) -> std::vector<unsi
   return lengths;
 }
 
-auto BuildPendingLengthKey(const std::vector<unsigned>& pending_lengths,
-                           const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& base_entry_sets) -> RequiredLengthStateKey
+auto BuildPendingLengthKey(const std::vector<unsigned>& pending_lengths, const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& base_entry_sets)
+    -> RequiredLengthStateKey
 {
   std::vector<unsigned> canonical_lengths;
   canonical_lengths.reserve(pending_lengths.size());
@@ -264,13 +256,11 @@ auto BuildPendingLengthKey(const std::vector<unsigned>& pending_lengths,
   return RequiredLengthStateKey{.pending_lengths = NormalizeRequiredLengths(std::move(canonical_lengths))};
 }
 
-auto ResolveSegmentCandidateFrontierSet(unsigned length_idx,
-                                        const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& base_entry_sets,
+auto ResolveSegmentCandidateFrontierSet(unsigned length_idx, const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& base_entry_sets,
                                         const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& synthesized_entry_sets)
     -> const SegmentCandidateFrontierSet*
 {
-  if (const auto* synthesized_entry_set = FindSegmentCandidateFrontierSet(synthesized_entry_sets, length_idx);
-      synthesized_entry_set != nullptr) {
+  if (const auto* synthesized_entry_set = FindSegmentCandidateFrontierSet(synthesized_entry_sets, length_idx); synthesized_entry_set != nullptr) {
     return synthesized_entry_set;
   }
   return FindSegmentCandidateFrontierSet(base_entry_sets, length_idx);
@@ -297,8 +287,7 @@ auto PreferSegmentClosureSolution(const SegmentClosureSolution& lhs, const Segme
   return lhs.synthesized_entry_sets.size() < rhs.synthesized_entry_sets.size();
 }
 
-auto SolveRequiredLengthState(const RequiredLengthStateKey& state_key,
-                              const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& base_entry_sets,
+auto SolveRequiredLengthState(const RequiredLengthStateKey& state_key, const std::unordered_map<unsigned, SegmentCandidateFrontierSet>& base_entry_sets,
                               BufferPatternLibrary& pattern_library, unsigned& next_pattern_id,
                               std::unordered_map<RequiredLengthStateKey, SegmentClosureSolution, RequiredLengthStateKeyHash>& memo,
                               SegmentFrontierKindSet required_kinds) -> SegmentClosureSolution
@@ -355,10 +344,8 @@ auto SolveRequiredLengthState(const RequiredLengthStateKey& state_key,
         continue;
       }
 
-      const auto* left_entry_set
-          = ResolveSegmentCandidateFrontierSet(left_length_idx, base_entry_sets, sub_solution.synthesized_entry_sets);
-      const auto* right_entry_set
-          = ResolveSegmentCandidateFrontierSet(right_length_idx, base_entry_sets, sub_solution.synthesized_entry_sets);
+      const auto* left_entry_set = ResolveSegmentCandidateFrontierSet(left_length_idx, base_entry_sets, sub_solution.synthesized_entry_sets);
+      const auto* right_entry_set = ResolveSegmentCandidateFrontierSet(right_length_idx, base_entry_sets, sub_solution.synthesized_entry_sets);
       if (left_entry_set == nullptr || right_entry_set == nullptr) {
         continue;
       }
@@ -393,8 +380,7 @@ auto SolveRequiredLengthState(const RequiredLengthStateKey& state_key,
 }
 
 auto SynthesizeSegmentFrontierSets(const std::vector<SegmentChar>& base_segment_chars, BufferPatternLibrary& pattern_library,
-                                   const RequiredSegmentFrontiers& required_frontiers)
-    -> std::unordered_map<unsigned, SegmentCandidateFrontierSet>
+                                   const RequiredSegmentFrontiers& required_frontiers) -> std::unordered_map<unsigned, SegmentCandidateFrontierSet>
 {
   const SegmentFrontierKindSet required_kinds = required_frontiers.required_kinds.normalized();
   if (required_kinds.empty()) {
@@ -410,8 +396,7 @@ auto SynthesizeSegmentFrontierSets(const std::vector<SegmentChar>& base_segment_
 
   unsigned next_pattern_id = FindNextSegmentPatternId(base_segment_chars);
   std::unordered_map<RequiredLengthStateKey, SegmentClosureSolution, RequiredLengthStateKeyHash> memo;
-  auto closure_solution
-      = SolveRequiredLengthState(root_state_key, entry_sets_by_length, pattern_library, next_pattern_id, memo, required_kinds);
+  auto closure_solution = SolveRequiredLengthState(root_state_key, entry_sets_by_length, pattern_library, next_pattern_id, memo, required_kinds);
   if (!closure_solution.feasible) {
     return {};
   }
@@ -437,13 +422,11 @@ auto CollectRequiredLengthIndices(const std::vector<HTree::LevelPlan>& levels) -
   return NormalizeRequiredLengths(std::move(required_lengths));
 }
 
-auto ResolveRequiredSegmentFrontiers(std::vector<unsigned> required_length_indices, const BoundaryConstraints& boundary_constraints)
-    -> RequiredSegmentFrontiers
+auto ResolveRequiredSegmentFrontiers(std::vector<unsigned> required_length_indices, const BoundaryConstraints& boundary_constraints) -> RequiredSegmentFrontiers
 {
   return RequiredSegmentFrontiers{
       .required_length_indices = std::move(required_length_indices),
-      .required_kinds
-      = boundary_constraints.force_branch_buffer ? SegmentFrontierKindSet::branchConstrained() : SegmentFrontierKindSet::allOnly(),
+      .required_kinds = boundary_constraints.force_branch_buffer ? SegmentFrontierKindSet::branchConstrained() : SegmentFrontierKindSet::allOnly(),
   };
 }
 

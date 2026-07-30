@@ -80,8 +80,8 @@ auto JoinValues(const std::vector<Value>& values) -> std::string
   return stream.str();
 }
 
-auto EmitCharacterizationResult(const HTree::Input& input, bool success, std::size_t segment_char_count, double length_step_um,
-                                std::string_view failure_reason) -> void
+auto EmitCharacterizationResult(const HTree::Input& input, bool success, std::size_t segment_char_count, double length_step_um, std::string_view failure_reason)
+    -> void
 {
   EmitLogTable(Loc::current(), "CharBuilder Results", {"Metric", "Value"},
                {{"Clock", input.log_context.clock_name},
@@ -94,9 +94,8 @@ auto EmitCharacterizationResult(const HTree::Input& input, bool success, std::si
 
 }  // namespace
 
-auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const CharBuilder::Input& base_char_input,
-                             const CharBuilder::Config& base_char_config, htree::DiagnosticBuild& result,
-                             CharacterizationLibrary& char_library, const HTree::Input& input, const HTree::Config& config)
+auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const CharBuilder::Input& base_char_input, const CharBuilder::Config& base_char_config,
+                             htree::DiagnosticBuild& result, CharacterizationLibrary& char_library, const HTree::Input& input, const HTree::Config& config)
     -> CharacterizationSummary
 {
   EmitLogTable(Loc::current(), "HTree Build Scope", {"Property", "Value"},
@@ -143,12 +142,10 @@ auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const Cha
   }
   const auto ensure_result = char_library.ensure(base_char_input, char_config);
   if (!ensure_result.success) {
-    EmitCharacterizationResult(input, false, 0U, 0.0,
-                               ensure_result.failure_reason.empty() ? "characterization_library_failed" : ensure_result.failure_reason);
-    return CharacterizationSummary{
-        .success = false,
-        .failure_reason = ensure_result.failure_reason.empty() ? "characterization_library_failed" : ensure_result.failure_reason,
-        .length_step_um = 0.0};
+    EmitCharacterizationResult(input, false, 0U, 0.0, ensure_result.failure_reason.empty() ? "characterization_library_failed" : ensure_result.failure_reason);
+    return CharacterizationSummary{.success = false,
+                                   .failure_reason = ensure_result.failure_reason.empty() ? "characterization_library_failed" : ensure_result.failure_reason,
+                                   .length_step_um = 0.0};
   }
 
   const auto& char_builder = char_library.getCharBuilder();
@@ -171,16 +168,18 @@ auto RunCharacterizationFlow(const Tree& topology, int32_t dbu_per_um, const Cha
 
   const double length_step_um = char_builder.get_wirelength_unit_um();
   if (length_step_um <= 0.0 || char_builder.get_segment_chars().empty()) {
-    CTSLOG.warn(Loc::current(), "HTree: characterization did not produce usable segment chars.");
-    EmitCharacterizationResult(input, false, char_builder.get_segment_chars().size(), length_step_um, "no_usable_segment_chars");
-    return CharacterizationSummary{.success = false, .failure_reason = "no_usable_segment_chars", .length_step_um = length_step_um};
+    const auto failure_reason
+        = char_builder.get_build_failure_reason().empty() ? std::string{"no_usable_segment_chars"} : char_builder.get_build_failure_reason();
+    CTSLOG.warn(Loc::current(), "HTree: characterization failed: ", failure_reason, ".");
+    EmitCharacterizationResult(input, false, char_builder.get_segment_chars().size(), length_step_um, failure_reason);
+    return CharacterizationSummary{.success = false, .failure_reason = failure_reason, .length_step_um = length_step_um};
   }
 
   result.diagnostics.char_wirelength_unit_um = length_step_um;
   result.diagnostics.char_wirelength_iterations = char_builder.get_wirelength_iterations();
-  result.diagnostics.char_unique_level_bins
-      = char_grid_plan.adapted ? char_grid_plan.unique_level_bins
-                               : CountUniqueAlignedLengthBins(CollectRequestedLevelLengthsUm(topology, dbu_per_um), length_step_um);
+  result.diagnostics.char_unique_level_bins = char_grid_plan.adapted
+                                                  ? char_grid_plan.unique_level_bins
+                                                  : CountUniqueAlignedLengthBins(CollectRequestedLevelLengthsUm(topology, dbu_per_um), length_step_um);
   result.diagnostics.char_grid_adapted = char_grid_plan.adapted;
   result.diagnostics.char_max_slew_ns = char_builder.get_max_slew();
   result.diagnostics.char_max_cap_pf = char_builder.get_max_cap();
