@@ -74,7 +74,7 @@ class PinAccessor
   void splitPAResult(PAModel& pa_model);
   void routePABoxMap(PAModel& pa_model);
   void freePABoxMap(PAModel& pa_model);
-  void buildPAEnvironment(PAModel& pa_model, const std::vector<PABoxId>& pa_box_id_list);
+  void buildPAEnvironment(PAModel& pa_model, const std::vector<PABoxId>& pa_box_id_list, bool include_active_box);
   void addPAResultToEnvironment(PAModel& pa_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx, int32_t pin_idx,
                                 Segment<LayerCoord>& segment);
   void addPAPatchToEnvironment(PAModel& pa_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx, int32_t pin_idx,
@@ -145,7 +145,8 @@ class PinAccessor
   void updatePAModel(PAModel& pa_model);
   int32_t getRouteViolationNum(PAModel& pa_model);
   void updateViolation(PAModel& pa_model);
-  std::vector<Violation> getRouteViolationList(PAModel& pa_model);
+  std::vector<Violation> getFullRouteViolationList(PAModel& pa_model);
+  std::vector<Violation> getDirtyRouteViolationList(PAModel& pa_model, PABox& pa_box);
   void updateBestResult(PAModel& pa_model);
   bool stopIteration(PAModel& pa_model, std::vector<PAIterParam>& pa_iter_param_list);
   void selectBestResult(PAModel& pa_model);

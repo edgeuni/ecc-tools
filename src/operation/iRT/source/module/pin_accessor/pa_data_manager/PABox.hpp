@@ -40,6 +40,7 @@ class PABox
   PABoxId& get_pa_box_id() { return _pa_box_id; }
   PAIterParam* get_pa_iter_param() { return _pa_iter_param; }
   bool get_initial_routing() const { return _initial_routing; }
+  bool get_dirty() const { return _dirty; }
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>>& get_net_access_point_map() { return _net_access_point_map; }
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>>& get_net_pin_env_result_map() { return _net_pin_env_result_map; }
@@ -64,6 +65,7 @@ class PABox
   void set_pa_box_id(const PABoxId& pa_box_id) { _pa_box_id = pa_box_id; }
   void set_pa_iter_param(PAIterParam* pa_iter_param) { _pa_iter_param = pa_iter_param; }
   void set_initial_routing(const bool initial_routing) { _initial_routing = initial_routing; }
+  void set_dirty(const bool dirty) { _dirty = dirty; }
   void set_type_layer_net_fixed_rect_map(const std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& type_layer_net_fixed_rect_map)
   {
     _type_layer_net_fixed_rect_map = type_layer_net_fixed_rect_map;
@@ -156,6 +158,7 @@ class PABox
   PABoxId _pa_box_id;
   PAIterParam* _pa_iter_param = nullptr;
   bool _initial_routing = true;
+  bool _dirty = false;
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> _net_access_point_map;
   std::map<int32_t, std::map<int32_t, std::set<Segment<LayerCoord>*>>> _net_pin_env_result_map;
