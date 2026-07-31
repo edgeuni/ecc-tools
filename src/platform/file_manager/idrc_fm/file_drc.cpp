@@ -29,6 +29,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#include "utility/logger/Logger.hpp"
 #include "file_drc.h"
 
 #include <cstring>
@@ -74,7 +75,7 @@ bool FileDrcManager::saveJson()
   if (tail_str != "json") {
     return false;
   }
-  std::cout << std::endl << "Begin save feature json, path = " << path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Begin save feature json, path = ", path);
 
   //   auto idb_insts = dmInst->get_idb_design()->get_instance_list();
   auto idb_nets = dmInst->get_idb_design()->get_net_list();
@@ -163,7 +164,7 @@ bool FileDrcManager::saveJson()
 
   file_stream.close();
 
-  std::cout << std::endl << "Save feature json success, path = " << path << " total violation : " << total << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Save feature json success, path = ", path, " total violation : ", total);
   return true;
 }
 

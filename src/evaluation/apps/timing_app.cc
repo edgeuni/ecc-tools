@@ -14,11 +14,11 @@ void TestTiming(const string& db_config_path);
 
 void PrintUsage(const char* program_name)
 {
-  std::cout << "timing evaluation" << std::endl;
-  std::cout << "Usage: " << program_name << " <function_name>" << std::endl;
-  std::cout << "Available parameters:" << std::endl;
-  std::cout << "  <db_config_path> Path to the database configuration file." << std::endl;
-  std::cout << "  --help, -h       Show this help message and exit." << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "timing evaluation");
+  IEDALOG.info(ieda::Loc::current(), "Usage: ", program_name, " <function_name>");
+  IEDALOG.info(ieda::Loc::current(), "Available parameters:");
+  IEDALOG.info(ieda::Loc::current(), "  <db_config_path> Path to the database configuration file.");
+  IEDALOG.info(ieda::Loc::current(), "  --help, -h       Show this help message and exit.");
 }
 
 int main(const int argc, const char* argv[])
@@ -32,7 +32,7 @@ int main(const int argc, const char* argv[])
     }
     return 0;
   }
-  std::cerr << "Error: Incorrect number of arguments." << std::endl;
+  IEDALOG.warn(ieda::Loc::current(), "Error: Incorrect number of arguments.");
   PrintUsage(argv[0]);
   return 1;
 }

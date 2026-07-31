@@ -1298,7 +1298,7 @@ class LibLutTableTemplate : public LibObject
 
   void set_template_variable1(const char* template_variable1) override {
     if(!_str2var.contains(template_variable1)){
-      std::cout << "not contain the template variable " <<std::endl;
+      IEDALOG.warn(ieda::Loc::current(), "not contain the template variable ");
     }
     // DLOG_FATAL_IF(!_str2var.contains(template_variable1))
     //     << "not contain the template variable " << template_variable1;

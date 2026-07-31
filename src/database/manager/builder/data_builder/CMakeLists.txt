@@ -16,10 +16,12 @@ PUBLIC
         ${HOME_DATABASE}/manager/service/def_service
 )
 
+target_link_libraries(data_process PRIVATE ieda_logger)
+
 if(BUILD_TESTING)
   add_executable(idb_die_geometry_test
       test/idb_die_geometry_test.cpp
   )
-  target_link_libraries(idb_die_geometry_test PRIVATE data_process idb geometry_db)
+  target_link_libraries(idb_die_geometry_test PRIVATE data_process idb geometry_db ieda_logger)
   add_test(NAME idb_die_geometry_test COMMAND idb_die_geometry_test)
 endif()

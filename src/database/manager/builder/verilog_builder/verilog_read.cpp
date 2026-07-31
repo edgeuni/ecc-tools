@@ -312,7 +312,7 @@ bool VerilogRead::createDbAutoTop(std::string file)
 
   // auto set top module
   if (!_verilog_reader->autoTopModule()) {
-    std::cerr << "auto top module is wrong!\n";
+    IEDALOG.warn(ieda::Loc::current(), "auto top module is wrong!");
     return false;
   }
   _top_module = _verilog_reader->get_top_module();
@@ -347,7 +347,7 @@ IdbConnectDirection VerilogRead::netlistToIdb(DclType port_direction) const
   } else if (port_direction == DclType::KInout) {
     return IdbConnectDirection::kInOut;
   } else {
-    std::cout << "not support.";
+    IEDALOG.warn(ieda::Loc::current(), "not support.");
     return IdbConnectDirection::kNone;
   }
 }
@@ -445,7 +445,7 @@ int32_t VerilogRead::build_pins()
         process_dcl_stmt(verilog_convert_dcl(verilog_dcl));
         num++;
         if (num % 1000 == 0) {
-          std::cout << "Processed " << num << " pins..." << std::endl;
+          IEDALOG.info(ieda::Loc::current(), "Processed ", num, " pins...");
         }
       }
     }
@@ -557,7 +557,7 @@ int32_t VerilogRead::build_nets()
         process_dcl_stmt(verilog_convert_dcl(verilog_dcl));
         num++;
         if (num % 1000 == 0) {
-          std::cout << "Processed " << num << " nets..." << std::endl;
+          IEDALOG.info(ieda::Loc::current(), "Processed ", num, " nets...");
         }
       }
     }
@@ -614,7 +614,7 @@ int32_t VerilogRead::build_assign()
           } else if (the_left_idb_net && the_right_idb_net && the_left_idb_net != the_right_idb_net) {
             // assign net = net, need merge two net to one net.
 
-            // std::cout << "merge " << left_net_name << " = " << right_net_name << "\n";
+            // IEDALOG.info(ieda::Loc::current(), "Merge ", left_net_name, " = ", right_net_name);
 
             assert(the_left_idb_net != the_right_idb_net);
             // the remove map to merge net maybe removed, need update the new net.
@@ -1206,7 +1206,7 @@ int32_t VerilogRead::build_components()
       }
       num++;
       if (num % 1000 == 0) {
-        std::cout << "Processed " << num << " components..." << std::endl;
+        IEDALOG.info(ieda::Loc::current(), "Processed ", num, " components...");
       }
     }
   }

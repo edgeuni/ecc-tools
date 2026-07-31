@@ -14,4 +14,4 @@ target_include_directories(json_builder
         ${HOME_DATABASE}/manager/parser/json
 )
 
-target_link_libraries(json_builder PRIVATE json-parser idb)
+target_link_libraries(json_builder PRIVATE json-parser idb ieda_logger)

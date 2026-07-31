@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 
+#include "utility/logger/Logger.hpp"
 namespace liberty {
 
 LibertyScanner::LibertyScanner()
@@ -446,7 +447,7 @@ int LibertyScanner::yylex(YYSTYPE* yylval, YYLTYPE* yylloc)
                 continue;
             } else if (c == '*') {
                 if (!skipBlockComment()) {
-                    std::cerr << "Error: Unterminated block comment at line " << yylloc->first_line << std::endl;
+                    IEDALOG.warn(ieda::Loc::current(), "Error: Unterminated block comment at line ", yylloc->first_line);
                     return 0;
                 }
                 continue;
@@ -521,7 +522,7 @@ int LibertyScanner::yylex(YYSTYPE* yylval, YYLTYPE* yylloc)
             case '\'':
                 return c;
             default:
-                std::cerr << "Debug: Unknown character '" << (char)c << "' (code " << c << ") at line " << _line_no << std::endl;
+                IEDALOG.warn(ieda::Loc::current(), "Debug: Unknown character '", (char)c, "' (code ", c, ") at line ", _line_no);
                 return c;
         }
     }

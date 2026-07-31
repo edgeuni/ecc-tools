@@ -26,6 +26,7 @@ target_link_libraries(idm
     vcd
     # file_manager_drc 
     tool_manager
+    ieda_logger
     )
 
 target_include_directories(idm 

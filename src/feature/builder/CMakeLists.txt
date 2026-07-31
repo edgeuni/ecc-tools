@@ -31,4 +31,5 @@ target_link_libraries(feature_builder
         eval_wirelength_api
         eval_timing_api
         eval_union_api
+        ieda_logger
 )
