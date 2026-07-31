@@ -78,7 +78,6 @@ void PlanarRouter::generate()
   outputNetCSV(pr_model);
   // outputUsageCSV(pr_model);
   // outputCongestionCostCSV(pr_model);
-  outputJson(pr_model);
   RTDM.getDatabase().get_net_global_result_map() = std::move(pr_model.get_net_global_result_map());
   RTDM.rebuildGlobalResultRTree();
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
@@ -1610,110 +1609,6 @@ void PlanarRouter::outputCongestionCostCSV(PRModel& pr_model)
     csv_file.close();
   }
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
-}
-
-void PlanarRouter::outputJson(PRModel& pr_model)
-{
-  int32_t enable_notification = RTDM.getConfig().enable_notification;
-  if (!enable_notification) {
-    return;
-  }
-  std::map<std::string, std::string> json_path_map;
-  json_path_map["net_map"] = outputNetJson(pr_model);
-  json_path_map["overflow_map"] = outputOverflowJson(pr_model);
-  json_path_map["summary"] = outputSummaryJson(pr_model);
-  RTI.sendNotification("PR", 1, json_path_map);
-}
-
-std::string PlanarRouter::outputNetJson(PRModel& pr_model)
-{
-  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
-  std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
-  std::string& pr_temp_directory_path = RTDM.getConfig().pr_temp_directory_path;
-
-  std::vector<nlohmann::json> net_json_list;
-  {
-    nlohmann::json result_shape_json;
-    for (auto& [net_idx, segment_set] : pr_model.get_net_global_result_map()) {
-      std::string net_name = net_list[net_idx].get_net_name();
-      for (Segment<LayerCoord>& segment_value : segment_set) {
-        Segment<LayerCoord>* segment = &segment_value;
-        PlanarRect first_gcell = RTUTIL.getRealRectByGCell(segment->get_first(), gcell_axis);
-        PlanarRect second_gcell = RTUTIL.getRealRectByGCell(segment->get_second(), gcell_axis);
-        if (segment->get_first().get_layer_idx() != segment->get_second().get_layer_idx()) {
-          result_shape_json["result_shape"][net_name]["path"].push_back({first_gcell.get_ll_x(), first_gcell.get_ll_y(), first_gcell.get_ur_x(),
-                                                                         first_gcell.get_ur_y(),
-                                                                         routing_layer_list[segment->get_first().get_layer_idx()].get_layer_name()});
-          result_shape_json["result_shape"][net_name]["path"].push_back({second_gcell.get_ll_x(), second_gcell.get_ll_y(), second_gcell.get_ur_x(),
-                                                                         second_gcell.get_ur_y(),
-                                                                         routing_layer_list[segment->get_second().get_layer_idx()].get_layer_name()});
-        } else {
-          PlanarRect gcell = RTUTIL.getBoundingBox({first_gcell, second_gcell});
-          result_shape_json["result_shape"][net_name]["path"].push_back({gcell.get_ll_x(), gcell.get_ll_y(), gcell.get_ur_x(), gcell.get_ur_y(),
-                                                                         routing_layer_list[segment->get_first().get_layer_idx()].get_layer_name()});
-        }
-      }
-    }
-    net_json_list.push_back(result_shape_json);
-  }
-  std::string net_json_file_path = RTUTIL.getString(pr_temp_directory_path, "net_map.json");
-  std::ofstream* net_json_file = RTUTIL.getOutputFileStream(net_json_file_path);
-  (*net_json_file) << net_json_list;
-  RTUTIL.closeFileStream(net_json_file);
-  return net_json_file_path;
-}
-
-std::string PlanarRouter::outputOverflowJson(PRModel& pr_model)
-{
-  ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
-  std::string& pr_temp_directory_path = RTDM.getConfig().pr_temp_directory_path;
-
-  std::vector<nlohmann::json> overflow_json_list;
-  for (std::pair<std::string, GridMap<RoutingEdge>*> edge_map_pair : {std::make_pair("horizontal", &RTDM.getDatabase().get_planar_routing_h_edge_map()),
-                                                                      std::make_pair("vertical", &RTDM.getDatabase().get_planar_routing_v_edge_map())}) {
-    GridMap<RoutingEdge>& routing_edge_map = *edge_map_pair.second;
-    bool is_horizontal = edge_map_pair.first == "horizontal";
-    for (int32_t x = 0; x < routing_edge_map.get_x_size(); x++) {
-      for (int32_t y = 0; y < routing_edge_map.get_y_size(); y++) {
-        PlanarCoord first_coord(x, y);
-        PlanarCoord second_coord = is_horizontal ? PlanarCoord(x + 1, y) : PlanarCoord(x, y + 1);
-        PlanarRect edge_rect = RTUTIL.getBoundingBox({RTUTIL.getRealRectByGCell(first_coord, gcell_axis), RTUTIL.getRealRectByGCell(second_coord, gcell_axis)});
-        overflow_json_list.push_back({edge_rect.get_ll_x(), edge_rect.get_ll_y(), edge_rect.get_ur_x(), edge_rect.get_ur_y(), edge_map_pair.first,
-                                      routing_edge_map[x][y].get_overflow()});
-      }
-    }
-  }
-  std::string overflow_json_file_path = RTUTIL.getString(pr_temp_directory_path, "overflow_map.json");
-  std::ofstream* overflow_json_file = RTUTIL.getOutputFileStream(overflow_json_file_path);
-  (*overflow_json_file) << overflow_json_list;
-  RTUTIL.closeFileStream(overflow_json_file);
-  return overflow_json_file_path;
-}
-
-std::string PlanarRouter::outputSummaryJson(PRModel& pr_model)
-{
-  Summary& summary = RTDM.getDatabase().get_summary();
-  std::string& pr_temp_directory_path = RTDM.getConfig().pr_temp_directory_path;
-
-  double& total_demand = summary.pr_summary.total_demand;
-  double& total_overflow = summary.pr_summary.total_overflow;
-  double& total_wire_length = summary.pr_summary.total_wire_length;
-  std::map<std::string, std::map<std::string, double>>& clock_timing_map = summary.pr_summary.clock_timing_map;
-
-  nlohmann::json summary_json;
-  summary_json["total_demand"] = total_demand;
-  summary_json["total_overflow"] = total_overflow;
-  summary_json["total_wire_length"] = total_wire_length;
-  for (auto& [clock_name, timing] : clock_timing_map) {
-    summary_json["clock_timing_map"]["clock_name"] = clock_name;
-    summary_json["clock_timing_map"]["timing"] = timing;
-  }
-  std::string summary_json_file_path = RTUTIL.getString(pr_temp_directory_path, "summary.json");
-  std::ofstream* summary_json_file = RTUTIL.getOutputFileStream(summary_json_file_path);
-  (*summary_json_file) << summary_json;
-  RTUTIL.closeFileStream(summary_json_file);
-  return summary_json_file_path;
 }
 
 // debug

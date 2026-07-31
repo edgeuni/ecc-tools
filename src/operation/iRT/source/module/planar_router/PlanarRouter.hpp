@@ -178,10 +178,6 @@ class PlanarRouter
   void outputNetCSV(PRModel& pr_model);
   void outputUsageCSV(PRModel& pr_model);
   void outputCongestionCostCSV(PRModel& pr_model);
-  void outputJson(PRModel& pr_model);
-  std::string outputNetJson(PRModel& pr_model);
-  std::string outputOverflowJson(PRModel& pr_model);
-  std::string outputSummaryJson(PRModel& pr_model);
 
   // debug
   void debugPlotPRModel(PRModel& pr_model, std::string flag);

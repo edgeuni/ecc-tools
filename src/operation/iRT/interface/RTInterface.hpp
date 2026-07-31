@@ -153,10 +153,6 @@ class RTInterface
                     std::map<std::string, std::map<std::string, double>>& clock_timing);
 #endif
 
-#if 1  // ecos
-  void sendNotification(std::string stage, int32_t iter, std::map<std::string, std::string> json_path_map);
-#endif
-
 #endif
 
  private:
