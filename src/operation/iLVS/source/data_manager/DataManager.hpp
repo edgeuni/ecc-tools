@@ -16,12 +16,13 @@
 // ***************************************************************************************
 #pragma once
 
-#include <any>
-#include <map>
-#include <string>
-
 #include "Config.hpp"
 #include "Database.hpp"
+#include "LVSHeader.hpp"
+#include "PhysicalGraphBuildData.hpp"
+#include "NetRoutingData.hpp"
+#include "NetRoutingGraph.hpp"
+#include "RoutingShape.hpp"
 
 namespace ilvs {
 
@@ -54,15 +55,25 @@ class DataManager
   ~DataManager() = default;
   DataManager& operator=(const DataManager& other) = delete;
   DataManager& operator=(DataManager&& other) = delete;
-  // function
-#if 1  // build
+
+#if 1  // 构建
   void buildConfig();
   void buildDatabase();
+  void buildNetlistData();
+  void buildDefData();
+  void buildNetRoutingGraph();
+  void buildNetRoutingGraph(const NetRoutingData& net_routing_data, NetRoutingGraph& net_routing_graph);
+  int32_t buildRoutingGraphShape(NetRoutingGraph& net_routing_graph, const RoutingShape& routing_shape);
+  void buildPhysicalGraph();
+  void buildPhysicalGraphNode(PhysicalGraphBuildData& physical_graph_build_data, const std::string& net_name,
+                              const NetRoutingGraph& routing_graph, bool build_terminal_shape);
+  void buildPhysicalGraphComponent(PhysicalGraphBuildData& physical_graph_build_data);
+  BGRectInt convertToBGRectInt(const Shape& shape);
   void printConfig();
   void printDatabase();
 #endif
 
-#if 1  // destroy
+#if 1  // 销毁
   void destroyDatabase();
 #endif
 };

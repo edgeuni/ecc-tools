@@ -63,38 +63,4 @@ class TclDestroyLVS : public TclCmd
 
 #endif
 
-#if 1  // snapshot
-
-class TclWriteLVSNetlist : public TclCmd
-{
- public:
-  explicit TclWriteLVSNetlist(const char* cmd_name);
-  ~TclWriteLVSNetlist() override = default;
-
-  unsigned check() override;
-  unsigned exec() override;
-};
-
-class TclWriteLVSDef : public TclCmd
-{
- public:
-  explicit TclWriteLVSDef(const char* cmd_name);
-  ~TclWriteLVSDef() override = default;
-
-  unsigned check() override;
-  unsigned exec() override;
-};
-
-class TclReadLVS : public TclCmd
-{
- public:
-  explicit TclReadLVS(const char* cmd_name);
-  ~TclReadLVS() override = default;
-
-  unsigned check() override;
-  unsigned exec() override;
-};
-
-#endif
-
 }  // namespace tcl

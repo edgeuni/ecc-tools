@@ -35,12 +35,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <sstream>
 
 #include "IdbLayer.h"
 #include "IdbLayerShape.h"
 #include "IdbLayout.h"
 #include "IdbObs.h"
-#include "Str.hh"
 #include "property_parser/cutlayer_parser.h"
 #include "property_parser/masterslicelayer_parser.h"
 #include "property_parser/routinglayer_parser.h"
@@ -214,8 +214,12 @@ int LefRead::parse_max_stack_via_lef58(std::string data)
 
   auto max_via_stack = new IdbMaxViaStack();
 
-  const char* sep = " ";
-  vector<std::string> strs = ieda::Str::split(data.c_str(), sep);
+  vector<std::string> strs;
+  std::istringstream stream(data);
+  std::string str;
+  while (stream >> str) {
+    strs.push_back(str);
+  }
   for (size_t i = 0; i < strs.size(); ++i) {
     if (strs[i] == "MAXVIASTACK") {
       auto number = atoi(strs[i + 1].c_str());

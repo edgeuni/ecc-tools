@@ -664,6 +664,7 @@ IdbPin* IdbPins::add_pin_list(IdbPin* pin)
   if (pin == nullptr) {
     IdbPin* pPin = new IdbPin();
     _pin_list.emplace_back(pPin);
+    update_pin_ref_index(pPin);
     return pPin;
   }
 
@@ -680,6 +681,7 @@ IdbPin* IdbPins::add_pin_list(string pin_name)
   pPin = new IdbPin();
   pPin->set_pin_name(pin_name);
   _pin_list.emplace_back(pPin);
+  update_pin_ref_index(pPin);
 
   return pPin;
 }
@@ -690,13 +692,43 @@ IdbPin* IdbPins::add_pin_ref_unique(IdbPin* pin)
     return nullptr;
   }
 
+  if (_pin_ref_index != nullptr) {
+    const auto [it, inserted] = _pin_ref_index->insert(pin);
+    if (!inserted) {
+      return *it;
+    }
+    _pin_list.emplace_back(pin);
+    return pin;
+  }
+
   IdbPin* existed_pin = find_pin(pin);
   if (existed_pin != nullptr) {
     return existed_pin;
   }
 
   _pin_list.emplace_back(pin);
+  update_pin_ref_index(pin);
   return pin;
+}
+
+void IdbPins::update_pin_ref_index(IdbPin* pin)
+{
+  if (_pin_ref_index != nullptr) {
+    _pin_ref_index->insert(pin);
+    return;
+  }
+
+  if (_pin_list.size() <= kPinRefIndexThreshold) {
+    return;
+  }
+
+  _pin_ref_index = std::make_unique<std::unordered_set<IdbPin*>>();
+  _pin_ref_index->reserve(_pin_list.size());
+  for (auto* pin : _pin_list) {
+    if (pin != nullptr) {
+      _pin_ref_index->insert(pin);
+    }
+  }
 }
 /**
  * check if same pin exist and remove it
@@ -720,6 +752,7 @@ void IdbPins::checkPins()
 
     it++;
   }
+  _pin_ref_index.reset();
 }
 
 void IdbPins::reset()
@@ -732,6 +765,7 @@ void IdbPins::reset()
   }
   _pin_list.clear();
   std::vector<IdbPin*>().swap(_pin_list);
+  _pin_ref_index.reset();
 }
 
 void IdbPins::remove_pin(IdbPin* pin_remove)
@@ -751,6 +785,9 @@ bool IdbPins::erase_pin_ref(IdbPin* pin_remove)
   }
 
   _pin_list.erase(it);
+  if (_pin_ref_index != nullptr) {
+    _pin_ref_index->erase(pin_remove);
+  }
   return true;
 }
 

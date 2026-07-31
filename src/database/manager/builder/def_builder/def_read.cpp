@@ -36,10 +36,11 @@
 #include <cstdlib>
 #include <cstdio>
 #include <regex>
+#include <string>
+#include <string_view>
 
 #include "../../../data/design/IdbDesign.h"
 #include "../def/defzlib/defzlib.hpp"
-#include "Str.hh"
 #include "defiPath.hpp"
 #include "defrReader.hpp"
 
@@ -70,7 +71,7 @@ bool DefRead::check_type(defrCallbackType_e type)
 
 bool DefRead::createDb(const char* file)
 {
-  if (ieda::Str::contain(file, ".gz")) {
+  if (std::string_view(file).find(".gz") != std::string_view::npos) {
     return createDbGzip(file);
   } else {
     FILE* f = fopen(file, "r");
@@ -904,7 +905,8 @@ int32_t DefRead::parse_component(defiComponent* def_component)
   }
 
   std::string inst_name = def_component->id();
-  std::string new_inst_name = ieda::Str::trimEscape(inst_name);
+  std::string new_inst_name = inst_name;
+  std::erase(new_inst_name, '\\');
 
   IdbInstance* instance = design->createInstance(new_inst_name, _cur_cell_master->get_name(), IdbInstanceType::kNone,
                                                  IdbPlacementStatus::kNone, IdbOrient::kNone);
@@ -1039,7 +1041,8 @@ int32_t DefRead::parse_net(defiNet* def_net)
   //   IdbNet* net = net_list->add_net(def_net->name());
 
   std::string net_name = def_net->name();
-  std::string new_net_name = ieda::Str::trimEscape(net_name);
+  std::string new_net_name = net_name;
+  std::erase(new_net_name, '\\');
   IdbNet* net = design->createOrFindNet(new_net_name);
 
   if (net == nullptr) {
@@ -1084,12 +1087,12 @@ int32_t DefRead::parse_net(defiNet* def_net)
 
   for (int i = 0; i < num_connections; i++) {
     std::string io_name = def_net->instance(i);
-    io_name = ieda::Str::trimEscape(io_name);
+    std::erase(io_name, '\\');
 
     IdbPin* pin = nullptr;
     if (io_name.compare("PIN") == 0) {
       std::string pin_name = def_net->pin(i);
-      pin_name = ieda::Str::trimEscape(pin_name);
+      std::erase(pin_name, '\\');
       pin = io_pin_list->find_pin(pin_name);
       if (pin == nullptr) {
         std::cout << "Can not find Pin in Pin list ... pin name = " << def_net->pin(i) << std::endl;
@@ -1100,7 +1103,7 @@ int32_t DefRead::parse_net(defiNet* def_net)
       IdbInstance* instance = instance_list->find_instance(io_name);
       if (instance != nullptr) {
         std::string pin_name = def_net->pin(i);
-        pin_name = ieda::Str::trimEscape(pin_name);
+        std::erase(pin_name, '\\');
         pin = instance->get_pin_by_term(pin_name);
         if (pin == nullptr) {
           std::cout << "Can not find Pin in Pin list ... pin name = " << def_net->pin(i) << std::endl;
@@ -1328,15 +1331,15 @@ int32_t DefRead::parse_pdn(defiNet* def_net)
 
   for (int i = 0; i < def_net->numConnections(); i++) {
     string io_name = def_net->instance(i);
-    io_name = ieda::Str::trimEscape(io_name);
+    std::erase(io_name, '\\');
     IdbPin* pin = nullptr;
     if (io_name.compare("*") == 0) {
       std::string pin_name = def_net->pin(i);
-      pin_name = ieda::Str::trimEscape(pin_name);
+      std::erase(pin_name, '\\');
       net->add_pin_string(pin_name);
     } else if (io_name.compare("PIN") == 0) {
       std::string pin_name = def_net->pin(i);
-      pin_name = ieda::Str::trimEscape(pin_name);
+      std::erase(pin_name, '\\');
       pin = io_pin_list->find_pin(pin_name);
       if (pin == nullptr) {
         std::cout << "Can not find Pin in Pin list ... pin name = " << def_net->pin(i) << std::endl;
@@ -1347,7 +1350,7 @@ int32_t DefRead::parse_pdn(defiNet* def_net)
       IdbInstance* instance = instance_list->find_instance(io_name);
       if (instance != nullptr) {
         std::string pin_name = def_net->pin(i);
-        pin_name = ieda::Str::trimEscape(pin_name);
+        std::erase(pin_name, '\\');
         pin = instance->get_pin_by_term(pin_name);
         if (pin == nullptr) {
           std::cout << "Can not find Pin in Pin list ... pin name = " << def_net->pin(i) << std::endl;
@@ -1577,7 +1580,8 @@ int32_t DefRead::parse_pin(defiPin* def_pin)
   // IdbNetList* net_list = design->get_net_list();
 
   std::string pin_name = def_pin->pinName();
-  std::string new_pin_name = ieda::Str::trimEscape(pin_name);
+  std::string new_pin_name = pin_name;
+  std::erase(new_pin_name, '\\');
 
   IdbPin* pin = design->createOrFindIoPin(new_pin_name, IdbCreatePolicy::kErrorIfExists);
   if (pin == nullptr) {
@@ -1586,7 +1590,8 @@ int32_t DefRead::parse_pin(defiPin* def_pin)
   }
 
   std::string net_name = def_pin->netName();
-  std::string new_net_name = ieda::Str::trimEscape(net_name);
+  std::string new_net_name = net_name;
+  std::erase(new_net_name, '\\');
   pin->set_net_name(new_net_name);
   // pin->set_net(net_list->find_net(pin->get_net_name()));
   pin->set_orient_by_enum(def_pin->orient());

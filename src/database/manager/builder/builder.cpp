@@ -43,7 +43,7 @@
 #include "design_write.h"
 #include "layout_read.h"
 #include "layout_write.h"
-#include "log/Log.hh"
+#include "utility/logger/Logger.hpp"
 
 using std::cout;
 using std::endl;
@@ -164,7 +164,7 @@ IdbDefService* IdbBuilder::buildDef(string file)
 
   std::shared_ptr<DefRead> def_read = std::make_shared<DefRead>(_def_service);
   if (const auto ret = def_read->createDb(file.c_str()); !ret) {
-    LOG_FATAL << "Def file read failed..." << endl;
+    IEDALOG.error(ieda::Loc::current(), "Def file read failed...");
   }
 
   buildNet();
@@ -193,7 +193,7 @@ IdbDefService* IdbBuilder::buildDefGzip(string gzip_file)
 
   std::shared_ptr<DefRead> def_read = std::make_shared<DefRead>(_def_service);
   if (const auto ret = def_read->createDbGzip(gzip_file.c_str()); !ret) {
-    LOG_FATAL << "Def file read failed..." << endl;
+    IEDALOG.error(ieda::Loc::current(), "Def file read failed...");
   }
 
   buildNet();
@@ -235,7 +235,7 @@ IdbLefService* IdbBuilder::buildLef(vector<string>& files, bool b_techfile)
   return _lef_service;
 }
 
-IdbDefService* IdbBuilder::rustBuildVerilog(string file, std::string top_module_name)
+IdbDefService* IdbBuilder::buildVerilog(string file, std::string top_module_name)
 {
   if (_def_service != nullptr) {
     delete _def_service;
@@ -252,11 +252,11 @@ IdbDefService* IdbBuilder::rustBuildVerilog(string file, std::string top_module_
     std::cout << "Read Verilog file success : " << file << endl;
   }
 
-  std::shared_ptr<RustVerilogRead> rust_verilog_read = std::make_shared<RustVerilogRead>(_def_service);
+  std::shared_ptr<VerilogRead> verilog_read = std::make_shared<VerilogRead>(_def_service);
   if (top_module_name.empty())
-    rust_verilog_read->createDbAutoTop(file);
+    verilog_read->createDbAutoTop(file);
   else
-    rust_verilog_read->createDb(file.c_str(), top_module_name);
+    verilog_read->createDb(file.c_str(), top_module_name);
 
   // update def unit 
   updateDefUnit();
