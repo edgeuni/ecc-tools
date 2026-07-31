@@ -1920,13 +1920,34 @@ bool LibCell::isSequentialCell()
  */
 bool LibCell::isICG()
 {
+  bool has_check_arc = false;
+  bool has_combinational_clock_to_output_arc = false;
   for (auto& liberty_arc_set : _cell_arcs) {
+    if (liberty_arc_set->get_arcs().empty()) {
+      continue;
+    }
     auto& lib_arc = liberty_arc_set->get_arcs().front();
     if (lib_arc->isClockGateCheckArc()) {
       return true;
     }
+
+    has_check_arc = has_check_arc || lib_arc->isCheckArc();
+    LibArc::TimingType timing_type = lib_arc->get_timing_type();
+    bool is_combinational_arc = timing_type == LibArc::TimingType::kCombRise || timing_type == LibArc::TimingType::kCombFall
+                                || timing_type == LibArc::TimingType::kComb;
+    if (!is_combinational_arc) {
+      continue;
+    }
+    LibPort* source_port = get_cell_port_or_port_bus(lib_arc->get_src_port());
+    LibPort* sink_port = get_cell_port_or_port_bus(lib_arc->get_snk_port());
+    has_combinational_clock_to_output_arc = has_combinational_clock_to_output_arc
+                                           || (source_port != nullptr && sink_port != nullptr && source_port->isClock() && sink_port->isOutput());
   }
-  return false;
+
+  // Some libraries omit the clock_gating_integrated_cell and clock_gate_* attributes.
+  // Their ICG cells are still identifiable by a sequential check arc and a combinational
+  // clock-input-to-output arc (for example, CK -> ECK).
+  return has_check_arc && has_combinational_clock_to_output_arc;
 }
 
 /**
