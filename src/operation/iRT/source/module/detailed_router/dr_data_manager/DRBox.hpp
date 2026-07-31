@@ -41,6 +41,7 @@ class DRBox
   DRBoxId& get_dr_box_id() { return _dr_box_id; }
   DRIterParam* get_dr_iter_param() { return _dr_iter_param; }
   bool get_initial_routing() const { return _initial_routing; }
+  bool get_dirty() const { return _dirty; }
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& get_type_layer_net_fixed_rect_map() { return _type_layer_net_fixed_rect_map; }
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>>& get_net_access_point_map() { return _net_access_point_map; }
   std::map<int32_t, std::vector<Segment<LayerCoord>>>& get_net_global_result_map() { return _net_global_result_map; }
@@ -68,6 +69,7 @@ class DRBox
   void set_dr_box_id(const DRBoxId& dr_box_id) { _dr_box_id = dr_box_id; }
   void set_dr_iter_param(DRIterParam* dr_iter_param) { _dr_iter_param = dr_iter_param; }
   void set_initial_routing(const bool initial_routing) { _initial_routing = initial_routing; }
+  void set_dirty(const bool dirty) { _dirty = dirty; }
   void set_type_layer_net_fixed_rect_map(const std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>>& type_layer_net_fixed_rect_map)
   {
     _type_layer_net_fixed_rect_map = type_layer_net_fixed_rect_map;
@@ -162,6 +164,7 @@ class DRBox
   DRBoxId _dr_box_id;
   DRIterParam* _dr_iter_param = nullptr;
   bool _initial_routing = true;
+  bool _dirty = false;
   std::map<bool, std::map<int32_t, std::map<int32_t, std::set<EXTLayerRect*>>>> _type_layer_net_fixed_rect_map;
   std::map<int32_t, std::set<AccessPoint*, CmpAccessPoint>> _net_access_point_map;
   std::map<int32_t, std::vector<Segment<LayerCoord>>> _net_global_result_map;

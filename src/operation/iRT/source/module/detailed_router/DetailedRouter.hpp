@@ -77,6 +77,7 @@ class DetailedRouter
   void buildAccessPoint(DRBox& dr_box);
   void buildGlobalResult(DRBox& dr_box);
   void buildNetEnvironment(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list);
+  void buildDirtyNetEnvironment(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list);
   void addNetResultToEnvironment(DRModel& dr_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx,
                                  Segment<LayerCoord>& segment);
   void addNetPatchToEnvironment(DRModel& dr_model, GridMap<bool>& active_box_map, GridMap<omp_lock_t>& environment_lock_map, int32_t net_idx,
@@ -156,6 +157,7 @@ class DetailedRouter
   void updateNetPatch(DRModel& dr_model);
   void updateViolation(DRModel& dr_model);
   std::vector<Violation> getRouteViolationList(DRModel& dr_model);
+  std::vector<Violation> getDirtyRouteViolationList(DRModel& dr_model, DRBox& dr_box);
   void updateBestResult(DRModel& dr_model);
   bool stopIteration(DRModel& dr_model, std::vector<DRIterParam>& dr_iter_param_list);
   void selectBestResult(DRModel& dr_model);

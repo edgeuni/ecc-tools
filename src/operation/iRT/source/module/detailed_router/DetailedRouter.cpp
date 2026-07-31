@@ -151,10 +151,10 @@ void DetailedRouter::routeDRModel(DRModel& dr_model)
     splitNetResult(dr_model);
     // debugPlotDRModel(dr_model, "middle");
     routeDRBoxMap(dr_model);
-    freeDRBoxMap(dr_model);
     updateNetResult(dr_model);
     updateNetPatch(dr_model);
     updateViolation(dr_model);
+    freeDRBoxMap(dr_model);
     patchFinalMinArea(dr_model);
     updateBestResult(dr_model);
     // debugPlotDRModel(dr_model, "after");
@@ -270,6 +270,7 @@ void DetailedRouter::initDRBoxMap(DRModel& dr_model)
       dr_box.set_dr_box_id(dr_box_id);
       dr_box.set_dr_iter_param(&dr_iter_param);
       dr_box.set_initial_routing(dr_model.get_initial_routing());
+      dr_box.set_dirty(false);
     }
   }
 
@@ -476,6 +477,7 @@ void DetailedRouter::routeDRBoxMap(DRModel& dr_model)
       DRBoxId& dr_box_id = dr_box_id_list[i];
       DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
       if (needRouting(dr_box)) {
+        dr_box.set_dirty(true);
         buildFixedRect(dr_box);
         buildBoxTrackAxis(dr_box);
         buildLayerNodeMap(dr_box);
@@ -641,6 +643,47 @@ void DetailedRouter::buildNetEnvironment(DRModel& dr_model, const std::vector<DR
           addNetPatchToEnvironment(dr_model, active_box_map, environment_lock_map, net_idx, patch);
         }
       }
+    }
+  }
+  for (const DRBoxId& dr_box_id : dr_box_id_list) {
+    omp_destroy_lock(&environment_lock_map[dr_box_id.get_x()][dr_box_id.get_y()]);
+  }
+}
+
+void DetailedRouter::buildDirtyNetEnvironment(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list)
+{
+  if (dr_box_id_list.empty()) {
+    return;
+  }
+  GridMap<DRBox>& dr_box_map = dr_model.get_dr_box_map();
+  GridMap<bool> active_box_map(dr_box_map.get_x_size(), dr_box_map.get_y_size(), false);
+  GridMap<omp_lock_t> environment_lock_map(dr_box_map.get_x_size(), dr_box_map.get_y_size());
+  for (const DRBoxId& dr_box_id : dr_box_id_list) {
+    active_box_map[dr_box_id.get_x()][dr_box_id.get_y()] = true;
+    omp_init_lock(&environment_lock_map[dr_box_id.get_x()][dr_box_id.get_y()]);
+    DRBox& dr_box = dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()];
+    dr_box.get_net_detailed_result_map().clear();
+    dr_box.get_net_detailed_patch_map().clear();
+  }
+
+  std::vector<std::pair<int32_t, std::vector<Segment<LayerCoord>>*>> net_result_list;
+  for (auto& [net_idx, segment_list] : dr_model.get_net_detailed_result_map()) {
+    net_result_list.emplace_back(net_idx, &segment_list);
+  }
+#pragma omp parallel for schedule(dynamic, 1)
+  for (size_t i = 0; i < net_result_list.size(); i++) {
+    for (Segment<LayerCoord>& segment : *net_result_list[i].second) {
+      addNetResultToEnvironment(dr_model, active_box_map, environment_lock_map, net_result_list[i].first, segment);
+    }
+  }
+  std::vector<std::pair<int32_t, std::vector<EXTLayerRect>*>> net_patch_list;
+  for (auto& [net_idx, patch_list] : dr_model.get_net_detailed_patch_map()) {
+    net_patch_list.emplace_back(net_idx, &patch_list);
+  }
+#pragma omp parallel for schedule(dynamic, 1)
+  for (size_t i = 0; i < net_patch_list.size(); i++) {
+    for (EXTLayerRect& patch : *net_patch_list[i].second) {
+      addNetPatchToEnvironment(dr_model, active_box_map, environment_lock_map, net_patch_list[i].first, patch);
     }
   }
   for (const DRBoxId& dr_box_id : dr_box_id_list) {
@@ -2872,7 +2915,58 @@ void DetailedRouter::updateViolation(DRModel& dr_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  dr_model.get_route_violation_list() = getRouteViolationList(dr_model);
+  GridMap<DRBox>& dr_box_map = dr_model.get_dr_box_map();
+  if (dr_box_map.empty()) {
+    dr_model.get_route_violation_list() = getRouteViolationList(dr_model);
+    RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+    return;
+  }
+
+  GridMap<bool> dirty_box_map(dr_box_map.get_x_size(), dr_box_map.get_y_size(), false);
+  int32_t detection_distance = RTDM.getDatabase().get_detection_distance();
+  size_t routed_box_num = 0;
+  for (int32_t x = 0; x < dr_box_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < dr_box_map.get_y_size(); y++) {
+      DRBox& dr_box = dr_box_map[x][y];
+      if (!dr_box.get_dirty()) {
+        continue;
+      }
+      routed_box_num++;
+      for (const DRBoxId& dr_box_id : getDRBoxIdSet(dr_model, RTUTIL.getEnlargedRect(dr_box.get_box_rect().get_real_rect(), detection_distance))) {
+        dirty_box_map[dr_box_id.get_x()][dr_box_id.get_y()] = true;
+      }
+    }
+  }
+  std::vector<DRBoxId> dirty_box_id_list;
+  for (int32_t x = 0; x < dr_box_map.get_x_size(); x++) {
+    for (int32_t y = 0; y < dr_box_map.get_y_size(); y++) {
+      if (dirty_box_map[x][y]) {
+        dirty_box_id_list.emplace_back(x, y);
+      }
+    }
+  }
+  RTLOG.info(Loc::current(), "Checking ", dirty_box_id_list.size(), " dirty boxes from ", routed_box_num, " routed boxes");
+
+  size_t total_box_num = static_cast<size_t>(dr_box_map.get_x_size()) * dr_box_map.get_y_size();
+  if (dirty_box_id_list.size() * 4 >= total_box_num) {
+    RTLOG.info(Loc::current(), "Dirty box ratio reached 25%, using full DRC");
+    dr_model.get_route_violation_list() = getRouteViolationList(dr_model);
+    RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+    return;
+  }
+
+  buildDirtyNetEnvironment(dr_model, dirty_box_id_list);
+  std::vector<std::vector<Violation>> violation_list_list(dirty_box_id_list.size());
+#pragma omp parallel for schedule(dynamic, 1)
+  for (size_t i = 0; i < dirty_box_id_list.size(); i++) {
+    DRBoxId& dr_box_id = dirty_box_id_list[i];
+    violation_list_list[i] = getDirtyRouteViolationList(dr_model, dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()]);
+  }
+  std::set<Violation, CmpViolation> violation_set;
+  for (std::vector<Violation>& violation_list : violation_list_list) {
+    violation_set.insert(violation_list.begin(), violation_list.end());
+  }
+  dr_model.get_route_violation_list().assign(violation_set.begin(), violation_set.end());
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -2923,6 +3017,68 @@ std::vector<Violation> DetailedRouter::getRouteViolationList(DRModel& dr_model)
     de_task.set_need_checked_net_set(need_checked_net_set);
   }
   return RTDE.getViolationList(de_task);
+}
+
+std::vector<Violation> DetailedRouter::getDirtyRouteViolationList(DRModel& dr_model, DRBox& dr_box)
+{
+  std::string top_name = RTUTIL.getString("dr_box_", dr_box.get_dr_box_id().get_x(), "_", dr_box.get_dr_box_id().get_y(), "_dirty");
+  std::vector<std::pair<EXTLayerRect*, bool>> env_shape_list;
+  std::map<int32_t, std::vector<std::pair<EXTLayerRect*, bool>>> net_pin_shape_map;
+  auto type_layer_net_fixed_rect_map = RTDM.getTypeLayerNetFixedRectMap(dr_box.get_box_rect());
+  for (auto& [is_routing, layer_net_fixed_rect_map] : type_layer_net_fixed_rect_map) {
+    for (auto& [layer_idx, net_fixed_rect_map] : layer_net_fixed_rect_map) {
+      for (auto& [net_idx, fixed_rect_set] : net_fixed_rect_map) {
+        for (EXTLayerRect* fixed_rect : fixed_rect_set) {
+          if (net_idx == -1) {
+            env_shape_list.emplace_back(fixed_rect, is_routing);
+          } else {
+            net_pin_shape_map[net_idx].emplace_back(fixed_rect, is_routing);
+          }
+        }
+      }
+    }
+  }
+
+  std::map<int32_t, std::vector<Segment<LayerCoord>*>> net_result_map;
+  std::map<int32_t, std::vector<EXTLayerRect*>> net_patch_map;
+  std::set<int32_t> need_checked_net_set;
+  for (auto& [net_idx, segment_list] : dr_box.get_net_detailed_result_map()) {
+    net_result_map[net_idx] = segment_list;
+    need_checked_net_set.insert(net_idx);
+  }
+  for (auto& [net_idx, patch_list] : dr_box.get_net_detailed_patch_map()) {
+    net_patch_map[net_idx] = patch_list;
+    need_checked_net_set.insert(net_idx);
+  }
+
+  std::vector<LayerRect> check_region_list;
+  for (RoutingLayer& routing_layer : RTDM.getDatabase().get_routing_layer_list()) {
+    check_region_list.emplace_back(dr_box.get_box_rect().get_real_rect(), routing_layer.get_layer_idx());
+  }
+
+  DETask de_task;
+  de_task.set_proc_type(DEProcType::kGet);
+  de_task.set_net_type(DENetType::kRouteHybrid);
+  de_task.set_top_name(top_name);
+  de_task.set_env_shape_list(std::move(env_shape_list));
+  de_task.set_net_pin_shape_map(std::move(net_pin_shape_map));
+  de_task.set_net_result_map(std::move(net_result_map));
+  de_task.set_net_patch_map(std::move(net_patch_map));
+  de_task.set_need_checked_net_set(need_checked_net_set);
+  de_task.set_check_region_list(check_region_list);
+  std::vector<Violation> owned_violation_list;
+  for (Violation& violation : RTDE.getViolationList(de_task)) {
+    PlanarCoord midpoint = violation.get_violation_shape().get_real_rect().getMidPoint();
+    ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+    int32_t grid_x = RTUTIL.getGCellGridLB(midpoint.get_x(), gcell_axis.get_x_grid_list());
+    int32_t grid_y = RTUTIL.getGCellGridLB(midpoint.get_y(), gcell_axis.get_y_grid_list());
+    int32_t owner_x = dr_model.get_gcell_x_box_idx_list()[grid_x];
+    int32_t owner_y = dr_model.get_gcell_y_box_idx_list()[grid_y];
+    if (owner_x == dr_box.get_dr_box_id().get_x() && owner_y == dr_box.get_dr_box_id().get_y()) {
+      owned_violation_list.push_back(std::move(violation));
+    }
+  }
+  return owned_violation_list;
 }
 
 void DetailedRouter::updateBestResult(DRModel& dr_model)
@@ -3017,6 +3173,7 @@ void DetailedRouter::patchFinalMinArea(DRModel& dr_model)
     for (DRBoxId& dr_box_id : dr_box_id_list) {
       if (!patch_violation_map[dr_box_id.get_x()][dr_box_id.get_y()].empty()) {
         patch_box_id_list.push_back(dr_box_id);
+        dr_box_map[dr_box_id.get_x()][dr_box_id.get_y()].set_dirty(true);
       }
     }
     buildNetEnvironment(dr_model, patch_box_id_list);
@@ -3051,11 +3208,11 @@ void DetailedRouter::patchFinalMinArea(DRModel& dr_model)
       model_patch_list.insert(model_patch_list.end(), std::make_move_iterator(patch_list.begin()), std::make_move_iterator(patch_list.end()));
     }
   }
-  dr_model.get_dr_box_map().free();
-  std::vector<std::vector<DRBoxId>>().swap(dr_model.get_dr_box_id_list_list());
   if (patch_updated) {
     updateViolation(dr_model);
   }
+  dr_model.get_dr_box_map().free();
+  std::vector<std::vector<DRBoxId>>().swap(dr_model.get_dr_box_id_list_list());
 
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
