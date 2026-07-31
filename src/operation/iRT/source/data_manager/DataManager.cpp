@@ -1055,23 +1055,13 @@ void DataManager::makeObstacleList()
   std::vector<Obstacle>& routing_obstacle_list = _database.get_routing_obstacle_list();
   std::vector<Obstacle>& cut_obstacle_list = _database.get_cut_obstacle_list();
 
-  std::map<int32_t, std::vector<PlanarRect>> routing_rect_list_map;
+#pragma omp parallel for
   for (Obstacle& routing_obstacle : routing_obstacle_list) {
     if (!RTUTIL.hasRegularRect(routing_obstacle.get_real_rect(), die.get_real_rect())) {
       RTLOG.error(Loc::current(), "This shape is outside the die!");
     }
-    PlanarRect regular_rect = RTUTIL.getRegularRect(routing_obstacle.get_real_rect(), die.get_real_rect());
-    routing_rect_list_map[routing_obstacle.get_layer_idx()].push_back(regular_rect);
-  }
-  routing_obstacle_list.clear();
-  for (auto& [routing_layer_idx, rect_list] : routing_rect_list_map) {
-    for (PlanarRect& real_rect : RTUTIL.getMaxRectList(rect_list)) {
-      Obstacle routing_obstacle;
-      routing_obstacle.set_real_rect(real_rect);
-      routing_obstacle.set_grid_rect(RTUTIL.getClosedGCellGridRect(routing_obstacle.get_real_rect(), gcell_axis));
-      routing_obstacle.set_layer_idx(routing_layer_idx);
-      routing_obstacle_list.push_back(routing_obstacle);
-    }
+    routing_obstacle.set_real_rect(RTUTIL.getRegularRect(routing_obstacle.get_real_rect(), die.get_real_rect()));
+    routing_obstacle.set_grid_rect(RTUTIL.getClosedGCellGridRect(routing_obstacle.get_real_rect(), gcell_axis));
   }
 #pragma omp parallel for
   for (Obstacle& cut_obstacle : cut_obstacle_list) {

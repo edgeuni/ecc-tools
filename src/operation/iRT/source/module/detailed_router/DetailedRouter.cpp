@@ -327,7 +327,14 @@ void DetailedRouter::splitNetResult(DRModel& dr_model)
 
   // split detailed segment by box, and distribute ownership to box according to midpoint
   std::map<int32_t, std::vector<Segment<LayerCoord>>>& net_detailed_result_map = dr_model.get_net_detailed_result_map();
+  std::vector<std::vector<Segment<LayerCoord>>*> segment_list_list;
+  segment_list_list.reserve(net_detailed_result_map.size());
   for (auto& [net_idx, segment_list] : net_detailed_result_map) {
+    segment_list_list.push_back(&segment_list);
+  }
+#pragma omp parallel for schedule(dynamic, 1)
+  for (size_t i = 0; i < segment_list_list.size(); i++) {
+    std::vector<Segment<LayerCoord>>& segment_list = *segment_list_list[i];
     std::vector<Segment<LayerCoord>> new_segment_list;
     new_segment_list.reserve(segment_list.size());
     for (Segment<LayerCoord>& segment : segment_list) {

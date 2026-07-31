@@ -124,7 +124,7 @@ void PlanarRouter::setPRComParam(PRModel& pr_model)
 {
   int32_t topo_spilt_length = 100;
   int32_t expand_step_num = 30;
-  int32_t astar_search_margin = 50;
+  int32_t astar_search_margin = 30;
   double prefer_wire_unit = 1;
   double non_prefer_wire_unit = 2.5 * prefer_wire_unit;
   double corner_weight = non_prefer_wire_unit;
