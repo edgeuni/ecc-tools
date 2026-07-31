@@ -16,6 +16,9 @@
 // ***************************************************************************************
 #include "RTInterface.hpp"
 
+#include <unordered_map>
+#include <utility>
+
 #include "DRCEngine.hpp"
 #include "DRCInterface.hpp"
 #include "DetailedRouter.hpp"
@@ -25,17 +28,14 @@
 #include "Monitor.hpp"
 #include "NotificationUtility.h"
 #include "PinAccessor.hpp"
+#include "PlanarRouter.hpp"
 #include "SupplyAnalyzer.hpp"
 #include "TOPOBuilder.hpp"
-#include "PlanarRouter.hpp"
 #include "TrackAssigner.hpp"
 #include "ViolationReporter.hpp"
 #include "feature_irt.h"
 #include "feature_manager.h"
 #include "idm.h"
-
-#include <unordered_map>
-#include <utility>
 
 namespace irt {
 
@@ -319,12 +319,11 @@ void RTInterface::fixFanout(std::map<std::string, std::any> config_map)
         idb::IdbNet* new_net = idb_design->createOrFindNet(idb_design->makeUniqueNetName(RTUTIL.getString("rt_fanout_net_", new_idx++)),
                                                            idb::IdbConnectType::kSignal, idb::IdbCreatePolicy::kErrorIfExists);
         // 生成buf
-        idb::IdbInstance* new_buf = idb_design->createInstance(idb_design->makeUniqueInstanceName(RTUTIL.getString("rt_fanout_buf_", new_idx++)),
-                                                               buffer_name, idb::IdbInstanceType::kTiming,
-                                                               idb::IdbPlacementStatus::kNone, idb::IdbOrient::kNone, 0, 0,
+        idb::IdbInstance* new_buf = idb_design->createInstance(idb_design->makeUniqueInstanceName(RTUTIL.getString("rt_fanout_buf_", new_idx++)), buffer_name,
+                                                               idb::IdbInstanceType::kTiming, idb::IdbPlacementStatus::kNone, idb::IdbOrient::kNone, 0, 0,
                                                                idb::IdbCreatePolicy::kErrorIfExists);
         if (new_net == nullptr || new_buf == nullptr) {
-          RTLOG.error(Loc::current(),"new_net == nullptr || new_buf == nullptr!");
+          RTLOG.error(Loc::current(), "new_net == nullptr || new_buf == nullptr!");
         }
         // 连接buf
         for (idb::IdbPin* buf_pin : new_buf->get_pin_list()->get_pin_list()) {
@@ -1788,8 +1787,8 @@ ids::Shape RTInterface::getIDSShape(int32_t net_idx, LayerRect layer_rect, bool 
 #if 1  // iSTA
 
 void RTInterface::updateTiming(std::vector<std::map<std::string, std::vector<LayerCoord>>>& real_pin_coord_map_list,
-                                       std::vector<std::vector<Segment<LayerCoord>>>& routing_segment_list_list,
-                                       std::map<std::string, std::map<std::string, double>>& clock_timing)
+                               std::vector<std::vector<Segment<LayerCoord>>>& routing_segment_list_list,
+                               std::map<std::string, std::map<std::string, double>>& clock_timing)
 {
 #if 0
 #if 1  // 数据结构定义

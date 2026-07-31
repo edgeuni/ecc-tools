@@ -158,12 +158,10 @@ class PANode : public LayerCoord
   int32_t _neighbor_node_num = 0;
   // obstacle & pin_shape
   OrientNetSet _orient_fixed_rect_set;
-  std::array<int32_t, 6> _fixed_rect_net_state
-      = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
+  std::array<int32_t, 6> _fixed_rect_net_state = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
   // net_result
   OrientNetSet _orient_routed_rect_set;
-  std::array<int32_t, 6> _routed_rect_net_state
-      = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
+  std::array<int32_t, 6> _routed_rect_net_state = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
   // violation
   std::array<int32_t, 6> _orient_violation_number_list{};
 #if 1  // astar

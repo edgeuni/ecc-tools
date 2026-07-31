@@ -45,10 +45,7 @@ struct TrackGridOrientation
   }
 
   bool isValid() const { return grid_rect.get_ll_x() >= 0 && grid_rect.get_ll_y() >= 0 && !grid_rect.isIncorrect(); }
-  bool hasOrientation(Orientation orientation) const
-  {
-    return std::find(begin(), end(), orientation) != end();
-  }
+  bool hasOrientation(Orientation orientation) const { return std::find(begin(), end(), orientation) != end(); }
   const Orientation* begin() const { return orientations.data(); }
   const Orientation* end() const { return orientations.data() + orientation_num; }
 
@@ -1661,8 +1658,7 @@ class Utility
     return grid_rect;
   }
 
-  static std::array<TrackGridOrientation, 5> getTrackGridOrientationList(
-      const PlanarRect& real_rect, ScaleAxis& track_axis)
+  static std::array<TrackGridOrientation, 5> getTrackGridOrientationList(const PlanarRect& real_rect, ScaleAxis& track_axis)
   {
     std::array<int32_t, 4> x = getTrackIndexRange(track_axis.get_x_scale_list(), real_rect.get_ll_x(), real_rect.get_ur_x());
     std::array<int32_t, 4> y = getTrackIndexRange(track_axis.get_y_scale_list(), real_rect.get_ll_y(), real_rect.get_ur_y());
@@ -1671,8 +1667,7 @@ class Utility
             TrackGridOrientation(PlanarRect(x[1], y[0], x[2], y[0]), {Orientation::kNorth}),
             TrackGridOrientation(PlanarRect(x[1], y[3], x[2], y[3]), {Orientation::kSouth}),
             TrackGridOrientation(PlanarRect(x[1], y[1], x[2], y[2]),
-                                 {Orientation::kEast, Orientation::kWest, Orientation::kNorth, Orientation::kSouth, Orientation::kAbove,
-                                  Orientation::kBelow})};
+                                 {Orientation::kEast, Orientation::kWest, Orientation::kNorth, Orientation::kSouth, Orientation::kAbove, Orientation::kBelow})};
   }
 
   static std::array<int32_t, 4> getTrackIndexRange(const std::vector<int32_t>& scale_list, int32_t ll_scale, int32_t ur_scale)

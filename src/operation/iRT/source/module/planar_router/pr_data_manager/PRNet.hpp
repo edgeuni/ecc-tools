@@ -17,8 +17,8 @@
 #pragma once
 
 #include "Net.hpp"
-#include "PlanarCoord.hpp"
 #include "PRPin.hpp"
+#include "PlanarCoord.hpp"
 #include "RoutingEdge.hpp"
 #include "Segment.hpp"
 

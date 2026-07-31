@@ -16,6 +16,8 @@
 // ***************************************************************************************
 #include "PinAccessor.hpp"
 
+#include <algorithm>
+
 #include "DRCEngine.hpp"
 #include "GDSPlotter.hpp"
 #include "Monitor.hpp"
@@ -25,8 +27,6 @@
 #include "PAIterParam.hpp"
 #include "PANet.hpp"
 #include "PANode.hpp"
-
-#include <algorithm>
 #include "RTInterface.hpp"
 
 namespace irt {
@@ -146,8 +146,7 @@ void PinAccessor::initAccessPointList(PAModel& pa_model)
     for (AccessPoint& access_point : getAccessPointList(pa_model, pa_pin->get_pin_idx(), legal_shape_list)) {
       access_point_list.push_back(access_point);
     }
-    std::ranges::sort(access_point_list,
-                      [](AccessPoint& a, AccessPoint& b) { return CmpLayerCoordByXASC()(a.getRealLayerCoord(), b.getRealLayerCoord()); });
+    std::ranges::sort(access_point_list, [](AccessPoint& a, AccessPoint& b) { return CmpLayerCoordByXASC()(a.getRealLayerCoord(), b.getRealLayerCoord()); });
     if (access_point_list.empty()) {
       RTLOG.error(Loc::current(), "No access point was generated!");
     }
@@ -212,9 +211,8 @@ std::vector<LayerRect> PinAccessor::getLegalShapeList(PAModel& pa_model, int32_t
       routing_pin_shape_list.emplace_back(routing_layer_idx, pin_shape_list);
     }
     if (pa_pin->get_is_core()) {
-      std::ranges::sort(
-          routing_pin_shape_list,
-          [](const std::pair<int32_t, std::vector<EXTLayerRect>>& a, const std::pair<int32_t, std::vector<EXTLayerRect>>& b) { return a.first > b.first; });
+      std::ranges::sort(routing_pin_shape_list, [](const std::pair<int32_t, std::vector<EXTLayerRect>>& a,
+                                                   const std::pair<int32_t, std::vector<EXTLayerRect>>& b) { return a.first > b.first; });
     } else {
       std::ranges::sort(routing_pin_shape_list,
                         [](const std::pair<int32_t, std::vector<EXTLayerRect>>& a, const std::pair<int32_t, std::vector<EXTLayerRect>>& b) {
@@ -864,7 +862,7 @@ void PinAccessor::routePABoxMap(PAModel& pa_model)
 
     buildPAEnvironment(pa_model, pa_box_id_list, false);
 #pragma omp parallel for schedule(dynamic, 1)
-    for (auto & pa_box_id : pa_box_id_list) {
+    for (auto& pa_box_id : pa_box_id_list) {
       PABox& pa_box = pa_box_map[pa_box_id.get_x()][pa_box_id.get_y()];
       buildFixedRect(pa_box);
       buildAccessPoint(pa_model, pa_box);
@@ -3481,8 +3479,7 @@ void PinAccessor::updateCutNetShapeToGraph(PABox& pa_box, ChangeType change_type
       enlarged_y_size -= 1;
       PlanarRect space_enlarged_rect = RTUTIL.getEnlargedRect(net_shape.get_rect(), enlarged_x_size, enlarged_y_size, enlarged_x_size, enlarged_y_size);
       for (const TrackGridOrientation& grid_orientation : RTUTIL.getTrackGridOrientationList(space_enlarged_rect, pa_box.get_box_track_axis())) {
-        if (!grid_orientation.isValid() || (!grid_orientation.hasOrientation(Orientation::kAbove)
-                                            && !grid_orientation.hasOrientation(Orientation::kBelow))) {
+        if (!grid_orientation.isValid() || (!grid_orientation.hasOrientation(Orientation::kAbove) && !grid_orientation.hasOrientation(Orientation::kBelow))) {
           continue;
         }
         const PlanarRect& grid_rect = grid_orientation.grid_rect;

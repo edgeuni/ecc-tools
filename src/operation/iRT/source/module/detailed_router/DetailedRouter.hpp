@@ -67,11 +67,9 @@ class DetailedRouter
   std::set<DRBoxId, CmpDRBoxId> getDRBoxIdSet(DRModel& dr_model, PlanarRect real_rect);
   void routeDRBoxMap(DRModel& dr_model);
   void freeDRBoxMap(DRModel& dr_model);
-  void buildStageRepairInfo(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list,
-                            std::vector<std::set<int32_t>>& stage_violation_net_set_list,
+  void buildStageRepairInfo(DRModel& dr_model, const std::vector<DRBoxId>& dr_box_id_list, std::vector<std::set<int32_t>>& stage_violation_net_set_list,
                             std::vector<std::vector<LayerRect>>& stage_repair_region_list_list);
-  void initDRBox(DRModel& dr_model, DRBox& dr_box, const std::set<int32_t>& violation_net_set,
-                 const std::vector<LayerRect>& repair_region_list);
+  void initDRBox(DRModel& dr_model, DRBox& dr_box, const std::set<int32_t>& violation_net_set, const std::vector<LayerRect>& repair_region_list);
   void updateRouteViolation(DRModel& dr_model, std::vector<std::vector<Violation>>& stage_violation_list_list);
   void buildFixedRect(DRBox& dr_box);
   void buildAccessPoint(DRBox& dr_box);

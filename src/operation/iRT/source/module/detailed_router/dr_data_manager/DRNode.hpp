@@ -211,11 +211,9 @@ class DRNode : public LayerCoord
 #endif
   std::array<DRNode*, 6> _neighbor_node_list{};
   // obstacle & pin_shape state
-  std::array<int32_t, 6> _fixed_rect_net_state
-      = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
+  std::array<int32_t, 6> _fixed_rect_net_state = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
   // net_result state
-  std::array<int32_t, 6> _routed_rect_net_state
-      = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
+  std::array<int32_t, 6> _routed_rect_net_state = {kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx, kNoOrientNetIdx};
   // violation
   std::array<int32_t, 6> _violation_number_list{};
   PlanarCoord _gcell_coord;

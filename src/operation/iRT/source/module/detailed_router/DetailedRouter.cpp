@@ -534,8 +534,7 @@ void DetailedRouter::buildStageRepairInfo(DRModel& dr_model, const std::vector<D
   }
 }
 
-void DetailedRouter::initDRBox(DRModel& dr_model, DRBox& dr_box, const std::set<int32_t>& violation_net_set,
-                               const std::vector<LayerRect>& repair_region_list)
+void DetailedRouter::initDRBox(DRModel& dr_model, DRBox& dr_box, const std::set<int32_t>& violation_net_set, const std::vector<LayerRect>& repair_region_list)
 {
   buildAccessPoint(dr_box);
   if (dr_box.get_initial_routing()) {
@@ -740,8 +739,7 @@ void DetailedRouter::initDRTaskList(DRModel& dr_model, DRBox& dr_box, const std:
     }
   } else {
     for (int32_t net_idx : violation_net_set) {
-      if (dr_box.get_net_task_detailed_result_map().contains(net_idx)
-          || dr_box.get_net_task_detailed_patch_map().contains(net_idx)) {
+      if (dr_box.get_net_task_detailed_result_map().contains(net_idx) || dr_box.get_net_task_detailed_patch_map().contains(net_idx)) {
         net_idx_set.insert(net_idx);
       }
     }
@@ -1531,8 +1529,7 @@ void DetailedRouter::initSingleRouteTask(DRBox& dr_box, DRTask* dr_task)
   dr_box.get_routing_segment_list().clear();
 }
 
-std::vector<LayerCoord> DetailedRouter::getGuideCoordList(DRBox& dr_box, DRTask* dr_task,
-                                                          std::vector<Segment<LayerCoord>>& global_segment_list)
+std::vector<LayerCoord> DetailedRouter::getGuideCoordList(DRBox& dr_box, DRTask* dr_task, std::vector<Segment<LayerCoord>>& global_segment_list)
 {
   PlanarRect& box_grid_rect = dr_box.get_box_rect().get_grid_rect();
   int32_t grid_ll_x = box_grid_rect.get_ll_x();
@@ -2827,7 +2824,7 @@ void DetailedRouter::updateNetResult(DRModel& dr_model)
     }
   }
 #pragma omp parallel for schedule(dynamic, 1)
-  for (auto & i : net_result_list) {
+  for (auto& i : net_result_list) {
     int32_t net_idx = i.first;
     std::vector<Segment<LayerCoord>>& detailed_result_list = *i.second;
     std::vector<Segment<LayerCoord>> via_segment_list;
@@ -3616,8 +3613,7 @@ void DetailedRouter::updateCutNetShapeToGraph(DRBox& dr_box, ChangeType change_t
       enlarged_y_size -= 1;
       PlanarRect space_enlarged_rect = RTUTIL.getEnlargedRect(net_shape.get_rect(), enlarged_x_size, enlarged_y_size, enlarged_x_size, enlarged_y_size);
       for (const TrackGridOrientation& grid_orientation : RTUTIL.getTrackGridOrientationList(space_enlarged_rect, dr_box.get_box_track_axis())) {
-        if (!grid_orientation.isValid() || (!grid_orientation.hasOrientation(Orientation::kAbove)
-                                            && !grid_orientation.hasOrientation(Orientation::kBelow))) {
+        if (!grid_orientation.isValid() || (!grid_orientation.hasOrientation(Orientation::kAbove) && !grid_orientation.hasOrientation(Orientation::kBelow))) {
           continue;
         }
         const PlanarRect& grid_rect = grid_orientation.grid_rect;

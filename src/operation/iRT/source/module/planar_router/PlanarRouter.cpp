@@ -662,8 +662,8 @@ void PlanarRouter::splitLongPlanarTopoList(PRModel& pr_model, std::vector<Segmen
   planar_topo_list = std::move(split_topo_list);
 }
 
-bool PlanarRouter::routePlanarTopoList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& planar_topo_list,
-                                       PRRouteMode pr_route_mode, std::vector<Segment<PlanarCoord>>& routing_segment_list)
+bool PlanarRouter::routePlanarTopoList(PRModel& pr_model, std::vector<Segment<PlanarCoord>>& planar_topo_list, PRRouteMode pr_route_mode,
+                                       std::vector<Segment<PlanarCoord>>& routing_segment_list)
 {
   constexpr int64_t edge_visit_num_per_thread = 8192;
   int32_t max_thread_num = std::max(1, std::min(RTDM.getConfig().thread_number, 16));
