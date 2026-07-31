@@ -134,6 +134,10 @@ bool LibertyScanner::readString(std::string& result)
             c = getChar();
             if (c == EOF) return false;
             if (c == '\n') continue;
+            if (c == '\r' && peekChar() == '\n') {
+                getChar();
+                continue;
+            }
             result += static_cast<char>(c);
         } else if (c == '\n') {
             return false;
@@ -433,6 +437,10 @@ int LibertyScanner::yylex(YYSTYPE* yylval, YYLTYPE* yylloc)
         if (c == '\\') {
             int next = getChar();
             if (next == '\n') {
+                continue;
+            }
+            if (next == '\r' && peekChar() == '\n') {
+                getChar();
                 continue;
             }
             ungetChar(next);
