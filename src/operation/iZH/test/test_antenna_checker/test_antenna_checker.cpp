@@ -10,25 +10,30 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#pragma once
+#include "ACModel.hpp"
+#include "AntennaChecker.hpp"
 
-#include "tcl_zh.h"
-
-using namespace ieda;
-
-namespace tcl {
-
-int registerCmdZH()
+int main()
 {
-  // zh
-  registerTclCmd(TclZHFixFanout, "zh_fix_fanout");
-  registerTclCmd(TclZHInsertFiller, "zh_insert_filler");
-  registerTclCmd(TclZHInsertMetal, "zh_insert_metal");
-  return EXIT_SUCCESS;
-}
+  izh::ACModel ac_model;
+  if (ac_model.get_violation_num() != 0) {
+    return 1;
+  }
+  ac_model.set_violation_num(2);
+  ac_model.addViolationNum(3);
+  if (ac_model.get_violation_num() != 5) {
+    return 1;
+  }
 
-}  // namespace tcl
+  izh::AntennaChecker::initInst();
+  izh::AntennaChecker* ac_instance = &ZHAC;
+  izh::AntennaChecker::initInst();
+  if (ac_instance != &ZHAC) {
+    return 1;
+  }
+  izh::AntennaChecker::destroyInst();
+  return 0;
+}

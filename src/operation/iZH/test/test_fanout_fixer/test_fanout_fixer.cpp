@@ -10,25 +10,31 @@
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#pragma once
+#include "FFModel.hpp"
+#include "FanoutFixer.hpp"
 
-#include "tcl_zh.h"
-
-using namespace ieda;
-
-namespace tcl {
-
-int registerCmdZH()
+int main()
 {
-  // zh
-  registerTclCmd(TclZHFixFanout, "zh_fix_fanout");
-  registerTclCmd(TclZHInsertFiller, "zh_insert_filler");
-  registerTclCmd(TclZHInsertMetal, "zh_insert_metal");
-  return EXIT_SUCCESS;
-}
+  izh::FFModel ff_model;
+  ff_model.set_buffer_name("BUF_X1");
+  ff_model.set_max_fanout(8);
+  ff_model.addFixedNetNum(2);
+  ff_model.addInsertedNetNum(3);
+  ff_model.addInsertedBufferNum(4);
+  if (ff_model.get_buffer_name() != "BUF_X1" || ff_model.get_max_fanout() != 8 || ff_model.get_fixed_net_num() != 2
+      || ff_model.get_inserted_net_num() != 3 || ff_model.get_inserted_buffer_num() != 4) {
+    return 1;
+  }
 
-}  // namespace tcl
+  izh::FanoutFixer::initInst();
+  izh::FanoutFixer* ff_instance = &ZHFF;
+  izh::FanoutFixer::initInst();
+  if (ff_instance != &ZHFF) {
+    return 1;
+  }
+  izh::FanoutFixer::destroyInst();
+  return 0;
+}
