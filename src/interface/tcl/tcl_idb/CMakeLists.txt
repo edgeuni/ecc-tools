@@ -11,6 +11,7 @@ target_link_libraries(tcl_idb
         idm
         file_manager_db
         ieda_report
+        ieda_logger
 )
 
 target_include_directories(tcl_idb

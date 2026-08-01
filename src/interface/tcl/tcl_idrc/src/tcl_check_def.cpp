@@ -14,6 +14,7 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+#include "utility/logger/Logger.hpp"
 #include <set>
 
 #include "DRCInterface.hpp"
@@ -59,7 +60,7 @@ unsigned CmdDRCAutoRun::exec()
   }
 
   DRCI.runDRC();
-  std::cout << "iDRC run successfully." << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "iDRC run successfully.");
 
   return 1;
 }
@@ -91,7 +92,7 @@ unsigned CmdDRCSaveDetailFile::exec()
   auto data_path = path_option->getStringVal();
 
   if (DRCI.saveDRC(data_path)) {
-    std::cout << "iDRC save detail drc to file success. path = " << data_path << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "iDRC save detail drc to file success. path = ", data_path);
   }
 
   return 1;

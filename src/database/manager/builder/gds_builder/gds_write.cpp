@@ -15,6 +15,7 @@
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 
+#include "utility/logger/Logger.hpp"
 #include "gds_write.h"
 
 #include <gdstk/gdstk.hpp>
@@ -148,13 +149,13 @@ int32_t Def2GdsWrite::set_units()
   IdbUnits* def_units = design == nullptr ? nullptr : design->get_units();
   IdbUnits* lef_units = design == nullptr ? nullptr : design->get_layout()->get_units();
   if (def_units == nullptr && lef_units == nullptr) {
-    std::cout << "Write UNITS failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write UNITS failed...");
     return kDbFail;
   }
 
   _unit_microns = def_units != nullptr && def_units->get_micron_dbu() > 0 ? def_units->get_micron_dbu() : lef_units->get_micron_dbu();
   if (_unit_microns <= 0) {
-    std::cout << "Write UNITS failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write UNITS failed...");
     return kDbFail;
   }
 
@@ -275,7 +276,7 @@ int32_t Def2GdsWrite::write_die()
   IdbLayout* layout = _def_service->get_layout();
   IdbDie* die = layout == nullptr ? nullptr : layout->get_die();
   if (die == nullptr) {
-    std::cout << "Write DIE failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write DIE failed...");
     return kDbFail;
   }
 
@@ -294,7 +295,7 @@ int32_t Def2GdsWrite::write_track_grid()
   IdbTrackGridList* track_grid_list = layout == nullptr ? nullptr : layout->get_track_grid_list();
   IdbDie* die = layout == nullptr ? nullptr : layout->get_die();
   if (track_grid_list == nullptr || die == nullptr) {
-    std::cout << "Write Track Grid failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write Track Grid failed...");
     return kDbFail;
   }
 
@@ -580,7 +581,7 @@ void Def2GdsWrite::packSegment(gdstk::Cell* gds_cell, IdbLayerRouting* routing_l
     ur_x = ll_x + routing_width;
     ur_y = std::max(point_1->get_y(), point_2->get_y()) + routing_width / 2;
   } else {
-    std::cout << "Error...Regular segment only support horizontal & vertical direction... " << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error...Regular segment only support horizontal & vertical direction... ");
     return;
   }
 
@@ -597,7 +598,7 @@ int32_t Def2GdsWrite::write_row()
   IdbLayout* layout = _def_service->get_layout();
   IdbRows* rows = layout == nullptr ? nullptr : layout->get_rows();
   if (rows == nullptr) {
-    std::cout << "Write ROWS failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write ROWS failed...");
     return kDbFail;
   }
 
@@ -615,7 +616,7 @@ int32_t Def2GdsWrite::write_component()
   IdbDesign* design = _def_service->get_design();
   IdbInstanceList* instance_list = design == nullptr ? nullptr : design->get_instance_list();
   if (instance_list == nullptr || instance_list->get_num() == 0) {
-    std::cout << "Write COMPONENTS failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write COMPONENTS failed...");
     return kDbFail;
   }
 
@@ -630,11 +631,11 @@ int32_t Def2GdsWrite::write_component()
 
     x++;
     if (x % 1000 == 0) {
-      std::cout << "Write COMPONENTS. " << x << " / " << max_num << std::endl;
+      IEDALOG.info(ieda::Loc::current(), "Write COMPONENTS. ", x, " / ", max_num);
     }
   }
 
-  std::cout << "Write COMPONENTS success. " << max_num << " / " << max_num << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Write COMPONENTS success. ", max_num, " / ", max_num);
   return kDbSuccess;
 }
 
@@ -643,7 +644,7 @@ int32_t Def2GdsWrite::write_pin()
   IdbDesign* design = _def_service->get_design();
   IdbPins* pin_list = design == nullptr ? nullptr : design->get_io_pin_list();
   if (pin_list == nullptr) {
-    std::cout << "Write PINS failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write PINS failed...");
     return kDbFail;
   }
 
@@ -661,7 +662,7 @@ int32_t Def2GdsWrite::write_blockage()
   IdbDesign* design = _def_service->get_design();
   IdbBlockageList* blockage_list = design == nullptr ? nullptr : design->get_blockage_list();
   if (blockage_list == nullptr || blockage_list->get_num() == 0) {
-    std::cout << "Write blocakge failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write blocakge failed...");
     return kDbFail;
   }
 
@@ -686,7 +687,7 @@ int32_t Def2GdsWrite::write_blockage()
 int32_t Def2GdsWrite::write_specialnet_wire_segment_points(gdstk::Cell* gds_cell, IdbSpecialWireSegment* segment)
 {
   if (segment->get_point_list().size() < _POINT_MAX_) {
-    std::cout << "Specialnet wire points are less than 2..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Specialnet wire points are less than 2...");
     return kDbFail;
   }
 
@@ -706,7 +707,7 @@ int32_t Def2GdsWrite::write_specialnet_wire_segment_points(gdstk::Cell* gds_cell
 int32_t Def2GdsWrite::write_specialnet_wire_segment_via(gdstk::Cell* gds_cell, IdbSpecialWireSegment* segment)
 {
   if (segment->get_point_list().size() <= 0 || segment->get_layer() == nullptr || segment->get_via() == nullptr) {
-    std::cout << "No net wire segment via..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "No net wire segment via...");
     return kDbFail;
   }
 
@@ -722,7 +723,7 @@ int32_t Def2GdsWrite::write_specialnet_wire_segment_via(gdstk::Cell* gds_cell, I
 int32_t Def2GdsWrite::write_specialnet_wire_segment_rect(gdstk::Cell* gds_cell, IdbSpecialWireSegment* segment)
 {
   if (segment->get_layer() == nullptr || segment->get_delta_rect() == nullptr) {
-    std::cout << "No special wire segment rect..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "No special wire segment rect...");
     return kDbFail;
   }
 
@@ -766,7 +767,7 @@ int32_t Def2GdsWrite::write_special_net()
 {
   IdbSpecialNetList* special_net_list = _def_service->get_design()->get_special_net_list();
   if (special_net_list == nullptr || special_net_list->get_num() == 0) {
-    std::cout << "No SPECIALNETS..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "No SPECIALNETS...");
     return kDbFail;
   }
 
@@ -790,12 +791,12 @@ int32_t Def2GdsWrite::write_net()
   IdbDesign* design = _def_service->get_design();
   IdbNetList* net_list = design == nullptr ? nullptr : design->get_net_list();
   if (net_list == nullptr) {
-    std::cout << "No NET To Write..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "No NET To Write...");
     return kDbFail;
   }
 
   if (net_list->get_num() == 0) {
-    std::cout << "NO NET ..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "NO NET ...");
     return kDbFail;
   }
 
@@ -809,7 +810,7 @@ int32_t Def2GdsWrite::write_net()
     if (net->get_wire_list() == nullptr || net->get_segment_num() == 0) {
       x++;
       if (x % 1000 == 0) {
-        std::cout << "Write NETS. " << x << " / " << max_num << std::endl;
+        IEDALOG.info(ieda::Loc::current(), "Write NETS. ", x, " / ", max_num);
       }
       continue;
     }
@@ -825,11 +826,11 @@ int32_t Def2GdsWrite::write_net()
 
     x++;
     if (x % 1000 == 0) {
-      std::cout << "Write NETS. " << x << " / " << max_num << std::endl;
+      IEDALOG.info(ieda::Loc::current(), "Write NETS. ", x, " / ", max_num);
     }
   }
 
-  std::cout << "Write NETS success. " << max_num << " / " << max_num << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Write NETS success. ", max_num, " / ", max_num);
   return kDbSuccess;
 }
 
@@ -878,7 +879,7 @@ int32_t Def2GdsWrite::write_net_wire_segment_points(gdstk::Cell* gds_cell, IdbRe
 int32_t Def2GdsWrite::write_net_wire_segment_via(gdstk::Cell* gds_cell, IdbRegularWireSegment* segment)
 {
   if (segment->get_point_list().size() <= 0 || segment->get_layer() == nullptr || segment->get_via_list().size() <= 0) {
-    std::cout << "No net wire segment via..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "No net wire segment via...");
     return kDbFail;
   }
 
@@ -894,7 +895,7 @@ int32_t Def2GdsWrite::write_net_wire_segment_via(gdstk::Cell* gds_cell, IdbRegul
 int32_t Def2GdsWrite::write_net_wire_segment_rect(gdstk::Cell* gds_cell, IdbRegularWireSegment* segment)
 {
   if (segment->get_point_list().size() <= 0 || segment->get_layer() == nullptr || segment->get_delta_rect() == nullptr) {
-    std::cout << "No net wire segment rect..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "No net wire segment rect...");
     return kDbFail;
   }
 
@@ -902,7 +903,7 @@ int32_t Def2GdsWrite::write_net_wire_segment_rect(gdstk::Cell* gds_cell, IdbRegu
   IdbRect* rect_delta = segment->get_delta_rect();
 
   if (coordinate->get_x() < 0 || coordinate->get_y() < 0) {
-    std::cout << "Error...Coordinate error...x = " << coordinate->get_x() << " y = " << coordinate->get_y() << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error...Coordinate error...x = ", coordinate->get_x(), " y = ", coordinate->get_y());
   }
 
   IdbRect* rect = new IdbRect(rect_delta);
@@ -938,7 +939,7 @@ int32_t Def2GdsWrite::write_fill()
   IdbDesign* design = _def_service->get_design();
   IdbFillList* fill_list = design == nullptr ? nullptr : design->get_fill_list();
   if (fill_list == nullptr || fill_list->get_num_fill() == 0) {
-    std::cout << "No FILLS ..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "No FILLS ...");
     return kDbFail;
   }
 
@@ -1014,7 +1015,7 @@ int32_t Def2GdsWrite::write_harden_macro_pins()
   auto* design = _def_service->get_design();
   auto* layout = _def_service->get_layout();
   if (design == nullptr || layout == nullptr) {
-    std::cout << "Write harden macro pins failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write harden macro pins failed...");
     return kDbFail;
   }
 
@@ -1127,7 +1128,7 @@ int32_t Def2GdsWrite::write_harden_macro_obs()
   auto* io_pins = design == nullptr ? nullptr : design->get_io_pin_list();
   auto* pdn_list = design == nullptr ? nullptr : design->get_special_net_list();
   if (design == nullptr || layout == nullptr || die == nullptr || layers == nullptr) {
-    std::cout << "Write harden macro obs failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write harden macro obs failed...");
     return kDbFail;
   }
 

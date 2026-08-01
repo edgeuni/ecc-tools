@@ -34,6 +34,7 @@ target_link_libraries(eval_util_init_egr
     PRIVATE
         irt_interface
         idm
+        ieda_logger
 )
 
 target_include_directories(eval_util_init_egr

@@ -12,6 +12,7 @@ target_link_libraries(congestion_app
     PRIVATE
     eval_congestion_api
     idm
+    ieda_logger
 )
 
 target_include_directories(congestion_app
@@ -29,6 +30,7 @@ target_link_libraries(density_app
     PRIVATE
     eval_density_api
     idm
+    ieda_logger
 )
 
 target_include_directories(density_app
@@ -69,6 +71,7 @@ target_link_libraries(wirelength_app
     PRIVATE
     eval_wirelength_api
     idm
+    ieda_logger
 )
 
 target_include_directories(wirelength_app
@@ -89,6 +92,7 @@ target_link_libraries(union_app
     eval_timing_api
     eval_congestion_api
     eval_union_api
+    ieda_logger
 )
 
 target_include_directories(union_app

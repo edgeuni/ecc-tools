@@ -14,7 +14,7 @@ target_include_directories(idb
         ${HOME_DATABASE}/basic/geometry
 )
 
-target_link_libraries(idb PRIVATE geometry_db)
+target_link_libraries(idb PRIVATE geometry_db ieda_logger)
 
 install(TARGETS idb
     LIBRARY DESTINATION ${ECC_INSTALL_LIB_DIR}

@@ -1,3 +1,4 @@
+#include "utility/logger/Logger.hpp"
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -36,7 +37,7 @@ void readGuide(const std::string& guide_file_path, std::vector<Net>& net_list)
           static int32_t net_num = 0;
           net_num++;
           if (net_num % 10000 == 0) {
-            std::cout << "read " << net_num << " nets" << std::endl;
+            IEDALOG.info(ieda::Loc::current(), "read ", net_num, " nets");
           }
           break;
         }
@@ -54,7 +55,7 @@ void readGuide(const std::string& guide_file_path, std::vector<Net>& net_list)
     }
   }
   closeFileStream(guide_file_stream);
-  std::cout << "read end" << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "read end");
 }
 
 void writeGuide(std::vector<Net>& net_list, const std::string& guide_file_path)
@@ -70,11 +71,11 @@ void writeGuide(std::vector<Net>& net_list, const std::string& guide_file_path)
     }
     (*guide_file_stream) << ")\n";
     if ((i + 1) % 10000 == 0) {
-      std::cout << "wrote " << (i + 1) << " nets" << std::endl;
+      IEDALOG.info(ieda::Loc::current(), "wrote ", (i + 1), " nets");
     }
   }
   closeFileStream(guide_file_stream);
-  std::cout << "write end" << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "write end");
 }
 
 int32_t main()
@@ -86,11 +87,11 @@ int32_t main()
   readGuide(guide_file_path_read, net_list);
   writeGuide(net_list, guide_file_path_write);
 
-  std::cout << "////////////////////////////////////////////" << std::endl;
-  std::cout << "guide_file_path_read: " << guide_file_path_read << std::endl;
-  std::cout << "guide_file_path_write: " << guide_file_path_write << std::endl;
-  std::cout << "************ file_diff_lines_num: " << countDifferentLines(guide_file_path_read, guide_file_path_write) << " ************" << std::endl;
-  std::cout << "////////////////////////////////////////////" << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "////////////////////////////////////////////");
+  IEDALOG.info(ieda::Loc::current(), "guide_file_path_read: ", guide_file_path_read);
+  IEDALOG.info(ieda::Loc::current(), "guide_file_path_write: ", guide_file_path_write);
+  IEDALOG.info(ieda::Loc::current(), "************ file_diff_lines_num: ", countDifferentLines(guide_file_path_read, guide_file_path_write), " ************");
+  IEDALOG.info(ieda::Loc::current(), "////////////////////////////////////////////");
 
   return 0;
 }

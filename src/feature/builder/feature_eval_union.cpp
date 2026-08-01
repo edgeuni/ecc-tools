@@ -5,6 +5,7 @@
  * @Description:
  */
 
+#include "utility/logger/Logger.hpp"
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -120,7 +121,7 @@ bool FeatureBuilder::destroyEvalTool()
 
 bool FeatureBuilder::buildNetEval(std::string csv_path)
 {
-  std::cout << "Building net evaluation data...\n";
+  IEDALOG.info(ieda::Loc::current(), "Building net evaluation data...");
 
   auto* idb_builder = dmInst->get_idb_builder();
   idb::IdbDesign* idb_design = idb_builder->get_def_service()->get_design();
@@ -190,7 +191,7 @@ bool FeatureBuilder::buildNetEval(std::string csv_path)
     // if (net_power_data["HPWL"].find(net_name) == net_power_data["HPWL"].end()
     //     || net_power_data["FLUTE"].find(net_name) == net_power_data["FLUTE"].end()
     //     || net_power_data["EGR"].find(net_name) == net_power_data["EGR"].end()) {
-    //   std::cerr << "Error: net_name '" << net_name << "' not found in net_power_data.\n";
+    //   IEDALOG.warn(ieda::Loc::current(), "net_name '", net_name, "' is not found in net_power_data.");
     //   std::exit(EXIT_FAILURE);
     // }
 

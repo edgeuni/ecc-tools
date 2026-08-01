@@ -14,6 +14,7 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+#include "utility/logger/Logger.hpp"
 #include "tcl_db_file.h"
 
 #include "db_fm/file_soc.h"
@@ -50,7 +51,7 @@ unsigned CmdInitIdb::exec()
   auto data_config = option->getStringVal();
 
   if (iplf::tmInst->idbStart(data_config)) {
-    std::cout << "idb start." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "idb start.");
   }
 
   return 1;
@@ -357,7 +358,7 @@ unsigned CmdSaveDef::exec()
   auto name = option->getStringVal();
   if (name != nullptr) {
     if (iplf::tmInst->idbSave(name)) {
-      std::cout << "idb save success." << std::endl;
+      IEDALOG.info(ieda::Loc::current(), "idb save success.");
       return 1;
     }
   }
@@ -451,7 +452,7 @@ unsigned CmdSaveNetlist::exec()
   auto name = option->getStringVal();
   if (name != nullptr) {
     if (iplf::tmInst->idbSave(name)) {
-      std::cout << "idb save success." << std::endl;
+      IEDALOG.info(ieda::Loc::current(), "idb save success.");
       return 1;
     }
   }
@@ -570,7 +571,7 @@ unsigned CmdSaveJSON::exec()
   // TclOption* discard = getOptionOrArg(TCL_JSON_OPTION);
   auto str_path = def_path->getStringVal();
   auto str_option = "";
-  // std::cout<<str_path<<std::endl;
+  // IEDALOG.info(ieda::Loc::current(), "Path: ", str_path);
   if (str_path != nullptr) {
     dmInst->saveJSON(str_path, str_option);
     return 1;
@@ -622,8 +623,7 @@ unsigned CmdSaveViewJson::exec()
   const char* json_format_value = json_format_option == nullptr ? "pretty" : json_format_option->getStringVal();
   idb::ViewJsonWriteOptions options;
   if (!idb::parseViewJsonFormat(json_format_value == nullptr ? "pretty" : json_format_value, options.format)) {
-    std::cout << "Save view json failed: unsupported -json_format `" << json_format_value << "`, expected `pretty` or `compact`."
-              << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Save view json failed: unsupported -json_format `", json_format_value, "`, expected `pretty` or `compact`.");
     return 0;
   }
 
@@ -858,7 +858,7 @@ unsigned CmdValidateIdb::exec()
 
   auto* design = dmInst->get_idb_design();
   if (design == nullptr) {
-    std::cout << "iDB validate failed: design is null." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "iDB validate failed: design is null.");
     return 0;
   }
 
@@ -868,19 +868,13 @@ unsigned CmdValidateIdb::exec()
   TclOption* path_option = getOptionOrArg(TCL_PATH);
   const char* path = path_option == nullptr ? nullptr : path_option->getStringVal();
   if (path != nullptr && path[0] != '\0' && !design->writeConnectivitySnapshot(path, check_floating)) {
-    std::cout << "iDB validate failed: cannot write snapshot " << path << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "iDB validate failed: cannot write snapshot ", path);
     return 0;
   }
 
-  std::cout << "iDB validate " << (result.ok ? "passed" : "failed") << ": duplicate_net=" << result.duplicate_net_count
-            << ", duplicate_instance=" << result.duplicate_instance_count << ", duplicate_io_pin=" << result.duplicate_io_pin_count
-            << ", stale_regular_pin_ref=" << result.stale_regular_pin_ref_count
-            << ", stale_special_pin_ref=" << result.stale_special_pin_ref_count
-            << ", pin_reverse_mismatch=" << result.pin_reverse_mismatch_count
-            << ", net_instance_mismatch=" << result.net_instance_mismatch_count
-            << ", duplicate_pin_ref=" << result.duplicate_pin_ref_count << ", floating_pin=" << result.floating_pin_count << std::endl;
+  IEDALOG.warn(ieda::Loc::current(), "iDB validate ", (result.ok ? "passed" : "failed"), ": duplicate_net=", result.duplicate_net_count, ", duplicate_instance=", result.duplicate_instance_count, ", duplicate_io_pin=", result.duplicate_io_pin_count, ", stale_regular_pin_ref=", result.stale_regular_pin_ref_count, ", stale_special_pin_ref=", result.stale_special_pin_ref_count, ", pin_reverse_mismatch=", result.pin_reverse_mismatch_count, ", net_instance_mismatch=", result.net_instance_mismatch_count, ", duplicate_pin_ref=", result.duplicate_pin_ref_count, ", floating_pin=", result.floating_pin_count);
   for (const auto& message : result.messages) {
-    std::cout << "  " << message << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "  ", message);
   }
 
   return result.ok ? 1 : 0;

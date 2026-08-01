@@ -9,6 +9,7 @@ target_link_libraries(tcl_config
         tcl
         flow
         tool_manager
+        ieda_logger
 )
 
 target_include_directories(tcl_config

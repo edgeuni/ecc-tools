@@ -9,6 +9,8 @@ target_link_libraries(tcl_icts
         tcl_util
         tcl
         icts_interface
+    PRIVATE
+        ieda_logger
 )
 
 target_include_directories(tcl_icts
