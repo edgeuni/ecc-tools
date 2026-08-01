@@ -191,6 +191,7 @@ void DataManager::makeInstanceTimingInfo(Instance& instance)
 
   TimingCell& timing_cell = timing_cell_map[instance.get_cell_name()];
   instance.set_is_sequential(timing_cell.get_is_sequential());
+  instance.set_is_clock_gating(timing_cell.get_is_clock_gating());
   instance.set_has_clear_arc(timing_cell.get_has_clear_arc());
   instance.set_has_preset_arc(timing_cell.get_has_preset_arc());
   TimingCellArc* clock_to_q_arc = findClockToQArc(timing_cell);
