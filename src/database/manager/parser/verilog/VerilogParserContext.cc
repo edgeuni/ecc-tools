@@ -30,6 +30,7 @@
 #include "VerilogParser.hh"
 #include "VerilogScanner.hh"
 
+#include "utility/logger/Logger.hpp"
 namespace idb::verilog {
 
 enum class IdKind
@@ -1319,11 +1320,11 @@ void* verilog_parse_file(const char* verilog_path)
 {
   auto context = std::make_unique<idb::verilog::ParserContext>();
   if (!context->parseFile(verilog_path)) {
-    std::cerr << "Parse Verilog failed";
     if (context->errorLine() > 0) {
-      std::cerr << " at line " << context->errorLine();
+      IEDALOG.warn(ieda::Loc::current(), "Parse Verilog failed at line ", context->errorLine(), ": ", context->errorMessage());
+    } else {
+      IEDALOG.warn(ieda::Loc::current(), "Parse Verilog failed: ", context->errorMessage());
     }
-    std::cerr << ": " << context->errorMessage() << std::endl;
     return nullptr;
   }
   return context->releaseFile();

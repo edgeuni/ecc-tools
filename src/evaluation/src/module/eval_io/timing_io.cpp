@@ -42,7 +42,7 @@ bool EvalTiming::runTimingEval(const std::string& routing_type)
 {
   const auto timing_api = TimingAPI::getInst();
   timing_api->evalTiming(routing_type);
-  std::cout << "Timing evaluation completed for routing type: " << routing_type << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Timing evaluation completed for routing type: ", routing_type);
   return true;
 }
 
@@ -105,15 +105,15 @@ void EvalTiming::printTimingResult()
 void EvalTiming::setOutputPath(const std::string& path)
 {
   if (path.empty()) {
-    std::cout << "Output path is empty, using default path: " << _output_path << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Output path is empty, using default path: ", _output_path);
     return;
   }
   if (_output_path == path) {
-    std::cout << "Output path already exists, using default path: " << _output_path << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Output path already exists, using default path: ", _output_path);
     return;
   }
   _output_path = path + "/timing_result.json";
-  std::cout << "Setting Timing Evaluation report output path to " << _output_path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Setting Timing Evaluation report output path to ", _output_path);
   std::filesystem::create_directories(std::filesystem::path(path));
 }
 

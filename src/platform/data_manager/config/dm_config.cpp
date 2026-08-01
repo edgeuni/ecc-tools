@@ -27,6 +27,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "utility/logger/Logger.hpp"
 #include "dm_config.h"
 
 #include <stdio.h>
@@ -47,7 +48,7 @@ bool DataConfig::initConfig(string config_path)
 {
   if (checkFilePath(config_path)) {
     _config_path = config_path;
-    std::cout << "[Data config] begin config, path = " << _config_path << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "[Data config] begin config, path = ", _config_path);
 
     std::ifstream& config_stream = ieda::getInputFileStream(_config_path);
 
@@ -82,7 +83,7 @@ bool DataConfig::initConfig(string config_path)
 
     ieda::closeFileStream(config_stream);
 
-    std::cout << "[Data config] end config" << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "[Data config] end config");
 
     return true;
   }
@@ -99,7 +100,7 @@ bool DataConfig::checkFilePath(string path)
 {
   FILE* file = fopen(path.c_str(), "r");
   if (file == nullptr) {
-    std::cout << "[DataConfig error] : Can not open file = " << path << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "[DataConfig error] : Can not open file = ", path);
 
     return false;
   }

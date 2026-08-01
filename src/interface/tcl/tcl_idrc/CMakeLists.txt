@@ -10,6 +10,7 @@ target_link_libraries(tcl_idrc
         tcl_util
     PRIVATE
         idrc_interface
+        ieda_logger
 )
 
 target_include_directories(tcl_idrc
