@@ -15,5 +15,5 @@ target_link_libraries(izh_toolkit
 target_include_directories(izh_toolkit
     INTERFACE
     ${IZH_TOOLKIT}
-    ${IZH_TOOLKIT}/header
+    ${IZH_SOURCE}/header
 )
