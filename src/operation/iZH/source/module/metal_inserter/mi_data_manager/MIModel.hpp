@@ -15,7 +15,8 @@
 // ***************************************************************************************
 #pragma once
 
-#include "ZHHeader.hpp"
+#include "MILayerRule.hpp"
+#include "MIRect.hpp"
 
 namespace izh {
 
@@ -25,13 +26,30 @@ class MIModel
   MIModel() = default;
   ~MIModel() = default;
   // getter
+  std::string& get_rule_file_path() { return _rule_file_path; }
+  MIRect& get_fill_area() { return _fill_area; }
+  std::vector<MILayerRule>& get_layer_rule_list() { return _layer_rule_list; }
+  bool get_reset_fill() const { return _reset_fill; }
   int32_t get_inserted_metal_num() const { return _inserted_metal_num; }
+  // const getter
+  const std::string& get_rule_file_path() const { return _rule_file_path; }
+  const MIRect& get_fill_area() const { return _fill_area; }
+  const std::vector<MILayerRule>& get_layer_rule_list() const { return _layer_rule_list; }
   // setter
+  void set_rule_file_path(const std::string& rule_file_path) { _rule_file_path = rule_file_path; }
+  void set_fill_area(const MIRect& fill_area) { _fill_area = fill_area; }
+  void set_layer_rule_list(const std::vector<MILayerRule>& layer_rule_list) { _layer_rule_list = layer_rule_list; }
+  void set_reset_fill(bool reset_fill) { _reset_fill = reset_fill; }
   void set_inserted_metal_num(int32_t inserted_metal_num) { _inserted_metal_num = inserted_metal_num; }
   // function
   void addInsertedMetalNum() { ++_inserted_metal_num; }
+  void addInsertedMetalNum(int32_t inserted_metal_num) { _inserted_metal_num += inserted_metal_num; }
 
  private:
+  std::string _rule_file_path;
+  MIRect _fill_area;
+  std::vector<MILayerRule> _layer_rule_list;
+  bool _reset_fill = false;
   int32_t _inserted_metal_num = 0;
 };
 

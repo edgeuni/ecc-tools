@@ -5,30 +5,38 @@
 //
 // iEDA is licensed under Mulan PSL v2.
 // You can use this software according to the terms and conditions of the Mulan PSL v2.
-// You may obtain a copy of Mulan PSL v2 at:
+// You may obtain a copy of the Mulan PSL v2 at:
 // http://license.coscl.org.cn/MulanPSL2
 //
 // THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 // EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-// MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//
+// MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
 #pragma once
 
-#include "tcl_zh.h"
+#include "ZHHeader.hpp"
 
-using namespace ieda;
+namespace izh {
 
-namespace tcl {
-
-int registerCmdZH()
+class MIFillShape
 {
-  // zh
-  registerTclCmd(TclZHFixFanout, "zh_fix_fanout");
-  registerTclCmd(TclZHInsertFiller, "zh_insert_filler");
-  registerTclCmd(TclZHInsertMetal, "zh_insert_metal");
-  return EXIT_SUCCESS;
-}
+ public:
+  MIFillShape() = default;
+  MIFillShape(int32_t width, int32_t height) : _width(width), _height(height) {}
+  ~MIFillShape() = default;
+  // getter
+  int32_t get_width() const { return _width; }
+  int32_t get_height() const { return _height; }
+  // setter
+  void set_width(int32_t width) { _width = width; }
+  void set_height(int32_t height) { _height = height; }
+  // function
+  bool isValid() const { return _width > 0 && _height > 0; }
 
-}  // namespace tcl
+ private:
+  int32_t _width = 0;
+  int32_t _height = 0;
+};
+
+}  // namespace izh

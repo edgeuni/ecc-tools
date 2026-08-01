@@ -15,10 +15,13 @@ target_link_libraries(izh_metal_inserter
     PUBLIC
     izh_module
     izh_toolkit
+    idm
+    geometry_builder
 )
 
 target_include_directories(izh_metal_inserter
     PUBLIC
     ${IZH_MODULE}/metal_inserter/mi_data_manager
     ${IZH_MODULE}/metal_inserter
+    ${HOME_THIRDPARTY}/json
 )

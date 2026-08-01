@@ -1152,6 +1152,8 @@ int32_t DefWrite::write_fill()
     }
   }
 
+  writestr("END FILLS\n");
+
   IEDALOG.info(ieda::Loc::current(), "Write FILLS success...");
   return kDbSuccess;
 }
