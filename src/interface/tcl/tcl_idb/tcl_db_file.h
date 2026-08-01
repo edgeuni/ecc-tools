@@ -108,6 +108,62 @@ class CmdInitVerilog : public TclCmd
   // private data
 };
 
+class CmdInitLib : public TclCmd
+{
+ public:
+  explicit CmdInitLib(const char* cmd_name);
+  ~CmdInitLib() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+
+ private:
+  // private function
+  // private data
+};
+
+class CmdInitSdc : public TclCmd
+{
+ public:
+  explicit CmdInitSdc(const char* cmd_name);
+  ~CmdInitSdc() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+
+ private:
+  // private function
+  // private data
+};
+
+class CmdInitSpef : public TclCmd
+{
+ public:
+  explicit CmdInitSpef(const char* cmd_name);
+  ~CmdInitSpef() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+
+ private:
+  // private function
+  // private data
+};
+
+class CmdInitVcd : public TclCmd
+{
+ public:
+  explicit CmdInitVcd(const char* cmd_name);
+  ~CmdInitVcd() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+
+ private:
+  // private function
+  // private data
+};
+
 class CmdSaveDef : public TclCmd
 {
  public:
@@ -183,6 +239,34 @@ class CmdSaveJSON : public TclCmd
  public:
   explicit CmdSaveJSON(const char* cmd_name);
   ~CmdSaveJSON() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+
+ private:
+  // private function
+  // private data
+};
+
+class CmdSaveViewJson : public TclCmd
+{
+ public:
+  explicit CmdSaveViewJson(const char* cmd_name);
+  ~CmdSaveViewJson() override = default;
+
+  unsigned check() override;
+  unsigned exec() override;
+
+ private:
+  // private function
+  // private data
+};
+
+class CmdApplyViewJsonEdits : public TclCmd
+{
+ public:
+  explicit CmdApplyViewJsonEdits(const char* cmd_name);
+  ~CmdApplyViewJsonEdits() override = default;
 
   unsigned check() override;
   unsigned exec() override;

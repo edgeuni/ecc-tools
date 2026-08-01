@@ -222,7 +222,7 @@ void RuleValidator::destroyInst()
 std::vector<Violation> RuleValidator::verify(std::vector<DRCShape>& drc_env_shape_list, std::vector<DRCShape>& drc_result_shape_list,
                                              std::set<ViolationType>& drc_check_type_set, std::vector<DRCShape>& drc_check_region_list)
 {
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
   RVModel rv_model = initRVModel(drc_env_shape_list, drc_result_shape_list, drc_check_type_set, drc_check_region_list);
   setRVComParam(rv_model);
@@ -230,7 +230,7 @@ std::vector<Violation> RuleValidator::verify(std::vector<DRCShape>& drc_env_shap
   verifyRVModel(rv_model);
   buildViolationList(rv_model);
   // debugPlotRVModel(rv_model, "best");
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
   return rv_model.get_violation_list();
 }
 
@@ -351,7 +351,7 @@ void RuleValidator::buildRVClusterList(RVModel& rv_model)
 
 void RuleValidator::verifyRVModel(RVModel& rv_model)
 {
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 #pragma omp parallel for schedule(dynamic)
   for (RVCluster& rv_cluster : rv_model.get_rv_cluster_list()) {
@@ -360,7 +360,7 @@ void RuleValidator::verifyRVModel(RVModel& rv_model)
       buildViolationList(rv_cluster);
     }
   }
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
 }
 
 void RuleValidator::buildRVCluster(RVCluster& rv_cluster)

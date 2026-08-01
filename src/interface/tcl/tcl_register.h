@@ -30,27 +30,20 @@
 #include "tcl_flow.h"
 #include "tcl_register_config.h"
 #include "tcl_register_cts.h"
-#include "tcl_register_eval.h"
 #include "tcl_register_feature.h"
 #include "tcl_register_flow.h"
-#include "tcl_register_fp.h"
 #include "tcl_register_ifill.h"
+#include "tcl_register_geometry.h"
 #include "tcl_register_idb.h"
 #include "tcl_register_idrc.h"
-#include "tcl_register_inst.h"
 #include "tcl_register_irt.h"
+#include "tcl_register_ilvs.h"
+#include "tcl_register_ista.h"
+#include "tcl_register_ifp.h"
+#include "tcl_register_iemir.h"
 #include "tcl_register_izh.h"
 #include "tcl_register_ircx.h"
-#include "tcl_register_pdn.h"
 #include "tcl_register_report.h"
-#include "tcl_register_sta.h"
-#include "tcl_register_vec.h"
-#include "tcl_register_notification.h"
-#include "tcl_register_workspace.h"
-
-#ifdef CONTEST
-#include "tcl_register_contest.h"
-#endif
 
 using namespace ieda;
 namespace tcl {
@@ -60,26 +53,11 @@ int registerCommands()
   /// config
   registerConfig();
 
-  /// workspace
-  registerCmdWorkspace();
-
   /// flow
   registerCmdFlow();
 
   /// db
   registerCmdDB();
-
-  /// instance operation
-  registerCmdInstance();
-
-  /// FP
-  registerCmdFP();
-
-  /// metal fill
-  registerCmdIFill();
-
-  /// PDN
-  registerCmdPDN();
 
   /// CTS
   registerCmdCTS();
@@ -87,32 +65,33 @@ int registerCommands()
   /// Router
   registerCmdRT();
 
+  /// LVS
+  registerCmdLVS();
+
+  /// STA
+  registerCmdSTA();
+
+  /// FP
+  registerCmdFP();
+
+  /// EMIR
+  registerCmdEMIR();
+
   /// DRC
   registerCmdDRC();
 
   /// RCX
   registerCmdRCX();
 
-  /// STA
-  registerCmdSTA();
-
   /// ZH
   registerCmdZH();
 
+  /// metal fill
+  registerCmdIFill();
+
   registerCmdReport();
 
-  registerCmdFeature();
-
-  registerCmdEval();
-
-  registerCmdVectorization();
-  
-  registerCmdNotification();
-
-#ifdef CONTEST
-  registerCmdContest();
-#endif
-
+  registerCmdGeometry();
   return EXIT_SUCCESS;
 }
 

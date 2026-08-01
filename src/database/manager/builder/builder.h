@@ -31,6 +31,7 @@
  *
  */
 
+#include "utility/logger/Logger.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -49,6 +50,7 @@
 #include "lef_service.h"
 #include "verilog_read.h"
 #include "verilog_write.h"
+#include "view_write.h"
 
 namespace idb {
 
@@ -67,7 +69,7 @@ class IdbBuilder
   IdbDefService* buildDef(string file);
   IdbDefService* buildDefGzip(string gzip_file);
   IdbLefService* buildLef(vector<string>& files, bool b_techfile = false);
-  IdbDefService* rustBuildVerilog(string file, std::string top_module_name = "asic_top");
+  IdbDefService* buildVerilog(string file, std::string top_module_name = "asic_top");
 
   IdbDefService* buildDefFloorplan(string file);
 
@@ -79,6 +81,8 @@ class IdbBuilder
   void saveVerilog(std::string verilog_file_name, std::set<std::string>& exclude_cell_names, bool is_add_space_for_escape_name);
   bool saveGDSII(string file, bool is_hardened = false);
   bool saveJSON(string file, string options);
+  bool saveViewJson(string output_dir, ViewJsonWriteOptions options = {});
+  bool applyViewJsonEdits(string edits_path, bool compressed_hint = false);
   bool saveLef(string file);
   // Write layout
   void saveLayout(string folder);
@@ -111,22 +115,22 @@ class IdbBuilder
     logNumber(mudule, number);
     // logSeperate();
   }
-  void logSeperate() { std::cout << "**************************************************************" << std::endl; }
+  void logSeperate() { IEDALOG.info(ieda::Loc::current(), "**************************************************************"); }
   void logNumber(string mudule, int32_t number = -1)
   {
-    std::cout << mudule;
+    IEDALOG.info(ieda::Loc::current(), mudule);
     if (number != -1) {
-      std::cout << " number : " << number;
+      IEDALOG.info(ieda::Loc::current(), " number : ", number);
     }
-    std::cout << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "");
   }
   void logInfo(string info, int32_t number = -1)
   {
-    std::cout << info;
+    IEDALOG.info(ieda::Loc::current(), info);
     if (number != -1) {
-      std::cout << " number : " << number;
+      IEDALOG.info(ieda::Loc::current(), " number : ", number);
     }
-    std::cout << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "");
   }
 
  private:

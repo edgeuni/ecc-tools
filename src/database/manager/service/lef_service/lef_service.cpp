@@ -32,6 +32,7 @@ read and write operation.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "utility/logger/Logger.hpp"
 #include "lef_service.h"
 
 #include <mutex>
@@ -54,12 +55,11 @@ IdbLefServiceResult IdbLefService::LefFileInit(vector<string> lef_files)
     string filename = *it;
     FILE* file = fopen(filename.c_str(), "r");
     if (file == nullptr) {
-      std::cout << "Can not open LEF file ( " << filename.c_str() << " )" << std::endl;
+      IEDALOG.warn(ieda::Loc::current(), "Can not open LEF file ( ", filename.c_str(), " )");
 
       return IdbLefServiceResult::kServiceFailed;
     } else {
-      //   std::cout << "Open LEF file success ( " << filename.c_str() << " )"
-      //             << std::endl;
+      //   IEDALOG.info(ieda::Loc::current(), "Open LEF file success (", filename, ").");
     }
   }
   // set lef files

@@ -27,6 +27,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "utility/logger/Logger.hpp"
 #include "idm.h"
 
 #include <cassert>
@@ -75,6 +76,9 @@ void DataManager::resetData()
   _idb_lef_service = nullptr;
   _design = nullptr;
   _layout = nullptr;
+  _lib_readers.clear();
+  _spef_reader.reset();
+  _vcd_reader.reset();
 }
 
 bool DataManager::readLef(string config_path)
@@ -116,10 +120,10 @@ void DataManager::write_placement_back(const float* x, const float* y, int len)
 {
   // std::vector<ContestParser::Instance*> inst_list;
   int i = 0;
-  printf("write_placement_back start!!! Db address is %p\n", this);
-  printf("write_placement_back start!!! idb_design address is %p\n", this->get_idb_design());
+  IEDALOG.info(ieda::Loc::current(), "write_placement_back start. Db address is ", this);
+  IEDALOG.info(ieda::Loc::current(), "write_placement_back start. idb_design address is ", this->get_idb_design());
   if (x == nullptr || y == nullptr || len <= 0) {
-    std::cout << "WriteBack placement finished!!" << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "WriteBack placement finished!!");
     return;
   }
   auto const& row_list = this->get_idb_layout()->get_rows()->get_row_list();
@@ -195,9 +199,9 @@ void DataManager::write_placement_back(const float* x, const float* y, int len)
     // flag = true;
   }
   // output hpwl
-  std::cout << "WriteBack placement finished!!" << std::endl;
-  // std::cout << "WriteBack double finished, Current Contest DB Total HPWL : " << contest_db->obtainTotalHPWL() <<
-  // std::endl;
+  IEDALOG.info(ieda::Loc::current(), "WriteBack placement finished!!");
+  // IEDALOG.info(ieda::Loc::current(), "WriteBack double finished, Current Contest DB Total HPWL: ",
+  //              contest_db->obtainTotalHPWL());
 
   return;
 }
@@ -221,6 +225,33 @@ bool DataManager::readVerilog(string path, string top_module)
   }
 
   if (!initVerilog(path, top_module)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool DataManager::readLib(vector<string> lib_paths)
+{
+  if (!initLib(lib_paths)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool DataManager::readSpef(string spef_path)
+{
+  if (!initSpef(spef_path)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool DataManager::readVcd(string vcd_path)
+{
+  if (!initVcd(vcd_path)) {
     return false;
   }
 

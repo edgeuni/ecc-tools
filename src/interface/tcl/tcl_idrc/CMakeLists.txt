@@ -7,13 +7,14 @@ add_library(tcl_idrc
 
 target_link_libraries(tcl_idrc 
     PUBLIC
-        tool_manager
         tcl_util
     PRIVATE
         idrc_interface
+        ieda_logger
 )
 
 target_include_directories(tcl_idrc
     PUBLIC
+        ${HOME_INTERFACE}/tcl
         ${HOME_INTERFACE}/tcl/tcl_idrc/include
 )

@@ -29,6 +29,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#include "utility/logger/Logger.hpp"
 #include "file_soc.h"
 
 #include <algorithm>
@@ -64,7 +65,7 @@ bool JsonSoc::saveJson()
   if (tail_str != "json") {
     return false;
   }
-  std::cout << std::endl << "Begin save feature json, path = " << path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Begin save feature json, path = ", path);
 
   auto* idb_design = dmInst->get_idb_design();
   auto* idb_layout = dmInst->get_idb_layout();
@@ -371,7 +372,7 @@ bool JsonSoc::saveJson()
 
   file_stream.close();
 
-  std::cout << std::endl << "Save feature json success, path = " << path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Save feature json success, path = ", path);
   return true;
 }
 

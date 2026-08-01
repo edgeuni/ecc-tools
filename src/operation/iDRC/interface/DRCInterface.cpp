@@ -20,14 +20,18 @@
 #include "AdjacentCutSpacingRule.hpp"
 #include "DataManager.hpp"
 #include "GDSPlotter.hpp"
+#include "IdbBlockages.h"
 #include "IdbEnum.h"
 #include "Monitor.hpp"
 #include "ParallelRunLengthSpacingRule.hpp"
 #include "RuleValidator.hpp"
 #include "SameLayerCutSpacingRule.hpp"
+#include "Utility.hpp"
 #include "feature_manager.h"
+#include "file_drc.h"
 #include "idm.h"
 
+#include "utility/logger/Logger.hpp"
 namespace idrc {
 
 // public
@@ -55,9 +59,7 @@ void DRCInterface::destroyInst()
 void DRCInterface::initDRC(std::map<std::string, std::any> config_map, bool enable_quiet)
 {
   Logger::initInst();
-  if (enable_quiet) {
-    DRCLOG.enableQuiet();
-  }
+  DRCLOG.setQuiet(enable_quiet);
   // clang-format off
   DRCLOG.info(Loc::current(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
   DRCLOG.info(Loc::current(), "______________________________   _____________________________________   ");
@@ -71,7 +73,7 @@ void DRCInterface::initDRC(std::map<std::string, std::any> config_map, bool enab
   //////////////////////////////////////////////////////
   //////////////////////////////////////////////////////
   //////////////////////////////////////////////////////
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   DataManager::initInst();
@@ -80,11 +82,20 @@ void DRCInterface::initDRC(std::map<std::string, std::any> config_map, bool enab
   DRCGP.init();
   RuleValidator::initInst();
 
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
+}
+
+void DRCInterface::runDRC()
+{
+  checkDef();
+  destroyDRC();
 }
 
 void DRCInterface::checkDef()
 {
+  bool origin_quiet = DRCLOG.isQuiet();
+  DRCLOG.disableQuiet();
+
   std::map<std::string, std::vector<ids::Violation>> type_violation_map;
   for (ids::Violation& ids_violation : getViolationList(buildEnvShapeList(), buildResultShapeList(), {}, {})) {
     type_violation_map[ids_violation.violation_type].push_back(ids_violation);
@@ -93,11 +104,15 @@ void DRCInterface::checkDef()
   outputViolationJson(type_violation_map);
   outputViolationFile(type_violation_map);
   outputTofeature(type_violation_map);
+
+  if (origin_quiet) {
+    DRCLOG.enableQuiet();
+  }
 }
 
 void DRCInterface::destroyDRC()
 {
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   RuleValidator::destroyInst();
@@ -106,7 +121,7 @@ void DRCInterface::destroyDRC()
   DRCDM.output();
   DataManager::destroyInst();
 
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
 
   DRCLOG.printLogFilePath();
   // clang-format off
@@ -119,6 +134,16 @@ void DRCInterface::destroyDRC()
   DRCLOG.info(Loc::current(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
   // clang-format on
   Logger::destroyInst();
+}
+
+bool DRCInterface::saveDRC(std::string path)
+{
+  if (path.empty()) {
+    return false;
+  }
+
+  iplf::FileDrcManager file(path, static_cast<int32_t>(iplf::DrcDbId::kDrcDetailInfo));
+  return file.writeFile();
 }
 
 std::vector<ids::Violation> DRCInterface::getViolationList(const std::vector<ids::Shape>& ids_env_shape_list,
@@ -288,7 +313,7 @@ void DRCInterface::cmpViolation(std::map<std::string, std::any> config_map)
               LayerRect violation_rect(llx, lly, urx, ury, routing_layer_name_to_idx_map[layer]);
               violation_rect_set.insert(violation_rect);
             } else {
-              std::cerr << "这一行解析失败: " << line << '\n';
+              IEDALOG.warn(ieda::Loc::current(), "这一行解析失败: ", line);
             }
           }
         }
@@ -887,13 +912,14 @@ void DRCInterface::output()
 std::vector<ids::Shape> DRCInterface::buildEnvShapeList()
 {
   std::vector<ids::Shape> env_shape_list;
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   std::vector<idb::IdbInstance*>& idb_instance_list = dmInst->get_idb_def_service()->get_design()->get_instance_list()->get_instance_list();
   std::vector<idb::IdbNet*>& idb_net_list = dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list();
   std::vector<idb::IdbSpecialNet*>& idb_special_net_list = dmInst->get_idb_def_service()->get_design()->get_special_net_list()->get_net_list();
   std::vector<idb::IdbPin*>& idb_io_pin_list = dmInst->get_idb_def_service()->get_design()->get_io_pin_list()->get_pin_list();
+  std::vector<idb::IdbBlockage*> idb_blockage_list = dmInst->get_idb_def_service()->get_design()->get_blockage_list()->get_blockage_list();
   idb::IdbDesign* idb_design = dmInst->get_idb_def_service()->get_design();
   std::map<idb::IdbPin*, int32_t> special_pin_net_idx_map;
   std::map<idb::IdbSpecialNet*, int32_t> special_net_idx_map;
@@ -956,6 +982,17 @@ std::vector<ids::Shape> DRCInterface::buildEnvShapeList()
     for (idb::IdbPin* idb_io_pin : idb_io_pin_list) {
       for (idb::IdbLayerShape* port_box : idb_io_pin->get_port_box_list()) {
         total_env_shape_num += port_box->get_rect_list().size();
+      }
+    }
+
+    // routing blockage
+    for (idb::IdbBlockage* idb_blockage : idb_blockage_list) {
+      if (!idb_blockage->is_routing_blockage()) {
+        continue;
+      }
+      idb::IdbRoutingBlockage* routing_blockage = static_cast<idb::IdbRoutingBlockage*>(idb_blockage);
+      if (routing_blockage->get_layer() != nullptr) {
+        total_env_shape_num += routing_blockage->get_rect_num();
       }
     }
   }
@@ -1062,8 +1099,60 @@ std::vector<ids::Shape> DRCInterface::buildEnvShapeList()
         }
       }
     }
+
+    // routing blockage
+    for (idb::IdbBlockage* idb_blockage : idb_blockage_list) {
+      if (!idb_blockage->is_routing_blockage()) {
+        continue;
+      }
+      idb::IdbRoutingBlockage* routing_blockage = static_cast<idb::IdbRoutingBlockage*>(idb_blockage);
+      idb::IdbLayer* layer = routing_blockage->get_layer();
+      if (layer == nullptr) {
+        continue;
+      }
+      GTLPolySetInt blockage_polyset;
+      for (idb::IdbRect* rect : routing_blockage->get_rect_list()) {
+        blockage_polyset += GTLRectInt(rect->get_low_x(), rect->get_low_y(), rect->get_high_x(), rect->get_high_y());
+      }
+      idb::IdbInstance* idb_instance = routing_blockage->get_instance();
+      if (idb_instance != nullptr) {
+        GTLPolySetInt pin_polyset;
+        for (idb::IdbPin* idb_pin : idb_instance->get_pin_list()->get_pin_list()) {
+          for (idb::IdbLayerShape* port_box : idb_pin->get_port_box_list()) {
+            if (port_box->get_layer() != layer) {
+              continue;
+            }
+            for (idb::IdbRect* rect : port_box->get_rect_list()) {
+              pin_polyset += GTLRectInt(rect->get_low_x(), rect->get_low_y(), rect->get_high_x(), rect->get_high_y());
+            }
+          }
+          for (idb::IdbVia* idb_via : idb_pin->get_via_list()) {
+            for (idb::IdbLayerShape via_shape : {idb_via->get_top_layer_shape(), idb_via->get_bottom_layer_shape()}) {
+              if (via_shape.get_layer() == layer) {
+                idb::IdbRect via_box = via_shape.get_bounding_box();
+                pin_polyset += GTLRectInt(via_box.get_low_x(), via_box.get_low_y(), via_box.get_high_x(), via_box.get_high_y());
+              }
+            }
+          }
+        }
+        blockage_polyset -= pin_polyset;
+      }
+      std::vector<GTLRectInt> blockage_rect_list;
+      gtl::get_max_rectangles(blockage_rect_list, blockage_polyset);
+      for (const GTLRectInt& rect : blockage_rect_list) {
+        ids::Shape ids_shape;
+        ids_shape.net_idx = -1;
+        ids_shape.ll_x = gtl::xl(rect);
+        ids_shape.ll_y = gtl::yl(rect);
+        ids_shape.ur_x = gtl::xh(rect);
+        ids_shape.ur_y = gtl::yh(rect);
+        ids_shape.layer_idx = layer->get_id();
+        ids_shape.is_routing = layer->is_routing();
+        env_shape_list.push_back(ids_shape);
+      }
+    }
   }
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
   return env_shape_list;
 }
 
@@ -1107,7 +1196,7 @@ bool DRCInterface::isSkipping(idb::IdbNet* idb_net)
 std::vector<ids::Shape> DRCInterface::buildResultShapeList()
 {
   std::vector<ids::Shape> result_shape_list;
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   std::vector<idb::IdbNet*>& idb_net_list = dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list();
@@ -1265,7 +1354,7 @@ std::vector<ids::Shape> DRCInterface::buildResultShapeList()
       }
     }
   }
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
   return result_shape_list;
 }
 
@@ -1333,7 +1422,7 @@ void DRCInterface::outputViolationJson(std::map<std::string, std::vector<ids::Vi
 
 void DRCInterface::outputViolationFile(std::map<std::string, std::vector<ids::Violation>>& type_violation_map)
 {
-  Monitor monitor;
+  auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   std::vector<RoutingLayer>& routing_layer_list = DRCDM.getDatabase().get_routing_layer_list();
@@ -1376,7 +1465,7 @@ void DRCInterface::outputViolationFile(std::map<std::string, std::vector<ids::Vi
     DRCUTIL.closeFileStream(violation_file);
   }
 
-  DRCLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
+  DRCLOG.info(Loc::current(), "Completed", monitor ? monitor->getStatsInfo() : "");
 }
 
 void DRCInterface::outputTofeature(std::map<std::string, std::vector<ids::Violation>>& type_violation_map)

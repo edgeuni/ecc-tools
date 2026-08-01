@@ -7,10 +7,9 @@ add_library(tcl_config
 target_link_libraries(tcl_config 
     PUBLIC
         tcl
-        shell-cmd
-        str
         flow
         tool_manager
+        ieda_logger
 )
 
 target_include_directories(tcl_config

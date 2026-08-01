@@ -31,16 +31,17 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "utility/logger/Logger.hpp"
 #include "lef_read.h"
 
 #include <algorithm>
 #include <cmath>
+#include <sstream>
 
 #include "IdbLayer.h"
 #include "IdbLayerShape.h"
 #include "IdbLayout.h"
 #include "IdbObs.h"
-#include "Str.hh"
 #include "property_parser/cutlayer_parser.h"
 #include "property_parser/masterslicelayer_parser.h"
 #include "property_parser/routinglayer_parser.h"
@@ -65,7 +66,7 @@ bool LefRead::check_type(lefrCallbackType_e type)
   if (type >= 0 && type <= lefrLibraryEndCbkType) {
     return true;
   } else {
-    std::cout << "Error lefrCallbackType_e = " << type << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error lefrCallbackType_e = ", type);
     return false;
   }
 }
@@ -141,7 +142,7 @@ bool LefRead::createDb(const char* file_name)
   FILE* file = fopen(file_name, "r");
 
   if (file == NULL) {
-    std::cout << "Open lef file failed..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Open lef file failed...");
     return false;
   }
 
@@ -163,7 +164,7 @@ int LefRead::manufacturingCB(lefrCallbackType_e c, double lef_num, lefiUserData 
 {
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Manufacturing Grid] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Manufacturing Grid] ...");
     return kDbFail;
   }
 
@@ -183,7 +184,7 @@ int LefRead::propDefCB(lefrCallbackType_e c, lefiProp* prop, lefiUserData data)
 {
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : property definition] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : property definition] ...");
     return kDbFail;
   }
 
@@ -214,8 +215,12 @@ int LefRead::parse_max_stack_via_lef58(std::string data)
 
   auto max_via_stack = new IdbMaxViaStack();
 
-  const char* sep = " ";
-  vector<std::string> strs = ieda::Str::split(data.c_str(), sep);
+  vector<std::string> strs;
+  std::istringstream stream(data);
+  std::string str;
+  while (stream >> str) {
+    strs.push_back(str);
+  }
   for (size_t i = 0; i < strs.size(); ++i) {
     if (strs[i] == "MAXVIASTACK") {
       auto number = atoi(strs[i + 1].c_str());
@@ -243,7 +248,7 @@ int LefRead::maxStackViaCB(lefrCallbackType_e c, lefiMaxStackVia* maxStack, lefi
 {
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : max via stack] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : max via stack] ...");
     return kDbFail;
   }
 
@@ -270,13 +275,13 @@ int LefRead::parse_max_stack_via(lefiMaxStackVia* maxStack)
 int LefRead::siteCB(lefrCallbackType_e c, lefiSite* lef_site, lefiUserData data)
 {
   if (lef_site == nullptr) {
-    std::cout << "Sites is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Sites is nullPtr...");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Site] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Site] ...");
     return kDbFail;
   }
 
@@ -287,7 +292,7 @@ int LefRead::siteCB(lefrCallbackType_e c, lefiSite* lef_site, lefiUserData data)
 int LefRead::parse_sites(lefiSite* lef_site)
 {
   if (lef_site == nullptr) {
-    std::cout << "Site is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Site is nullPtr...");
 
     return kDbFail;
   }
@@ -323,13 +328,13 @@ int LefRead::parse_sites(lefiSite* lef_site)
 int LefRead::unitsCB(lefrCallbackType_e c, lefiUnits* lef_unit, lefiUserData data)
 {
   if (lef_unit == nullptr) {
-    std::cout << "Units is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Units is nullPtr...");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Units] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Units] ...");
     return kDbFail;
   }
 
@@ -340,13 +345,13 @@ int LefRead::unitsCB(lefrCallbackType_e c, lefiUnits* lef_unit, lefiUserData dat
 int LefRead::parse_units(lefiUnits* lef_units)
 {
   if (lef_units == nullptr) {
-    std::cout << "Units is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Units is nullPtr...");
 
     return kDbFail;
   }
   IdbLayout* layout = _lef_service->get_layout();
   if (layout->get_units() != nullptr) {
-    std::cout << "Tech Units has been init, ignore this lef units..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Tech Units has been init, ignore this lef units...");
     return kDbSuccess;
   }
 
@@ -400,13 +405,13 @@ int LefRead::parse_units(lefiUnits* lef_units)
 int LefRead::layerCB(lefrCallbackType_e c, lefiLayer* lef_layer, lefiUserData data)
 {
   if (lef_layer == nullptr) {
-    std::cout << "Layer is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Layer is nullPtr...");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Layer] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Layer] ...");
     return kDbFail;
   }
 
@@ -418,7 +423,7 @@ int LefRead::layerCB(lefrCallbackType_e c, lefiLayer* lef_layer, lefiUserData da
 int LefRead::parse_layer(lefiLayer* lef_layer)
 {
   if (lef_layer == nullptr) {
-    std::cout << "Layer is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Layer is nullPtr...");
 
     return kDbFail;
   }
@@ -426,7 +431,7 @@ int LefRead::parse_layer(lefiLayer* lef_layer)
   IdbLayout* layout = _lef_service->get_layout();
   IdbLayers* layers = layout->get_layers();
   if (layers->find_layer(lef_layer->name()) != nullptr) {
-    std::cout << "Warning, layer is exist, name = " << lef_layer->name() << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Warning, layer is exist, name = ", lef_layer->name());
     return kDbFail;
   }
 
@@ -438,7 +443,7 @@ int LefRead::parse_layer(lefiLayer* lef_layer)
   }
 
   if (layer == nullptr) {
-    std::cout << "Layer is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Layer is nullPtr...");
     return kDbFail;
   }
 
@@ -470,7 +475,7 @@ int LefRead::parse_layer(lefiLayer* lef_layer)
 
   //   layer->print();
 
-  // std::cout << "Parse Layer success..." << std::endl;
+  // IEDALOG.info(ieda::Loc::current(), "Parse layer success.");
   return kDbSuccess;
 }
 
@@ -829,13 +834,13 @@ int LefRead::parse_layer_implant(lefiLayer* lef_layer, IdbLayerImplant* layer_im
 int LefRead::macroBeginCB(lefrCallbackType_e c, const char* lef_name, lefiUserData data)
 {
   if (lef_name == nullptr) {
-    // std::cout << "Macro is nullPtr..." << std::endl;
+    // IEDALOG.warn(ieda::Loc::current(), "Macro is null.");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Macro] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Macro] ...");
     return kDbFail;
   }
 
@@ -847,7 +852,7 @@ int LefRead::macroBeginCB(lefrCallbackType_e c, const char* lef_name, lefiUserDa
 int LefRead::parse_macro_new(const char* macro_name)
 {
   if (macro_name == nullptr) {
-    // std::cout << "Macro is nullPtr..." << std::endl;
+    // IEDALOG.warn(ieda::Loc::current(), "Macro is null.");
 
     return kDbFail;
   }
@@ -857,7 +862,7 @@ int LefRead::parse_macro_new(const char* macro_name)
 
   if (nullptr != master_list->find_cell_master(macro_name)) {
     _this_cell_master = nullptr;
-    std::cout << "[idb warning] Macro is exist, name = " << macro_name << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "[idb warning] Macro is exist, name = ", macro_name);
     return kDbFail;
   }
 
@@ -871,13 +876,13 @@ int LefRead::parse_macro_new(const char* macro_name)
 int LefRead::macroCB(lefrCallbackType_e c, lefiMacro* lef_macro, lefiUserData data)
 {
   if (lef_macro == nullptr) {
-    // std::cout << "Macro is nullPtr..." << std::endl;
+    // IEDALOG.warn(ieda::Loc::current(), "Macro is null.");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Macro] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Macro] ...");
     return kDbFail;
   }
 
@@ -888,7 +893,7 @@ int LefRead::macroCB(lefrCallbackType_e c, lefiMacro* lef_macro, lefiUserData da
 int LefRead::parse_macro(lefiMacro* lef_macro)
 {
   if (lef_macro == nullptr || _this_cell_master == nullptr) {
-    // std::cout << "Macro is nullPtr..." << std::endl;
+    // IEDALOG.warn(ieda::Loc::current(), "Macro is null.");
 
     return kDbFail;
   }
@@ -929,20 +934,20 @@ int LefRead::parse_macro(lefiMacro* lef_macro)
     }
   }
 
-  // std::cout << "Parse Macro success... Macro name = " << _this_cell_master->get_name() << std::endl;
+  // IEDALOG.info(ieda::Loc::current(), "Parse macro success, macro name = ", _this_cell_master->get_name());
   return kDbSuccess;
 }
 
 int LefRead::macroEndCB(lefrCallbackType_e c, const char* lef_name, lefiUserData data)
 {
   if (lef_name == nullptr) {
-    // std::cout << "Macro is nullPtr..." << std::endl;
+    // IEDALOG.warn(ieda::Loc::current(), "Macro is null.");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : MacroEnd] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : MacroEnd] ...");
     return kDbFail;
   }
 
@@ -963,13 +968,13 @@ int LefRead::parse_macro_reset(const char* name)
 int LefRead::pinCB(lefrCallbackType_e c, lefiPin* lef_pin, lefiUserData data)
 {
   if (lef_pin == nullptr) {
-    std::cout << "Pin is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Pin is nullPtr...");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Pin] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Pin] ...");
     return kDbFail;
   }
 
@@ -980,7 +985,7 @@ int LefRead::pinCB(lefrCallbackType_e c, lefiPin* lef_pin, lefiUserData data)
 int LefRead::parse_pin(lefiPin* lef_pin)
 {
   if (lef_pin == nullptr || _this_cell_master == nullptr) {
-    // std::cout << "Pin is nullPtr..." << std::endl;
+    // IEDALOG.warn(ieda::Loc::current(), "Pin is null.");
 
     return kDbFail;
   }
@@ -1108,7 +1113,7 @@ int LefRead::parse_pin(lefiPin* lef_pin)
           auto* vialist = layout->get_via_list();
           auto* via = vialist->find_via(ivia->name);
           if (via == nullptr) {
-            std::cerr << "Error, cannot find via " << ivia->name << std::endl;
+            IEDALOG.warn(ieda::Loc::current(), "Error, cannot find via ", ivia->name);
           } else {
             auto* macro_via = via->clone();
             macro_via->set_coordinate(transUnitDB(ivia->x), transUnitDB(ivia->y));
@@ -1139,7 +1144,7 @@ int LefRead::parse_pin(lefiPin* lef_pin)
     return kDbSuccess;
   }
 
-  // std::cout << "Parse lef pin success...Pin name = " << lef_pin->name() << std::endl;
+  // IEDALOG.info(ieda::Loc::current(), "Parse LEF pin success, pin name = ", lef_pin->name());
 
   return kDbSuccess;
 }
@@ -1166,13 +1171,13 @@ std::vector<GtlRect> LefRead::polygonToRects(lefiGeomPolygon* polygon)
 int LefRead::obstructionCB(lefrCallbackType_e c, lefiObstruction* lef_obs, lefiUserData data)
 {
   if (lef_obs == nullptr) {
-    std::cout << "Obs is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Obs is nullPtr...");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Obstruction] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Obstruction] ...");
     return kDbFail;
   }
 
@@ -1183,7 +1188,7 @@ int LefRead::obstructionCB(lefrCallbackType_e c, lefiObstruction* lef_obs, lefiU
 int LefRead::parse_obs(lefiObstruction* lef_obs)
 {
   if (lef_obs == nullptr || _this_cell_master == nullptr) {
-    // std::cout << "Obstruction is nullPtr..." << std::endl;
+    // IEDALOG.warn(ieda::Loc::current(), "Obstruction is null.");
 
     return kDbFail;
   }
@@ -1234,20 +1239,20 @@ int LefRead::parse_obs(lefiObstruction* lef_obs)
     }
   }
 
-  // std::cout << "Parse lef obs success..." << std::endl;
+  // IEDALOG.info(ieda::Loc::current(), "Parse LEF obstruction success.");
   return kDbSuccess;
 }
 
 int LefRead::viaCB(lefrCallbackType_e c, lefiVia* lef_via, lefiUserData data)
 {
   if (lef_via == nullptr) {
-    std::cout << "Via is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Via is nullPtr...");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Via] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Via] ...");
     return kDbFail;
   }
 
@@ -1258,7 +1263,7 @@ int LefRead::viaCB(lefrCallbackType_e c, lefiVia* lef_via, lefiUserData data)
 int LefRead::parse_via(lefiVia* lef_via)
 {
   if (lef_via == nullptr) {
-    std::cout << "Via is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Via is nullPtr...");
 
     return kDbFail;
   }
@@ -1267,27 +1272,82 @@ int LefRead::parse_via(lefiVia* lef_via)
   IdbLayers* layer_list = layout->get_layers();
   IdbVias* via_list = layout->get_via_list();
   if (via_list->find_via(lef_via->name()) != nullptr) {
-    std::cout << "Warning, Via is exist, name = " << lef_via->name() << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Warning, Via is exist, name = ", lef_via->name());
     return kDbFail;
   }
 
   IdbVia* via_instance = via_list->add_via(lef_via->name());
   IdbViaMaster* via_master = via_instance->get_instance();
   via_master->set_name(lef_via->name());
+  if (lef_via->hasResistance()) {
+    via_master->set_resistance(lef_via->resistance());
+  }
 
   if (lef_via->hasDefault()) {
     via_master->set_default(true);
   }
 
-  if (lef_via->hasGenerated()) {
-    // generate type
-    //<--------------------tbd-------------------
-    via_master->set_type_generate();
-  }
-
   if (lef_via->hasViaRule()) {
-    // IdbViaMasterGenerate* master_gernerate = via_master->get_master_generate();
-    //  master_gernerate->set_cut_size();
+    via_master->set_type_generate();
+    IdbViaMasterGenerate* master_generate = via_master->get_master_generate();
+    IdbViaRuleGenerate* via_rule = layout->get_via_rule_list()->find_via_rule_generate(lef_via->viaRuleName());
+    IdbLayerRouting* layer_bottom = dynamic_cast<IdbLayerRouting*>(layer_list->find_layer(lef_via->botMetalLayer()));
+    IdbLayerCut* layer_cut = dynamic_cast<IdbLayerCut*>(layer_list->find_layer(lef_via->cutLayer()));
+    IdbLayerRouting* layer_top = dynamic_cast<IdbLayerRouting*>(layer_list->find_layer(lef_via->topMetalLayer()));
+    if (via_rule == nullptr || layer_bottom == nullptr || layer_cut == nullptr || layer_top == nullptr) {
+      IEDALOG.warn(ieda::Loc::current(), "Via rule data is invalid, name = ", lef_via->name());
+      return kDbFail;
+    }
+    master_generate->set_rule_name(lef_via->viaRuleName());
+    master_generate->set_rule_generate(via_rule);
+    master_generate->set_cut_size(transUnitDB(lef_via->xCutSize()), transUnitDB(lef_via->yCutSize()));
+    master_generate->set_layer_bottom(layer_bottom);
+    master_generate->set_layer_cut(layer_cut);
+    master_generate->set_layer_top(layer_top);
+    master_generate->set_cut_spacing(transUnitDB(lef_via->xCutSpacing()), transUnitDB(lef_via->yCutSpacing()));
+    master_generate->set_enclosure_bottom(transUnitDB(lef_via->xBotEnc()), transUnitDB(lef_via->yBotEnc()));
+    master_generate->set_enclosure_top(transUnitDB(lef_via->xTopEnc()), transUnitDB(lef_via->yTopEnc()));
+    layer_cut->set_via_rule(via_rule);
+
+    int32_t num_rows = 1;
+    int32_t num_cols = 1;
+    if (lef_via->hasRowCol()) {
+      num_rows = lef_via->numCutRows();
+      num_cols = lef_via->numCutCols();
+    }
+    master_generate->set_cut_row_col(num_rows, num_cols);
+    via_master->set_cut_row_col(num_rows, num_cols);
+    if (lef_via->hasOrigin()) {
+      master_generate->set_original(transUnitDB(lef_via->xOffset()), transUnitDB(lef_via->yOffset()));
+    }
+    if (lef_via->hasOffset()) {
+      master_generate->set_offset_bottom(transUnitDB(lef_via->xBotOffset()), transUnitDB(lef_via->yBotOffset()));
+      master_generate->set_offset_top(transUnitDB(lef_via->xTopOffset()), transUnitDB(lef_via->yTopOffset()));
+    }
+    if (lef_via->hasCutPattern()) {
+      master_generate->set_patttern(lef_via->cutPattern());
+    }
+
+    int32_t cut_size_x = master_generate->get_cut_size_x();
+    int32_t cut_size_y = master_generate->get_cut_size_y();
+    int32_t cut_spacing_x = master_generate->get_cut_spcing_x();
+    int32_t cut_spacing_y = master_generate->get_cut_spcing_y();
+    int32_t cut_width_total = num_cols * cut_size_x + (num_cols - 1) * cut_spacing_x;
+    int32_t cut_height_total = num_rows * cut_size_y + (num_rows - 1) * cut_spacing_y;
+    int32_t ll_x_min = -cut_width_total / 2 + master_generate->get_original_offset_x();
+    int32_t ll_y_min = -cut_height_total / 2 + master_generate->get_original_offset_y();
+    for (int32_t row_idx = 0; row_idx < num_rows; row_idx++) {
+      for (int32_t col_idx = 0; col_idx < num_cols; col_idx++) {
+        if (master_generate->get_patttern() != nullptr && !master_generate->is_pattern_cut_exist(row_idx, col_idx)) {
+          continue;
+        }
+        int32_t ll_x = ll_x_min + col_idx * (cut_size_x + cut_spacing_x);
+        int32_t ll_y = ll_y_min + row_idx * (cut_size_y + cut_spacing_y);
+        master_generate->add_cut_rect(ll_x, ll_y, ll_x + cut_size_x, ll_y + cut_size_y);
+      }
+    }
+    master_generate->set_cut_bouding_rect(ll_x_min, ll_y_min, ll_x_min + cut_width_total, ll_y_min + cut_height_total);
+    via_master->set_via_shape();
   } else {
     via_master->set_type_fixed();
     // Fixed via
@@ -1338,13 +1398,13 @@ int LefRead::parse_via(lefiVia* lef_via)
 int LefRead::viaRuleCB(lefrCallbackType_e c, lefiViaRule* lef_via_rule, lefiUserData data)
 {
   if (lef_via_rule == nullptr) {
-    std::cout << "Via Rule is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Via Rule is nullPtr...");
     return kDbFail;
   }
 
   LefRead* lef_reader = (LefRead*) data;
   if (!lef_reader->check_type(c)) {
-    std::cout << "Check Type Error [Lef : Via Rule] ..." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Check Type Error [Lef : Via Rule] ...");
     return kDbFail;
   }
 
@@ -1355,7 +1415,7 @@ int LefRead::viaRuleCB(lefrCallbackType_e c, lefiViaRule* lef_via_rule, lefiUser
 int LefRead::parse_via_rule(lefiViaRule* lef_via_rule)
 {
   if (lef_via_rule == nullptr) {
-    std::cout << "Via Rule is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Via Rule is nullPtr...");
 
     return kDbFail;
   }
@@ -1408,6 +1468,9 @@ int LefRead::parse_via_rule(lefiViaRule* lef_via_rule)
           int32_t spacing_y = transUnitDB(leflay->spacingStepY());
           via_rule_generate->set_spacing(spacing_x, spacing_y);
         }
+        if (leflay->hasResistance()) {
+          via_rule_generate->set_resistance_per_cut(leflay->resistance());
+        }
       } else {
         /// do nothing
       }
@@ -1423,7 +1486,7 @@ int LefRead::parse_via_rule(lefiViaRule* lef_via_rule)
 int LefRead::nonDefaultCB(lefrCallbackType_e c, lefiNonDefault* def_nd, lefiUserData data)
 {
   if (def_nd == nullptr) {
-    std::cout << "NonDefault Rule is nullPtr..." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "NonDefault Rule is nullPtr...");
     return kDbFail;
   }
 

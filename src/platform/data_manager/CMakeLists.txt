@@ -1,5 +1,3 @@
-include(${HOME_CMAKE}/operation/idb.cmake)
-
 add_library(idm
     idm.cpp
     idm_init.cpp
@@ -21,11 +19,14 @@ add_library(idm
 
 target_link_libraries(idm 
     PUBLIC
+    IdbBuilder
     flow 
-    file_manager_cts 
+    liberty
+    spef
+    vcd
     # file_manager_drc 
-    tool_manager 
-    tool_api_ista 
+    tool_manager
+    ieda_logger
     )
 
 target_include_directories(idm 
@@ -38,10 +39,9 @@ target_include_directories(idm
         ${HOME_PLATFORM}/flow/config
 
         ${HOME_PLATFORM}/tool_manager
-        ${HOME_PLATFORM}/tool_manager/tool_api
-        ${HOME_PLATFORM}/tool_manager/tool_api/irt_io
 
         ${HOME_PLATFORM}/file_manager
+        ${HOME_DATABASE}/manager/parser
 
         ##json
         ${HOME_THIRDPARTY}/json

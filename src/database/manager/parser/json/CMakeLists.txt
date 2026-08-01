@@ -17,3 +17,5 @@ target_include_directories(json-parser
     PUBLIC 
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+target_link_libraries(json-parser PRIVATE ieda_logger)

@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag to release (e.g., v0.1.0-alpha.4)'
+        description: 'Tag to release (e.g., v0.1.0-alpha.8)'
         required: true
-        default: 'v0.1.0-alpha.4'
+        default: 'v0.1.0-alpha.8'
 
 permissions:
   contents: write
@@ -23,7 +23,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag_name || github.ref }}
-          submodules: recursive
           fetch-depth: 0
 
       - name: Build wheel
@@ -34,7 +33,7 @@ jobs:
         with:
           name: ecc-tools-wheel
           path: |
-            dist/wheel/repaired/ecc_tools-*.whl
+            dist/wheel/repaired/*.whl
           if-no-files-found: error
 
   release:
@@ -87,7 +86,7 @@ jobs:
             echo '```'
             (
               cd dist/wheel/repaired
-              sha256sum ecc_tools-*.whl
+              sha256sum *.whl
             )
             echo '```'
           } > release-notes.md
@@ -100,4 +99,4 @@ jobs:
           gh release create "${{ steps.version.outputs.full_tag }}" \
             --title "ecc-tools ${{ steps.version.outputs.full_tag }}" \
             --notes-file release-notes.md \
-            dist/wheel/repaired/ecc_tools-*.whl
+            dist/wheel/repaired/*.whl

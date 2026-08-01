@@ -5,6 +5,7 @@
  * @Description:
  */
 
+#include "utility/logger/Logger.hpp"
 #include <iostream>
 
 #include "idm.h"
@@ -17,11 +18,11 @@ void TestEgrWirelength(std::string guide_path);
 void TestWirelengthEvalFromIDB(const std::string& db_config_path);
 
 void PrintUsage(const char* program_name) {
-  std::cout << "Wirelength Evaluation" << std::endl;
-  std::cout << "Usage: " << program_name << " <function_name>" << std::endl;
-  std::cout << "Available parameters:" << std::endl;
-  std::cout << "  <db_config_path> Path to the database configuration file." << std::endl;
-  std::cout << "  --help, -h       Show this help message and exit." << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Wirelength Evaluation");
+  IEDALOG.info(ieda::Loc::current(), "Usage: ", program_name, " <function_name>");
+  IEDALOG.info(ieda::Loc::current(), "Available parameters:");
+  IEDALOG.info(ieda::Loc::current(), "  <db_config_path> Path to the database configuration file.");
+  IEDALOG.info(ieda::Loc::current(), "  --help, -h       Show this help message and exit.");
 }
 
 int main(const int argc, const char* argv[])
@@ -31,7 +32,7 @@ int main(const int argc, const char* argv[])
       PrintUsage(argv[0]);
       return 0;
     } else {
-      std::cout << "db_config_path: " << arg << std::endl;
+      IEDALOG.info(ieda::Loc::current(), "db_config_path: ", arg);
       TestWirelengthEvalFromIDB(arg);
       // Here are some test functions that can be uncommented to run
       // TestTotalWirelength();
@@ -65,10 +66,10 @@ void TestTotalWirelength()
 
   ieval::TotalWLSummary total_wl = wirelength_api.totalWL(point_sets);
 
-  std::cout << "Total HPWL: " << total_wl.HPWL << std::endl;
-  std::cout << "Total FLUTE: " << total_wl.FLUTE << std::endl;
-  std::cout << "Total HTree: " << total_wl.HTree << std::endl;
-  std::cout << "Total VTree: " << total_wl.VTree << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Total HPWL: ", total_wl.HPWL);
+  IEDALOG.info(ieda::Loc::current(), "Total FLUTE: ", total_wl.FLUTE);
+  IEDALOG.info(ieda::Loc::current(), "Total HTree: ", total_wl.HTree);
+  IEDALOG.info(ieda::Loc::current(), "Total VTree: ", total_wl.VTree);
 }
 
 void TestNetWirelength()
@@ -88,10 +89,10 @@ void TestNetWirelength()
 
   ieval::NetWLSummary net_wl = wirelength_api.netWL(point_set);
 
-  std::cout << "Net HPWL: " << net_wl.HPWL << std::endl;
-  std::cout << "Net FLUTE: " << net_wl.FLUTE << std::endl;
-  std::cout << "Net HTree: " << net_wl.HTree << std::endl;
-  std::cout << "Net VTree: " << net_wl.VTree << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Net HPWL: ", net_wl.HPWL);
+  IEDALOG.info(ieda::Loc::current(), "Net FLUTE: ", net_wl.FLUTE);
+  IEDALOG.info(ieda::Loc::current(), "Net HTree: ", net_wl.HTree);
+  IEDALOG.info(ieda::Loc::current(), "Net VTree: ", net_wl.VTree);
 }
 
 void TestPathWirelength()
@@ -114,10 +115,10 @@ void TestPathWirelength()
 
   ieval::PathWLSummary path_wl = wirelength_api.pathWL(point_set, {point_pair1, point_pair2});
 
-  std::cout << "Path HPWL: " << path_wl.HPWL << std::endl;
-  std::cout << "Path FLUTE: " << path_wl.FLUTE << std::endl;
-  std::cout << "Path HTree: " << path_wl.HTree << std::endl;
-  std::cout << "Path VTree: " << path_wl.VTree << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Path HPWL: ", path_wl.HPWL);
+  IEDALOG.info(ieda::Loc::current(), "Path FLUTE: ", path_wl.FLUTE);
+  IEDALOG.info(ieda::Loc::current(), "Path HTree: ", path_wl.HTree);
+  IEDALOG.info(ieda::Loc::current(), "Path VTree: ", path_wl.VTree);
 }
 
 void TestEgrWirelength(std::string guide_path)
@@ -125,13 +126,13 @@ void TestEgrWirelength(std::string guide_path)
   ieval::WirelengthAPI wirelength_api;
 
   float total_egr_wl = wirelength_api.totalEGRWL(guide_path);
-  std::cout << "Total EGR WL: " << total_egr_wl << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Total EGR WL: ", total_egr_wl);
 
   float net_egr_wl = wirelength_api.netEGRWL(guide_path, "clk");
-  std::cout << "Net EGR WL: " << net_egr_wl << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Net EGR WL: ", net_egr_wl);
 
   float path_egr_wl = wirelength_api.pathEGRWL(guide_path, "clk", "clk_0_buf:I");
-  std::cout << "Path EGR WL: " << path_egr_wl << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Path EGR WL: ", path_egr_wl);
 }
 
 void TestWirelengthEvalFromIDB(const std::string& db_config_path)
@@ -139,17 +140,17 @@ void TestWirelengthEvalFromIDB(const std::string& db_config_path)
   dmInst->init(db_config_path);
   ieval::WirelengthAPI wirelength_api;
   ieval::TotalWLSummary wl_summary = wirelength_api.totalWL();
-  std::cout << "Total HPWL: " << wl_summary.HPWL << std::endl;
-  // std::cout << "Total FLUTE: " << wl_summary.FLUTE << std::endl;
-  // std::cout << "Total HTree: " << wl_summary.HTree << std::endl;
-  // std::cout << "Total VTree: " << wl_summary.VTree << std::endl;
-  // std::cout << "Total GRWL: " << wl_summary.GRWL << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Total HPWL: ", wl_summary.HPWL);
+  // IEDALOG.info(ieda::Loc::current(), "Total FLUTE: ", wl_summary.FLUTE);
+  // IEDALOG.info(ieda::Loc::current(), "Total HTree: ", wl_summary.HTree);
+  // IEDALOG.info(ieda::Loc::current(), "Total VTree: ", wl_summary.VTree);
+  // IEDALOG.info(ieda::Loc::current(), "Total GRWL: ", wl_summary.GRWL);
 
   // ieval::NetWLSummary net_wl_summary = wirelength_api.netWL("req_msg[31]");
-  // std::cout << ">> Net: req_msg[31], Wirelength: " << std::endl;
-  // std::cout << "Net HPWL: " << net_wl_summary.HPWL << std::endl;
-  // std::cout << "Net FLUTE: " << net_wl_summary.FLUTE << std::endl;
-  // std::cout << "Net HTree: " << net_wl_summary.HTree << std::endl;
-  // std::cout << "Net VTree: " << net_wl_summary.VTree << std::endl;
-  // std::cout << "Net GRWL: " << net_wl_summary.GRWL << std::endl;
+  // IEDALOG.info(ieda::Loc::current(), ">> Net: req_msg[31], Wirelength:");
+  // IEDALOG.info(ieda::Loc::current(), "Net HPWL: ", net_wl_summary.HPWL);
+  // IEDALOG.info(ieda::Loc::current(), "Net FLUTE: ", net_wl_summary.FLUTE);
+  // IEDALOG.info(ieda::Loc::current(), "Net HTree: ", net_wl_summary.HTree);
+  // IEDALOG.info(ieda::Loc::current(), "Net VTree: ", net_wl_summary.VTree);
+  // IEDALOG.info(ieda::Loc::current(), "Net GRWL: ", net_wl_summary.GRWL);
 }

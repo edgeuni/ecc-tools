@@ -30,6 +30,7 @@
 #include "idm.h"
 #include "wirelength_api.h"
 
+#include "utility/logger/Logger.hpp"
 namespace iplf {
 
 // template <typename T>
@@ -113,7 +114,7 @@ std::shared_ptr<ieda::ReportTable> ReportEvaluator::createCongestionReport()
   std::string pin_density_file_path = density_map_summay.pin_map_summary.allcell_pin_density;
   std::ifstream pin_density_file(pin_density_file_path);
   if (!pin_density_file.is_open()) {
-    std::cerr << "Error opening file: " << pin_density_file_path << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error opening file: ", pin_density_file_path);
   }
   std::string pin_density_line;
   std::vector<float> pin_density;
@@ -130,7 +131,7 @@ std::shared_ptr<ieda::ReportTable> ReportEvaluator::createCongestionReport()
   std::string inst_density_file_path = density_map_summay.cell_map_summary.allcell_density;
   std::ifstream inst_density_file(inst_density_file_path);
   if (!inst_density_file.is_open()) {
-    std::cerr << "Error opening file: " << inst_density_file_path << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error opening file: ", inst_density_file_path);
   }
   std::string inst_density_line;
   std::vector<float> inst_density;
@@ -156,8 +157,6 @@ std::shared_ptr<ieda::ReportTable> ReportEvaluator::createCongestionReport()
   std::vector<std::string> header = {"Grid Bin Size", "Bin Partition", "Total Count"};
   auto tbl = std::make_shared<ieda::ReportTable>("Congestion Report", header, static_cast<int>(ReportEvaluatorType::kCongestion));
   // // Bin information
-  // *tbl << Str::printf("%d * %d", cong_grid->get_bin_size_x(), cong_grid->get_bin_size_y())
-  //      << Str::printf("%d by %d", cong_grid->get_bin_cnt_x(), cong_grid->get_bin_cnt_y())
   //      << cong_grid->get_bin_cnt_x() * cong_grid->get_bin_cnt_y() << TABLE_ENDLINE;
 
   // Instance Density Information
@@ -165,8 +164,8 @@ std::shared_ptr<ieda::ReportTable> ReportEvaluator::createCongestionReport()
        << "Bins Count"
        << "Percentage " << TABLE_ENDLINE;
   for (int i = inst_den_cnt.size() - 1; i >= 0; --i) {
-    *tbl << ieda::Str::printf("%.2f ~ %.2f", inst_den_range[i], inst_den_range[i + 1]) << inst_den_cnt[i]
-         << ieda::Str::printf("%.2f", 100 * inst_den_cnt[i] / static_cast<double>(inst_density.size())) << TABLE_ENDLINE;
+    *tbl << ReportBase::format("%.2f ~ %.2f", inst_den_range[i], inst_den_range[i + 1]) << inst_den_cnt[i]
+         << ReportBase::format("%.2f", 100 * inst_den_cnt[i] / static_cast<double>(inst_density.size())) << TABLE_ENDLINE;
   }
 
   // Pin Density Information
@@ -174,8 +173,8 @@ std::shared_ptr<ieda::ReportTable> ReportEvaluator::createCongestionReport()
        << "Bins Count"
        << "Percentage" << TABLE_ENDLINE;
   for (int i = pin_den_cnt.size() - 1; i >= 0; --i) {
-    *tbl << ieda::Str::printf("%.0f ~ %.0f", pin_den_range[i], pin_den_range[i + 1]) << pin_den_cnt[i]
-         << ieda::Str::printf("%.2f", 100 * pin_den_cnt[i] / static_cast<double>(pin_density.size())) << TABLE_ENDLINE;
+    *tbl << ReportBase::format("%.0f ~ %.0f", pin_den_range[i], pin_den_range[i + 1]) << pin_den_cnt[i]
+         << ReportBase::format("%.2f", 100 * pin_den_cnt[i] / static_cast<double>(pin_density.size())) << TABLE_ENDLINE;
   }
 
   // evaluate EGR Congestion
@@ -186,8 +185,8 @@ std::shared_ptr<ieda::ReportTable> ReportEvaluator::createCongestionReport()
 
   CONGESTION_API_INST->egrMap("place");                                                 // hard code , only for place stage
   ieval::OverflowSummary overflow_summary = CONGESTION_API_INST->egrOverflow("place");  // hard code , only for place stage
-  *tbl << ieda::Str::printf("%.2f", overflow_summary.weighted_average_overflow_union)
-       << ieda::Str::printf("%.2f", overflow_summary.total_overflow_union) << ieda::Str::printf("%.2f", overflow_summary.max_overflow_union)
+  *tbl << ReportBase::format("%.2f", overflow_summary.weighted_average_overflow_union)
+       << ReportBase::format("%.2f", overflow_summary.total_overflow_union) << ReportBase::format("%.2f", overflow_summary.max_overflow_union)
        << TABLE_ENDLINE;
 
   // Release wrapped congestion instance objects.

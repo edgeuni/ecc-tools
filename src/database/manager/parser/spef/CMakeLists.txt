@@ -20,12 +20,15 @@ bison_target(spefParser
 )
 
 add_library(spef
-  SpefParser.cc
+  SpefAnnotationScanner.cc
+  SpefParserContext.cc
+  SpefReader.cc
+  SpefText.cc
   ${FLEX_spefScanner_OUTPUTS}
   ${BISON_spefParser_OUTPUTS}
 )
 
-target_link_libraries(spef log)
+target_link_libraries(spef ieda_logger)
 target_include_directories(spef
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}

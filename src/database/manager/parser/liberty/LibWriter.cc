@@ -23,6 +23,7 @@
 #include "Lib.hh"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstdio>
 #include <fstream>
 #include <map>
@@ -35,7 +36,7 @@
 
 #include "json/json.hpp"
 
-namespace ista {
+namespace idb {
 
 namespace {
 
@@ -80,10 +81,27 @@ struct BusTypeDefinition
 
 using BusTypeDefinitions = std::map<std::string, BusTypeDefinition>;
 
+std::pair<std::string, std::optional<int>> splitPortName(const char* port_name)
+{
+  std::string name(port_name);
+  if (!name.ends_with("]")) {
+    return {name, std::nullopt};
+  }
+
+  size_t left_bracket_idx = name.find('[');
+  size_t right_bracket_idx = name.find(']', left_bracket_idx);
+  if (left_bracket_idx == std::string::npos || right_bracket_idx == std::string::npos) {
+    return {name, std::nullopt};
+  }
+
+  int index = std::atoi(name.substr(left_bracket_idx + 1, right_bracket_idx - left_bracket_idx - 1).c_str());
+  return {name.substr(0, left_bracket_idx), index};
+}
+
 std::string makeBusRangeKey(const std::string& bus_name, int min_index,
                             int max_index)
 {
-  return Str::printf("%s[%d:%d]", bus_name.c_str(), max_index, min_index);
+  return bus_name + "[" + std::to_string(max_index) + ":" + std::to_string(min_index) + "]";
 }
 
 BusTypeDefinitions collectBusTypeDefinitions(LibLibrary* lib)
@@ -93,7 +111,7 @@ BusTypeDefinitions collectBusTypeDefinitions(LibLibrary* lib)
   for (const auto& cell : lib->get_cells()) {
     std::map<std::string, BusRange> cell_bus_ranges;
     for (const auto& cell_port : cell->get_cell_ports()) {
-      auto [bus_name, index] = Str::matchBusName(cell_port->get_port_name());
+      auto [bus_name, index] = splitPortName(cell_port->get_port_name());
       if (!index) {
         continue;
       }
@@ -117,8 +135,7 @@ BusTypeDefinitions collectBusTypeDefinitions(LibLibrary* lib)
     for (const auto& range : ranges) {
       auto type_name =
           has_multiple_ranges
-              ? Str::printf("%s__%d_%d", bus_name.c_str(), range.max_index,
-                            range.min_index)
+              ? bus_name + "__" + std::to_string(range.max_index) + "_" + std::to_string(range.min_index)
               : bus_name;
       bus_type_definitions.emplace(
           makeBusRangeKey(bus_name, range.min_index, range.max_index),
@@ -414,7 +431,9 @@ void writeDelayTable(FILE* stream, LibLibrary* lib, const char* table_name,
   }
 
   auto& table_values = table->get_table_values();
-  LOG_FATAL_IF(table_values.size() > 1);
+  if (table_values.size() > 1) {
+    IEDALOG.error(ieda::Loc::current(), "Liberty scalar table has more than one value.");
+  }
   auto float_value
       = dynamic_cast<LibFloatValue*>(table_values.front().get())->getFloatValue();
   fprintf(stream, "                        %s(scalar) {\n", table_name);
@@ -445,7 +464,9 @@ void writeCheckTable(FILE* stream, LibLibrary* lib, const char* table_name,
   }
 
   auto& table_values = table->get_table_values();
-  LOG_FATAL_IF(table_values.size() > 1);
+  if (table_values.size() > 1) {
+    IEDALOG.error(ieda::Loc::current(), "Liberty scalar table has more than one value.");
+  }
   auto float_value
       = dynamic_cast<LibFloatValue*>(table_values.front().get())->getFloatValue();
   fprintf(stream, "                       %s(scalar) {\n", table_name);
@@ -475,6 +496,10 @@ void writeDelayTableModel(FILE* stream, LibArc* lib_arc)
       related_pin && *related_pin) {
     fprintf(stream, "                       related_pin        : \"%s\";\n",
             related_pin);
+  }
+  if (const auto& sdf_cond = lib_arc->get_sdf_cond(); !sdf_cond.empty()) {
+    fprintf(stream, "                       sdf_cond           : \"%s\";\n",
+            sdf_cond.c_str());
   }
   if (const auto& when = lib_arc->get_when(); !when.empty()) {
     fprintf(stream, "                       when               : \"%s\";\n",
@@ -520,13 +545,19 @@ void writeCheckTableModel(FILE* stream, LibArc* lib_arc)
       {LibArc::TimingType::kRecoveryRising, "recovery_rising"},
       {LibArc::TimingType::kRecoveryFalling, "recovery_falling"},
       {LibArc::TimingType::kRemovalRising, "removal_rising"},
-      {LibArc::TimingType::kRemovalFalling, "removal_falling"}};
+      {LibArc::TimingType::kRemovalFalling, "removal_falling"},
+      {LibArc::TimingType::kMinPulseWidth, "min_pulse_width"},
+      {LibArc::TimingType::kMinimunPeriod, "minimum_period"}};
 
   fprintf(stream, "                timing () {\n");
   if (const char* related_pin = lib_arc->get_src_port();
       related_pin && *related_pin) {
     fprintf(stream, "                       related_pin        : \"%s\";\n",
             related_pin);
+  }
+  if (const auto& sdf_cond = lib_arc->get_sdf_cond(); !sdf_cond.empty()) {
+    fprintf(stream, "                       sdf_cond           : \"%s\";\n",
+            sdf_cond.c_str());
   }
   if (const auto& when = lib_arc->get_when(); !when.empty()) {
     fprintf(stream, "                       when               : \"%s\";\n",
@@ -559,6 +590,8 @@ bool isExportedCheckTimingType(LibArc::TimingType timing_type)
     case LibArc::TimingType::kRecoveryFalling:
     case LibArc::TimingType::kRemovalRising:
     case LibArc::TimingType::kRemovalFalling:
+    case LibArc::TimingType::kMinPulseWidth:
+    case LibArc::TimingType::kMinimunPeriod:
       return true;
     default:
       return false;
@@ -651,7 +684,7 @@ void writeLibertyCell(FILE* stream, LibCell* lib_cell,
     if (auto arc_iter = snkport2arcset.find(port_name);
         arc_iter != snkport2arcset.end()) {
       for (const auto& arc : arc_iter->second) {
-        if (arc->isCheckArc()) {
+        if (arc->isCheckTableArc()) {
           if (isExportedCheckTimingType(arc->get_timing_type())) {
             writeCheckTableModel(stream, arc);
           }
@@ -666,7 +699,7 @@ void writeLibertyCell(FILE* stream, LibCell* lib_cell,
 
   std::map<std::string, std::vector<std::pair<int, LibPort*>>> bus_ports;
   for (const auto& cell_port : lib_cell->get_cell_ports()) {
-    auto [bus_name, index] = Str::matchBusName(cell_port->get_port_name());
+    auto [bus_name, index] = splitPortName(cell_port->get_port_name());
     if (index) {
       bus_ports[bus_name].emplace_back(*index, cell_port.get());
     }
@@ -675,7 +708,7 @@ void writeLibertyCell(FILE* stream, LibCell* lib_cell,
   std::set<std::string> written_bus_names;
   std::set<std::string> written_port_names;
   for (const auto& cell_port : lib_cell->get_cell_ports()) {
-    auto [bus_name, index] = Str::matchBusName(cell_port->get_port_name());
+    auto [bus_name, index] = splitPortName(cell_port->get_port_name());
     if (index) {
       if (!written_bus_names.insert(bus_name).second) {
         continue;
@@ -784,11 +817,11 @@ void LibLibrary::printLibertyLibrary(const char* lib_file_name)
 {
   FILE* stream = std::fopen(lib_file_name, "w");
   if (!stream) {
-    LOG_ERROR << "File " << lib_file_name << " NotWritable";
+    IEDALOG.warn(ieda::Loc::current(), "File ", lib_file_name, " NotWritable");
     return;
   }
 
-  LOG_INFO << "start write liberty file " << lib_file_name;
+  IEDALOG.info(ieda::Loc::current(), "start write liberty file ", lib_file_name);
 
   fprintf(stream, "library (%s) {\n", get_lib_name().c_str());
 
@@ -871,7 +904,7 @@ void LibLibrary::printLibertyLibrary(const char* lib_file_name)
   }
   fprintf(stream, "}\n");
 
-  LOG_INFO << "finish write liberty file " << lib_file_name;
+  IEDALOG.info(ieda::Loc::current(), "finish write liberty file ", lib_file_name);
   std::fclose(stream);
 }
 
@@ -897,13 +930,13 @@ void LibLibrary::printLibertyLibraryJson(const char* json_file_name)
 
   std::ofstream json_file(json_file_name);
   if (json_file.is_open()) {
-    LOG_INFO << "start write liberty into json file: " << json_file_name;
+    IEDALOG.info(ieda::Loc::current(), "start write liberty into json file: ", json_file_name);
     json_file << json_data.dump(1);
     json_file.close();
-    LOG_INFO << "success write liberty into json file: " << json_file_name;
+    IEDALOG.info(ieda::Loc::current(), "success write liberty into json file: ", json_file_name);
   } else {
-    LOG_INFO << "fail write liberty into json file: " << json_file_name;
+    IEDALOG.info(ieda::Loc::current(), "fail write liberty into json file: ", json_file_name);
   }
 }
 
-}  // namespace ista
+}  // namespace idb

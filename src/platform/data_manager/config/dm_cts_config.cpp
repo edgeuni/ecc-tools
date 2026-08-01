@@ -27,6 +27,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "utility/logger/Logger.hpp"
 #include "dm_cts_config.h"
 
 #include <stdio.h>
@@ -76,7 +77,7 @@ bool CtsConfig::checkFilePath(string path)
 {
   FILE* file = fopen(path.c_str(), "r");
   if (file == nullptr) {
-    std::cout << "[DataConfig error] : Can not open file = " << path << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "[DataConfig error] : Can not open file = ", path);
 
     return false;
   }

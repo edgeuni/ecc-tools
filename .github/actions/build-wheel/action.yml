@@ -21,9 +21,6 @@ runs:
       shell: bash
       run: echo "/opt/python/cp311-cp311/bin" >> "$GITHUB_PATH"
 
-    - name: Setup Rust
-      uses: dtolnay/rust-toolchain@stable
-
     - name: Setup sccache
       uses: mozilla-actions/sccache-action@v0.0.9
 
@@ -32,12 +29,6 @@ runs:
       with:
         version: latest
         enable-cache: true
-
-    - name: Install Python dev dependencies
-      shell: bash
-      run: |
-        uv sync --all-groups --python 3.11
-        echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
 
     - name: Restore CMake build cache
       uses: actions/cache@v4
@@ -51,4 +42,10 @@ runs:
       shell: bash
       env:
         SCCACHE_GHA_ENABLED: "true"
-      run: .github/scripts/build-wheel.sh
+      run: |
+        export CMAKE_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+        uv sync --no-install-project
+        uv build --wheel --no-build-isolation --verbose
+        mkdir -p dist/wheel/repaired
+        uv run --no-sync -m auditwheel show dist/*.whl
+        uv run --no-sync -m auditwheel repair dist/*.whl -w dist/wheel/repaired

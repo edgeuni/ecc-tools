@@ -8,17 +8,17 @@
 
 #include "PLAPI.hh"
 #include "idm.h"
-#include "log/Log.hh"
+#include "utility/logger/Logger.hpp"
 #include "timing_api.hh"
 void TestTiming(const string& db_config_path);
 
 void PrintUsage(const char* program_name)
 {
-  std::cout << "timing evaluation" << std::endl;
-  std::cout << "Usage: " << program_name << " <function_name>" << std::endl;
-  std::cout << "Available parameters:" << std::endl;
-  std::cout << "  <db_config_path> Path to the database configuration file." << std::endl;
-  std::cout << "  --help, -h       Show this help message and exit." << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "timing evaluation");
+  IEDALOG.info(ieda::Loc::current(), "Usage: ", program_name, " <function_name>");
+  IEDALOG.info(ieda::Loc::current(), "Available parameters:");
+  IEDALOG.info(ieda::Loc::current(), "  <db_config_path> Path to the database configuration file.");
+  IEDALOG.info(ieda::Loc::current(), "  --help, -h       Show this help message and exit.");
 }
 
 int main(const int argc, const char* argv[])
@@ -32,7 +32,7 @@ int main(const int argc, const char* argv[])
     }
     return 0;
   }
-  std::cerr << "Error: Incorrect number of arguments." << std::endl;
+  IEDALOG.warn(ieda::Loc::current(), "Error: Incorrect number of arguments.");
   PrintUsage(argv[0]);
   return 1;
 }
@@ -57,19 +57,19 @@ void TestTiming(const string& db_config_path)
   // timing_api->runSTA();
   timing_api->evalTiming("FLUTE");
   auto summary = timing_api->evalDesign();
-  LOG_INFO << ">> Design Timing Evaluation: ";
+  IEDALOG.info(ieda::Loc::current(), ">> Design Timing Evaluation: ");
   for (auto routing_type : {"HPWL", "FLUTE", "SALT", "EGR", "DR"}) {
     if (summary.contains(routing_type) == false) {
       continue;
     }
     auto timing_summary = summary[routing_type];
-    LOG_INFO << "Routing type: " << routing_type;
+    IEDALOG.info(ieda::Loc::current(), "Routing type: ", routing_type);
     for (auto& clock_timing : timing_summary.clock_timings) {
-      LOG_INFO << "Clock: " << clock_timing.clock_name << " Setup WNS: " << clock_timing.setup_wns
-               << " Setup TNS: " << clock_timing.setup_tns << " Hold WNS: " << clock_timing.hold_wns
-               << " Hold TNS: " << clock_timing.hold_tns << " Suggest freq: " << clock_timing.suggest_freq;
+      IEDALOG.info(ieda::Loc::current(), "Clock: ", clock_timing.clock_name, " Setup WNS: ", clock_timing.setup_wns,
+                   " Setup TNS: ", clock_timing.setup_tns, " Hold WNS: ", clock_timing.hold_wns, " Hold TNS: ",
+                   clock_timing.hold_tns, " Suggest freq: ", clock_timing.suggest_freq);
     }
-    LOG_INFO << "Static power: " << timing_summary.static_power;
-    LOG_INFO << "Dynamic power: " << timing_summary.dynamic_power;
+    IEDALOG.info(ieda::Loc::current(), "Static power: ", timing_summary.static_power);
+    IEDALOG.info(ieda::Loc::current(), "Dynamic power: ", timing_summary.dynamic_power);
   }
 }

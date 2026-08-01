@@ -31,6 +31,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "utility/logger/Logger.hpp"
 #include "IdbDesign.h"
 #include "IdbInstance.h"
 #include "feature_drc.h"
@@ -41,8 +42,8 @@ namespace ieda_feature {
 
 bool FeatureParser::buildMacroDrc(std::string path, std::string drc_path)
 {
-  std::cout << "path : " << path << std::endl;
-  std::cout << "drc_path : " << drc_path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "path : ", path);
+  IEDALOG.info(ieda::Loc::current(), "drc_path : ", drc_path);
 
   DrcMacroDistribution macro_drc;
   /// init macro info
@@ -58,12 +59,12 @@ bool FeatureParser::buildMacroDrc(std::string path, std::string drc_path)
     macro_drc.macro_list[macro->get_name()] = drc_macro;
   }
 
-  std::cout << "macro size : " << macro_drc.macro_list.size() << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "macro size : ", macro_drc.macro_list.size());
 
   /// load drc json
   auto json_file = std::ifstream(drc_path);
   if (false == json_file.is_open()) {
-    std::cout << "Error, can't open file : " << drc_path << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error, can't open file : ", drc_path);
     return false;
   }
 
@@ -129,8 +130,7 @@ bool FeatureParser::buildMacroDrc(std::string path, std::string drc_path)
 
     root_output["macro_list"][name] = json_macro;
 
-    std::cout << "macro " << name << " " << macro.drc_num << " " << macro.llx << " " << macro.lly << " " << macro.urx << " " << macro.ury
-              << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "macro ", name, " ", macro.drc_num, " ", macro.llx, " ", macro.lly, " ", macro.urx, " ", macro.ury);
     macro_num++;
     macro_drc_num += macro.drc_num;
   }

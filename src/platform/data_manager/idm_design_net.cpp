@@ -27,8 +27,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "utility/logger/Logger.hpp"
 #include "idm.h"
-#include "ista_io.h"
 #include "tool_manager.h"
 
 namespace idm {
@@ -262,7 +262,7 @@ IdbInstance* DataManager::getIoCellByIoPin(IdbPin* io_pin)
 {
   IdbNet* net = io_pin->get_net();
   if (net == nullptr) {
-    std::cout << "Error : can not find net for IO pin " << io_pin->get_pin_name() << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error : can not find net for IO pin ", io_pin->get_pin_name());
     return nullptr;
   }
 
@@ -283,9 +283,10 @@ IdbInstance* DataManager::getIoCellByIoPin(IdbPin* io_pin)
  */
 vector<string> DataManager::getClockNetNameList()
 {
-  vector<string> clock_name_List;
+  // vector<string> clock_name_List;
 
-  return staInst->getClockNetNameList();
+  // return staInst->getClockNetNameList();
+  return {};
 }
 /**
  * @brief check if net is a clock net
@@ -296,7 +297,8 @@ vector<string> DataManager::getClockNetNameList()
  */
 bool DataManager::isClockNet(string net_name)
 {
-  return staInst->isClockNet(net_name);
+  // return staInst->isClockNet(net_name);
+  return false;
 }
 /**
  * merge segment wire for all nets

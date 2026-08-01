@@ -44,11 +44,11 @@ class SASummary
   int32_t total_supply = 0;
 };
 
-class TGSummary
+class PRSummary
 {
  public:
-  TGSummary() = default;
-  ~TGSummary() = default;
+  PRSummary() = default;
+  ~PRSummary() = default;
   double total_demand = 0;
   double total_overflow = 0;
   double total_wire_length = 0;
@@ -143,7 +143,7 @@ class Summary
   ~Summary() = default;
   std::map<int32_t, PASummary> iter_pa_summary_map;
   SASummary sa_summary;
-  TGSummary tg_summary;
+  PRSummary pr_summary;
   LASummary la_summary;
   std::map<int32_t, SRSummary> iter_sr_summary_map;
   TASummary ta_summary;

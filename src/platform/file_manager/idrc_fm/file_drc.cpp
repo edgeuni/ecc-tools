@@ -29,6 +29,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#include "utility/logger/Logger.hpp"
 #include "file_drc.h"
 
 #include <cstring>
@@ -37,8 +38,8 @@
 
 #include "DRCViolationType.h"
 #include "IdbLayer.h"
+#include "feature_manager.h"
 #include "idm.h"
-#include "idrc_io.h"
 #include "ids.hpp"
 #include "json_parser.h"
 
@@ -74,7 +75,7 @@ bool FileDrcManager::saveJson()
   if (tail_str != "json") {
     return false;
   }
-  std::cout << std::endl << "Begin save feature json, path = " << path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Begin save feature json, path = ", path);
 
   //   auto idb_insts = dmInst->get_idb_design()->get_instance_list();
   auto idb_nets = dmInst->get_idb_design()->get_net_list();
@@ -85,7 +86,7 @@ bool FileDrcManager::saveJson()
   int total = 0;  /// drc total number
 
   json json_distribution;
-  std::map<std::string, std::map<std::string, std::vector<ids::Violation>>>& detail_rule_map = drcInst->getDetailCheckResult();
+  std::map<std::string, std::map<std::string, std::vector<ids::Violation>>>& detail_rule_map = featureInst->get_type_layer_violation_map();
 
   for (auto& [type, drc_list_map] : detail_rule_map) {
     json json_rule;
@@ -163,7 +164,7 @@ bool FileDrcManager::saveJson()
 
   file_stream.close();
 
-  std::cout << std::endl << "Save feature json success, path = " << path << " total violation : " << total << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Save feature json success, path = ", path, " total violation : ", total);
   return true;
 }
 
@@ -178,7 +179,7 @@ bool FileDrcManager::readJson()
 
 void FileDrcManager::parseJson(std::string path)
 {
-  std::map<std::string, std::map<std::string, std::vector<ids::Violation>>>& detail_rule_map = drcInst->getDetailCheckResult();
+  std::map<std::string, std::map<std::string, std::vector<ids::Violation>>>& detail_rule_map = featureInst->get_type_layer_violation_map();
   detail_rule_map.clear();
 
   nlohmann::json json;

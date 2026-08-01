@@ -62,7 +62,7 @@ typedef struct LibertyExpr
 } LibertyExpr;
 
 /**
- * @brief parse expression in rust.
+ * @brief Parse expression.
  *
  * @param expr_str
  * @return void*
@@ -368,7 +368,7 @@ class LibSimpleAttribute;
 class LibVarDecl;
 }  // namespace liberty
 
-namespace ista {
+namespace idb {
 
 class LibBuilder;
 namespace liberty_ast = ::liberty;
@@ -482,4 +482,4 @@ class LibertyReader
   LibBuilder* _library_builder;  //!< The liberty library builder.
 };
 
-}  // namespace ista
+}  // namespace idb

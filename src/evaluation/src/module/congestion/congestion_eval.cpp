@@ -22,14 +22,63 @@
 #include "idm.h"
 #include "init_egr.h"
 #include "init_idb.h"
+#include "map_layout_writer.h"
 #include "wirelength_lut.h"
 
+#include "utility/logger/Logger.hpp"
 namespace ieval {
 
 #define EVAL_INIT_EGR_INST (ieval::InitEGR::getInst())
 #define EVAL_INIT_IDB_INST (ieval::InitIDB::getInst())
 
 CongestionEval* CongestionEval::_congestion_eval = nullptr;
+
+namespace {
+std::vector<int32_t> parseCsvInts(const std::string& line)
+{
+  std::vector<int32_t> values;
+  std::istringstream iss(line);
+  std::string value;
+  while (std::getline(iss, value, ',')) {
+    if (!value.empty()) {
+      values.push_back(std::stoi(value));
+    }
+  }
+  return values;
+}
+
+void writeEGRLayoutCsv(const std::string& rt_dir_path, const std::string& map_dir, const std::vector<std::vector<double>>& matrix)
+{
+  if (matrix.empty() || matrix.front().empty()) {
+    return;
+  }
+
+  std::ifstream gcell_file(rt_dir_path + "/early_router/gcell.info");
+  if (!gcell_file.is_open()) {
+    return;
+  }
+
+  const int32_t matrix_rows = static_cast<int32_t>(matrix.size());
+  const int32_t matrix_cols = static_cast<int32_t>(matrix.front().size());
+  std::vector<MapLayoutCell> cells;
+  std::string line;
+  while (std::getline(gcell_file, line)) {
+    std::vector<int32_t> row = parseCsvInts(line);
+    if (row.size() < 6) {
+      continue;
+    }
+
+    int32_t grid_x = row[0];
+    int32_t grid_y = row[1];
+    if (grid_x < 0 || grid_x >= matrix_rows || grid_y < 0 || grid_y >= matrix_cols) {
+      continue;
+    }
+    cells.push_back({grid_x, grid_y, grid_x, grid_y, row[2], row[3], row[4], row[5]});
+  }
+
+  writeMapLayoutCsv(map_dir, cells);
+}
+}  // namespace
 
 CongestionEval::CongestionEval()
 {
@@ -182,8 +231,8 @@ string CongestionEval::evalEGR(string rt_dir_path, string egr_type, string outpu
       = EVAL_INIT_EGR_INST->parseLayerDirection(rt_dir_path + "/early_router/route.guide");
 
   // for (const auto& [layer, direction] : LayerDirections) {
-  //   std::cout << "Layer: " << layer << ", Direction: " << (direction == LayerDirection::Horizontal ? "Horizontal" : "Vertical")
-  //             << std::endl;
+  //   IEDALOG.info(ieda::Loc::current(), "Layer: ", layer, ", Direction: ",
+  //                direction == LayerDirection::Horizontal ? "Horizontal" : "Vertical");
   // }
   std::vector<std::string> target_layers;
   if (egr_type == "horizontal" || egr_type == "vertical") {
@@ -237,7 +286,8 @@ string CongestionEval::evalEGR(string rt_dir_path, string egr_type, string outpu
   }
 
   std::string save_dir = "/egr_congestion_map";
-  std::string output_path = createDirPath(save_dir) + "/" + output_filename;
+  std::string map_dir = createDirPath(save_dir);
+  std::string output_path = map_dir + "/" + output_filename;
 
   std::ofstream out_file(output_path);
   for (const auto& row : sum_matrix) {
@@ -250,6 +300,7 @@ string CongestionEval::evalEGR(string rt_dir_path, string egr_type, string outpu
     out_file << "\n";
   }
   out_file.close();
+  writeEGRLayoutCsv(rt_dir_path, map_dir, sum_matrix);
 
   return output_path;
 }
@@ -332,7 +383,8 @@ string CongestionEval::evalRUDY(CongestionNets nets, CongestionRegion region, in
   }
 
   std::string save_dir = "/RUDY_map";
-  std::string output_path = createDirPath(save_dir) + "/" + output_filename;
+  std::string map_dir = createDirPath(save_dir);
+  std::string output_path = map_dir + "/" + output_filename;
   std::ofstream csv_file(output_path);
 
   for (size_t row_index = density_grid.size(); row_index-- > 0;) {
@@ -346,6 +398,7 @@ string CongestionEval::evalRUDY(CongestionNets nets, CongestionRegion region, in
   }
 
   csv_file.close();
+  writeMapLayoutCsv(map_dir, grid_cols, grid_rows, grid_size, region.lx, region.ly, region.ux, region.uy);
 
   return getAbsoluteFilePath(output_path);
 }
@@ -451,7 +504,8 @@ string CongestionEval::evalLUTRUDY(CongestionNets nets, CongestionRegion region,
   }
 
   std::string save_dir = "/RUDY_map";
-  std::string output_path = createDirPath(save_dir) + "/" + output_filename;
+  std::string map_dir = createDirPath(save_dir);
+  std::string output_path = map_dir + "/" + output_filename;
   std::ofstream csv_file(output_path);
 
   for (size_t row_index = density_grid.size(); row_index-- > 0;) {
@@ -465,6 +519,7 @@ string CongestionEval::evalLUTRUDY(CongestionNets nets, CongestionRegion region,
   }
 
   csv_file.close();
+  writeMapLayoutCsv(map_dir, grid_cols, grid_rows, grid_size, region.lx, region.ly, region.ux, region.uy);
 
   return getAbsoluteFilePath(output_path);
 }
@@ -1544,7 +1599,7 @@ std::map<std::string, std::vector<std::vector<int>>> CongestionEval::getEGRMap(b
 {
   std::string congestion_dir = dmInst->get_config().get_output_path() + "/rt/rt_temp_directory/early_router";
 
-  printf("congestion_dir: %s\n", congestion_dir.c_str());
+  IEDALOG.info(ieda::Loc::current(), "congestion_dir: ", congestion_dir);
   // check if congestion_dir is empty
   // if (is_run_egr == true) {
   std::filesystem::path cong_dir_path(congestion_dir);
@@ -1601,7 +1656,7 @@ std::map<std::string, std::vector<std::vector<int>>> CongestionEval::getDemandSu
   std::string demand_dir = congestion_dir + "/early_router";
   std::string supply_dir = congestion_dir + "/early_router";
 
-  printf("demand_dir: %s\nsupply_dir: %s\n", demand_dir.c_str(), supply_dir.c_str());
+  IEDALOG.info(ieda::Loc::current(), "demand_dir: ", demand_dir, ", supply_dir: ", supply_dir);
 
   // store the final diff matrices
   std::map<std::string, std::vector<std::vector<int>>> diff_map;
@@ -1682,7 +1737,7 @@ std::map<std::string, std::vector<std::vector<int>>> CongestionEval::getDemandSu
         }
         diff_map[layer_name] = diff_matrix;
       } else {
-        printf("Warning: Matrix size mismatch for layer %s\n", layer_name.c_str());
+        IEDALOG.warn(ieda::Loc::current(), "Matrix size mismatch for layer ", layer_name, ".");
       }
     }
   }
@@ -1705,7 +1760,7 @@ std::tuple<std::map<std::string, std::pair<CongestionMatrix, CongestionMatrix>>,
   std::string demand_dir = congestion_dir + "/early_router";
   std::string supply_dir = congestion_dir + "/early_router";
 
-  printf("demand_dir: %s\nsupply_dir: %s\n", demand_dir.c_str(), supply_dir.c_str());
+  IEDALOG.info(ieda::Loc::current(), "demand_dir: ", demand_dir, ", supply_dir: ", supply_dir);
 
   // 用于存储最终的差值矩阵
   std::map<std::string, std::pair<CongestionMatrix, CongestionMatrix>> result_map;
@@ -1780,7 +1835,7 @@ std::tuple<std::map<std::string, std::pair<CongestionMatrix, CongestionMatrix>>,
         CongestionMatrix supply_congestion(supply_matrix);
         result_map[layer_name] = std::make_pair(demand_congestion, supply_congestion);
       } else {
-        printf("Warning: Matrix size mismatch for layer %s\n", layer_name.c_str());
+        IEDALOG.warn(ieda::Loc::current(), "Matrix size mismatch for layer ", layer_name, ".");
       }
     }
   }
@@ -1887,7 +1942,7 @@ std::map<int, double> CongestionEval::patchEGRCongestion(std::map<int, std::pair
   const size_t matrix_cols = matrix_rows > 0 ? first_matrix[0].size() : 0;
 
   if (matrix_rows == 0 || matrix_cols == 0) {
-    std::cerr << "Error: Empty congestion matrix" << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error: Empty congestion matrix");
     return patch_egr_congestion;
   }
 
@@ -1950,7 +2005,7 @@ std::map<int, std::map<std::string, double>> CongestionEval::patchLayerEGRConges
   const size_t matrix_cols = matrix_rows > 0 ? first_matrix[0].size() : 0;
 
   if (matrix_rows == 0 || matrix_cols == 0) {
-    std::cerr << "Error: Empty congestion matrix" << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error: Empty congestion matrix");
     return patch_layer_congestion;
   }
 

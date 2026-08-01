@@ -22,9 +22,10 @@ catboost_info
 *.pwr
 *.codex
 
-.agents 
-.codex 
+.agents
+.codex
 .trellis
+AGENTS.md
 
 rpt*/
 target/
@@ -43,3 +44,7 @@ __pycache__
 
 # Prevent accidental re-addition of removed submodules
 src/third_party/mt-kahypar/
+
+.direnv
+result
+.ccache

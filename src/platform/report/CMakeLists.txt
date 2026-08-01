@@ -1,5 +1,4 @@
-include(${HOME_CMAKE}/operation/idb.cmake)
-
+add_subdirectory(report_table)
 add_subdirectory(report_basic)
 add_subdirectory(report_db)
 add_subdirectory(report_evaluator)
@@ -19,6 +18,7 @@ target_link_libraries(ieda_report
         ieda_report_route
         ieda_report_place
         ieda_report_drc
+        ieda_logger
 )
 
 target_include_directories(ieda_report 

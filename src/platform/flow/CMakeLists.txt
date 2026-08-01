@@ -5,7 +5,7 @@ add_library(flow
   flow.cpp
 )
 
-target_link_libraries(flow tool_manager flow_config ieda_tcl file_manager_cts 
+target_link_libraries(flow tool_manager flow_config ieda_tcl ieda_logger
 # file_manager_drc
 )
 target_include_directories(flow 
@@ -16,6 +16,4 @@ target_include_directories(flow
         ${HOME_PLATFORM}/tool_manager
         ${HOME_PLATFORM}/tool_manager/module
 )
-
-
 
