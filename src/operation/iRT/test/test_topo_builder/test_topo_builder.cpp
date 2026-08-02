@@ -12,6 +12,7 @@
 #include "TOPOBuilder.hpp"
 #include "TopoSvgPlotter.hpp"
 
+#include "utility/logger/Logger.hpp"
 namespace {
 
 using irt::PlanarCoord;
@@ -41,14 +42,14 @@ bool parsePlotConfig(int argc, char* argv[], PlotConfig& plot_config)
     plot_config.output_directory = argv[2];
     return true;
   }
-  std::cerr << "Usage: test_topo_builder [--plot-dir <directory>]\n";
+  IEDALOG.warn(ieda::Loc::current(), "Usage: test_topo_builder [--plot-dir <directory>]");
   return false;
 }
 
 bool check(bool condition, const std::string& case_name)
 {
   if (!condition) {
-    std::cerr << "Failed: " << case_name << '\n';
+    IEDALOG.warn(ieda::Loc::current(), "Failed: ", case_name);
   }
   return condition;
 }
@@ -145,7 +146,7 @@ bool writeTopoPlot(const PlotConfig& plot_config, const std::string& case_id, co
                                   topo_run_result.legal_topo_list};
   std::string error_message;
   if (!irt::writeTopoSvg(file_path.string(), request, error_message)) {
-    std::cerr << "Failed to write " << file_path << ": " << error_message << '\n';
+    IEDALOG.warn(ieda::Loc::current(), "Failed to write ", file_path, ": ", error_message);
     return false;
   }
 
@@ -154,7 +155,7 @@ bool writeTopoPlot(const PlotConfig& plot_config, const std::string& case_id, co
   if (svg_content.find("<svg") == std::string::npos || svg_content.find("data-layer=\"obstacle\"") == std::string::npos
       || svg_content.find("data-layer=\"flute-topology\"") == std::string::npos
       || svg_content.find("data-layer=\"legal-topology\"") == std::string::npos) {
-    std::cerr << "The SVG output is incomplete: " << file_path << '\n';
+    IEDALOG.warn(ieda::Loc::current(), "The SVG output is incomplete: ", file_path);
     return false;
   }
   return true;

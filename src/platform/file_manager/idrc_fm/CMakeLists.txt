@@ -6,6 +6,7 @@ target_link_libraries(file_manager_drc
 file_manager_base  
 idm
 ieda_feature
+ieda_logger
 )
 
 target_include_directories(file_manager_drc

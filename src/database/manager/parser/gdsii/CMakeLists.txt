@@ -16,4 +16,6 @@ target_include_directories(gdsii-parser
     PUBLIC 
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+target_link_libraries(gdsii-parser PRIVATE ieda_logger)
 # SET(CMAKE_BUILD_TYPE "Debug")

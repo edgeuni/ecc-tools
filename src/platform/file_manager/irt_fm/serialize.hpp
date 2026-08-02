@@ -1,4 +1,5 @@
 #pragma once
+#include "utility/logger/Logger.hpp"
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -61,7 +62,7 @@ class Persister
     oarchive oar = getOarchive();
     Archive(oar, args...);
     oar << _signature;
-    std::cout << "Serialize timecost: " << timer.elapsed() << " ms\n";
+    IEDALOG.info(ieda::Loc::current(), "Serialize timecost: ", timer.elapsed(), " ms");
   }
   template <InEqualable T>
   void saveWithHeader(const T& header, Args&... args)
@@ -107,7 +108,7 @@ class Persister
     if (sig != _signature) {
       throw std::runtime_error("Invalid serialize data.");
     }
-    std::cout << "Deserialize timecost: " << timer.elapsed() << " ms\n";
+    IEDALOG.info(ieda::Loc::current(), "Deserialize timecost: ", timer.elapsed(), " ms");
   }
 
   oarchive getOarchive()

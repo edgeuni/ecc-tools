@@ -8,6 +8,8 @@ PUBLIC
         file_manager_db
         pybind11::pybind11
         ieda_report
+        ieda_logger
+        geometry_builder
 )
 target_include_directories(py_idb
 PUBLIC

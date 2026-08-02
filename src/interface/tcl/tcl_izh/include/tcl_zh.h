@@ -50,6 +50,20 @@ class TclZHInsertFiller : public TclCmd
   std::vector<std::pair<std::string, ValueType>> _config_list;
 };
 
+class TclZHInsertMetal : public TclCmd
+{
+ public:
+  explicit TclZHInsertMetal(const char* cmd_name);
+  ~TclZHInsertMetal() override = default;
+
+  unsigned check() override { return 1; };
+
+  unsigned exec() override;
+
+ private:
+  std::vector<std::pair<std::string, ValueType>> _config_list;
+};
+
 #endif
 
 }  // namespace tcl

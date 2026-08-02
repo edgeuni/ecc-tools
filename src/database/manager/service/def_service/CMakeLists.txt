@@ -8,7 +8,7 @@ else()
   )
 endif()
 
-target_link_libraries(def_service PRIVATE  idb)
+target_link_libraries(def_service PRIVATE idb ieda_logger)
 
 target_include_directories(def_service 
     PUBLIC

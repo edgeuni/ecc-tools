@@ -22,6 +22,7 @@
  * @Creat Date : 2022-04-15
  *
  */
+#include "utility/logger/Logger.hpp"
 #include "tcl_config.h"
 
 #include <iostream>
@@ -55,7 +56,7 @@ unsigned CmdFlowInitConfig::exec()
   auto data_config = option->getStringVal();
   iplf::plfInst->initFlow(data_config);
 
-  std::cout << "Init Flow Config success." << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Init Flow Config success.");
   return 1;
 }
 

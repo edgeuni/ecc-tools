@@ -21,4 +21,4 @@ target_include_directories(def_builder
         ${HOME_THIRDPARTY}/lefdef/def/defzlib
 )
 
-target_link_libraries(def_builder PRIVATE  def defzlib geometry_db)
+target_link_libraries(def_builder PRIVATE def defzlib geometry_db ieda_logger)

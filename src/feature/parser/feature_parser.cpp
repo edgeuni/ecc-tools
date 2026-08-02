@@ -31,6 +31,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#include "utility/logger/Logger.hpp"
 #include "feature_parser.h"
 
 #include "feature_summary.h"
@@ -87,7 +88,7 @@ bool FeatureParser::buildSummary(std::string json_path)
 
   ieda::closeFileStream(file_stream);
 
-  std::cout << std::endl << "Save feature json success, path = " << json_path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Save feature json success, path = ", json_path);
   return true;
 }
 
@@ -122,7 +123,7 @@ bool FeatureParser::buildTools(std::string json_path, std::string step)
 
   ieda::closeFileStream(file_stream);
 
-  std::cout << std::endl << "Save feature json success, path = " << json_path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Save feature json success, path = ", json_path);
 
   return true;
 }
@@ -157,7 +158,7 @@ bool FeatureParser::buildRouteData(std::string json_path, RouteAnalyseData* data
   file_stream << std::setw(4) << root;
   ieda::closeFileStream(file_stream);
 
-  std::cout << std::endl << "Save feature json success, path = " << json_path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Save feature json success, path = ", json_path);
   return true;
 }
 
@@ -224,7 +225,7 @@ bool FeatureParser::buildSummaryEval(std::string json_path)
 
   ieda::closeFileStream(file_stream);
 
-  std::cout << std::endl << "Save eval json success, path = " << json_path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Save eval json success, path = ", json_path);
   return true;
 }
 
@@ -242,7 +243,7 @@ bool FeatureParser::buildSummaryTimingEval(std::string json_path)
 
   ieda::closeFileStream(file_stream);
 
-  std::cout << std::endl << "Save eval json success, path = " << json_path << std::endl;
+  IEDALOG.info(ieda::Loc::current(), "Save eval json success, path = ", json_path);
   return true;
 }
 

@@ -30,6 +30,7 @@
 #include "idm.h"
 #include "wirelength_api.h"
 
+#include "utility/logger/Logger.hpp"
 namespace iplf {
 
 // template <typename T>
@@ -113,7 +114,7 @@ std::shared_ptr<ieda::ReportTable> ReportEvaluator::createCongestionReport()
   std::string pin_density_file_path = density_map_summay.pin_map_summary.allcell_pin_density;
   std::ifstream pin_density_file(pin_density_file_path);
   if (!pin_density_file.is_open()) {
-    std::cerr << "Error opening file: " << pin_density_file_path << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error opening file: ", pin_density_file_path);
   }
   std::string pin_density_line;
   std::vector<float> pin_density;
@@ -130,7 +131,7 @@ std::shared_ptr<ieda::ReportTable> ReportEvaluator::createCongestionReport()
   std::string inst_density_file_path = density_map_summay.cell_map_summary.allcell_density;
   std::ifstream inst_density_file(inst_density_file_path);
   if (!inst_density_file.is_open()) {
-    std::cerr << "Error opening file: " << inst_density_file_path << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Error opening file: ", inst_density_file_path);
   }
   std::string inst_density_line;
   std::vector<float> inst_density;

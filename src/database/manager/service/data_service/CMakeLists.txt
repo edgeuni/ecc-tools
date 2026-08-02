@@ -2,7 +2,7 @@ add_library(data_service
 data_service.cpp
 )
 
-target_link_libraries(data_service PRIVATE idb)
+target_link_libraries(data_service PRIVATE idb ieda_logger)
 
 target_include_directories(data_service 
     PUBLIC 

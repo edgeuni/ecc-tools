@@ -23,6 +23,7 @@
  */
 
 #pragma once
+#include "utility/logger/Logger.hpp"
 #include <iostream>
 
 #include "ScriptEngine.hh"
@@ -73,7 +74,7 @@ class UserShell
    */
   static int userMain(int argc, char** argv);
 
-  static void displayHello(const std::string& hello_info) { std::cout << hello_info << std::endl; }
+  static void displayHello(const std::string& hello_info) { IEDALOG.info(ieda::Loc::current(), hello_info); }
 
   /**
    * @brief display how to exit user shell

@@ -143,7 +143,7 @@ endif()
 if(SANITIZER)
     add_definitions(-DUSE_CPP_STD)
     add_compile_options("-fsanitize=address")
-    link_libraries("-fsanitize=address")
+    add_link_options("-fsanitize=address")
     message("address sanitizer load")
 endif()
 
