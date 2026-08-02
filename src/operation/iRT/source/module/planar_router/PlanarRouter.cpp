@@ -201,11 +201,18 @@ void PlanarRouter::buildPlanarRoutingEdgeMap()
 void PlanarRouter::initMacroGridRectList()
 {
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
+  GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
   std::vector<Macro>& macro_list = RTDM.getDatabase().get_macro_list();
   _macro_grid_rect_list.clear();
+  _macro_obs_rect_list.clear();
   _macro_grid_rect_list.reserve(macro_list.size());
+  _macro_obs_rect_list.reserve(macro_list.size());
   for (Macro& macro : macro_list) {
-    _macro_grid_rect_list.push_back(RTUTIL.getClosedGCellGridRect(macro.get_body_rect(), gcell_axis));
+    PlanarRect macro_rect = RTUTIL.getClosedGCellGridRect(macro.get_body_rect(), gcell_axis);
+    _macro_grid_rect_list.push_back(macro_rect);
+    _macro_obs_rect_list.emplace_back(std::max(0, macro_rect.get_ll_x() - 1), std::max(0, macro_rect.get_ll_y() - 1),
+                                      std::min(gcell_map.get_x_size() - 1, macro_rect.get_ur_x() + 1),
+                                      std::min(gcell_map.get_y_size() - 1, macro_rect.get_ur_y() + 1));
   }
 }
 
@@ -310,7 +317,7 @@ void PlanarRouter::runRouteFlow(PRModel& pr_model)
   Monitor monitor;
   RTLOG.info(Loc::current(), "Starting...");
 
-  constexpr int32_t max_iter = 3;
+  constexpr int32_t max_iter = 5;
   constexpr bool enable_partial_rip_up = true;
   constexpr int32_t partial_rip_up_guard = 1;
   std::vector<PRNet*>& pr_task_list = pr_model.get_pr_task_list();
@@ -605,21 +612,22 @@ void PlanarRouter::splitLongPlanarTopoList(PRModel& pr_model, std::vector<Segmen
     // split twice if topo length very long
     int32_t split_num = topo_length <= 2 * split_length ? 1 : 2;
     int32_t piece_num = split_num + 1;
-    std::vector<PlanarCoord> ideal_coord_list{first_coord};
     std::vector<PlanarCoord> legal_coord_list{first_coord};
+    bool has_legal_split = true;
     for (int32_t i = 1; i <= split_num; i++) {
       PlanarCoord ideal_coord(std::round(first_coord.get_x() + ((second_coord.get_x() - first_coord.get_x()) * i / static_cast<double>(piece_num))),
                               std::round(first_coord.get_y() + ((second_coord.get_y() - first_coord.get_y()) * i / static_cast<double>(piece_num))));
-      ideal_coord_list.push_back(ideal_coord);
       std::vector<PlanarCoord> legal_candidate_list;
-      for (const PlanarRect& macro_rect : _macro_grid_rect_list) {
-        if (!RTUTIL.isInside(macro_rect, ideal_coord)) {
+      bool ideal_is_blocked = false;
+      for (const PlanarRect& obs_rect : _macro_obs_rect_list) {
+        if (!RTUTIL.isInside(obs_rect, ideal_coord)) {
           continue;
         }
-        legal_candidate_list.emplace_back(macro_rect.get_ll_x() - 1, ideal_coord.get_y());
-        legal_candidate_list.emplace_back(macro_rect.get_ur_x() + 1, ideal_coord.get_y());
-        legal_candidate_list.emplace_back(ideal_coord.get_x(), macro_rect.get_ll_y() - 1);
-        legal_candidate_list.emplace_back(ideal_coord.get_x(), macro_rect.get_ur_y() + 1);
+        ideal_is_blocked = true;
+        legal_candidate_list.emplace_back(obs_rect.get_ll_x() - 1, ideal_coord.get_y());
+        legal_candidate_list.emplace_back(obs_rect.get_ur_x() + 1, ideal_coord.get_y());
+        legal_candidate_list.emplace_back(ideal_coord.get_x(), obs_rect.get_ll_y() - 1);
+        legal_candidate_list.emplace_back(ideal_coord.get_x(), obs_rect.get_ur_y() + 1);
       }
       PlanarCoord legal_coord = ideal_coord;
       int32_t min_distance = INT_MAX;
@@ -628,34 +636,38 @@ void PlanarRouter::splitLongPlanarTopoList(PRModel& pr_model, std::vector<Segmen
             || gcell_map.get_y_size() <= candidate_coord.get_y()) {
           continue;
         }
-        bool is_inside_macro = false;
-        for (const PlanarRect& macro_rect : _macro_grid_rect_list) {
-          if (RTUTIL.isInside(macro_rect, candidate_coord)) {
-            is_inside_macro = true;
+        bool is_inside_obs = false;
+        for (const PlanarRect& obs_rect : _macro_obs_rect_list) {
+          if (RTUTIL.isInside(obs_rect, candidate_coord)) {
+            is_inside_obs = true;
             break;
           }
         }
         int32_t distance = RTUTIL.getManhattanDistance(ideal_coord, candidate_coord);
-        if (!is_inside_macro && distance < min_distance) {
+        if (!is_inside_obs && distance < min_distance) {
           legal_coord = candidate_coord;
           min_distance = distance;
         }
       }
-      legal_coord_list.push_back(legal_coord);
-    }
-    ideal_coord_list.push_back(second_coord);
-    legal_coord_list.push_back(second_coord);
-
-    bool use_legal_coord = true;
-    for (int32_t i = 1; i <= piece_num; i++) {
-      if (RTUTIL.getManhattanDistance(legal_coord_list[i - 1], legal_coord_list[i]) < min_subsegment_length) {
-        use_legal_coord = false;
+      if (ideal_is_blocked && min_distance == INT_MAX) {
+        has_legal_split = false;
         break;
       }
+      legal_coord_list.push_back(legal_coord);
     }
-    std::vector<PlanarCoord>& coord_list = use_legal_coord ? legal_coord_list : ideal_coord_list;
+    legal_coord_list.push_back(second_coord);
+
+    for (int32_t i = 1; has_legal_split && i <= piece_num; i++) {
+      if (RTUTIL.getManhattanDistance(legal_coord_list[i - 1], legal_coord_list[i]) < min_subsegment_length) {
+        has_legal_split = false;
+      }
+    }
+    if (!has_legal_split) {
+      split_topo_list.push_back(planar_topo);
+      continue;
+    }
     for (int32_t i = 1; i <= piece_num; i++) {
-      split_topo_list.emplace_back(coord_list[i - 1], coord_list[i]);
+      split_topo_list.emplace_back(legal_coord_list[i - 1], legal_coord_list[i]);
     }
   }
   planar_topo_list = std::move(split_topo_list);
@@ -775,14 +787,7 @@ std::vector<Segment<PlanarCoord>> PlanarRouter::getPlanarTopoList(PRModel& pr_mo
   TBTask tb_task;
   tb_task.set_planar_coord_list(planar_coord_list);
   GridMap<PlanarRect>& gcell_map = RTDM.getDatabase().get_gcell_map();
-  std::vector<PlanarRect> planar_obs_list;
-  planar_obs_list.reserve(_macro_grid_rect_list.size());
-  for (const PlanarRect& body_grid_rect : _macro_grid_rect_list) {
-    planar_obs_list.emplace_back(std::max(0, body_grid_rect.get_ll_x() - 1), std::max(0, body_grid_rect.get_ll_y() - 1),
-                                 std::min(gcell_map.get_x_size() - 1, body_grid_rect.get_ur_x() + 1),
-                                 std::min(gcell_map.get_y_size() - 1, body_grid_rect.get_ur_y() + 1));
-  }
-  tb_task.set_planar_obs_list(std::move(planar_obs_list));
+  tb_task.set_planar_obs_list(_macro_obs_rect_list);
   tb_task.set_planar_search_region(PlanarRect(0, 0, gcell_map.get_x_size() - 1, gcell_map.get_y_size() - 1));
 
   return RTTB.getPlanarTopoList(tb_task);

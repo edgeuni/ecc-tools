@@ -187,6 +187,7 @@ class PlanarRouter
   GridMap<PREdgeCost> _routing_h_edge_cost_map;
   GridMap<PREdgeCost> _routing_v_edge_cost_map;
   std::vector<PlanarRect> _macro_grid_rect_list;
+  std::vector<PlanarRect> _macro_obs_rect_list;
 };
 
 }  // namespace irt
