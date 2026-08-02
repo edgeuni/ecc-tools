@@ -16,11 +16,10 @@ target_link_libraries(ilvs_lvs_reporter
     ilvs_data_manager
     ilvs_module
     ilvs_toolkit
-    fort
 )
 
 target_include_directories(ilvs_lvs_reporter
     PUBLIC
+    ${ILVS_MODULE}/lvs_reporter/lr_data_manager
     ${ILVS_MODULE}/lvs_reporter
-    ${ILVS_DATA_MANAGER}/advance
 )

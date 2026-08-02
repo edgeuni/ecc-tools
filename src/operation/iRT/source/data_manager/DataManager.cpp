@@ -60,7 +60,6 @@ void DataManager::input(std::map<std::string, std::any>& config_map)
   printConfig();
   printDatabase();
   outputScript();
-  outputJson();
   RTLOG.info(Loc::current(), "Completed", monitor.getStatsInfo());
 }
 
@@ -1640,8 +1639,6 @@ void DataManager::printConfig()
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(2), _config.top_routing_layer);
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(1), "output_inter_result");
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(2), _config.output_inter_result);
-  RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(1), "enable_notification");
-  RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(2), _config.enable_notification);
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(1), "enable_timing");
   RTLOG.info(Loc::current(), RTUTIL.getSpaceByTabNum(2), _config.enable_timing);
   // **********        RT         ********** //
@@ -1852,64 +1849,9 @@ void DataManager::outputScript()
   RTUTIL.closeFileStream(python_file);
 }
 
-void DataManager::outputJson()
-{
-  int32_t enable_notification = _config.enable_notification;
-  if (!enable_notification) {
-    return;
-  }
-  std::map<std::string, std::string> json_path_map;
-  json_path_map["env_map"] = outputEnvJson();
-  RTI.sendNotification("DM", 1, json_path_map);
-}
 
-std::string DataManager::outputEnvJson()
-{
-  Die& die = _database.get_die();
-  std::vector<RoutingLayer>& routing_layer_list = _database.get_routing_layer_list();
-  std::vector<CutLayer>& cut_layer_list = _database.get_cut_layer_list();
-  std::vector<Net>& net_list = _database.get_net_list();
-  std::string& dm_temp_directory_path = _config.dm_temp_directory_path;
 
-  std::vector<nlohmann::json> env_json_list;
-  {
-    nlohmann::json die_json;
-    die_json["die"] = {die.get_real_ll_x(), die.get_real_ll_y(), die.get_real_ur_x(), die.get_real_ur_y()};
-    env_json_list.push_back(die_json);
-  }
-  {
-    nlohmann::json env_shape_json;
-    for (Obstacle& routing_obstacle : _database.get_routing_obstacle_list()) {
-      env_shape_json["env_shape"]["obs"]["shape"].push_back({routing_obstacle.get_real_ll_x(), routing_obstacle.get_real_ll_y(),
-                                                             routing_obstacle.get_real_ur_x(), routing_obstacle.get_real_ur_y(),
-                                                             routing_layer_list[routing_obstacle.get_layer_idx()].get_layer_name()});
-    }
-    for (Obstacle& cut_obstacle : _database.get_cut_obstacle_list()) {
-      env_shape_json["env_shape"]["obs"]["shape"].push_back({cut_obstacle.get_real_ll_x(), cut_obstacle.get_real_ll_y(), cut_obstacle.get_real_ur_x(),
-                                                             cut_obstacle.get_real_ur_y(), cut_layer_list[cut_obstacle.get_layer_idx()].get_layer_name()});
-    }
-    for (Net& net : net_list) {
-      for (Pin& pin : net.get_pin_list()) {
-        for (EXTLayerRect& routing_shape : pin.get_routing_shape_list()) {
-          env_shape_json["env_shape"][net.get_net_name()]["shape"].push_back({routing_shape.get_real_ll_x(), routing_shape.get_real_ll_y(),
-                                                                              routing_shape.get_real_ur_x(), routing_shape.get_real_ur_y(),
-                                                                              routing_layer_list[routing_shape.get_layer_idx()].get_layer_name()});
-        }
-        for (EXTLayerRect& cut_shape : pin.get_cut_shape_list()) {
-          env_shape_json["env_shape"][net.get_net_name()]["shape"].push_back({cut_shape.get_real_ll_x(), cut_shape.get_real_ll_y(), cut_shape.get_real_ur_x(),
-                                                                              cut_shape.get_real_ur_y(),
-                                                                              cut_layer_list[cut_shape.get_layer_idx()].get_layer_name()});
-        }
-      }
-    }
-    env_json_list.push_back(env_shape_json);
-  }
-  std::string env_json_file_path = RTUTIL.getString(dm_temp_directory_path, "env_map.json");
-  std::ofstream* env_json_file = RTUTIL.getOutputFileStream(env_json_file_path);
-  (*env_json_file) << env_json_list;
-  RTUTIL.closeFileStream(env_json_file);
-  return env_json_file_path;
-}
+
 
 #endif
 

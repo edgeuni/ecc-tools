@@ -8,7 +8,6 @@ add_library(tcl_report
 target_link_libraries(tcl_report 
     PUBLIC  
         tcl
-        str
     PRIVATE
         ieda_report
 )
@@ -21,5 +20,4 @@ target_include_directories(tcl_report
     ${CMAKE_CURRENT_SOURCE_DIR}/tcl_report_evl
     ${CMAKE_CURRENT_SOURCE_DIR}/tcl_report_pr
 )
-
 

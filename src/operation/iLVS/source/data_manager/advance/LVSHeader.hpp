@@ -67,7 +67,6 @@
 #include <variant>
 #include <vector>
 
+#include "../../../database/interaction/Boost.hpp"
 #include "libfort/fort.hpp"
 #include "json.hpp"
-
-#define LVS_ERROR 1E-6

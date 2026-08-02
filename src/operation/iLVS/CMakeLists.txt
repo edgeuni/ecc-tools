@@ -19,9 +19,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 ############################ debug source module ############################
 
-# set(DEBUG_ILVS_NETLIST_EXTRACTOR ON)
-# set(DEBUG_ILVS_SNAPSHOT_IO ON)
-# set(DEBUG_ILVS_LVS_CHECKER ON)
+# set(DEBUG_ILVS_ENTITY_CHECKER ON)
+# set(DEBUG_ILVS_ROUTING_CHECKER ON)
+# set(DEBUG_ILVS_PDN_CHECKER ON)
 # set(DEBUG_ILVS_LVS_REPORTER ON)
 
 ############################ debug source utility ############################

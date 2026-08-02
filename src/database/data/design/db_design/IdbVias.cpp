@@ -38,7 +38,6 @@
 
 #include "../db_layout/IdbLayer.h"
 #include "IdbViaMaster.h"
-#include "Str.hh"
 
 namespace idb {
 

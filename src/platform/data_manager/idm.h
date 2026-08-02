@@ -43,8 +43,6 @@
 #include "config/dm_config.h"
 #include "def_service.h"
 #include "lef_service.h"
-#include "string/Str.hh"
-#include "usage/usage.hh"
 
 using std::string;
 using std::vector;
@@ -78,6 +76,9 @@ class DataManager
   void set_idb_lef_service(IdbLefService* idb_lef_service) { _idb_lef_service = idb_lef_service; }
 
   IdbDesign* get_idb_design() { return _idb_def_service != nullptr ? _idb_def_service->get_design() : nullptr; }
+  // TODO: Return independent views after IDB supports concurrent logical and physical designs.
+  IdbDesign* get_netlist_idb_design() { return get_idb_design(); }
+  IdbDesign* get_def_idb_design() { return get_idb_design(); }
   IdbLayout* get_idb_layout() { return _idb_lef_service != nullptr ? _idb_lef_service->get_layout() : nullptr; }
   bool is_def_read() { return _idb_def_service != nullptr ? true : false; }
   vector<LibertyReader>& get_lib_readers() { return _lib_readers; }
