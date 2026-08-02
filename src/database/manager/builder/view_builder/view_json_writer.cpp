@@ -6,6 +6,7 @@
 // iEDA is licensed under Mulan PSL v2.
 // ***************************************************************************************
 
+#include "utility/logger/Logger.hpp"
 #include "view_json_writer.h"
 
 #include <algorithm>
@@ -75,7 +76,7 @@ ViewJsonWriter::ViewJsonWriter(IdbDefService* def_service, ViewJsonWriteOptions 
 bool ViewJsonWriter::write(const std::string& output_dir)
 {
   if (_def_service == nullptr || _layout == nullptr || _design == nullptr) {
-    std::cout << "Write view json failed: def service, layout or design is null." << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write view json failed: def service, layout or design is null.");
     return false;
   }
 
@@ -98,19 +99,19 @@ bool ViewJsonWriter::prepareOutputDir(const std::filesystem::path& output_dir) c
   std::error_code ec;
   std::filesystem::create_directories(output_dir / "tech", ec);
   if (ec) {
-    std::cout << "Create view json tech directory failed: " << ec.message() << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Create view json tech directory failed: ", ec.message());
     return false;
   }
 
   std::filesystem::create_directories(output_dir / "design", ec);
   if (ec) {
-    std::cout << "Create view json design directory failed: " << ec.message() << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Create view json design directory failed: ", ec.message());
     return false;
   }
 
   std::filesystem::create_directories(output_dir / "edits", ec);
   if (ec) {
-    std::cout << "Create view json edits directory failed: " << ec.message() << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Create view json edits directory failed: ", ec.message());
     return false;
   }
 
@@ -1304,14 +1305,14 @@ bool ViewJsonWriter::writeJsonFile(const std::string& relative_path, const ViewJ
   std::error_code ec;
   std::filesystem::create_directories(path.parent_path(), ec);
   if (ec) {
-    std::cout << "Create view json directory failed: " << path.parent_path() << " " << ec.message() << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Create view json directory failed: ", path.parent_path(), " ", ec.message());
     return false;
   }
 
   std::string error;
   const bool compress = output_relative_path != relative_path;
   if (!writeViewJsonText(path, dumpViewJson(json, _options.format), compress, error)) {
-    std::cout << "Write view json file failed: " << path << " " << error << std::endl;
+    IEDALOG.warn(ieda::Loc::current(), "Write view json file failed: ", path, " ", error);
     return false;
   }
 
@@ -1336,7 +1337,7 @@ bool ViewJsonWriter::validateDenseData(const std::string& relative_path, const V
       continue;
     }
     if (!item["id"].is_number_integer() || item["id"].get<int>() != static_cast<int>(index)) {
-      std::cout << "Write view json failed: " << relative_path << " data[" << index << "].id is not dense." << std::endl;
+      IEDALOG.warn(ieda::Loc::current(), "Write view json failed: ", relative_path, " data[", index, "].id is not dense.");
       return false;
     }
   }

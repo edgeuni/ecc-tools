@@ -9,6 +9,7 @@ target_link_libraries(ieda_report_place
         idm  
         tool_manager 
         def_service
+        ieda_logger
 )
 
 target_include_directories(ieda_report_place 

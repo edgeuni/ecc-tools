@@ -18,6 +18,7 @@ target_link_libraries(ieda_report
         ieda_report_route
         ieda_report_place
         ieda_report_drc
+        ieda_logger
 )
 
 target_include_directories(ieda_report 

@@ -1,3 +1,4 @@
+#include "utility/logger/Logger.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -193,9 +194,9 @@ void writeCSV(const std::string& filename, const std::vector<std::vector<std::st
       file << "\n";
     }
     file.close();
-    std::cout << "CSV file " << filename << " written successfully." << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "CSV file ", filename, " written successfully.");
   } else {
-    std::cout << "Unable to open file " << filename << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Unable to open file ", filename);
   }
 }
 

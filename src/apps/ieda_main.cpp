@@ -64,7 +64,7 @@ int main(int argc, char** argv)
   }
 
   if (printVersion) {
-    std::cout << "Git version: " << iEDA_GIT_VERSION << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "Git version: ", iEDA_GIT_VERSION);
   }
 
   plfInst->runTcl(argc, argv);

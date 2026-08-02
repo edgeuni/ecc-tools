@@ -8,7 +8,7 @@ else()
   )
 endif()
 
-target_link_libraries(lef_service idb)
+target_link_libraries(lef_service idb ieda_logger)
 
 target_include_directories(lef_service 
     PUBLIC 

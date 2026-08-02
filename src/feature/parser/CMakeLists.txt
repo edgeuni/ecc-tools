@@ -37,4 +37,5 @@ target_link_libraries(feature_parser
         eval_wirelength_api
         eval_congestion_api    
         eval_timing_api
+        ieda_logger
 )

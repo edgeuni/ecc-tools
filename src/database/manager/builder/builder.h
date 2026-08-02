@@ -31,6 +31,7 @@
  *
  */
 
+#include "utility/logger/Logger.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -114,22 +115,22 @@ class IdbBuilder
     logNumber(mudule, number);
     // logSeperate();
   }
-  void logSeperate() { std::cout << "**************************************************************" << std::endl; }
+  void logSeperate() { IEDALOG.info(ieda::Loc::current(), "**************************************************************"); }
   void logNumber(string mudule, int32_t number = -1)
   {
-    std::cout << mudule;
+    IEDALOG.info(ieda::Loc::current(), mudule);
     if (number != -1) {
-      std::cout << " number : " << number;
+      IEDALOG.info(ieda::Loc::current(), " number : ", number);
     }
-    std::cout << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "");
   }
   void logInfo(string info, int32_t number = -1)
   {
-    std::cout << info;
+    IEDALOG.info(ieda::Loc::current(), info);
     if (number != -1) {
-      std::cout << " number : " << number;
+      IEDALOG.info(ieda::Loc::current(), " number : ", number);
     }
-    std::cout << std::endl;
+    IEDALOG.info(ieda::Loc::current(), "");
   }
 
  private:

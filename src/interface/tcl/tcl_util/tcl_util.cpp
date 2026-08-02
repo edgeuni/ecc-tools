@@ -14,6 +14,7 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
+#include "utility/logger/Logger.hpp"
 #include "tcl_util.h"
 
 namespace tcl {
@@ -61,7 +62,7 @@ void TclUtil::addOption(TclCmd* tcl_ptr, std::string config_name, ValueType type
       tcl_ptr->addOption(new TclStringListOption(config_name.c_str(), 0));
       break;
     default:
-      std::cout << "[TclUtil] The value type is error!" << std::endl;
+      IEDALOG.warn(ieda::Loc::current(), "[TclUtil] The value type is error!");
       exit(0);
       break;
   }
@@ -124,7 +125,7 @@ std::any TclUtil::getValue(TclCmd* tcl_ptr, std::string config_name, ValueType t
       break;
     }
     default:
-      std::cout << "[TclUtil] The value type is error!" << std::endl;
+      IEDALOG.warn(ieda::Loc::current(), "[TclUtil] The value type is error!");
       exit(0);
       break;
   }
