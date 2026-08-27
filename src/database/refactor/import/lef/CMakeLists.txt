@@ -1,0 +1,28 @@
+add_library(idb_refactor_lef_import
+  LefLibraryImporter.cpp
+  LefTechImporter.cpp
+  detail/LefParserMutex.cpp
+  detail/LefTechLayerProperties.cpp
+  detail/LefTechLayerRules.cpp
+  detail/LefTechObjects.cpp
+)
+idb_refactor_storage_target(idb_refactor_lef_import)
+target_include_directories(idb_refactor_lef_import
+  PUBLIC
+    "${CMAKE_CURRENT_LIST_DIR}/../.."
+  PRIVATE
+    "${IDB_REFACTOR_ECC_TOOLS_ROOT}/src"
+    "${IDB_REFACTOR_ECC_TOOLS_ROOT}/src/database/manager/builder/lef_builder"
+)
+target_link_libraries(idb_refactor_lef_import
+  PUBLIC
+    idb_refactor_library
+    idb_refactor_tech_database
+  PRIVATE
+    ecc_logger
+    lef
+)
+
+if(IDB_REFACTOR_BUILD_TESTS)
+  add_subdirectory(test)
+endif()

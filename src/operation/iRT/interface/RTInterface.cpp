@@ -374,7 +374,25 @@ void RTInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   /////////////////////////////////////////////
 }
 
+void RTInterface::setDesignSource(idb::refactor::DesignDatabase* design, idb::refactor::TechDatabase* tech,
+                                  idb::refactor::LibraryDatabase* library)
+{
+  _design = design;
+  _tech = tech;
+  _library = library;
+  DRCI.setDesignSource(design, tech, library);
+}
+
 void RTInterface::wrapDatabase()
+{
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    wrapDatabaseFromEnTT();
+  } else {
+    wrapDatabaseFromIdb();
+  }
+}
+
+void RTInterface::wrapDatabaseFromIdb()
 {
   wrapDBInfo();
   wrapMicronDBU();
@@ -1368,6 +1386,10 @@ void RTInterface::output()
 
 void RTInterface::outputTrackGrid()
 {
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    outputTrackGridToEnTT();
+    return;
+  }
   idb::IdbLayers* idb_layer_list = dmInst->get_idb_def_service()->get_layout()->get_layers();
   idb::IdbTrackGridList* idb_track_grid_list = dmInst->get_idb_def_service()->get_layout()->get_track_grid_list();
   std::vector<RoutingLayer>& routing_layer_list = RTDM.getDatabase().get_routing_layer_list();
@@ -1413,6 +1435,10 @@ void RTInterface::outputTrackGrid()
 
 void RTInterface::outputGCellGrid()
 {
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    outputGCellGridToEnTT();
+    return;
+  }
   idb::IdbGCellGridList* idb_gcell_grid_list = dmInst->get_idb_lef_service()->get_layout()->get_gcell_grid_list();
   ScaleAxis& gcell_axis = RTDM.getDatabase().get_gcell_axis();
 
@@ -1438,6 +1464,10 @@ void RTInterface::outputGCellGrid()
 
 void RTInterface::outputNetList()
 {
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    outputNetListToEnTT();
+    return;
+  }
   Die& die = RTDM.getDatabase().get_die();
   std::vector<Net>& net_list = RTDM.getDatabase().get_net_list();
 
@@ -1700,6 +1730,7 @@ void RTInterface::initIDRC()
   std::map<std::string, std::any> config_map;
   config_map.insert({"-temp_directory_path", RTUTIL.getString(temp_directory_path, "other_tools/idrc/")});
   config_map.insert({"-thread_number", thread_number});
+  DRCI.setDesignSource(_design, _tech, _library);
   DRCI.initDRC(config_map, true);
 }
 

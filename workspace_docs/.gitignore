@@ -1,0 +1,4 @@
+*
+.gitignore
+!git_commit/
+!git_commit/**

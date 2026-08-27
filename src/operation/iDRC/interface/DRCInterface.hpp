@@ -34,10 +34,17 @@ class IdbLayerCut;
 enum class IdbLayerDirection : uint8_t;
 }  // namespace idb
 
+namespace idb::refactor {
+class DesignDatabase;
+class TechDatabase;
+class LibraryDatabase;
+}  // namespace idb::refactor
+
 namespace idrc {
 class RoutingLayer;
 class CutLayer;
 class DRCShape;
+class Database;
 enum class Direction;
 }  // namespace idrc
 
@@ -73,9 +80,14 @@ class DRCInterface
 #if 1  // TopData
 
 #if 1  // input
+  void setDesignSource(idb::refactor::DesignDatabase* design, idb::refactor::TechDatabase* tech,
+                       idb::refactor::LibraryDatabase* library);
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
+  void wrapDatabaseFromIdb();
+  void wrapDatabaseFromEnTT();
+  std::string compareWrappedDatabase(Database& left, Database& right);
   void wrapDBInfo();
   void wrapMicronDBU();
   void wrapManufactureGrid();
@@ -97,8 +109,11 @@ class DRCInterface
 
 #if 1  // check
   std::vector<ids::Shape> buildEnvShapeList();
+  std::vector<ids::Shape> buildEnvShapeListFromEnTT();
   bool isSkipping(idb::IdbNet* idb_net);
   std::vector<ids::Shape> buildResultShapeList();
+  std::vector<ids::Shape> buildResultShapeListFromEnTT();
+  std::string getNetName(int32_t net_idx);
   void printSummary(std::map<std::string, std::vector<ids::Violation>>& type_violation_map);
   void outputViolationJson(std::map<std::string, std::vector<ids::Violation>>& type_violation_map);
   void outputViolationFile(std::map<std::string, std::vector<ids::Violation>>& type_violation_map);
@@ -110,6 +125,9 @@ class DRCInterface
 
  private:
   static DRCInterface* _drc_interface_instance;
+  idb::refactor::DesignDatabase* _design = nullptr;
+  idb::refactor::TechDatabase* _tech = nullptr;
+  idb::refactor::LibraryDatabase* _library = nullptr;
 
   DRCInterface() = default;
   DRCInterface(const DRCInterface& other) = delete;

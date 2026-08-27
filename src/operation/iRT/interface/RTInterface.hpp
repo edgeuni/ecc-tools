@@ -38,6 +38,12 @@ enum class IdbConnectType : uint8_t;
 class IdbRegularWireSegment;
 }  // namespace idb
 
+namespace idb::refactor {
+class DesignDatabase;
+class TechDatabase;
+class LibraryDatabase;
+}  // namespace idb::refactor
+
 namespace irt {
 class RoutingLayer;
 class CutLayer;
@@ -55,6 +61,7 @@ class EXTLayerRect;
 class TAPanel;
 class PlanarCoord;
 enum class MacroPinEdge;
+class Database;
 }  // namespace irt
 
 namespace ecc_feature {
@@ -92,9 +99,14 @@ class RTInterface
 #if 1  // TopData
 
 #if 1  // input
+  void setDesignSource(idb::refactor::DesignDatabase* design, idb::refactor::TechDatabase* tech,
+                       idb::refactor::LibraryDatabase* library);
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
+  void wrapDatabaseFromIdb();
+  void wrapDatabaseFromEnTT();
+  std::string compareWrappedDatabase(Database& left, Database& right);
   void wrapDBInfo();
   void wrapMicronDBU();
   void wrapManufactureGrid();
@@ -124,6 +136,9 @@ class RTInterface
   void outputTrackGrid();
   void outputGCellGrid();
   void outputNetList();
+  void outputTrackGridToEnTT();
+  void outputGCellGridToEnTT();
+  void outputNetListToEnTT();
   void outputSummary();
 #endif
 
@@ -157,6 +172,9 @@ class RTInterface
 
  private:
   static RTInterface* _rt_interface_instance;
+  idb::refactor::DesignDatabase* _design = nullptr;
+  idb::refactor::TechDatabase* _tech = nullptr;
+  idb::refactor::LibraryDatabase* _library = nullptr;
 
   RTInterface() = default;
   RTInterface(const RTInterface& other) = delete;

@@ -525,6 +525,12 @@ void DataManager::buildConfig()
 
 void DataManager::buildDatabase()
 {
+  // The iDB and EnTT adapters may enumerate the same logical nets in different
+  // source-container orders. Canonicalize the order before assigning net_idx or
+  // building any net-indexed derived data.
+  auto& net_list = _database.get_net_list();
+  std::sort(net_list.begin(), net_list.end(), [](const Net& lhs, const Net& rhs) { return lhs.get_net_name() < rhs.get_net_name(); });
+
   buildLayerList();
   buildLayerInfo();
   buildGCellAxis();

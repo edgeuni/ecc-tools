@@ -17,6 +17,9 @@
 
 #include "DRCInterface.hpp"
 
+#include <algorithm>
+#include <unordered_map>
+
 #include "AdjacentCutSpacingRule.hpp"
 #include "DataManager.hpp"
 #include "GDSPlotter.hpp"
@@ -27,12 +30,73 @@
 #include "RuleValidator.hpp"
 #include "SameLayerCutSpacingRule.hpp"
 #include "Utility.hpp"
+#include "design/DesignDatabase.h"
 #include "feature_manager.h"
 #include "file_drc.h"
 #include "idm.h"
 
 #include "utility/logger/Logger.hpp"
 namespace idrc {
+namespace {
+
+using IdbNetIndexMap = std::unordered_map<idb::IdbNet*, int32_t>;
+
+std::vector<idb::IdbNet*> canonicalIdbNetList()
+{
+  std::vector<idb::IdbNet*> idb_net_list = dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list();
+  std::sort(idb_net_list.begin(), idb_net_list.end(),
+            [](idb::IdbNet* lhs, idb::IdbNet* rhs) { return lhs->get_net_name() < rhs->get_net_name(); });
+  return idb_net_list;
+}
+
+std::vector<idb::IdbSpecialNet*> canonicalIdbSpecialNetList()
+{
+  std::vector<idb::IdbSpecialNet*> special_nets
+      = dmInst->get_idb_def_service()->get_design()->get_special_net_list()->get_net_list();
+  std::sort(special_nets.begin(), special_nets.end(), [](idb::IdbSpecialNet* lhs, idb::IdbSpecialNet* rhs) {
+    return lhs->get_net_name() < rhs->get_net_name();
+  });
+  return special_nets;
+}
+
+IdbNetIndexMap canonicalIdbNetIndexMap()
+{
+  IdbNetIndexMap net_index_map;
+  const std::vector<idb::IdbNet*> idb_net_list = canonicalIdbNetList();
+  for (size_t index = 0; index < idb_net_list.size(); ++index) {
+    net_index_map.emplace(idb_net_list[index], static_cast<int32_t>(index));
+  }
+  return net_index_map;
+}
+
+int32_t netIndex(idb::IdbNet* idb_net, const IdbNetIndexMap& net_index_map)
+{
+  if (idb_net == nullptr) {
+    return -1;
+  }
+  const auto iter = net_index_map.find(idb_net);
+  return iter == net_index_map.end() ? -1 : iter->second;
+}
+
+std::vector<idb::refactor::DesignNetId> canonicalEnttRegularNets(const idb::refactor::DesignDatabase& design)
+{
+  std::vector<idb::refactor::DesignNetId> regular_nets = design.netlistStorage().regularNets();
+  std::sort(regular_nets.begin(), regular_nets.end(), [&design](idb::refactor::DesignNetId lhs, idb::refactor::DesignNetId rhs) {
+    return design.netlistStorage().net(lhs).name < design.netlistStorage().net(rhs).name;
+  });
+  return regular_nets;
+}
+
+std::vector<idb::refactor::DesignNetId> canonicalEnttSpecialNets(const idb::refactor::DesignDatabase& design)
+{
+  std::vector<idb::refactor::DesignNetId> special_nets = design.netlistStorage().specialNets();
+  std::sort(special_nets.begin(), special_nets.end(), [&design](idb::refactor::DesignNetId lhs, idb::refactor::DesignNetId rhs) {
+    return design.netlistStorage().net(lhs).name < design.netlistStorage().net(rhs).name;
+  });
+  return special_nets;
+}
+
+}  // namespace
 
 // public
 
@@ -170,7 +234,10 @@ std::vector<ids::Violation> DRCInterface::getViolationList(const std::vector<ids
   }
   std::vector<DRCShape> drc_result_shape_list;
   drc_result_shape_list.reserve(ids_result_shape_list.size());
-  const int32_t regular_net_num = static_cast<int32_t>(dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list().size());
+  const int32_t regular_net_num
+      = _design != nullptr
+            ? static_cast<int32_t>(_design->netlistStorage().regularNets().size())
+            : static_cast<int32_t>(dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list().size());
   for (const ids::Shape& ids_result_shape : ids_result_shape_list) {
     drc_result_shape_list.push_back(convertToDRCShape(ids_result_shape));
     drc_result_shape_list.back().set_is_special_net(ids_result_shape.net_idx >= regular_net_num);
@@ -372,7 +439,24 @@ void DRCInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   /////////////////////////////////////////////
 }
 
+void DRCInterface::setDesignSource(idb::refactor::DesignDatabase* design, idb::refactor::TechDatabase* tech,
+                                   idb::refactor::LibraryDatabase* library)
+{
+  _design = design;
+  _tech = tech;
+  _library = library;
+}
+
 void DRCInterface::wrapDatabase()
+{
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    wrapDatabaseFromEnTT();
+  } else {
+    wrapDatabaseFromIdb();
+  }
+}
+
+void DRCInterface::wrapDatabaseFromIdb()
 {
   wrapDBInfo();
   wrapMicronDBU();
@@ -925,6 +1009,10 @@ void DRCInterface::output()
 
 std::vector<ids::Shape> DRCInterface::buildEnvShapeList()
 {
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    return buildEnvShapeListFromEnTT();
+  }
+
   std::set<size_t> obs_shape_idx_set;
   return buildEnvShapeList(obs_shape_idx_set);
 }
@@ -932,16 +1020,21 @@ std::vector<ids::Shape> DRCInterface::buildEnvShapeList()
 std::vector<ids::Shape> DRCInterface::buildEnvShapeList(std::set<size_t>& obs_shape_idx_set)
 {
   obs_shape_idx_set.clear();
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    return buildEnvShapeListFromEnTT();
+  }
+
   std::vector<ids::Shape> env_shape_list;
   auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
   auto* idb_design = dmInst->get_idb_def_service()->get_design();
   std::vector<idb::IdbInstance*>& idb_instance_list = idb_design->get_instance_list()->get_instance_list();
-  std::vector<idb::IdbNet*>& idb_net_list = idb_design->get_net_list()->get_net_list();
-  std::vector<idb::IdbSpecialNet*>& idb_special_net_list = idb_design->get_special_net_list()->get_net_list();
+  const std::vector<idb::IdbNet*> idb_net_list = canonicalIdbNetList();
+  const std::vector<idb::IdbSpecialNet*> idb_special_net_list = canonicalIdbSpecialNetList();
   std::vector<idb::IdbPin*>& idb_io_pin_list = idb_design->get_io_pin_list()->get_pin_list();
   std::vector<idb::IdbBlockage*> idb_blockage_list = idb_design->get_blockage_list()->get_blockage_list();
+  const IdbNetIndexMap net_index_map = canonicalIdbNetIndexMap();
   std::map<idb::IdbSpecialNet*, int32_t> special_net_idx_map;
   int32_t regular_net_num = static_cast<int32_t>(idb_net_list.size());
   for (size_t i = 0; i < idb_special_net_list.size(); ++i) {
@@ -959,7 +1052,7 @@ std::vector<ids::Shape> DRCInterface::buildEnvShapeList(std::set<size_t>& obs_sh
     }
 
     if (!isSkipping(idb_pin->get_net())) {
-      return static_cast<int32_t>(idb_pin->get_net()->get_id());
+      return netIndex(idb_pin->get_net(), net_index_map);
     }
     return -1;
   };
@@ -1210,12 +1303,17 @@ bool DRCInterface::isSkipping(idb::IdbNet* idb_net)
 
 std::vector<ids::Shape> DRCInterface::buildResultShapeList()
 {
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    return buildResultShapeListFromEnTT();
+  }
+
   std::vector<ids::Shape> result_shape_list;
   auto monitor = Monitor::create();
   DRCLOG.info(Loc::current(), "Starting...");
 
-  std::vector<idb::IdbNet*>& idb_net_list = dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list();
-  std::vector<idb::IdbSpecialNet*>& idb_special_net_list = dmInst->get_idb_def_service()->get_design()->get_special_net_list()->get_net_list();
+  std::vector<idb::IdbNet*> idb_net_list = canonicalIdbNetList();
+  const std::vector<idb::IdbSpecialNet*> idb_special_net_list = canonicalIdbSpecialNetList();
+  const IdbNetIndexMap net_index_map = canonicalIdbNetIndexMap();
 
   size_t total_result_shape_num = 0;
   {
@@ -1265,7 +1363,7 @@ std::vector<ids::Shape> DRCInterface::buildResultShapeList()
           int32_t half_width = dynamic_cast<IdbLayerRouting*>(idb_segment->get_layer())->get_width() / 2;
           PlanarRect rect = DRCUTIL.getEnlargedRect(first_coord, second_coord, half_width);
           ids::Shape ids_shape;
-          ids_shape.net_idx = static_cast<int32_t>(idb_net->get_id());
+          ids_shape.net_idx = netIndex(idb_net, net_index_map);
           ids_shape.ll_x = rect.get_ll_x();
           ids_shape.ll_y = rect.get_ll_y();
           ids_shape.ur_x = rect.get_ur_x();
@@ -1279,7 +1377,7 @@ std::vector<ids::Shape> DRCInterface::buildResultShapeList()
             for (idb::IdbLayerShape layer_shape : {idb_via->get_top_layer_shape(), idb_via->get_bottom_layer_shape()}) {
               for (idb::IdbRect* rect : layer_shape.get_rect_list()) {
                 ids::Shape ids_shape;
-                ids_shape.net_idx = static_cast<int32_t>(idb_net->get_id());
+                ids_shape.net_idx = netIndex(idb_net, net_index_map);
                 ids_shape.ll_x = rect->get_low_x();
                 ids_shape.ll_y = rect->get_low_y();
                 ids_shape.ur_x = rect->get_high_x();
@@ -1292,7 +1390,7 @@ std::vector<ids::Shape> DRCInterface::buildResultShapeList()
             idb::IdbLayerShape cut_layer_shape = idb_via->get_cut_layer_shape();
             for (idb::IdbRect* rect : cut_layer_shape.get_rect_list()) {
               ids::Shape ids_shape;
-              ids_shape.net_idx = static_cast<int32_t>(idb_net->get_id());
+              ids_shape.net_idx = netIndex(idb_net, net_index_map);
               ids_shape.ll_x = rect->get_low_x();
               ids_shape.ll_y = rect->get_low_y();
               ids_shape.ur_x = rect->get_high_x();
@@ -1309,7 +1407,7 @@ std::vector<ids::Shape> DRCInterface::buildResultShapeList()
                                 idb_segment->get_delta_rect()->get_high_x(), idb_segment->get_delta_rect()->get_high_y());
           PlanarRect rect = DRCUTIL.getOffsetRect(delta_rect, offset_coord);
           ids::Shape ids_shape;
-          ids_shape.net_idx = static_cast<int32_t>(idb_net->get_id());
+          ids_shape.net_idx = netIndex(idb_net, net_index_map);
           ids_shape.ll_x = rect.get_ll_x();
           ids_shape.ll_y = rect.get_ll_y();
           ids_shape.ur_x = rect.get_ur_x();
@@ -1373,6 +1471,36 @@ std::vector<ids::Shape> DRCInterface::buildResultShapeList()
   return result_shape_list;
 }
 
+std::string DRCInterface::getNetName(int32_t net_idx)
+{
+  if (net_idx == -1) {
+    return "obs";
+  }
+  if (_design != nullptr && _tech != nullptr && _library != nullptr) {
+    const auto regular_nets = canonicalEnttRegularNets(*_design);
+    if (net_idx >= 0 && net_idx < static_cast<int32_t>(regular_nets.size())) {
+      return _design->netlistStorage().net(regular_nets[static_cast<size_t>(net_idx)]).name;
+    }
+    const auto special_nets = canonicalEnttSpecialNets(*_design);
+    const int32_t special_net_idx = net_idx - static_cast<int32_t>(regular_nets.size());
+    if (special_net_idx >= 0 && special_net_idx < static_cast<int32_t>(special_nets.size())) {
+      return _design->netlistStorage().net(special_nets[static_cast<size_t>(special_net_idx)]).name;
+    }
+    return DRCUTIL.getString("<invalid_entt_net:", net_idx, ">");
+  }
+
+  const std::vector<idb::IdbNet*> idb_net_list = canonicalIdbNetList();
+  if (net_idx >= 0 && net_idx < static_cast<int32_t>(idb_net_list.size())) {
+    return idb_net_list[net_idx]->get_net_name();
+  }
+  const auto special_nets = canonicalIdbSpecialNetList();
+  const int32_t special_net_idx = net_idx - static_cast<int32_t>(idb_net_list.size());
+  if (special_net_idx >= 0 && special_net_idx < static_cast<int32_t>(special_nets.size())) {
+    return special_nets[static_cast<size_t>(special_net_idx)]->get_net_name();
+  }
+  return DRCUTIL.getString("<invalid_idb_net:", net_idx, ">");
+}
+
 void DRCInterface::printSummary(std::map<std::string, std::vector<ids::Violation>>& type_violation_map)
 {
   int32_t total_violation_num = 0;
@@ -1398,19 +1526,6 @@ void DRCInterface::outputViolationJson(std::map<std::string, std::vector<ids::Vi
   std::map<int32_t, std::vector<int32_t>>& cut_to_adjacent_routing_map = DRCDM.getDatabase().get_cut_to_adjacent_routing_map();
   std::string& temp_directory_path = DRCDM.getConfig().temp_directory_path;
 
-  std::vector<idb::IdbNet*>& idb_net_list = dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list();
-  std::vector<idb::IdbSpecialNet*>& idb_special_net_list = dmInst->get_idb_def_service()->get_design()->get_special_net_list()->get_net_list();
-  int32_t regular_net_num = static_cast<int32_t>(idb_net_list.size());
-  auto get_net_name = [&](int32_t net_idx, const std::string& obs_name) {
-    if (0 <= net_idx && net_idx < regular_net_num) {
-      return idb_net_list[net_idx]->get_net_name();
-    }
-    int32_t special_net_idx = net_idx - regular_net_num;
-    if (0 <= special_net_idx && special_net_idx < static_cast<int32_t>(idb_special_net_list.size())) {
-      return idb_special_net_list[special_net_idx]->get_net_name();
-    }
-    return obs_name;
-  };
   std::vector<nlohmann::json> violation_json_list;
   for (auto& [type, violation_list] : type_violation_map) {
     for (ids::Violation& violation : violation_list) {
@@ -1424,7 +1539,7 @@ void DRCInterface::outputViolationJson(std::map<std::string, std::vector<ids::Vi
       }
       violation_json["shape"] = {violation.ll_x, violation.ll_y, violation.ur_x, violation.ur_y, routing_layer_list[layer_idx].get_layer_name()};
       for (int32_t net_idx : violation.violation_net_set) {
-        violation_json["net"].push_back(get_net_name(net_idx, "obs"));
+        violation_json["net"].push_back(getNetName(net_idx));
       }
       violation_json_list.push_back(violation_json);
     }
@@ -1444,19 +1559,6 @@ void DRCInterface::outputViolationFile(std::map<std::string, std::vector<ids::Vi
   std::vector<CutLayer>& cut_layer_list = DRCDM.getDatabase().get_cut_layer_list();
   std::string& temp_directory_path = DRCDM.getConfig().temp_directory_path;
 
-  std::vector<idb::IdbNet*>& idb_net_list = dmInst->get_idb_def_service()->get_design()->get_net_list()->get_net_list();
-  std::vector<idb::IdbSpecialNet*>& idb_special_net_list = dmInst->get_idb_def_service()->get_design()->get_special_net_list()->get_net_list();
-  int32_t regular_net_num = static_cast<int32_t>(idb_net_list.size());
-  auto get_net_name = [&](int32_t net_idx, const std::string& obs_name) {
-    if (0 <= net_idx && net_idx < regular_net_num) {
-      return idb_net_list[net_idx]->get_net_name();
-    }
-    int32_t special_net_idx = net_idx - regular_net_num;
-    if (0 <= special_net_idx && special_net_idx < static_cast<int32_t>(idb_special_net_list.size())) {
-      return idb_special_net_list[special_net_idx]->get_net_name();
-    }
-    return obs_name;
-  };
   for (auto& [type, violation_list] : type_violation_map) {
     std::ofstream* violation_file = DRCUTIL.getOutputFileStream(DRCUTIL.getString(temp_directory_path, type, ".txt"));
     for (ids::Violation& violation : violation_list) {
@@ -1470,7 +1572,11 @@ void DRCInterface::outputViolationFile(std::map<std::string, std::vector<ids::Vi
 
       DRCUTIL.pushStream(violation_file, "{ ");
       for (int32_t net_idx : violation.violation_net_set) {
-        DRCUTIL.pushStream(violation_file, get_net_name(net_idx, "-1"), " ");
+        if (net_idx != -1) {
+          DRCUTIL.pushStream(violation_file, getNetName(net_idx), " ");
+        } else {
+          DRCUTIL.pushStream(violation_file, "-1", " ");
+        }
       }
       DRCUTIL.pushStream(violation_file, "}", " ");
 

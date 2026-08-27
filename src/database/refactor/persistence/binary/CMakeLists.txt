@@ -1,0 +1,13 @@
+add_library(idb_refactor_binary_persistence
+  BinaryFormat.cpp
+  BinaryPayload.cpp
+)
+idb_refactor_storage_target(idb_refactor_binary_persistence)
+target_link_libraries(idb_refactor_binary_persistence
+  PUBLIC
+    idb_refactor_boost_pfr
+    idb_refactor_design
+    idb_refactor_entt
+    idb_refactor_library
+    idb_refactor_tech_database
+)

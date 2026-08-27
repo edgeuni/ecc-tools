@@ -2,6 +2,11 @@
 .VSCodeCounter/
 .idea
 cmake-build-debug/
+.codex/
+.serena/
+logs/
+.clangd
+CLAUDE.md
 tags
 
 
@@ -44,7 +49,6 @@ __pycache__
 
 # Prevent accidental re-addition of removed submodules
 src/third_party/mt-kahypar/
-
 .direnv
 result
 .ccache
@@ -53,3 +57,7 @@ test
 !src/operation/iCTS/test/data_manager/adapter/sdc/
 !src/operation/iCTS/test/data_manager/adapter/sdc/CMakeLists.txt
 !src/operation/iCTS/test/data_manager/adapter/sdc/ClockTraceTest.cc
+build-idb-lef-integration/
+
+# Local design and foundry data retained after the upstream scripts removal.
+/scripts/

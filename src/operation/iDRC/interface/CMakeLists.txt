@@ -8,6 +8,7 @@ endif()
 
 add_library(idrc_interface
     ${IDRC_INTERFACE}/DRCInterface.cpp
+    ${IDRC_INTERFACE}/DRCInterfaceEnTT.cpp
 )
 
 target_link_libraries(idrc_interface
@@ -18,7 +19,20 @@ target_link_libraries(idrc_interface
     ecc_logger
 )
 
+if(TARGET idb_refactor_design)
+    target_link_libraries(idrc_interface
+        PRIVATE
+        idb_refactor_design
+        idb_refactor_tech_database
+        idb_refactor_library
+    )
+endif()
+
 target_include_directories(idrc_interface
     PUBLIC
     ${IDRC_INTERFACE}
 )
+
+if(TARGET idb_refactor_design)
+    add_subdirectory(${IDRC_INTERFACE}/test)
+endif()
