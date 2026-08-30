@@ -280,7 +280,7 @@ class Lef58MinimumCut
     bool _fully_enclosed{false};
 };
 
-// LEF58_MINSTEP compatibility object. The refactor-native schema lives in TechRoutingLef58MinStepRule.
+// LEF58_MINSTEP compatibility object. The eccdb-native schema lives in TechRoutingLef58MinStepRule.
 class Lef58MinStep
 {
  public:

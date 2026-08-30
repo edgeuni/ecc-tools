@@ -1,0 +1,24 @@
+add_library(eccdb_lef_import
+  LefLibraryImporter.cpp
+  LefTechImporter.cpp
+  detail/LefParserMutex.cpp
+  detail/LefTechLayerProperties.cpp
+  detail/LefTechLayerRules.cpp
+  detail/LefTechObjects.cpp
+)
+eccdb_storage_target(eccdb_lef_import)
+target_include_directories(eccdb_lef_import
+  PUBLIC
+    "${CMAKE_CURRENT_LIST_DIR}/../.."
+  PRIVATE
+    "${ECCDB_ECC_TOOLS_ROOT}/src"
+    "${ECCDB_ECC_TOOLS_ROOT}/src/database/manager/builder/lef_builder"
+)
+target_link_libraries(eccdb_lef_import
+  PUBLIC
+    eccdb_library
+    eccdb_tech_database
+  PRIVATE
+    ecc_logger
+    lef
+)
