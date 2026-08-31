@@ -16,18 +16,18 @@
 #include <vector>
 
 #include "DesignSemanticSnapshot.h"
-#include "design/DesignDatabase.h"
+#include "design/DesignStore.h"
 #include "design/constraint/model/ConstraintComponents.h"
 #include "design/fill/model/FillComponents.h"
 #include "design/floorplan/model/FloorplanComponents.h"
 #include "design/netlist/model/NetlistComponents.h"
 #include "design/routing/component/RoutingComponents.h"
-#include "export/def/DefDesignExporter.h"
-#include "import/def/DefDesignImporter.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
-#include "library/LibraryDatabase.h"
-#include "tech/TechDatabase.h"
+#include "def/DefDesignExporter.h"
+#include "def/DefDesignImporter.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
+#include "library/LibraryStore.h"
+#include "tech/TechStore.h"
 
 namespace eccdb {
 namespace {
@@ -111,7 +111,7 @@ std::vector<std::string> diagnosticStatements(const DefDesignImporter& importer)
   return result;
 }
 
-void importLefs(const std::filesystem::path& root, const DefCorpusCase& test_case, TechDatabase& technology, LibraryDatabase& library)
+void importLefs(const std::filesystem::path& root, const DefCorpusCase& test_case, TechStore& technology, LibraryStore& library)
 {
   const auto tech_file = root / test_case.tech_lef;
   if (!std::filesystem::is_regular_file(tech_file)) {
@@ -128,7 +128,7 @@ void importLefs(const std::filesystem::path& root, const DefCorpusCase& test_cas
   }
 }
 
-std::filesystem::path writeCanonicalDef(std::string_view name, const DesignDatabase& design)
+std::filesystem::path writeCanonicalDef(std::string_view name, const DesignStore& design)
 {
   const auto directory = std::filesystem::path(testing::TempDir()) / "eccdb_def_corpus";
   std::filesystem::create_directories(directory);
@@ -168,7 +168,7 @@ void expectSemanticSnapshot(const test::DesignSemanticSnapshot& expected, const 
   expectKeySection("fills", expected.fills, actual.fills);
 }
 
-void expectAllNetRoutingSemantics(const DesignDatabase& expected, const DesignDatabase& actual)
+void expectAllNetRoutingSemantics(const DesignStore& expected, const DesignStore& actual)
 {
   for (const auto expected_id : expected.netlistStorage().nets()) {
     if (test::detail::isEmptyRegularAliasOfSpecialNet(expected, expected_id)) {
@@ -197,7 +197,7 @@ void expectAllNetRoutingSemantics(const DesignDatabase& expected, const DesignDa
   }
 }
 
-std::size_t wirePathCount(const DesignDatabase& design)
+std::size_t wirePathCount(const DesignStore& design)
 {
   std::size_t result = 0;
   for (const auto net : design.netlistStorage().nets()) {
@@ -208,7 +208,7 @@ std::size_t wirePathCount(const DesignDatabase& design)
   return result;
 }
 
-void expectRoutingCoverage(const DefCorpusCase& test_case, const DesignDatabase& design)
+void expectRoutingCoverage(const DefCorpusCase& test_case, const DesignStore& design)
 {
   const auto wire_count = test::detail::componentCount<DesignWire>(design);
   const auto path_count = wirePathCount(design);
@@ -219,14 +219,14 @@ void expectRoutingCoverage(const DefCorpusCase& test_case, const DesignDatabase&
 
 void expectCanonicalSemanticFixedPoint(const std::filesystem::path& root, const DefCorpusCase& test_case)
 {
-  TechDatabase technology;
-  LibraryDatabase library(technology.techRegistry());
+  TechStore technology;
+  LibraryStore library(technology.techRegistry());
   ASSERT_NO_THROW(importLefs(root, test_case, technology, library));
 
   const auto source_def = root / test_case.def;
   ASSERT_TRUE(std::filesystem::is_regular_file(source_def)) << source_def;
 
-  DesignDatabase imported(technology.techRegistry(), library.libraryRegistry());
+  DesignStore imported(technology.techRegistry(), library.libraryRegistry());
   DefDesignImporter importer(imported);
   ASSERT_NO_THROW(importer.import(source_def)) << source_def;
   EXPECT_EQ(diagnosticStatements(importer), test_case.expected_diagnostics) << source_def;
@@ -234,7 +234,7 @@ void expectCanonicalSemanticFixedPoint(const std::filesystem::path& root, const 
   const auto first = test::makeDesignSemanticSnapshot(imported);
 
   const auto canonical_file = writeCanonicalDef(test_case.name, imported);
-  DesignDatabase reimported(technology.techRegistry(), library.libraryRegistry());
+  DesignStore reimported(technology.techRegistry(), library.libraryRegistry());
   DefDesignImporter reimporter(reimported);
   ASSERT_NO_THROW(reimporter.import(canonical_file)) << canonical_file;
   EXPECT_TRUE(reimporter.diagnostics().empty()) << canonical_file;
@@ -329,14 +329,14 @@ TEST(DefLargeCorpusTest, ImportsBeyondLegacyLimitAndReachesSemanticFixedPoint)
   const auto initial_memory = processMemory();
   printMemory("initial", initial_memory);
 
-  TechDatabase technology;
-  LibraryDatabase library(technology.techRegistry());
+  TechStore technology;
+  LibraryStore library(technology.techRegistry());
   ASSERT_NO_THROW(importLefs(root, test_case, technology, library));
   trimAllocator();
   const auto library_memory = processMemory();
   printMemory("after LEF Tech+Library", library_memory);
 
-  auto design = std::make_unique<DesignDatabase>(technology.techRegistry(), library.libraryRegistry());
+  auto design = std::make_unique<DesignStore>(technology.techRegistry(), library.libraryRegistry());
   {
     DefDesignImporter importer(*design);
     ASSERT_NO_THROW(importer.import(root / test_case.def));
@@ -369,7 +369,7 @@ TEST(DefLargeCorpusTest, ImportsBeyondLegacyLimitAndReachesSemanticFixedPoint)
   trimAllocator();
   printMemory("after releasing source Design", processMemory());
 
-  DesignDatabase reimported(technology.techRegistry(), library.libraryRegistry());
+  DesignStore reimported(technology.techRegistry(), library.libraryRegistry());
   {
     DefDesignImporter importer(reimported);
     ASSERT_NO_THROW(importer.import(canonical_file));

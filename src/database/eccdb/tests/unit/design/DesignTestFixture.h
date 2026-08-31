@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include "design/DesignDatabase.h"
-#include "library/LibraryDatabase.h"
+#include "design/DesignStore.h"
+#include "library/LibraryStore.h"
 #include "tech/common/TechLayerTypes.h"
 #include "tech/non_default_rule/model/NonDefaultRuleComponents.h"
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
@@ -53,8 +53,8 @@ class DesignStorageTest : public testing::Test
   }
 
   TechRegistry tech;
-  LibraryDatabase library{tech};
-  DesignDatabase design{tech, library.libraryRegistry()};
+  LibraryStore library{tech};
+  DesignStore design{tech, library.libraryRegistry()};
   TechLayerId layer;
   TechRoutingLayerId routing_layer;
   TechViaMasterId tech_via;

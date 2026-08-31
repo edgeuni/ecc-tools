@@ -15,11 +15,11 @@
 #include <tuple>
 #include <vector>
 
-#include "import/idb/IdbLibraryImporter.h"
-#include "import/idb/IdbTechImporter.h"
-#include "import/idb/LegacyLefReader.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
+#include "idb/IdbLibraryImporter.h"
+#include "idb/IdbTechImporter.h"
+#include "idb/LegacyLefReader.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
 
 namespace eccdb {
 namespace {
@@ -33,7 +33,7 @@ enum class LayerKind
   kOverlap
 };
 
-LayerKind layerKind(const TechDatabase& database, TechLayerId layer)
+LayerKind layerKind(const TechStore& database, TechLayerId layer)
 {
   const auto& registry = database.techRegistry().registry();
   if (registry.all_of<TechRoutingLayer>(layer.entity())) {
@@ -54,7 +54,7 @@ LayerKind layerKind(const TechDatabase& database, TechLayerId layer)
   throw std::runtime_error("unknown refactor technology layer kind");
 }
 
-size_t layerCount(const TechDatabase& database)
+size_t layerCount(const TechStore& database)
 {
   size_t count = 0;
   for ([[maybe_unused]] const auto entity : database.techRegistry().registry().view<const TechLayerInfo>()) {
@@ -155,7 +155,7 @@ END V1
 END LIBRARY
 )LEF");
 
-  TechDatabase direct;
+  TechStore direct;
   LefTechImporter direct_importer(direct);
   ASSERT_NO_THROW(direct_importer.import(lef.path));
 
@@ -164,7 +164,7 @@ END LIBRARY
   auto* service = builder.buildLef(files, true);
   ASSERT_NE(service, nullptr);
   ASSERT_NE(service->get_layout(), nullptr);
-  TechDatabase adapted;
+  TechStore adapted;
   IdbTechImporter adapted_importer(adapted);
   ASSERT_NO_THROW(adapted_importer.import(*service->get_layout()));
 
@@ -393,7 +393,7 @@ void compareSky130BasicTechnologyFields()
   const auto lef = std::filesystem::path(ECC_TOOLS_SOURCE_DIR) / "scripts/foundry/sky130/lef/sky130_fd_sc_hd.tlef";
   ASSERT_TRUE(std::filesystem::exists(lef));
 
-  TechDatabase direct;
+  TechStore direct;
   LefTechImporter direct_importer(direct);
   ASSERT_NO_THROW(direct_importer.import(lef));
 
@@ -402,7 +402,7 @@ void compareSky130BasicTechnologyFields()
   auto* service = builder.buildLef(files, true);
   ASSERT_NE(service, nullptr);
   ASSERT_NE(service->get_layout(), nullptr);
-  TechDatabase adapted;
+  TechStore adapted;
   IdbTechImporter idb_importer(adapted);
   ASSERT_NO_THROW(idb_importer.import(*service->get_layout()));
 
@@ -466,10 +466,10 @@ void compareSky130BasicLibraryFields()
   ASSERT_TRUE(std::filesystem::exists(tech_lef));
   ASSERT_TRUE(std::filesystem::exists(cells_lef));
 
-  TechDatabase direct_tech;
+  TechStore direct_tech;
   LefTechImporter direct_tech_importer(direct_tech);
   ASSERT_NO_THROW(direct_tech_importer.import(tech_lef));
-  LibraryDatabase direct_library(direct_tech.techRegistry());
+  LibraryStore direct_library(direct_tech.techRegistry());
   LefLibraryImporter direct_library_importer(direct_tech, direct_library);
   const std::array direct_files{tech_lef, cells_lef};
   ASSERT_NO_THROW(direct_library_importer.import(std::span<const std::filesystem::path>(direct_files)));
@@ -481,10 +481,10 @@ void compareSky130BasicLibraryFields()
   auto* service = builder.buildLef(cell_files, false);
   ASSERT_NE(service, nullptr);
   ASSERT_NE(service->get_layout(), nullptr);
-  TechDatabase adapted_tech;
+  TechStore adapted_tech;
   IdbTechImporter adapted_tech_importer(adapted_tech);
   ASSERT_NO_THROW(adapted_tech_importer.import(*service->get_layout()));
-  LibraryDatabase adapted_library(adapted_tech.techRegistry());
+  LibraryStore adapted_library(adapted_tech.techRegistry());
   IdbLibraryImporter adapted_library_importer(adapted_library, adapted_tech_importer);
   ASSERT_NO_THROW(adapted_library_importer.import(*service->get_layout()));
 
@@ -620,9 +620,9 @@ END VIA_CELL
 END LIBRARY
 )LEF");
 
-  TechDatabase direct_tech;
+  TechStore direct_tech;
   LefTechImporter(direct_tech).import(lef.path);
-  LibraryDatabase direct_library(direct_tech.techRegistry());
+  LibraryStore direct_library(direct_tech.techRegistry());
   const std::array direct_files{lef.path};
   LefLibraryImporter(direct_tech, direct_library).import(std::span<const std::filesystem::path>(direct_files));
 
@@ -632,10 +632,10 @@ END LIBRARY
   ASSERT_NE(service, nullptr);
   ASSERT_NE(service->get_layout(), nullptr);
   builder.updateLefData();
-  TechDatabase adapted_tech;
+  TechStore adapted_tech;
   IdbTechImporter adapted_tech_importer(adapted_tech);
   ASSERT_NO_THROW(adapted_tech_importer.import(*service->get_layout()));
-  LibraryDatabase adapted_library(adapted_tech.techRegistry());
+  LibraryStore adapted_library(adapted_tech.techRegistry());
   ASSERT_NO_THROW(IdbLibraryImporter(adapted_library, adapted_tech_importer).import(*service->get_layout()));
 
   const auto direct_rule_id = direct_tech.viaRuleGenerateStorage().findViaRuleGenerate("VR");

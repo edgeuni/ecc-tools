@@ -28,7 +28,7 @@ target_link_libraries(eccdb_routing_layer_test
 gtest_discover_tests(eccdb_routing_layer_test)
 
 add_executable(eccdb_tech_database_test
-  TechDatabaseStorageTest.cpp
+  TechStoreStorageTest.cpp
 )
 eccdb_storage_target(eccdb_tech_database_test)
 target_link_libraries(eccdb_tech_database_test

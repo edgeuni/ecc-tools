@@ -11,7 +11,7 @@
 #include <string_view>
 #include <vector>
 
-#include "design/DesignDatabase.h"
+#include "design/DesignStore.h"
 #include "design/constraint/model/ConstraintComponents.h"
 #include "design/fill/model/FillComponents.h"
 #include "design/floorplan/model/FloorplanComponents.h"
@@ -120,7 +120,7 @@ inline std::vector<std::string> rectangleKeys(const std::vector<Rect>& rectangle
 }
 
 template <typename LayerId>
-std::string layerName(const DesignDatabase& design, LayerId id)
+std::string layerName(const DesignStore& design, LayerId id)
 {
   if (!id) {
     return {};
@@ -128,7 +128,7 @@ std::string layerName(const DesignDatabase& design, LayerId id)
   return design.techRegistry().registry().get<const TechLayerInfo>(id.entity()).name;
 }
 
-inline std::string siteName(const DesignDatabase& design, LibrarySiteId id)
+inline std::string siteName(const DesignStore& design, LibrarySiteId id)
 {
   if (!id) {
     return {};
@@ -136,7 +136,7 @@ inline std::string siteName(const DesignDatabase& design, LibrarySiteId id)
   return design.libraryRegistry().registry().get<const LibrarySite>(id.entity()).name;
 }
 
-inline std::string masterName(const DesignDatabase& design, LibraryCellMasterId id)
+inline std::string masterName(const DesignStore& design, LibraryCellMasterId id)
 {
   if (!id) {
     return {};
@@ -144,7 +144,7 @@ inline std::string masterName(const DesignDatabase& design, LibraryCellMasterId 
   return design.libraryRegistry().registry().get<const LibraryCellMaster>(id.entity()).name;
 }
 
-inline std::string masterTermName(const DesignDatabase& design, LibraryMasterTermId id)
+inline std::string masterTermName(const DesignStore& design, LibraryMasterTermId id)
 {
   if (!id) {
     return {};
@@ -152,17 +152,17 @@ inline std::string masterTermName(const DesignDatabase& design, LibraryMasterTer
   return design.libraryRegistry().registry().get<const LibraryMasterTerm>(id.entity()).name;
 }
 
-inline std::string regionName(const DesignDatabase& design, DesignRegionId id)
+inline std::string regionName(const DesignStore& design, DesignRegionId id)
 {
   return id ? design.constraintStorage().region(id).name : std::string{};
 }
 
-inline std::string instanceName(const DesignDatabase& design, DesignInstanceId id)
+inline std::string instanceName(const DesignStore& design, DesignInstanceId id)
 {
   return id ? design.netlistStorage().instance(id).name : std::string{};
 }
 
-inline std::string netName(const DesignDatabase& design, DesignNetId id)
+inline std::string netName(const DesignStore& design, DesignNetId id)
 {
   if (!id) {
     return {};
@@ -170,12 +170,12 @@ inline std::string netName(const DesignDatabase& design, DesignNetId id)
   return std::string(design.netlistStorage().isSpecialNet(id) ? "special:" : "regular:") + design.netlistStorage().net(id).name;
 }
 
-inline std::string designViaName(const DesignDatabase& design, DesignViaId id)
+inline std::string designViaName(const DesignStore& design, DesignViaId id)
 {
   return id ? design.routingStorage().via(id).name : std::string{};
 }
 
-inline std::string techViaName(const DesignDatabase& design, TechViaMasterId id)
+inline std::string techViaName(const DesignStore& design, TechViaMasterId id)
 {
   if (!id) {
     return {};
@@ -183,7 +183,7 @@ inline std::string techViaName(const DesignDatabase& design, TechViaMasterId id)
   return design.techRegistry().registry().get<const TechViaMaster>(id.entity()).name;
 }
 
-inline std::string viaName(const DesignDatabase& design, TechViaMasterId tech_via, DesignViaId design_via)
+inline std::string viaName(const DesignStore& design, TechViaMasterId tech_via, DesignViaId design_via)
 {
   return tech_via ? "tech:" + techViaName(design, tech_via) : "design:" + designViaName(design, design_via);
 }
@@ -238,7 +238,7 @@ inline Rect transformRectangle(Rect rectangle, DesignOrientation orientation, Po
   return result;
 }
 
-inline std::string ndrName(const DesignDatabase& design, TechNonDefaultRuleId id)
+inline std::string ndrName(const DesignStore& design, TechNonDefaultRuleId id)
 {
   if (!id) {
     return {};
@@ -246,12 +246,12 @@ inline std::string ndrName(const DesignDatabase& design, TechNonDefaultRuleId id
   return design.techRegistry().registry().get<const TechNonDefaultRule>(id.entity()).name;
 }
 
-inline std::string ndrName(const DesignDatabase& design, DesignNonDefaultRuleId id)
+inline std::string ndrName(const DesignStore& design, DesignNonDefaultRuleId id)
 {
   return id ? design.routingStorage().nonDefaultRule(id).name : std::string{};
 }
 
-inline std::string viaRuleName(const DesignDatabase& design, TechViaRuleGenerateId id)
+inline std::string viaRuleName(const DesignStore& design, TechViaRuleGenerateId id)
 {
   if (!id) {
     return {};
@@ -260,12 +260,12 @@ inline std::string viaRuleName(const DesignDatabase& design, TechViaRuleGenerate
 }
 
 template <typename Component>
-std::size_t componentCount(const DesignDatabase& design)
+std::size_t componentCount(const DesignStore& design)
 {
   return design.designRegistry().registry().view<const Component>().size();
 }
 
-inline std::string globalKey(const DesignDatabase& design)
+inline std::string globalKey(const DesignStore& design)
 {
   SemanticKey key;
   const auto& info = design.globalStorage().info();
@@ -277,7 +277,7 @@ inline std::string globalKey(const DesignDatabase& design)
   return key.str();
 }
 
-inline std::vector<std::string> rowKeys(const DesignDatabase& design)
+inline std::vector<std::string> rowKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.floorplanStorage().rows()) {
@@ -308,7 +308,7 @@ inline std::vector<std::string> rowKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> trackGridKeys(const DesignDatabase& design)
+inline std::vector<std::string> trackGridKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.floorplanStorage().trackGrids()) {
@@ -332,7 +332,7 @@ inline std::vector<std::string> trackGridKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> gcellGridKeys(const DesignDatabase& design)
+inline std::vector<std::string> gcellGridKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.floorplanStorage().gcellGrids()) {
@@ -348,7 +348,7 @@ inline std::vector<std::string> gcellGridKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> instanceKeys(const DesignDatabase& design)
+inline std::vector<std::string> instanceKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.netlistStorage().instances()) {
@@ -377,7 +377,7 @@ inline std::vector<std::string> instanceKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> instancePinKeys(const DesignDatabase& design)
+inline std::vector<std::string> instancePinKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto instance_id : design.netlistStorage().instances()) {
@@ -395,7 +395,7 @@ inline std::vector<std::string> instancePinKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::string pinRectangleKey(const DesignDatabase& design, const DesignPinRectangle& rectangle, const DesignIoPinPort& port)
+inline std::string pinRectangleKey(const DesignStore& design, const DesignPinRectangle& rectangle, const DesignIoPinPort& port)
 {
   SemanticKey key;
   key.text("rectangle");
@@ -408,7 +408,7 @@ inline std::string pinRectangleKey(const DesignDatabase& design, const DesignPin
   return key.str();
 }
 
-inline std::string pinPolygonKey(const DesignDatabase& design, const DesignPinPolygon& polygon, const DesignIoPinPort& port)
+inline std::string pinPolygonKey(const DesignStore& design, const DesignPinPolygon& polygon, const DesignIoPinPort& port)
 {
   SemanticKey key;
   key.text("polygon");
@@ -426,7 +426,7 @@ inline std::string pinPolygonKey(const DesignDatabase& design, const DesignPinPo
   return key.str();
 }
 
-inline std::string pinViaKey(const DesignDatabase& design, const DesignPinVia& via, const DesignIoPinPort& port)
+inline std::string pinViaKey(const DesignStore& design, const DesignPinVia& via, const DesignIoPinPort& port)
 {
   SemanticKey key;
   key.text("via");
@@ -439,7 +439,7 @@ inline std::string pinViaKey(const DesignDatabase& design, const DesignPinVia& v
   return key.str();
 }
 
-inline std::string pinPortKey(const DesignDatabase& design, const DesignIoPinPort& port)
+inline std::string pinPortKey(const DesignStore& design, const DesignIoPinPort& port)
 {
   SemanticKey key;
   key.unsignedValue(port.flags & ~DesignIoPinPortFlag::kExplicit);
@@ -466,7 +466,7 @@ inline std::string pinPortKey(const DesignDatabase& design, const DesignIoPinPor
   return key.str();
 }
 
-inline std::vector<std::string> ioPinKeys(const DesignDatabase& design, bool default_unspecified_use_to_signal = false)
+inline std::vector<std::string> ioPinKeys(const DesignStore& design, bool default_unspecified_use_to_signal = false)
 {
   std::vector<std::string> result;
   for (const auto id : design.netlistStorage().ioPins()) {
@@ -491,7 +491,7 @@ inline std::vector<std::string> ioPinKeys(const DesignDatabase& design, bool def
   return result;
 }
 
-inline std::string viaRectangleKey(const DesignDatabase& design, const DesignViaRectangle& rectangle)
+inline std::string viaRectangleKey(const DesignStore& design, const DesignViaRectangle& rectangle)
 {
   SemanticKey key;
   key.text("rectangle");
@@ -501,7 +501,7 @@ inline std::string viaRectangleKey(const DesignDatabase& design, const DesignVia
   return key.str();
 }
 
-inline std::string viaPolygonKey(const DesignDatabase& design, const DesignViaPolygon& polygon)
+inline std::string viaPolygonKey(const DesignStore& design, const DesignViaPolygon& polygon)
 {
   SemanticKey key;
   key.text("polygon");
@@ -511,7 +511,7 @@ inline std::string viaPolygonKey(const DesignDatabase& design, const DesignViaPo
   return key.str();
 }
 
-inline std::vector<std::string> viaKeys(const DesignDatabase& design)
+inline std::vector<std::string> viaKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.routingStorage().vias()) {
@@ -556,7 +556,7 @@ inline std::vector<std::string> viaKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> nonDefaultRuleKeys(const DesignDatabase& design)
+inline std::vector<std::string> nonDefaultRuleKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.routingStorage().nonDefaultRules()) {
@@ -603,7 +603,7 @@ inline bool pointLess(Point lhs, Point rhs)
   return lhs.x < rhs.x || (lhs.x == rhs.x && lhs.y < rhs.y);
 }
 
-inline void appendWirePathSemantics(SemanticKey& key, const DesignDatabase& design, const DesignWire& wire, DesignWirePathView path,
+inline void appendWirePathSemantics(SemanticKey& key, const DesignStore& design, const DesignWire& wire, DesignWirePathView path,
                                     bool ignore_unrepresented_mask = false)
 {
   const bool drop_mask = ignore_unrepresented_mask && path.width() == 0 && path.mask() == 1u;
@@ -624,7 +624,7 @@ inline void appendWireSemantics(SemanticKey& key, const DesignWire& wire)
   key.text(wire.shield_net);
 }
 
-inline std::vector<std::string> wirePrimitiveKeys(const DesignDatabase& design, DesignNetId id, bool ignore_unrepresented_mask = false)
+inline std::vector<std::string> wirePrimitiveKeys(const DesignStore& design, DesignNetId id, bool ignore_unrepresented_mask = false)
 {
   std::vector<std::string> result;
   for (const auto wire_id : design.routingStorage().wires(id)) {
@@ -700,7 +700,7 @@ inline std::vector<std::string> wirePrimitiveKeys(const DesignDatabase& design, 
   return result;
 }
 
-inline std::vector<std::string> netGeometryKeys(const DesignDatabase& design, DesignNetId id)
+inline std::vector<std::string> netGeometryKeys(const DesignStore& design, DesignNetId id)
 {
   const auto* geometry = design.routingStorage().netGeometry(id);
   if (geometry == nullptr) {
@@ -754,7 +754,7 @@ inline std::vector<std::string> netGeometryKeys(const DesignDatabase& design, De
   return result;
 }
 
-inline void appendNetOptions(SemanticKey& key, const DesignDatabase& design, DesignNetId id)
+inline void appendNetOptions(SemanticKey& key, const DesignStore& design, DesignNetId id)
 {
   const auto* options = design.netlistStorage().netOptions(id);
   key.unsignedValue(options != nullptr);
@@ -783,7 +783,7 @@ inline void appendNetOptions(SemanticKey& key, const DesignDatabase& design, Des
   appendKeys(key, std::move(spacing_rules));
 }
 
-inline bool isEmptyRegularAliasOfSpecialNet(const DesignDatabase& design, DesignNetId id)
+inline bool isEmptyRegularAliasOfSpecialNet(const DesignStore& design, DesignNetId id)
 {
   if (design.netlistStorage().isSpecialNet(id)) {
     return false;
@@ -798,7 +798,7 @@ inline bool isEmptyRegularAliasOfSpecialNet(const DesignDatabase& design, Design
          && design.routingStorage().wires(id).empty() && design.routingStorage().netGeometry(id) == nullptr;
 }
 
-inline std::size_t semanticNetCount(const DesignDatabase& design)
+inline std::size_t semanticNetCount(const DesignStore& design)
 {
   std::size_t result = 0;
   for (const auto id : design.netlistStorage().nets()) {
@@ -807,7 +807,7 @@ inline std::size_t semanticNetCount(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> netKeys(const DesignDatabase& design)
+inline std::vector<std::string> netKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.netlistStorage().nets()) {
@@ -831,7 +831,7 @@ inline std::vector<std::string> netKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> regionKeys(const DesignDatabase& design)
+inline std::vector<std::string> regionKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.constraintStorage().regions()) {
@@ -846,7 +846,7 @@ inline std::vector<std::string> regionKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> groupKeys(const DesignDatabase& design)
+inline std::vector<std::string> groupKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.constraintStorage().groups()) {
@@ -874,7 +874,7 @@ inline std::string polygonKey(const std::vector<Point>& polygon)
   return key.str();
 }
 
-inline std::vector<std::string> blockageKeys(const DesignDatabase& design)
+inline std::vector<std::string> blockageKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.constraintStorage().blockages()) {
@@ -901,7 +901,7 @@ inline std::vector<std::string> blockageKeys(const DesignDatabase& design)
   return result;
 }
 
-inline std::vector<std::string> fillKeys(const DesignDatabase& design)
+inline std::vector<std::string> fillKeys(const DesignStore& design)
 {
   std::vector<std::string> result;
   for (const auto id : design.fillStorage().fills()) {
@@ -919,7 +919,7 @@ inline std::vector<std::string> fillKeys(const DesignDatabase& design)
 
 }  // namespace detail
 
-inline DesignSemanticSnapshot makeDesignSemanticSnapshot(const DesignDatabase& design, bool include_net_keys = true,
+inline DesignSemanticSnapshot makeDesignSemanticSnapshot(const DesignStore& design, bool include_net_keys = true,
                                                          bool default_unspecified_pin_use_to_signal = false)
 {
   return DesignSemanticSnapshot{

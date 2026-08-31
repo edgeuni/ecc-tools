@@ -35,9 +35,9 @@ enum class IdbLayerDirection : uint8_t;
 }  // namespace idb
 
 namespace eccdb {
-class DesignDatabase;
-class TechDatabase;
-class LibraryDatabase;
+class DesignStore;
+class TechStore;
+class LibraryStore;
 }  // namespace eccdb
 
 namespace idrc {
@@ -80,8 +80,8 @@ class DRCInterface
 #if 1  // TopData
 
 #if 1  // input
-  void setDesignSource(eccdb::DesignDatabase* design, eccdb::TechDatabase* tech,
-                       eccdb::LibraryDatabase* library);
+  void setDesignSource(eccdb::DesignStore* design, eccdb::TechStore* tech,
+                       eccdb::LibraryStore* library);
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
@@ -125,9 +125,9 @@ class DRCInterface
 
  private:
   static DRCInterface* _drc_interface_instance;
-  eccdb::DesignDatabase* _design = nullptr;
-  eccdb::TechDatabase* _tech = nullptr;
-  eccdb::LibraryDatabase* _library = nullptr;
+  eccdb::DesignStore* _design = nullptr;
+  eccdb::TechStore* _tech = nullptr;
+  eccdb::LibraryStore* _library = nullptr;
 
   DRCInterface() = default;
   DRCInterface(const DRCInterface& other) = delete;

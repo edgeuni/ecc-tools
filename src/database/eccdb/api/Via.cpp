@@ -14,68 +14,51 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "eccdb/Via.h"
+#include "eccdb/Ref.h"
 
 #include <stdexcept>
-#include <utility>
 
-#include "api/detail/DatabaseState.h"
-#include "design/DesignDatabase.h"
+#include "api/internal/StorageConversions.h"
+#include "api/internal/DatabaseState.h"
+#include "design/DesignStore.h"
 
 namespace eccdb {
 
-Via::operator bool() const noexcept
+DesignViaRef::operator bool() const noexcept
 {
-  return _state != nullptr && _state->design().routingStorage().contains(_id);
+  return _state != nullptr
+         && _state->design().routingStorage().contains(detail::toStorageId<DesignViaId>(_id));
 }
 
-detail::DatabaseState& Via::state() const
+detail::DatabaseState& DesignViaRef::state() const
 {
   if (!*this) {
-    throw std::out_of_range("invalid Via handle");
+    throw std::out_of_range("invalid DesignViaRef handle");
   }
   return *_state;
 }
 
-std::string_view Via::getName() const
+DesignViaData DesignViaRef::data() const
 {
-  return state().design().routingStorage().via(_id).name;
+  return detail::toApi(
+      state().design().routingStorage().via(detail::toStorageId<DesignViaId>(_id)));
 }
 
-bool Via::isGenerated() const
+std::string_view DesignViaRef::name() const
 {
-  return (state().design().routingStorage().via(_id).flags & DesignViaFlag::kGenerated) != 0u;
+  return state().design().routingStorage().via(detail::toStorageId<DesignViaId>(_id)).name;
 }
 
-std::string_view Via::getPatternName() const
+void DesignViaRef::update(DesignViaData value)
 {
-  return state().design().routingStorage().via(_id).pattern_name;
+  state().design().routingStorage().updateVia(detail::toStorageId<DesignViaId>(_id),
+                                               detail::toStorage(value));
 }
 
-std::span<const DesignViaRectangle> Via::getRectangles() const
+bool DesignViaRef::destroy()
 {
-  return state().design().routingStorage().via(_id).rectangles;
-}
-
-std::span<const DesignViaPolygon> Via::getPolygons() const
-{
-  return state().design().routingStorage().via(_id).polygons;
-}
-
-const DesignGeneratedVia* Via::getGenerated() const
-{
-  const auto& via = state().design().routingStorage().via(_id);
-  return (via.flags & DesignViaFlag::kGenerated) != 0u ? &via.generated : nullptr;
-}
-
-void Via::replace(DesignVia value)
-{
-  state().design().routingStorage().updateVia(_id, std::move(value));
-}
-
-bool Via::destroy()
-{
-  if (!*this || !_state->design().routingStorage().destroyVia(_id)) {
+  if (!*this
+      || !_state->design().routingStorage().destroyVia(detail::toStorageId<DesignViaId>(_id))) {
     return false;
   }
   _state = nullptr;

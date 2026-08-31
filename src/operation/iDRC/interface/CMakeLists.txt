@@ -8,7 +8,7 @@ endif()
 
 add_library(idrc_interface
     ${IDRC_INTERFACE}/DRCInterface.cpp
-    ${PROJECT_SOURCE_DIR}/src/database/eccdb/adapter/idrc/DRCInterfaceEnTT.cpp
+    ${PROJECT_SOURCE_DIR}/src/database/eccdb/adapters/idrc/DRCInterfaceEnTT.cpp
 )
 
 target_link_libraries(idrc_interface
@@ -35,7 +35,7 @@ target_include_directories(idrc_interface
 
 if(TARGET eccdb_design)
     add_subdirectory(
-        ${PROJECT_SOURCE_DIR}/src/database/eccdb/tests/adapter/idrc
+        ${PROJECT_SOURCE_DIR}/src/database/eccdb/tests/adapters/idrc
         ${CMAKE_CURRENT_BINARY_DIR}/eccdb_idrc_adapter_tests
     )
 endif()

@@ -32,7 +32,8 @@ function(eccdb_storage_target target_name)
   target_include_directories(${target_name}
     PUBLIC
       ${ECCDB_SOURCE_DIR}
-      ${ECCDB_SOURCE_DIR}/core
+      ${ECCDB_SOURCE_DIR}/include
+      ${ECCDB_SOURCE_DIR}/storage
       ${ECCDB_SOURCE_DIR}/io
       "${ECCDB_ECC_TOOLS_ROOT}/src/third_party/entt"
   )
@@ -81,107 +82,14 @@ else()
   target_include_directories(eccdb_boost_pfr SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
 endif()
 
-add_library(eccdb_geometry
-  core/geometry/GeometryPool.cpp
-  core/geometry/PolygonRectDecomposer.cpp
-)
-eccdb_storage_target(eccdb_geometry)
-
-add_library(eccdb_tech_layers
-  core/tech/cut_layer/storage/CutLayerStorage.cpp
-  core/tech/implant_layer/storage/ImplantLayerStorage.cpp
-  core/tech/masterslice_layer/storage/MastersliceLayerStorage.cpp
-  core/tech/overlap_layer/storage/OverlapLayerStorage.cpp
-  core/tech/routing_layer/storage/RoutingLayerStorage.cpp
-)
-eccdb_storage_target(eccdb_tech_layers)
-target_link_libraries(eccdb_tech_layers
-  PUBLIC
-    eccdb_entt
-)
-
-add_library(eccdb_tech_global
-  core/tech/global/storage/TechGlobalStorage.cpp
-)
-eccdb_storage_target(eccdb_tech_global)
-target_link_libraries(eccdb_tech_global
-  PUBLIC
-    eccdb_entt
-)
-
-add_library(eccdb_tech_via_master
-  core/tech/via_master/storage/ViaMasterStorage.cpp
-)
-eccdb_storage_target(eccdb_tech_via_master)
-target_link_libraries(eccdb_tech_via_master
-  PUBLIC
-    eccdb_tech_layers
-    eccdb_geometry
-)
-
-add_library(eccdb_tech_via_rule
-  core/tech/via_rule/storage/ViaRuleStorage.cpp
-)
-eccdb_storage_target(eccdb_tech_via_rule)
-target_link_libraries(eccdb_tech_via_rule
-  PUBLIC
-    eccdb_entt
-    eccdb_tech_layers
-    eccdb_tech_via_master
-)
-
-add_library(eccdb_tech_via_rule_generate
-  core/tech/via_rule_generate/storage/ViaRuleGenerateStorage.cpp
-)
-eccdb_storage_target(eccdb_tech_via_rule_generate)
-target_link_libraries(eccdb_tech_via_rule_generate
-  PUBLIC
-    eccdb_tech_layers
-)
-
-add_library(eccdb_tech_non_default_rule
-  core/tech/non_default_rule/storage/NonDefaultRuleStorage.cpp
-)
-eccdb_storage_target(eccdb_tech_non_default_rule)
-target_link_libraries(eccdb_tech_non_default_rule
-  PUBLIC
-    eccdb_entt
-    eccdb_geometry
-    eccdb_tech_layers
-    eccdb_tech_via_master
-    eccdb_tech_via_rule_generate
-)
-
-add_library(eccdb_tech_database
-  core/tech/TechDatabase.cpp
-)
-eccdb_storage_target(eccdb_tech_database)
-target_link_libraries(eccdb_tech_database
-  PUBLIC
-    eccdb_geometry
-    eccdb_tech_global
-    eccdb_tech_layers
-    eccdb_tech_via_rule
-    eccdb_tech_via_rule_generate
-    eccdb_tech_via_master
-    eccdb_tech_non_default_rule
-)
-
 option(ECCDB_BUILD_TESTS "Build ECCDB tests" ON)
 option(ECCDB_BUILD_BENCHMARKS "Build ECCDB performance benchmarks" OFF)
 
-add_subdirectory(core/library)
-add_subdirectory(core/design)
-add_subdirectory(persistence/binary)
-add_subdirectory(io/import/binary)
-add_subdirectory(io/import/idb)
-if(TARGET lef)
-  add_subdirectory(io/import/lef)
-endif()
-add_subdirectory(io/export)
-if(TARGET def)
-  add_subdirectory(io/import/def)
-endif()
+add_subdirectory(storage)
+add_subdirectory(io/binary)
+add_subdirectory(io/idb)
+add_subdirectory(io/lef)
+add_subdirectory(io/def)
 add_subdirectory(api)
 
 if(ECCDB_BUILD_TESTS)
@@ -190,16 +98,13 @@ if(ECCDB_BUILD_TESTS)
   add_subdirectory(tests/unit/library)
   add_subdirectory(tests/unit/tech)
   if(TARGET eccdb_def_import AND TARGET eccdb_def_export)
-    add_subdirectory(tests/io/import/def)
+    add_subdirectory(tests/io/def)
   endif()
   if(TARGET eccdb_lef_import)
-    add_subdirectory(tests/io/import/lef)
+    add_subdirectory(tests/io/lef)
   endif()
   if(TARGET eccdb_binary_export AND TARGET eccdb_binary_import AND TARGET eccdb_lef_import)
-    add_subdirectory(tests/io/export/binary)
-  endif()
-  if(TARGET eccdb_lef_export AND TARGET eccdb_lef_import)
-    add_subdirectory(tests/io/export/lef)
+    add_subdirectory(tests/io/binary)
   endif()
   add_subdirectory(tests/differential)
   add_subdirectory(tests/memory)
@@ -255,46 +160,6 @@ install(TARGETS eccdb_api
 install(DIRECTORY "${ECCDB_SOURCE_DIR}/include/eccdb"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   FILES_MATCHING PATTERN "*.h"
-)
-
-# Current public CRUD values reuse a focused set of core value records. Install
-# only that transitive header set; Storage, Registry and internal Database
-# headers are deliberately absent from the public API package.
-set(_eccdb_public_value_headers
-  common/EnttId.h
-  common/GeometryTypes.h
-  design/common/DesignGeometry.h
-  design/common/DesignTypes.h
-  design/netlist/model/NetlistComponents.h
-  design/routing/component/RoutingComponents.h
-  design/routing/pool/RoutingPoolRecords.h
-  design/routing/pool/WireRoutingInput.h
-  design/routing/view/RoutingViewTypes.h
-  design/routing/view/WireRoutingView.h
-  design/schema/DesignEntitySchema.h
-  design/via/component/ViaComponents.h
-  geometry/GeometryHandle.h
-  library/common/LibraryTypes.h
-  tech/common/TechEntity.h
-  tech/common/TechLayerIds.h
-  tech/common/TechLayerTypes.h
-  tech/non_default_rule/model/NonDefaultRuleComponents.h
-  tech/routing_layer/model/RoutingLayerComponents.h
-  tech/via_master/model/ViaMasterComponents.h
-  tech/via_rule_generate/model/ViaRuleGenerateComponents.h
-)
-foreach(_header IN LISTS _eccdb_public_value_headers)
-  get_filename_component(_header_directory "${_header}" DIRECTORY)
-  install(FILES "${ECCDB_SOURCE_DIR}/core/${_header}"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${_header_directory}"
-  )
-endforeach()
-install(DIRECTORY "${ECCDB_ECC_TOOLS_ROOT}/src/third_party/entt/entt"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  FILES_MATCHING
-    PATTERN "*.h"
-    PATTERN "*.hpp"
-    PATTERN "natvis" EXCLUDE
 )
 
 configure_package_config_file(

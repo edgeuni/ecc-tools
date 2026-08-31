@@ -17,13 +17,13 @@
 
 #include "DesignSemanticSnapshot.h"
 #include "StructuredDesignSemanticDiffer.h"
-#include "design/DesignDatabase.h"
-#include "export/def/DefDesignExporter.h"
-#include "import/def/DefDesignImporter.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
-#include "library/LibraryDatabase.h"
-#include "tech/TechDatabase.h"
+#include "design/DesignStore.h"
+#include "def/DefDesignExporter.h"
+#include "def/DefDesignImporter.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
+#include "library/LibraryStore.h"
+#include "tech/TechStore.h"
 
 namespace eccdb {
 namespace {
@@ -348,7 +348,7 @@ void expectSemanticSnapshot(const test::DesignSemanticSnapshot& expected, const 
   expectKeySection("fills", expected.fills, actual.fills);
 }
 
-void expectAllNetRoutingSemantics(const DesignDatabase& expected, const DesignDatabase& actual, bool ignore_unrepresented_wire_mask = false)
+void expectAllNetRoutingSemantics(const DesignStore& expected, const DesignStore& actual, bool ignore_unrepresented_wire_mask = false)
 {
   for (const auto expected_id : expected.netlistStorage().nets()) {
     if (test::detail::isEmptyRegularAliasOfSpecialNet(expected, expected_id)) {
@@ -377,7 +377,7 @@ void expectAllNetRoutingSemantics(const DesignDatabase& expected, const DesignDa
   }
 }
 
-std::string netKey(const DesignDatabase& design, DesignNetId id)
+std::string netKey(const DesignStore& design, DesignNetId id)
 {
   if (!id) {
     return {};
@@ -402,7 +402,7 @@ void expectGeometry(const std::vector<DesignLayerGeometry>& expected, const std:
   }
 }
 
-std::vector<std::string> viaGeometryKeys(const DesignDatabase& design, const DesignVia& via)
+std::vector<std::string> viaGeometryKeys(const DesignStore& design, const DesignVia& via)
 {
   std::vector<std::string> result;
   for (const auto& rectangle : via.rectangles) {
@@ -425,12 +425,12 @@ std::vector<std::string> viaGeometryKeys(const DesignDatabase& design, const Des
   return result;
 }
 
-std::string layerName(const DesignDatabase& design, TechRoutingLayerId layer)
+std::string layerName(const DesignStore& design, TechRoutingLayerId layer)
 {
   return design.techRegistry().registry().get<const TechLayerInfo>(layer.entity()).name;
 }
 
-std::string viaName(const DesignDatabase& design, const DesignWireVia& via)
+std::string viaName(const DesignStore& design, const DesignWireVia& via)
 {
   if (via.tech_via) {
     return design.techRegistry().registry().get<const TechViaMaster>(via.tech_via.entity()).name;
@@ -438,7 +438,7 @@ std::string viaName(const DesignDatabase& design, const DesignWireVia& via)
   return design.routingStorage().via(via.design_via).name;
 }
 
-std::string pinViaName(const DesignDatabase& design, const DesignPinVia& via)
+std::string pinViaName(const DesignStore& design, const DesignPinVia& via)
 {
   if (via.tech_via) {
     return design.techRegistry().registry().get<const TechViaMaster>(via.tech_via.entity()).name;
@@ -446,7 +446,7 @@ std::string pinViaName(const DesignDatabase& design, const DesignPinVia& via)
   return design.routingStorage().via(via.design_via).name;
 }
 
-std::vector<std::string> pinPortKeys(const DesignDatabase& design, const DesignIoPin& pin)
+std::vector<std::string> pinPortKeys(const DesignStore& design, const DesignIoPin& pin)
 {
   std::vector<std::string> result;
   result.reserve(pin.ports.size());
@@ -495,7 +495,7 @@ bool pointLess(Point lhs, Point rhs)
   return lhs.x < rhs.x || (lhs.x == rhs.x && lhs.y < rhs.y);
 }
 
-std::vector<std::string> wirePrimitives(const DesignDatabase& design, DesignNetId net)
+std::vector<std::string> wirePrimitives(const DesignStore& design, DesignNetId net)
 {
   std::vector<std::string> result;
   for (const auto wire_id : design.routingStorage().wires(net)) {
@@ -539,7 +539,7 @@ std::vector<std::string> wirePrimitives(const DesignDatabase& design, DesignNetI
   return result;
 }
 
-std::vector<std::string> netGeometryPrimitives(const DesignDatabase& design, DesignNetId net)
+std::vector<std::string> netGeometryPrimitives(const DesignStore& design, DesignNetId net)
 {
   const auto* geometry = design.routingStorage().netGeometry(net);
   if (geometry == nullptr) {
@@ -578,7 +578,7 @@ std::vector<std::string> netGeometryPrimitives(const DesignDatabase& design, Des
   return result;
 }
 
-std::vector<std::string> netOptionKeys(const DesignDatabase& design, DesignNetId net)
+std::vector<std::string> netOptionKeys(const DesignStore& design, DesignNetId net)
 {
   const auto* options = design.netlistStorage().netOptions(net);
   if (options == nullptr) {
@@ -600,7 +600,7 @@ std::vector<std::string> netOptionKeys(const DesignDatabase& design, DesignNetId
   return result;
 }
 
-void expectNet(const DesignDatabase& expected, const DesignDatabase& actual, std::string_view name, bool special)
+void expectNet(const DesignStore& expected, const DesignStore& actual, std::string_view name, bool special)
 {
   const auto expected_id = special ? expected.netlistStorage().findSpecialNet(name) : expected.netlistStorage().findRegularNet(name);
   const auto actual_id = special ? actual.netlistStorage().findSpecialNet(name) : actual.netlistStorage().findRegularNet(name);
@@ -615,7 +615,7 @@ void expectNet(const DesignDatabase& expected, const DesignDatabase& actual, std
   EXPECT_EQ(lhs.flags, rhs.flags);
   EXPECT_EQ(lhs.weight, rhs.weight);
 
-  auto pin_keys = [](const DesignDatabase& design, DesignNetId net) {
+  auto pin_keys = [](const DesignStore& design, DesignNetId net) {
     std::vector<std::string> keys;
     for (const auto pin_id : design.netlistStorage().instancePins(net)) {
       const auto& pin = design.netlistStorage().instancePin(pin_id);
@@ -639,7 +639,7 @@ void expectNet(const DesignDatabase& expected, const DesignDatabase& actual, std
   EXPECT_EQ(netGeometryPrimitives(expected, expected_id), netGeometryPrimitives(actual, actual_id));
 }
 
-void expectEquivalent(const DesignDatabase& expected, const DesignDatabase& actual)
+void expectEquivalent(const DesignStore& expected, const DesignStore& actual)
 {
   EXPECT_EQ(expected.globalStorage().info().name, actual.globalStorage().info().name);
   EXPECT_EQ(expected.globalStorage().info().database_units_per_micron, actual.globalStorage().info().database_units_per_micron);
@@ -914,13 +914,13 @@ TEST(StructuredDesignSemanticDifferTest, DetectsRoutedWireCoordinateChange)
   actual_text.replace(endpoint, original_endpoint.size(), changed_endpoint);
   const auto actual_def = workspace.write("actual.def", actual_text);
 
-  TechDatabase technology;
+  TechStore technology;
   ASSERT_NO_THROW(LefTechImporter(technology).import(lef));
-  LibraryDatabase library(technology.techRegistry());
+  LibraryStore library(technology.techRegistry());
   ASSERT_NO_THROW(LefLibraryImporter(technology, library).import(lef));
 
-  DesignDatabase expected(technology.techRegistry(), library.libraryRegistry());
-  DesignDatabase actual(technology.techRegistry(), library.libraryRegistry());
+  DesignStore expected(technology.techRegistry(), library.libraryRegistry());
+  DesignStore actual(technology.techRegistry(), library.libraryRegistry());
   ASSERT_NO_THROW(DefDesignImporter(expected).import(expected_def));
   ASSERT_NO_THROW(DefDesignImporter(actual).import(actual_def));
 
@@ -1005,12 +1005,12 @@ TEST(OpenDbDesignDifferentialTest, OpenDbNormalizationPreservesRepresentedDesign
   const auto open_db_def = workspace.path("opendb.def");
   const auto open_db_log = workspace.path("opendb.log");
 
-  TechDatabase technology;
+  TechStore technology;
   ASSERT_NO_THROW(LefTechImporter(technology).import(lef));
-  LibraryDatabase library(technology.techRegistry());
+  LibraryStore library(technology.techRegistry());
   ASSERT_NO_THROW(LefLibraryImporter(technology, library).import(lef));
 
-  DesignDatabase reference(technology.techRegistry(), library.libraryRegistry());
+  DesignStore reference(technology.techRegistry(), library.libraryRegistry());
   DefDesignImporter reference_importer(reference);
   ASSERT_NO_THROW(reference_importer.import(input_def));
   EXPECT_TRUE(reference_importer.diagnostics().empty());
@@ -1019,7 +1019,7 @@ TEST(OpenDbDesignDifferentialTest, OpenDbNormalizationPreservesRepresentedDesign
   ASSERT_EQ(exit_code, 0) << readText(open_db_log);
   ASSERT_TRUE(std::filesystem::is_regular_file(open_db_def)) << readText(open_db_log);
 
-  DesignDatabase normalized(technology.techRegistry(), library.libraryRegistry());
+  DesignStore normalized(technology.techRegistry(), library.libraryRegistry());
   DefDesignImporter normalized_importer(normalized);
   ASSERT_NO_THROW(normalized_importer.import(open_db_def)) << readText(open_db_log) << '\n' << readText(open_db_def);
 
@@ -1027,7 +1027,7 @@ TEST(OpenDbDesignDifferentialTest, OpenDbNormalizationPreservesRepresentedDesign
 
   const auto canonical = workspace.path("canonical.def");
   DefDesignExporter(normalized).write(canonical);
-  DesignDatabase fixed_point(technology.techRegistry(), library.libraryRegistry());
+  DesignStore fixed_point(technology.techRegistry(), library.libraryRegistry());
   ASSERT_NO_THROW(DefDesignImporter(fixed_point).import(canonical));
   expectEquivalent(normalized, fixed_point);
   expectSemanticSnapshot(test::makeDesignSemanticSnapshot(normalized), test::makeDesignSemanticSnapshot(fixed_point));
@@ -1038,7 +1038,7 @@ TEST(OpenDbDesignDifferentialTest, OpenDbNormalizationPreservesRepresentedDesign
   ASSERT_EQ(canonical_exit_code, 0) << readText(canonical_open_db_log);
   ASSERT_TRUE(std::filesystem::is_regular_file(canonical_open_db_def)) << readText(canonical_open_db_log);
 
-  DesignDatabase open_db_fixed_point(technology.techRegistry(), library.libraryRegistry());
+  DesignStore open_db_fixed_point(technology.techRegistry(), library.libraryRegistry());
   DefDesignImporter open_db_fixed_point_importer(open_db_fixed_point);
   ASSERT_NO_THROW(open_db_fixed_point_importer.import(canonical_open_db_def))
       << readText(canonical_open_db_log) << '\n'
@@ -1086,7 +1086,7 @@ struct RoutingCoverage
   bool operator==(const RoutingCoverage&) const = default;
 };
 
-RoutingCoverage routingCoverage(const DesignDatabase& design)
+RoutingCoverage routingCoverage(const DesignStore& design)
 {
   RoutingCoverage result;
   for (const auto net : design.netlistStorage().nets()) {
@@ -1109,7 +1109,7 @@ RoutingCoverage routingCoverage(const DesignDatabase& design)
   return result;
 }
 
-void expectRoutingCoverage(const OpenDbCorpusCase& test_case, const DesignDatabase& source, const DesignDatabase& normalized)
+void expectRoutingCoverage(const OpenDbCorpusCase& test_case, const DesignStore& source, const DesignStore& normalized)
 {
   const auto expected = routingCoverage(source);
   const auto actual = routingCoverage(normalized);
@@ -1130,7 +1130,7 @@ void expectRoutingCoverage(const OpenDbCorpusCase& test_case, const DesignDataba
             << ", geometry_primitives=" << expected.geometry_primitive_count << '\n';
 }
 
-void expectRepresentedSemantics(const OpenDbCorpusCase& test_case, const DesignDatabase& expected, const DesignDatabase& actual)
+void expectRepresentedSemantics(const OpenDbCorpusCase& test_case, const DesignStore& expected, const DesignStore& actual)
 {
   expectRoutingCoverage(test_case, expected, actual);
   if (test_case.large) {
@@ -1230,12 +1230,12 @@ TEST_P(OpenDbCorpusDifferentialTest, MatchesOpenDbNormalizedImportAndExportSeman
   const auto open_db_def = workspace.path(test_case.name + "-opendb.def");
   const auto open_db_log = workspace.path(test_case.name + "-opendb.log");
 
-  TechDatabase technology;
+  TechStore technology;
   ASSERT_NO_THROW(LefTechImporter(technology).import(lefs));
-  LibraryDatabase library(technology.techRegistry());
+  LibraryStore library(technology.techRegistry());
   ASSERT_NO_THROW(LefLibraryImporter(technology, library).import(lefs));
 
-  DesignDatabase source(technology.techRegistry(), library.libraryRegistry());
+  DesignStore source(technology.techRegistry(), library.libraryRegistry());
   DefDesignImporter source_importer(source);
   ASSERT_NO_THROW(source_importer.import(effective_input_def)) << effective_input_def;
 
@@ -1243,7 +1243,7 @@ TEST_P(OpenDbCorpusDifferentialTest, MatchesOpenDbNormalizedImportAndExportSeman
   ASSERT_EQ(exit_code, 0) << readText(open_db_log);
   ASSERT_TRUE(std::filesystem::is_regular_file(open_db_def)) << readText(open_db_log);
 
-  DesignDatabase open_db_normalized(technology.techRegistry(), library.libraryRegistry());
+  DesignStore open_db_normalized(technology.techRegistry(), library.libraryRegistry());
   DefDesignImporter normalized_importer(open_db_normalized);
   ASSERT_NO_THROW(normalized_importer.import(open_db_def)) << readText(open_db_log) << '\n' << readText(open_db_def);
 
@@ -1260,7 +1260,7 @@ TEST_P(OpenDbCorpusDifferentialTest, MatchesOpenDbNormalizedImportAndExportSeman
   ASSERT_EQ(exported_exit_code, 0) << readText(exported_open_db_log);
   ASSERT_TRUE(std::filesystem::is_regular_file(exported_open_db_def)) << readText(exported_open_db_log);
 
-  DesignDatabase exported_open_db_normalized(technology.techRegistry(), library.libraryRegistry());
+  DesignStore exported_open_db_normalized(technology.techRegistry(), library.libraryRegistry());
   DefDesignImporter exported_normalized_importer(exported_open_db_normalized);
   ASSERT_NO_THROW(exported_normalized_importer.import(exported_open_db_def))
       << readText(exported_open_db_log) << '\n'

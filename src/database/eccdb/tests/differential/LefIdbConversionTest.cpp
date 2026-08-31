@@ -10,9 +10,9 @@
 #include <vector>
 
 #include "IdbObs.h"
-#include "import/idb/IdbLibraryImporter.h"
-#include "import/idb/IdbTechImporter.h"
-#include "import/idb/LegacyLefReader.h"
+#include "idb/IdbLibraryImporter.h"
+#include "idb/IdbTechImporter.h"
+#include "idb/LegacyLefReader.h"
 
 namespace eccdb {
 namespace {
@@ -20,9 +20,9 @@ namespace {
 struct Sky130Conversion
 {
   LegacyLefReader builder;
-  TechDatabase tech;
+  TechStore tech;
   IdbTechImporter tech_importer{tech};
-  LibraryDatabase library{tech.techRegistry()};
+  LibraryStore library{tech.techRegistry()};
   IdbLibraryImporter library_importer{library, tech_importer};
   ::idb::IdbLayout* source = nullptr;
 
@@ -152,12 +152,12 @@ Rect expectedRect(::idb::IdbRect& source)
 TEST(IdbImporterTest, RejectsASecondImportEvenWhenTheLegacyLayoutIsEmpty)
 {
   ::idb::IdbLayout source;
-  TechDatabase tech;
+  TechStore tech;
   IdbTechImporter tech_importer{tech};
   tech_importer.import(source);
   EXPECT_THROW(tech_importer.import(source), std::logic_error);
 
-  LibraryDatabase library{tech.techRegistry()};
+  LibraryStore library{tech.techRegistry()};
   IdbLibraryImporter library_importer{library, tech_importer};
   library_importer.import(source);
   EXPECT_THROW(library_importer.import(source), std::logic_error);
@@ -212,7 +212,7 @@ TEST(IdbTechImporterTest, CreatesEveryBasicLayerTypeInOneTechRegistry)
   max_via_stack->set_layer_top("M2");
   source.set_max_via_stack(max_via_stack);
 
-  TechDatabase tech;
+  TechStore tech;
   IdbTechImporter importer{tech};
   importer.import(source);
   const auto& registry = tech.techRegistry().registry();
@@ -308,7 +308,7 @@ TEST(IdbTechImporterTest, ConvertsEverySupportedGlobalAndLayerScalar)
   cut->set_lef58_backside();
   cut->set_resistance_per_cut(7.5);
 
-  TechDatabase tech;
+  TechStore tech;
   IdbTechImporter importer{tech};
   importer.import(source);
 
@@ -402,7 +402,7 @@ TEST(IdbTechImporterTest, ConvertsEverySupportedMastersliceSubtypeCaseInsensitiv
     source_layers.push_back(layer);
   }
 
-  TechDatabase tech;
+  TechStore tech;
   IdbTechImporter importer{tech};
   importer.import(source);
 

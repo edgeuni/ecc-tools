@@ -23,12 +23,12 @@
 #include <vector>
 
 #include "IdbObs.h"
-#include "export/lef/LefTechExporter.h"
-#include "import/idb/IdbLibraryImporter.h"
-#include "import/idb/IdbTechImporter.h"
-#include "import/idb/LegacyLefReader.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
+#include "lef/LefTechExporter.h"
+#include "idb/IdbLibraryImporter.h"
+#include "idb/IdbTechImporter.h"
+#include "idb/LegacyLefReader.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
 #include "LefPdkCorpus.h"
 
 namespace eccdb {
@@ -43,7 +43,7 @@ enum class LayerKind
   kOverlap
 };
 
-LayerKind layerKind(const TechDatabase& database, TechLayerId layer)
+LayerKind layerKind(const TechStore& database, TechLayerId layer)
 {
   const auto& registry = database.techRegistry().registry();
   if (registry.all_of<TechRoutingLayer>(layer.entity())) {
@@ -64,7 +64,7 @@ LayerKind layerKind(const TechDatabase& database, TechLayerId layer)
   throw std::runtime_error("unknown technology layer kind");
 }
 
-std::size_t layerCount(const TechDatabase& database)
+std::size_t layerCount(const TechStore& database)
 {
   std::size_t result = 0;
   for ([[maybe_unused]] const auto entity : database.techRegistry().registry().view<const TechLayerInfo>()) {
@@ -135,7 +135,7 @@ void expectRoutingLayer(const TechRoutingLayer& direct, const TechRoutingLayer& 
   EXPECT_EQ(direct.protrusion_width2, adapted.protrusion_width2);
 }
 
-void expectRoutingRules(const TechDatabase& direct, TechRoutingLayerId direct_layer, const TechDatabase& adapted,
+void expectRoutingRules(const TechStore& direct, TechRoutingLayerId direct_layer, const TechStore& adapted,
                         TechRoutingLayerId adapted_layer)
 {
   const auto& direct_storage = direct.routingLayerStorage();
@@ -438,7 +438,7 @@ void expectRoutingRules(const TechDatabase& direct, TechRoutingLayerId direct_la
   }
 }
 
-void expectCutRules(const TechDatabase& direct, TechCutLayerId direct_layer, const TechDatabase& adapted, TechCutLayerId adapted_layer)
+void expectCutRules(const TechStore& direct, TechCutLayerId direct_layer, const TechStore& adapted, TechCutLayerId adapted_layer)
 {
   const auto& direct_storage = direct.cutLayerStorage();
   const auto& adapted_storage = adapted.cutLayerStorage();
@@ -632,7 +632,7 @@ void expectCutRules(const TechDatabase& direct, TechCutLayerId direct_layer, con
   }
 }
 
-void expectGlobals(const TechDatabase& direct, const TechDatabase& adapted)
+void expectGlobals(const TechStore& direct, const TechStore& adapted)
 {
   EXPECT_EQ(direct.globalStorage().hasUnits(), adapted.globalStorage().hasUnits());
   if (direct.globalStorage().hasUnits() && adapted.globalStorage().hasUnits()) {
@@ -681,7 +681,7 @@ void expectRectangleSets(std::span<const Rect> direct, std::span<const Rect> ada
   EXPECT_EQ(lhs, rhs);
 }
 
-void expectTechnologyCommonSubset(const TechDatabase& direct, const TechDatabase& adapted)
+void expectTechnologyCommonSubset(const TechStore& direct, const TechStore& adapted)
 {
   expectGlobals(direct, adapted);
   ASSERT_EQ(layerCount(direct), layerCount(adapted));
@@ -963,7 +963,7 @@ void expectRectangles(std::span<const Rect> direct, const std::vector<::idb::Idb
   }
 }
 
-void expectSites(::idb::IdbLayout& legacy, const LibraryDatabase& direct)
+void expectSites(::idb::IdbLayout& legacy, const LibraryStore& direct)
 {
   const auto& legacy_sites = legacy.get_sites()->get_site_list();
   ASSERT_EQ(direct.siteStorage().siteCount(), legacy_sites.size());
@@ -984,7 +984,7 @@ void expectSites(::idb::IdbLayout& legacy, const LibraryDatabase& direct)
   }
 }
 
-void expectPort(const TechDatabase& direct_tech, const LibraryDatabase& direct_library, LibraryMasterTermId direct_term_id,
+void expectPort(const TechStore& direct_tech, const LibraryStore& direct_library, LibraryMasterTermId direct_term_id,
                 LibraryMasterPortId direct_port_id, ::idb::IdbPort& legacy_port, int64_t origin_x, int64_t origin_y)
 {
   const auto& port = direct_library.masterPortStorage().masterPort(direct_port_id);
@@ -1030,7 +1030,7 @@ void expectPort(const TechDatabase& direct_tech, const LibraryDatabase& direct_l
   }
 }
 
-void expectMaster(const TechDatabase& direct_tech, const LibraryDatabase& direct_library, ::idb::IdbCellMaster& legacy_master)
+void expectMaster(const TechStore& direct_tech, const LibraryStore& direct_library, ::idb::IdbCellMaster& legacy_master)
 {
   const auto master_id = direct_library.cellMasterStorage().findCellMaster(legacy_master.get_name());
   ASSERT_TRUE(master_id);
@@ -1096,7 +1096,7 @@ void expectMaster(const TechDatabase& direct_tech, const LibraryDatabase& direct
   }
 }
 
-void expectLibrary(::idb::IdbLayout& legacy, const TechDatabase& direct_tech, const LibraryDatabase& direct_library)
+void expectLibrary(::idb::IdbLayout& legacy, const TechStore& direct_tech, const LibraryStore& direct_library)
 {
   EXPECT_EQ(direct_library.geometryPool().polygonCount(), 0u);
   EXPECT_EQ(direct_library.geometryPool().pointCount(), 0u);
@@ -1128,9 +1128,9 @@ void compareDomain(const lef_test::LefPdkDomain& domain)
   requireCorpusFiles(domain);
   const GeometryPoolOptions geometry_options{.polygon_mode = PolygonStorageMode::kRectangularized};
 
-  TechDatabase direct_tech{TechDatabaseOptions{.geometry = geometry_options}};
+  TechStore direct_tech{TechStoreOptions{.geometry = geometry_options}};
   LefTechImporter(direct_tech).import(domain.technology);
-  LibraryDatabase direct_library{direct_tech.techRegistry(), LibraryDatabaseOptions{.geometry = geometry_options}};
+  LibraryStore direct_library{direct_tech.techRegistry(), LibraryStoreOptions{.geometry = geometry_options}};
   std::vector<std::filesystem::path> direct_files;
   direct_files.reserve(domain.cells.size() + 1u);
   direct_files.push_back(domain.technology);
@@ -1154,10 +1154,10 @@ void compareDomain(const lef_test::LefPdkDomain& domain)
   }
   auto& legacy = *service->get_layout();
 
-  TechDatabase adapted_tech{TechDatabaseOptions{.geometry = geometry_options}};
+  TechStore adapted_tech{TechStoreOptions{.geometry = geometry_options}};
   IdbTechImporter adapted_tech_importer(adapted_tech);
   adapted_tech_importer.import(legacy);
-  LibraryDatabase adapted_library{adapted_tech.techRegistry(), LibraryDatabaseOptions{.geometry = geometry_options}};
+  LibraryStore adapted_library{adapted_tech.techRegistry(), LibraryStoreOptions{.geometry = geometry_options}};
   IdbLibraryImporter(adapted_library, adapted_tech_importer).import(legacy);
   expectTechnologyCommonSubset(direct_tech, adapted_tech);
   expectLibrary(legacy, direct_tech, direct_library);
@@ -1230,14 +1230,14 @@ class TemporaryLef
 void expectCanonicalFixedPoint(const lef_test::LefPdkDomain& domain)
 {
   requireCorpusFiles(domain);
-  TechDatabase source;
+  TechStore source;
   LefTechImporter(source).import(domain.technology);
 
   std::ostringstream first;
   LefTechExporter::write(first, source);
   const TemporaryLef canonical(first.str());
 
-  TechDatabase reimported;
+  TechStore reimported;
   LefTechImporter(reimported).import(canonical.path());
   std::ostringstream second;
   LefTechExporter::write(second, reimported);
@@ -1267,7 +1267,7 @@ TEST(LefFullCorpusSemanticDifferentialTest, MatchesOpenRoadOdbGscl45TechnologyWh
   const auto lef = std::filesystem::path{ECC_TOOLS_SOURCE_DIR}.parent_path() / "OpenROAD/src/odb/test/data/gscl45nm.lef";
   if (!std::filesystem::exists(lef)) GTEST_SKIP() << "OpenROAD ODB corpus is not checked out next to ecc-tools";
 
-  TechDatabase direct;
+  TechStore direct;
   ASSERT_NO_THROW(LefTechImporter(direct).import(lef));
 
   LegacyLefReader builder;
@@ -1276,7 +1276,7 @@ TEST(LefFullCorpusSemanticDifferentialTest, MatchesOpenRoadOdbGscl45TechnologyWh
   ASSERT_NE(service, nullptr);
   ASSERT_NE(service->get_layout(), nullptr);
 
-  TechDatabase adapted;
+  TechStore adapted;
   ASSERT_NO_THROW(IdbTechImporter(adapted).import(*service->get_layout()));
   expectTechnologyCommonSubset(direct, adapted);
 }

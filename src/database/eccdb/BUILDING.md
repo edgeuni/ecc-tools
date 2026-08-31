@@ -3,6 +3,12 @@
 The eccdb directory can be configured without building the complete
 ecc-tools application.
 
+Public API guides: [English](doc/API_Usage.en.md) | [简体中文](doc/API_Usage.zh-CN.md)
+
+Differential testing guides: [English](doc/Differential_Testing.en.md) | [简体中文](doc/Differential_Testing.zh-CN.md)
+
+Architecture guides: [English](doc/Architecture.en.md) | [简体中文](doc/Architecture.zh-CN.md)
+
 ## Core EnTTDB
 
 ```bash
@@ -74,6 +80,28 @@ eccdb::Config config{
 };
 auto database = eccdb::Database::open(config);
 ```
+
+The stable API uses database-owned entities and explicit value snapshots:
+
+```cpp
+eccdb::NetId net = database.findNetId("clk");
+auto data = database.netData(net);  // owned snapshot
+if (data) {
+  data->name = "clk_main";         // does not mutate the database yet
+  database.updateNet(net, *data);  // explicit writeback
+}
+
+// Optional C++ convenience handle. It is non-owning and must not outlive the
+// Database; the ID remains the stable identity used for storage and bindings.
+eccdb::NetRef net_ref = database.net(net);
+net_ref.setUse(eccdb::SignalUse::kClock);
+```
+
+`ObjectId` values are local to one `Database`: they can be copied, hashed and
+stored by callers, but become invalid when their entity or owning database is
+destroyed. `Data` and routing-path values own their contents. `Ref` values and
+returned `string_view` objects are borrowed conveniences and must not be kept
+past their documented lifetime.
 
 Binary input and output use three files because technology, library and
 design registries have independent schemas:

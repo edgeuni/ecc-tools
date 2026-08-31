@@ -30,8 +30,8 @@
 
 #include "IdbObs.h"
 #include "builder.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
 #include "LefPdkCorpus.h"
 
 namespace eccdb {
@@ -308,7 +308,7 @@ void countObsGeometry(GeometryCounts& result, const GeometryPool& geometry, cons
   }
 }
 
-DatabaseCounts countDirectDatabase(const TechDatabase& technology, const LibraryDatabase& library)
+DatabaseCounts countDirectDatabase(const TechStore& technology, const LibraryStore& library)
 {
   DatabaseCounts result;
   result.geometry.groups = static_cast<uint64_t>(technology.geometryPool().entryCount()) + library.geometryPool().entryCount();
@@ -415,15 +415,15 @@ Measurement measureDirectEnttRectangularized(const LefInputs& inputs)
 
   struct DirectDomain
   {
-    std::unique_ptr<TechDatabase> technology;
-    std::unique_ptr<LibraryDatabase> library;
+    std::unique_ptr<TechStore> technology;
+    std::unique_ptr<LibraryStore> library;
   };
   std::vector<DirectDomain> domains;
   domains.reserve(inputs.domains.size());
 
   for (const auto& domain : inputs.domains) {
     const GeometryPoolOptions geometry_options{.polygon_mode = PolygonStorageMode::kRectangularized};
-    auto technology = std::make_unique<TechDatabase>(TechDatabaseOptions{.geometry = geometry_options});
+    auto technology = std::make_unique<TechStore>(TechStoreOptions{.geometry = geometry_options});
     {
       const auto start = std::chrono::steady_clock::now();
       LefTechImporter importer(*technology);
@@ -431,7 +431,7 @@ Measurement measureDirectEnttRectangularized(const LefInputs& inputs)
       result.tech_import_milliseconds += static_cast<uint64_t>(
           std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count());
     }
-    auto library = std::make_unique<LibraryDatabase>(technology->techRegistry(), LibraryDatabaseOptions{.geometry = geometry_options});
+    auto library = std::make_unique<LibraryStore>(technology->techRegistry(), LibraryStoreOptions{.geometry = geometry_options});
     {
       LefLibraryImporter importer(*technology, *library);
       std::vector<std::filesystem::path> files;

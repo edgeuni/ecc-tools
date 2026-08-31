@@ -14,68 +14,70 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "eccdb/Wire.h"
+#include "eccdb/Ref.h"
 
 #include <stdexcept>
-#include <utility>
 
-#include "api/detail/DatabaseState.h"
-#include "design/DesignDatabase.h"
-#include "eccdb/Net.h"
+#include "api/internal/StorageConversions.h"
+#include "api/internal/DatabaseState.h"
+#include "design/DesignStore.h"
 
 namespace eccdb {
 
-Wire::operator bool() const noexcept
+WireRef::operator bool() const noexcept
 {
-  return _state != nullptr && _state->design().routingStorage().contains(_id);
+  return _state != nullptr
+         && _state->design().routingStorage().contains(detail::toStorageId<DesignWireId>(_id));
 }
 
-detail::DatabaseState& Wire::state() const
+detail::DatabaseState& WireRef::state() const
 {
   if (!*this) {
-    throw std::out_of_range("invalid Wire handle");
+    throw std::out_of_range("invalid WireRef handle");
   }
   return *_state;
 }
 
-Net Wire::getNet() const
+WireMetadata WireRef::metadata() const
 {
-  auto& api = state();
-  auto& db = api.design();
-  return Net{api, db.routingStorage().wire(_id).net};
+  return detail::toApi(
+      state().design().routingStorage().wire(detail::toStorageId<DesignWireId>(_id)));
 }
 
-DesignWireStatus Wire::getStatus() const
+WireRoutingData WireRef::routingData() const
 {
-  return state().design().routingStorage().wire(_id).status;
+  auto& storage = state().design().routingStorage();
+  const auto id = detail::toStorageId<DesignWireId>(_id);
+  WireRoutingData result;
+  result.paths.reserve(storage.pathCount(id));
+  storage.forEachPath(id, [&result](const DesignWirePathView path) {
+    result.paths.push_back(detail::toApi(path));
+  });
+  return result;
 }
 
-std::string_view Wire::getShieldNet() const
+std::size_t WireRef::pathCount() const
 {
-  return state().design().routingStorage().wire(_id).shield_net;
+  return state().design().routingStorage().pathCount(detail::toStorageId<DesignWireId>(_id));
 }
 
-std::size_t Wire::getPathCount() const
+WirePathData WireRef::pathData(std::size_t index) const
 {
-  return state().design().routingStorage().pathCount(_id);
+  return detail::toApi(
+      state().design().routingStorage().path(detail::toStorageId<DesignWireId>(_id), index));
 }
 
-DesignWirePathView Wire::getPath(std::size_t index) const
+void WireRef::update(WireMetadata metadata, WireRoutingData routing)
 {
-  return state().design().routingStorage().path(_id, index);
+  state().design().routingStorage().updateWire(detail::toStorageId<DesignWireId>(_id),
+                                                detail::toStorage(metadata),
+                                                detail::toStorage(routing));
 }
 
-void Wire::replace(DesignWireRoutingInput routing, DesignWireStatus status, std::string shield_net)
+bool WireRef::destroy()
 {
-  auto& db = state().design();
-  const auto net = db.routingStorage().wire(_id).net;
-  db.routingStorage().updateWire(
-      _id, DesignWire{.net = net, .status = status, .shield_net = std::move(shield_net)}, std::move(routing));
-}
-
-bool Wire::destroy()
-{
-  if (!*this || !_state->design().routingStorage().destroyWire(_id)) {
+  if (!*this
+      || !_state->design().routingStorage().destroyWire(detail::toStorageId<DesignWireId>(_id))) {
     return false;
   }
   _state = nullptr;

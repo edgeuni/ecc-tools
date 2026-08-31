@@ -18,9 +18,7 @@
 
 #include "eccdb/Config.h"
 #include "eccdb/Database.h"
-#include "eccdb/Instance.h"
-#include "eccdb/Net.h"
-#include "eccdb/Pin.h"
+#include "eccdb/DesignData.h"
+#include "eccdb/Ref.h"
+#include "eccdb/RoutingData.h"
 #include "eccdb/Types.h"
-#include "eccdb/Via.h"
-#include "eccdb/Wire.h"

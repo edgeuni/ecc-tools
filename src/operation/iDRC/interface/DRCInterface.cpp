@@ -37,7 +37,7 @@
 #include "RuleValidator.hpp"
 #include "SameLayerCutSpacingRule.hpp"
 #include "Utility.hpp"
-#include "design/DesignDatabase.h"
+#include "design/DesignStore.h"
 #include "feature_manager.h"
 #include "file_drc.h"
 #include "idm.h"
@@ -385,8 +385,8 @@ void DRCInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   /////////////////////////////////////////////
 }
 
-void DRCInterface::setDesignSource(eccdb::DesignDatabase* design, eccdb::TechDatabase* tech,
-                                   eccdb::LibraryDatabase* library)
+void DRCInterface::setDesignSource(eccdb::DesignStore* design, eccdb::TechStore* tech,
+                                   eccdb::LibraryStore* library)
 {
   _design = design;
   _tech = tech;

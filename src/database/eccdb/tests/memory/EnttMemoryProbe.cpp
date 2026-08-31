@@ -13,18 +13,18 @@
 #include <string>
 #include <vector>
 
-#include "design/DesignDatabase.h"
+#include "design/DesignStore.h"
 #include "design/constraint/model/ConstraintComponents.h"
 #include "design/fill/model/FillComponents.h"
 #include "design/floorplan/model/FloorplanComponents.h"
 #include "design/global/model/DesignGlobalComponents.h"
 #include "design/netlist/model/NetlistComponents.h"
 #include "design/routing/component/RoutingComponents.h"
-#include "import/def/DefDesignImporter.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
-#include "library/LibraryDatabase.h"
-#include "tech/TechDatabase.h"
+#include "def/DefDesignImporter.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
+#include "library/LibraryStore.h"
+#include "tech/TechStore.h"
 #include "tech/common/TechLayerTypes.h"
 
 namespace eccdb {
@@ -178,7 +178,7 @@ uint64_t elapsedMilliseconds(std::chrono::steady_clock::time_point start)
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count());
 }
 
-Counts countDatabase(const TechDatabase& technology, const LibraryDatabase& library, const DesignDatabase& design)
+Counts countDatabase(const TechStore& technology, const LibraryStore& library, const DesignStore& design)
 {
   Counts result;
   const auto* layer_storage = technology.techRegistry().registry().storage<TechLayerInfo>();
@@ -226,7 +226,7 @@ void addComponentStorage(const DesignRegistry::registry_type& registry, MemoryBr
   result.packed_entity_capacity_estimate_bytes += capacity * sizeof(DesignEntity);
 }
 
-MemoryBreakdown memoryBreakdown(const DesignDatabase& design, uint64_t allocator_in_use_bytes)
+MemoryBreakdown memoryBreakdown(const DesignStore& design, uint64_t allocator_in_use_bytes)
 {
   MemoryBreakdown result;
   const auto& registry = design.designRegistry().registry();
@@ -540,15 +540,15 @@ int main(int argc, char** argv)
     const auto baseline = eccdb::settledMemory();
 
     const auto lef_start = std::chrono::steady_clock::now();
-    eccdb::TechDatabase technology;
+    eccdb::TechStore technology;
     eccdb::LefTechImporter(technology).import(lef);
-    eccdb::LibraryDatabase library(technology.techRegistry());
+    eccdb::LibraryStore library(technology.techRegistry());
     eccdb::LefLibraryImporter(technology, library).import(lef);
     const auto lef_milliseconds = eccdb::elapsedMilliseconds(lef_start);
     const auto after_lef = eccdb::settledMemory();
 
     const auto def_start = std::chrono::steady_clock::now();
-    eccdb::DesignDatabase design(technology.techRegistry(), library.libraryRegistry());
+    eccdb::DesignStore design(technology.techRegistry(), library.libraryRegistry());
     eccdb::DefDesignImporter importer(design);
     importer.import(def);
     const auto def_milliseconds = eccdb::elapsedMilliseconds(def_start);

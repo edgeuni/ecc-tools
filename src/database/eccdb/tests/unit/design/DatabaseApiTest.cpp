@@ -17,108 +17,139 @@
 #include "DesignTestFixture.h"
 
 #include <stdexcept>
+#include <unordered_map>
 
-#include "api/detail/DatabaseTestAccess.h"
+#include "DatabaseTestAccess.h"
 #include "eccdb/db.h"
 
 namespace eccdb {
 namespace {
 
-TEST_F(DesignStorageTest, PublicApiProvidesTypedIdBasedCrud)
+TEST_F(DesignStorageTest, PublicApiProvidesTypedIdAndSnapshotCrud)
 {
-  auto database = ::eccdb::detail::DatabaseTestAccess::borrow(design);
-  auto signal = database.createNet(DesignNet{.name = "signal", .use = DesignSignalUse::kSignal});
-  auto power = database.createSpecialNet(DesignNet{.name = "VDD", .use = DesignSignalUse::kPower});
-  auto instance = database.createInstance(createInstance("u1", {10, 20}));
-  auto input = instance.findPin("A");
-  auto io = database.createIoPin(
-      DesignIoPin{.name = "IN", .direction = DesignIoPinDirection::kInput, .use = DesignSignalUse::kSignal});
+  auto database = detail::DatabaseTestAccess::borrow(design);
+  const auto signal = database.createNet(NetData{.name = "signal", .use = SignalUse::kSignal});
+  const auto power = database.createSpecialNet(NetData{.name = "VDD", .use = SignalUse::kPower});
+  const auto stored_instance = createInstance("u1", {10, 20});
+  const auto instance = database.createInstance(
+      InstanceData{.name = stored_instance.name,
+                   .master = CellMasterId{stored_instance.master.packed()},
+                   .origin = stored_instance.origin});
+  const auto input = database.findInstancePinId(instance, "A");
+  const auto io = database.createIoPin(
+      IoPinData{.name = "IN", .direction = IoDirection::kInput, .use = SignalUse::kSignal});
 
   ASSERT_TRUE(signal);
   ASSERT_TRUE(power);
   ASSERT_TRUE(instance);
   ASSERT_TRUE(input);
   ASSERT_TRUE(io);
-  EXPECT_EQ(database.getNet(signal.getId()).getName(), "signal");
-  EXPECT_EQ(database.findInstance("u1").getId(), instance.getId());
+  EXPECT_TRUE(database.contains(signal));
+  EXPECT_TRUE(database.isSpecialNet(power));
+  EXPECT_EQ(database.netData(signal)->name, "signal");
+  EXPECT_EQ(database.findInstanceId("u1"), instance);
 
-  input.connect(signal);
-  io.connect(signal);
-  EXPECT_EQ(input.getNet().getId(), signal.getId());
-  EXPECT_EQ(io.getNet().getId(), signal.getId());
-  EXPECT_EQ(signal.getInstancePins().front().getId(), input.getId());
-  EXPECT_EQ(signal.getIoPins().front().getId(), io.getId());
+  database.connect(input, signal);
+  database.connect(io, signal);
+  EXPECT_EQ(database.instancePinData(input)->net, signal);
+  EXPECT_EQ(database.ioPinData(io)->net, signal);
+  EXPECT_EQ(database.instancePinIds(signal).front(), input);
+  EXPECT_EQ(database.ioPinIds(signal).front(), io);
 
-  signal.rename("signal_main");
-  signal.setSource(DesignNetSource::kUser);
-  signal.setWeight(5);
-  instance.setOrigin({100, 200});
-  instance.setPlacementStatus(DesignPlacementStatus::kFixed);
-  io.setDirection(DesignIoPinDirection::kInOut);
+  auto net_snapshot = *database.netData(signal);
+  net_snapshot.name = "signal_main";
+  net_snapshot.source = NetSource::kUser;
+  net_snapshot.weight = 5;
+  EXPECT_EQ(database.netData(signal)->name, "signal");
+  database.updateNet(signal, net_snapshot);
 
-  EXPECT_FALSE(database.findNet("signal"));
-  EXPECT_EQ(database.findNet("signal_main").getId(), signal.getId());
-  EXPECT_EQ(design.netlistStorage().net(signal.getId()).weight, 5);
-  EXPECT_EQ(design.netlistStorage().instance(instance.getId()).origin, (Point{100, 200}));
-  EXPECT_EQ(design.netlistStorage().ioPin(io.getId()).direction, DesignIoPinDirection::kInOut);
+  auto instance_snapshot = *database.instanceData(instance);
+  instance_snapshot.origin = {100, 200};
+  instance_snapshot.placement_status = PlacementStatus::kFixed;
+  database.updateInstance(instance, instance_snapshot);
 
-  input.disconnect(signal);
-  io.disconnect(signal);
-  EXPECT_FALSE(input.getNet());
-  EXPECT_FALSE(io.getNet());
-  EXPECT_TRUE(io.destroy());
-  EXPECT_TRUE(instance.destroy());
-  const auto stale_signal_id = signal.getId();
-  EXPECT_TRUE(signal.destroy());
-  EXPECT_FALSE(signal);
-  EXPECT_FALSE(database.getNet(stale_signal_id));
+  auto io_snapshot = *database.ioPinData(io);
+  io_snapshot.direction = IoDirection::kInOut;
+  database.updateIoPin(io, io_snapshot);
+
+  EXPECT_FALSE(database.findNetId("signal"));
+  EXPECT_EQ(database.findNetId("signal_main"), signal);
+  EXPECT_EQ(database.netData(signal)->weight, 5);
+  EXPECT_EQ(database.instanceData(instance)->origin, (Point{100, 200}));
+  EXPECT_EQ(database.ioPinData(io)->direction, IoDirection::kInOut);
+
+  std::unordered_map<NetId, std::string> names;
+  names.emplace(signal, database.netData(signal)->name);
+  EXPECT_EQ(names.at(signal), "signal_main");
+
+  database.disconnect(input, signal);
+  database.disconnect(io, signal);
+  EXPECT_FALSE(database.instancePinData(input)->net);
+  EXPECT_FALSE(database.ioPinData(io)->net);
+  EXPECT_TRUE(database.destroyIoPin(io));
+  EXPECT_TRUE(database.destroyInstance(instance));
+  EXPECT_TRUE(database.destroyNet(signal));
+  EXPECT_FALSE(database.contains(signal));
+  EXPECT_FALSE(database.netData(signal));
 }
 
-TEST_F(DesignStorageTest, PublicApiNavigatesRoutingWithoutExposingStorage)
+TEST_F(DesignStorageTest, PublicApiModelsWireAsEntityAndPathAsValue)
 {
-  auto database = ::eccdb::detail::DatabaseTestAccess::borrow(design);
-  auto net = database.createSpecialNet(DesignNet{.name = "VDD", .use = DesignSignalUse::kPower});
-  auto via = database.createVia(
-      DesignVia{.name = "LOCAL_VIA", .rectangles = {{.layer = layer, .rectangle = {-5, -5, 5, 5}}}});
+  auto database = detail::DatabaseTestAccess::borrow(design);
+  const auto net = database.createSpecialNet(NetData{.name = "VDD", .use = SignalUse::kPower});
+  const auto via = database.createDesignVia(
+      DesignViaData{.name = "LOCAL_VIA",
+                    .rectangles = {{.layer = LayerId{layer.packed()},
+                                    .rectangle = {-5, -5, 5, 5}}}});
 
-  DesignWireRoutingInput routing;
-  routing.appendPath(DesignWirePath{.layer = routing_layer,
-                                    .flags = DesignWirePathFlag::kHasWidth,
-                                    .width = 20,
-                                    .points = {{{0, 0}}, {{100, 0}}},
-                                    .vias = {{.point_index = 1, .design_via = via.getId()}}});
-  auto wire = net.createWire(std::move(routing), DesignWireStatus::kFixed);
+  WireRoutingData routing{
+      .paths = {{.layer = RoutingLayerId{routing_layer.packed()},
+                 .width = 20,
+                 .points = {{{0, 0}}, {{100, 0}}},
+                 .vias = {{.point_index = 1, .definition = ViaDefinitionId{via}}}}}};
+  const auto wire = database.createWire(
+      WireMetadata{.net = net, .status = WireStatus::kFixed}, std::move(routing));
 
   ASSERT_TRUE(wire);
-  EXPECT_EQ(database.getWire(wire.getId()).getId(), wire.getId());
-  EXPECT_EQ(wire.getNet().getId(), net.getId());
-  EXPECT_EQ(wire.getStatus(), DesignWireStatus::kFixed);
-  EXPECT_EQ(wire.getPathCount(), 1u);
-  EXPECT_EQ(wire.getPath(0).points().size(), 2u);
-  ASSERT_EQ(net.getWires().size(), 1u);
-  EXPECT_EQ(net.getWires().front().getId(), wire.getId());
-  EXPECT_EQ(database.findVia("LOCAL_VIA").getId(), via.getId());
-  EXPECT_EQ(via.getRectangles().size(), 1u);
-  EXPECT_FALSE(via.destroy());
+  EXPECT_TRUE(database.contains(wire));
+  EXPECT_EQ(database.wireMetadata(wire)->net, net);
+  EXPECT_EQ(database.wireMetadata(wire)->status, WireStatus::kFixed);
+  ASSERT_EQ(database.wireRoutingData(wire)->paths.size(), 1u);
+  EXPECT_EQ(database.wireRoutingData(wire)->paths.front().points.size(), 2u);
+  EXPECT_EQ(database.wireIds(net).front(), wire);
+  EXPECT_EQ(database.findDesignViaId("LOCAL_VIA"), via);
+  EXPECT_EQ(database.designViaData(via)->rectangles.size(), 1u);
+  EXPECT_FALSE(database.destroyDesignVia(via));
 
-  EXPECT_TRUE(wire.destroy());
-  EXPECT_TRUE(via.destroy());
-  EXPECT_TRUE(net.destroy());
+  auto wire_ref = database.wire(wire);
+  ASSERT_TRUE(wire_ref);
+  EXPECT_EQ(wire_ref.metadata().net, net);
+  EXPECT_EQ(wire_ref.pathCount(), 1u);
+  EXPECT_EQ(wire_ref.pathData(0).points.size(), 2u);
+
+  EXPECT_TRUE(database.destroyWire(wire));
+  EXPECT_FALSE(wire_ref);
+  EXPECT_TRUE(database.destroyDesignVia(via));
+  EXPECT_TRUE(database.destroyNet(net));
 }
 
-TEST_F(DesignStorageTest, PublicApiRejectsRelationshipsAcrossDesigns)
+TEST_F(DesignStorageTest, ConvenienceRefsRejectRelationshipsAcrossDatabases)
 {
-  auto first = ::eccdb::detail::DatabaseTestAccess::borrow(design);
-  auto first_net = first.createNet(DesignNet{.name = "first"});
-  auto first_pin = first.createIoPin(DesignIoPin{.name = "first_pin"});
+  auto first = detail::DatabaseTestAccess::borrow(design);
+  const auto first_net_id = first.createNet(NetData{.name = "first"});
+  const auto first_pin_id = first.createIoPin(IoPinData{.name = "first_pin"});
 
-  DesignDatabase other_database{tech, library.libraryRegistry()};
-  auto second = ::eccdb::detail::DatabaseTestAccess::borrow(other_database);
-  auto second_net = second.createNet(DesignNet{.name = "second"});
+  DesignStore other_store{tech, library.libraryRegistry()};
+  auto second = detail::DatabaseTestAccess::borrow(other_store);
+  const auto second_net_id = second.createNet(NetData{.name = "second"});
 
-  EXPECT_EQ(first_net.getId().packed(), second_net.getId().packed());
-  EXPECT_THROW(first_pin.connect(second_net), std::invalid_argument);
-  EXPECT_FALSE(first_pin.getNet());
+  EXPECT_EQ(first_net_id.packed(), second_net_id.packed());
+  auto first_pin = first.ioPin(first_pin_id);
+  EXPECT_THROW(first_pin.connect(second.net(second_net_id)), std::invalid_argument);
+  EXPECT_FALSE(first_pin.net());
+
+  first_pin.connect(first.net(first_net_id));
+  EXPECT_EQ(first_pin.net().id(), first_net_id);
 }
 
 }  // namespace

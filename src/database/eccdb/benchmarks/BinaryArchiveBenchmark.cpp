@@ -14,15 +14,15 @@
 #include <utility>
 #include <vector>
 
-#include "design/DesignDatabase.h"
-#include "export/binary/BinaryDatabaseExporter.h"
-#include "export/def/DefDesignExporter.h"
-#include "import/binary/BinaryDatabaseImporter.h"
-#include "import/def/DefDesignImporter.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
-#include "library/LibraryDatabase.h"
-#include "tech/TechDatabase.h"
+#include "design/DesignStore.h"
+#include "binary/BinaryDatabaseExporter.h"
+#include "def/DefDesignExporter.h"
+#include "binary/BinaryDatabaseImporter.h"
+#include "def/DefDesignImporter.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
+#include "library/LibraryStore.h"
+#include "tech/TechStore.h"
 
 namespace eccdb {
 namespace {
@@ -152,7 +152,7 @@ void addTotal(std::vector<Record>& records, std::string operation, std::size_t f
   records.push_back(std::move(total));
 }
 
-DatabaseCounts databaseCounts(const TechDatabase& technology, const LibraryDatabase& library, const DesignDatabase& design)
+DatabaseCounts databaseCounts(const TechStore& technology, const LibraryStore& library, const DesignStore& design)
 {
   const auto routing = design.routingStorage().routingPoolStatistics();
   return DatabaseCounts{.layers = technology.layerSequence().size(),
@@ -273,19 +273,19 @@ void run(const Options& options)
   const auto design_binary = options.archive_dir / "design.edb";
   std::vector<Record> records;
 
-  std::unique_ptr<TechDatabase> technology;
-  std::unique_ptr<LibraryDatabase> library;
-  std::unique_ptr<DesignDatabase> design;
+  std::unique_ptr<TechStore> technology;
+  std::unique_ptr<LibraryStore> library;
+  std::unique_ptr<DesignStore> design;
 
   if (options.source_archive_dir.empty()) {
     measure(records, "lef_text_import", fileSize(options.lef), [&]() {
-      technology = std::make_unique<TechDatabase>();
+      technology = std::make_unique<TechStore>();
       LefTechImporter(*technology).import(options.lef);
-      library = std::make_unique<LibraryDatabase>(technology->techRegistry());
+      library = std::make_unique<LibraryStore>(technology->techRegistry());
       LefLibraryImporter(*technology, *library).import(options.lef);
     });
     measure(records, "def_text_import", fileSize(options.def), [&]() {
-      design = std::make_unique<DesignDatabase>(technology->techRegistry(), library->libraryRegistry());
+      design = std::make_unique<DesignStore>(technology->techRegistry(), library->libraryRegistry());
       DefDesignImporter(*design).import(options.def);
     });
   } else {

@@ -7,7 +7,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "tech/TechDatabase.h"
+#include "tech/TechStore.h"
 
 namespace eccdb {
 namespace {
@@ -33,7 +33,7 @@ class NonRoutingLayerStorageTest : public testing::Test
     overlap = database.createOverlapLayer(TechLayerInfo{.name = "OVERLAP"});
   }
 
-  TechDatabase database;
+  TechStore database;
   TechMastersliceLayerId poly;
   TechImplantLayerId n_implant;
   TechRoutingLayerId m1;

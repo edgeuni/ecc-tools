@@ -340,12 +340,12 @@ struct CanonicalNet
   bool operator==(const CanonicalNet&) const = default;
 };
 
-inline std::string netReference(const DesignDatabase& design, DesignNetId id)
+inline std::string netReference(const DesignStore& design, DesignNetId id)
 {
   return detail::netName(design, id);
 }
 
-inline CanonicalNet canonicalNet(const DesignDatabase& design, DesignNetId id)
+inline CanonicalNet canonicalNet(const DesignStore& design, DesignNetId id)
 {
   const auto& net = design.netlistStorage().net(id);
   CanonicalNet result;
@@ -522,7 +522,7 @@ inline CanonicalNet canonicalNet(const DesignDatabase& design, DesignNetId id)
 
 }  // namespace structured
 
-inline bool isSemanticallyComparableNet(const DesignDatabase& design, DesignNetId id)
+inline bool isSemanticallyComparableNet(const DesignStore& design, DesignNetId id)
 {
   return !detail::isEmptyRegularAliasOfSpecialNet(design, id);
 }
@@ -820,8 +820,8 @@ inline std::string canonicalNetMismatch(const structured::CanonicalNet& expected
   return "unknown net difference";
 }
 
-inline std::optional<std::string> basicNetMismatch(const DesignDatabase& expected, DesignNetId expected_id,
-                                                   const DesignDatabase& actual, DesignNetId actual_id)
+inline std::optional<std::string> basicNetMismatch(const DesignStore& expected, DesignNetId expected_id,
+                                                   const DesignStore& actual, DesignNetId actual_id)
 {
   const auto& expected_net = expected.netlistStorage().net(expected_id);
   const auto& actual_net = actual.netlistStorage().net(actual_id);
@@ -969,7 +969,7 @@ class NetDiffProgress
   bool _interactive = false;
 };
 
-inline std::optional<NetMismatch> compareNetPairs(const DesignDatabase& expected, const DesignDatabase& actual,
+inline std::optional<NetMismatch> compareNetPairs(const DesignStore& expected, const DesignStore& actual,
                                                   const std::vector<NetPair>& pairs)
 {
   const auto thread_count = netComparisonThreadCount(pairs.size());
@@ -1041,7 +1041,7 @@ inline std::optional<NetMismatch> compareNetPairs(const DesignDatabase& expected
   return NetMismatch{.name = mismatch_pair.name, .section = canonicalNetMismatch(expected_net, actual_net)};
 }
 
-inline void expectStructuredNetSemantics(const DesignDatabase& expected, const DesignDatabase& actual)
+inline void expectStructuredNetSemantics(const DesignStore& expected, const DesignStore& actual)
 {
   std::size_t expected_count = 0;
   std::size_t actual_count = 0;

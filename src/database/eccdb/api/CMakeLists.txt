@@ -15,8 +15,9 @@
 # See the Mulan PSL v2 for more details.
 # ***************************************************************************************
 add_library(eccdb_api SHARED
+  internal/StorageConversions.cpp
   Database.cpp
-  detail/DatabaseState.cpp
+  internal/DatabaseState.cpp
   Instance.cpp
   Net.cpp
   Pin.cpp
@@ -32,17 +33,13 @@ set_target_properties(eccdb_api PROPERTIES
   POSITION_INDEPENDENT_CODE ON
 )
 target_compile_features(eccdb_api PUBLIC cxx_std_20)
-target_compile_definitions(eccdb_api
-  PUBLIC
-    ECCDB_DESIGN_ENTITY_BITS=${ECCDB_DESIGN_ENTITY_BITS}
-)
 target_include_directories(eccdb_api
   PUBLIC
     $<BUILD_INTERFACE:${ECCDB_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
   PRIVATE
     "${ECCDB_SOURCE_DIR}"
-    "${ECCDB_SOURCE_DIR}/core"
+    "${ECCDB_SOURCE_DIR}/storage"
     "${ECCDB_SOURCE_DIR}/io"
 )
 target_link_libraries(eccdb_api

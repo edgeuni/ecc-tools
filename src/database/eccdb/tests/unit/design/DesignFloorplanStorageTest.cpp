@@ -12,8 +12,8 @@
 namespace eccdb {
 namespace {
 
-static_assert(!std::is_copy_constructible_v<DesignDatabase>);
-static_assert(!std::is_move_constructible_v<DesignDatabase>);
+static_assert(!std::is_copy_constructible_v<DesignStore>);
+static_assert(!std::is_move_constructible_v<DesignStore>);
 static_assert(std::is_same_v<DesignRegistry::entity_type, DesignEntity>);
 static_assert(sizeof(DesignEntity) * 8 == ActiveDesignEntitySchema::storage_bits);
 static_assert(entt::entt_traits<DesignEntity>::entity_mask == ActiveDesignEntitySchema::entity_mask);

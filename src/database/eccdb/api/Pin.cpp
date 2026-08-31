@@ -14,191 +14,182 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "eccdb/Pin.h"
+#include "eccdb/Ref.h"
 
 #include <stdexcept>
 #include <utility>
 
-#include "api/detail/DatabaseState.h"
-#include "design/DesignDatabase.h"
-#include "eccdb/Instance.h"
-#include "eccdb/Net.h"
+#include "api/internal/StorageConversions.h"
+#include "api/internal/DatabaseState.h"
+#include "design/DesignStore.h"
 
 namespace eccdb {
 
-InstancePin::operator bool() const noexcept
+InstancePinRef::operator bool() const noexcept
 {
-  return _state != nullptr && _state->design().netlistStorage().contains(_id);
+  return _state != nullptr
+         && _state->design().netlistStorage().contains(
+             detail::toStorageId<DesignInstancePinId>(_id));
 }
 
-detail::DatabaseState& InstancePin::state() const
+detail::DatabaseState& InstancePinRef::state() const
 {
   if (!*this) {
-    throw std::out_of_range("invalid InstancePin handle");
+    throw std::out_of_range("invalid InstancePinRef handle");
   }
   return *_state;
 }
 
-Instance InstancePin::getInstance() const
+InstancePinData InstancePinRef::data() const
+{
+  return detail::toApi(state().design().netlistStorage().instancePin(
+      detail::toStorageId<DesignInstancePinId>(_id)));
+}
+
+InstanceRef InstancePinRef::instance() const
 {
   auto& api = state();
-  auto& db = api.design();
-  return Instance{api, db.netlistStorage().instancePin(_id).instance};
+  return InstanceRef{api, data().instance};
 }
 
-LibraryMasterTermId InstancePin::getMasterTerm() const
+NetRef InstancePinRef::net() const noexcept
 {
-  return state().design().netlistStorage().instancePin(_id).master_term;
+  if (!*this) return {};
+  const auto id = _state->design().netlistStorage().instancePin(
+      detail::toStorageId<DesignInstancePinId>(_id)).net;
+  return id ? NetRef{*_state, detail::toApiId<NetId>(id)} : NetRef{};
 }
 
-Net InstancePin::getNet() const noexcept
+NetRef InstancePinRef::specialNet() const noexcept
 {
-  if (!*this) {
-    return {};
-  }
-  const auto id = _state->design().netlistStorage().instancePin(_id).net;
-  return id ? Net{*_state, id} : Net{};
+  if (!*this) return {};
+  const auto id = _state->design().netlistStorage().instancePin(
+      detail::toStorageId<DesignInstancePinId>(_id)).special_net;
+  return id ? NetRef{*_state, detail::toApiId<NetId>(id)} : NetRef{};
 }
 
-Net InstancePin::getSpecialNet() const noexcept
-{
-  if (!*this) {
-    return {};
-  }
-  const auto id = _state->design().netlistStorage().instancePin(_id).special_net;
-  return id ? Net{*_state, id} : Net{};
-}
-
-void InstancePin::connect(Net net)
+void InstancePinRef::connect(NetRef net)
 {
   auto& api = state();
-  auto& db = api.design();
   if (!net || net._state != &api) {
-    throw std::invalid_argument("pin and net belong to different designs");
+    throw std::invalid_argument("pin and net belong to different databases");
   }
-  db.netlistStorage().connect(_id, net._id);
+  api.design().netlistStorage().connect(detail::toStorageId<DesignInstancePinId>(_id),
+                                         detail::toStorageId<DesignNetId>(net._id));
 }
 
-void InstancePin::disconnect()
+void InstancePinRef::disconnect()
 {
-  state().design().netlistStorage().disconnect(_id);
+  state().design().netlistStorage().disconnect(detail::toStorageId<DesignInstancePinId>(_id));
 }
 
-void InstancePin::disconnect(Net net)
+void InstancePinRef::disconnect(NetRef net)
 {
   auto& api = state();
-  auto& db = api.design();
   if (!net || net._state != &api) {
-    throw std::invalid_argument("pin and net belong to different designs");
+    throw std::invalid_argument("pin and net belong to different databases");
   }
-  db.netlistStorage().disconnect(_id, net._id);
+  api.design().netlistStorage().disconnect(detail::toStorageId<DesignInstancePinId>(_id),
+                                            detail::toStorageId<DesignNetId>(net._id));
 }
 
-IoPin::operator bool() const noexcept
+IoPinRef::operator bool() const noexcept
 {
-  return _state != nullptr && _state->design().netlistStorage().contains(_id);
+  return _state != nullptr
+         && _state->design().netlistStorage().contains(detail::toStorageId<DesignIoPinId>(_id));
 }
 
-detail::DatabaseState& IoPin::state() const
+detail::DatabaseState& IoPinRef::state() const
 {
   if (!*this) {
-    throw std::out_of_range("invalid IoPin handle");
+    throw std::out_of_range("invalid IoPinRef handle");
   }
   return *_state;
 }
 
-DesignIoPin IoPin::value() const
+IoPinData IoPinRef::data() const
 {
-  return state().design().netlistStorage().ioPin(_id);
+  return detail::toApi(
+      state().design().netlistStorage().ioPin(detail::toStorageId<DesignIoPinId>(_id)));
 }
 
-std::string_view IoPin::getName() const
+std::string_view IoPinRef::name() const
 {
-  return state().design().netlistStorage().ioPin(_id).name;
+  return state().design().netlistStorage().ioPin(detail::toStorageId<DesignIoPinId>(_id)).name;
 }
 
-DesignIoPinDirection IoPin::getDirection() const
+NetRef IoPinRef::net() const noexcept
 {
-  return state().design().netlistStorage().ioPin(_id).direction;
+  if (!*this) return {};
+  const auto id = _state->design().netlistStorage().ioPin(
+      detail::toStorageId<DesignIoPinId>(_id)).net;
+  return id ? NetRef{*_state, detail::toApiId<NetId>(id)} : NetRef{};
 }
 
-DesignSignalUse IoPin::getUse() const
+NetRef IoPinRef::specialNet() const noexcept
 {
-  return state().design().netlistStorage().ioPin(_id).use;
+  if (!*this) return {};
+  const auto id = _state->design().netlistStorage().ioPin(
+      detail::toStorageId<DesignIoPinId>(_id)).special_net;
+  return id ? NetRef{*_state, detail::toApiId<NetId>(id)} : NetRef{};
 }
 
-Net IoPin::getNet() const noexcept
+void IoPinRef::rename(std::string name)
 {
-  if (!*this) {
-    return {};
-  }
-  const auto id = _state->design().netlistStorage().ioPin(_id).net;
-  return id ? Net{*_state, id} : Net{};
+  auto value = data();
+  value.name = std::move(name);
+  update(std::move(value));
 }
 
-Net IoPin::getSpecialNet() const noexcept
+void IoPinRef::setDirection(IoDirection direction)
 {
-  if (!*this) {
-    return {};
-  }
-  const auto id = _state->design().netlistStorage().ioPin(_id).special_net;
-  return id ? Net{*_state, id} : Net{};
+  auto value = data();
+  value.direction = direction;
+  update(std::move(value));
 }
 
-void IoPin::rename(std::string name)
+void IoPinRef::setUse(SignalUse use)
 {
-  auto pin = value();
-  pin.name = std::move(name);
-  replace(std::move(pin));
+  auto value = data();
+  value.use = use;
+  update(std::move(value));
 }
 
-void IoPin::setDirection(DesignIoPinDirection direction)
+void IoPinRef::update(IoPinData value)
 {
-  auto pin = value();
-  pin.direction = direction;
-  replace(std::move(pin));
+  state().design().netlistStorage().updateIoPin(detail::toStorageId<DesignIoPinId>(_id),
+                                                detail::toStorage(value));
 }
 
-void IoPin::setUse(DesignSignalUse use)
-{
-  auto pin = value();
-  pin.use = use;
-  replace(std::move(pin));
-}
-
-void IoPin::replace(DesignIoPin value)
-{
-  state().design().netlistStorage().updateIoPin(_id, std::move(value));
-}
-
-void IoPin::connect(Net net)
+void IoPinRef::connect(NetRef net)
 {
   auto& api = state();
-  auto& db = api.design();
   if (!net || net._state != &api) {
-    throw std::invalid_argument("pin and net belong to different designs");
+    throw std::invalid_argument("pin and net belong to different databases");
   }
-  db.netlistStorage().connect(_id, net._id);
+  api.design().netlistStorage().connect(detail::toStorageId<DesignIoPinId>(_id),
+                                         detail::toStorageId<DesignNetId>(net._id));
 }
 
-void IoPin::disconnect()
+void IoPinRef::disconnect()
 {
-  state().design().netlistStorage().disconnect(_id);
+  state().design().netlistStorage().disconnect(detail::toStorageId<DesignIoPinId>(_id));
 }
 
-void IoPin::disconnect(Net net)
+void IoPinRef::disconnect(NetRef net)
 {
   auto& api = state();
-  auto& db = api.design();
   if (!net || net._state != &api) {
-    throw std::invalid_argument("pin and net belong to different designs");
+    throw std::invalid_argument("pin and net belong to different databases");
   }
-  db.netlistStorage().disconnect(_id, net._id);
+  api.design().netlistStorage().disconnect(detail::toStorageId<DesignIoPinId>(_id),
+                                            detail::toStorageId<DesignNetId>(net._id));
 }
 
-bool IoPin::destroy()
+bool IoPinRef::destroy()
 {
-  if (!*this || !_state->design().netlistStorage().destroyIoPin(_id)) {
+  if (!*this
+      || !_state->design().netlistStorage().destroyIoPin(detail::toStorageId<DesignIoPinId>(_id))) {
     return false;
   }
   _state = nullptr;

@@ -19,8 +19,9 @@
 #include <stdexcept>
 #include <utility>
 
-#include "api/detail/DatabaseState.h"
-#include "design/DesignDatabase.h"
+#include "api/internal/StorageConversions.h"
+#include "api/internal/DatabaseState.h"
+#include "design/DesignStore.h"
 
 namespace eccdb {
 
@@ -68,183 +69,415 @@ void Database::writeBinary(const BinaryFiles& files) const
   state().writeBinary(files);
 }
 
-Net Database::createNet(DesignNet value)
+NetId Database::createNet(NetData value)
 {
-  auto& api = state();
-  return Net{api, api.design().netlistStorage().createNet(std::move(value))};
+  return detail::toApiId<NetId>(state().design().netlistStorage().createNet(detail::toStorage(value)));
 }
 
-Net Database::createSpecialNet(DesignNet value)
+NetId Database::createSpecialNet(NetData value)
 {
-  auto& api = state();
-  return Net{api, api.design().netlistStorage().createSpecialNet(std::move(value))};
+  return detail::toApiId<NetId>(
+      state().design().netlistStorage().createSpecialNet(detail::toStorage(value)));
 }
 
-Net Database::getNet(NetId id) const noexcept
+bool Database::contains(NetId id) const noexcept
+{
+  return _state && _state->design().netlistStorage().contains(detail::toStorageId<DesignNetId>(id));
+}
+
+bool Database::isSpecialNet(NetId id) const
+{
+  return state().design().netlistStorage().isSpecialNet(detail::toStorageId<DesignNetId>(id));
+}
+
+std::optional<NetData> Database::netData(NetId id) const
+{
+  if (!contains(id)) return std::nullopt;
+  return detail::toApi(state().design().netlistStorage().net(detail::toStorageId<DesignNetId>(id)));
+}
+
+std::optional<NetOptions> Database::netOptions(NetId id) const
+{
+  if (!contains(id)) return std::nullopt;
+  const auto* options = state().design().netlistStorage().netOptions(detail::toStorageId<DesignNetId>(id));
+  return options ? std::optional<NetOptions>{detail::toApi(*options)} : std::nullopt;
+}
+
+NetId Database::findNetId(std::string_view name) const noexcept
+{
+  return _state ? detail::toApiId<NetId>(_state->design().netlistStorage().findNet(name)) : NetId{};
+}
+
+NetId Database::findRegularNetId(std::string_view name) const noexcept
+{
+  return _state ? detail::toApiId<NetId>(_state->design().netlistStorage().findRegularNet(name))
+                : NetId{};
+}
+
+NetId Database::findSpecialNetId(std::string_view name) const noexcept
+{
+  return _state ? detail::toApiId<NetId>(_state->design().netlistStorage().findSpecialNet(name))
+                : NetId{};
+}
+
+std::vector<NetId> Database::netIds() const
+{
+  std::vector<NetId> result;
+  for (const auto id : state().design().netlistStorage().nets()) {
+    result.push_back(detail::toApiId<NetId>(id));
+  }
+  return result;
+}
+
+std::vector<NetId> Database::regularNetIds() const
+{
+  std::vector<NetId> result;
+  for (const auto id : state().design().netlistStorage().regularNets()) {
+    result.push_back(detail::toApiId<NetId>(id));
+  }
+  return result;
+}
+
+std::vector<NetId> Database::specialNetIds() const
+{
+  std::vector<NetId> result;
+  for (const auto id : state().design().netlistStorage().specialNets()) {
+    result.push_back(detail::toApiId<NetId>(id));
+  }
+  return result;
+}
+
+std::vector<InstancePinId> Database::instancePinIds(NetId net) const
+{
+  std::vector<InstancePinId> result;
+  for (const auto id : state().design().netlistStorage().instancePins(detail::toStorageId<DesignNetId>(net))) {
+    result.push_back(detail::toApiId<InstancePinId>(id));
+  }
+  return result;
+}
+
+std::vector<IoPinId> Database::ioPinIds(NetId net) const
+{
+  std::vector<IoPinId> result;
+  for (const auto id : state().design().netlistStorage().ioPins(detail::toStorageId<DesignNetId>(net))) {
+    result.push_back(detail::toApiId<IoPinId>(id));
+  }
+  return result;
+}
+
+std::vector<WireId> Database::wireIds(NetId net) const
+{
+  std::vector<WireId> result;
+  for (const auto id : state().design().routingStorage().wireIds(detail::toStorageId<DesignNetId>(net))) {
+    result.push_back(detail::toApiId<WireId>(id));
+  }
+  return result;
+}
+
+void Database::updateNet(NetId id, NetData value)
+{
+  state().design().netlistStorage().updateNet(detail::toStorageId<DesignNetId>(id),
+                                               detail::toStorage(value));
+}
+
+void Database::setNetOptions(NetId id, NetOptions options)
+{
+  state().design().netlistStorage().setNetOptions(detail::toStorageId<DesignNetId>(id),
+                                                   detail::toStorage(options));
+}
+
+bool Database::destroyNet(NetId id)
+{
+  return state().design().netlistStorage().destroyNet(detail::toStorageId<DesignNetId>(id));
+}
+
+NetRef Database::net(NetId id) const noexcept
+{
+  return contains(id) ? NetRef{*_state, id} : NetRef{};
+}
+
+InstanceId Database::createInstance(InstanceData value)
+{
+  return detail::toApiId<InstanceId>(
+      state().design().netlistStorage().createInstance(detail::toStorage(value)));
+}
+
+bool Database::contains(InstanceId id) const noexcept
+{
+  return _state
+         && _state->design().netlistStorage().contains(detail::toStorageId<DesignInstanceId>(id));
+}
+
+std::optional<InstanceData> Database::instanceData(InstanceId id) const
+{
+  if (!contains(id)) return std::nullopt;
+  return detail::toApi(
+      state().design().netlistStorage().instance(detail::toStorageId<DesignInstanceId>(id)));
+}
+
+InstanceId Database::findInstanceId(std::string_view name) const noexcept
+{
+  return _state
+             ? detail::toApiId<InstanceId>(_state->design().netlistStorage().findInstance(name))
+             : InstanceId{};
+}
+
+std::vector<InstanceId> Database::instanceIds() const
+{
+  std::vector<InstanceId> result;
+  for (const auto id : state().design().netlistStorage().instances()) {
+    result.push_back(detail::toApiId<InstanceId>(id));
+  }
+  return result;
+}
+
+std::vector<InstancePinId> Database::instancePinIds(InstanceId instance) const
+{
+  std::vector<InstancePinId> result;
+  for (const auto id : state().design().netlistStorage().instancePins(
+           detail::toStorageId<DesignInstanceId>(instance))) {
+    result.push_back(detail::toApiId<InstancePinId>(id));
+  }
+  return result;
+}
+
+InstancePinId Database::findInstancePinId(InstanceId instance, std::string_view term_name) const noexcept
 {
   if (!_state) return {};
-  auto& design = _state->design();
-  return design.netlistStorage().contains(id) ? Net{*_state, id} : Net{};
+  return detail::toApiId<InstancePinId>(_state->design().netlistStorage().findInstancePin(
+      detail::toStorageId<DesignInstanceId>(instance), term_name));
 }
 
-Net Database::findNet(std::string_view name) const noexcept
+void Database::updateInstance(InstanceId id, InstanceData value)
 {
-  return _state ? getNet(_state->design().netlistStorage().findNet(name)) : Net{};
+  state().design().netlistStorage().updateInstance(detail::toStorageId<DesignInstanceId>(id),
+                                                    detail::toStorage(value));
 }
 
-Net Database::findRegularNet(std::string_view name) const noexcept
+bool Database::destroyInstance(InstanceId id)
 {
-  return _state ? getNet(_state->design().netlistStorage().findRegularNet(name)) : Net{};
+  return state().design().netlistStorage().destroyInstance(detail::toStorageId<DesignInstanceId>(id));
 }
 
-Net Database::findSpecialNet(std::string_view name) const noexcept
+InstanceRef Database::instance(InstanceId id) const noexcept
 {
-  return _state ? getNet(_state->design().netlistStorage().findSpecialNet(name)) : Net{};
+  return contains(id) ? InstanceRef{*_state, id} : InstanceRef{};
 }
 
-std::vector<Net> Database::getNets() const
+bool Database::contains(InstancePinId id) const noexcept
 {
-  std::vector<Net> result;
-  auto& api = state();
-  auto& design = api.design();
-  for (const auto id : design.netlistStorage().nets()) {
-    result.push_back(Net{api, id});
+  return _state
+         && _state->design().netlistStorage().contains(detail::toStorageId<DesignInstancePinId>(id));
+}
+
+std::optional<InstancePinData> Database::instancePinData(InstancePinId id) const
+{
+  if (!contains(id)) return std::nullopt;
+  return detail::toApi(
+      state().design().netlistStorage().instancePin(detail::toStorageId<DesignInstancePinId>(id)));
+}
+
+void Database::connect(InstancePinId pin, NetId net)
+{
+  state().design().netlistStorage().connect(detail::toStorageId<DesignInstancePinId>(pin),
+                                             detail::toStorageId<DesignNetId>(net));
+}
+
+void Database::disconnect(InstancePinId pin)
+{
+  state().design().netlistStorage().disconnect(detail::toStorageId<DesignInstancePinId>(pin));
+}
+
+void Database::disconnect(InstancePinId pin, NetId net)
+{
+  state().design().netlistStorage().disconnect(detail::toStorageId<DesignInstancePinId>(pin),
+                                                detail::toStorageId<DesignNetId>(net));
+}
+
+InstancePinRef Database::instancePin(InstancePinId id) const noexcept
+{
+  return contains(id) ? InstancePinRef{*_state, id} : InstancePinRef{};
+}
+
+IoPinId Database::createIoPin(IoPinData value)
+{
+  auto& storage = state().design().netlistStorage();
+  const auto regular_net = value.net;
+  const auto special_net = value.special_net;
+  value.net = {};
+  value.special_net = {};
+  const auto id = storage.createIoPin(detail::toStorage(value));
+  try {
+    if (regular_net) storage.connect(id, detail::toStorageId<DesignNetId>(regular_net));
+    if (special_net) storage.connect(id, detail::toStorageId<DesignNetId>(special_net));
+  } catch (...) {
+    storage.disconnect(id);
+    static_cast<void>(storage.destroyIoPin(id));
+    throw;
+  }
+  return detail::toApiId<IoPinId>(id);
+}
+
+bool Database::contains(IoPinId id) const noexcept
+{
+  return _state && _state->design().netlistStorage().contains(detail::toStorageId<DesignIoPinId>(id));
+}
+
+std::optional<IoPinData> Database::ioPinData(IoPinId id) const
+{
+  if (!contains(id)) return std::nullopt;
+  return detail::toApi(state().design().netlistStorage().ioPin(detail::toStorageId<DesignIoPinId>(id)));
+}
+
+IoPinId Database::findIoPinId(std::string_view name) const noexcept
+{
+  return _state ? detail::toApiId<IoPinId>(_state->design().netlistStorage().findIoPin(name))
+                : IoPinId{};
+}
+
+std::vector<IoPinId> Database::ioPinIds() const
+{
+  std::vector<IoPinId> result;
+  for (const auto id : state().design().netlistStorage().ioPins()) {
+    result.push_back(detail::toApiId<IoPinId>(id));
   }
   return result;
 }
 
-std::vector<Net> Database::getRegularNets() const
+void Database::updateIoPin(IoPinId id, IoPinData value)
 {
-  std::vector<Net> result;
-  auto& api = state();
-  auto& design = api.design();
-  for (const auto id : design.netlistStorage().regularNets()) {
-    result.push_back(Net{api, id});
+  state().design().netlistStorage().updateIoPin(detail::toStorageId<DesignIoPinId>(id),
+                                                detail::toStorage(value));
+}
+
+void Database::connect(IoPinId pin, NetId net)
+{
+  state().design().netlistStorage().connect(detail::toStorageId<DesignIoPinId>(pin),
+                                             detail::toStorageId<DesignNetId>(net));
+}
+
+void Database::disconnect(IoPinId pin)
+{
+  state().design().netlistStorage().disconnect(detail::toStorageId<DesignIoPinId>(pin));
+}
+
+void Database::disconnect(IoPinId pin, NetId net)
+{
+  state().design().netlistStorage().disconnect(detail::toStorageId<DesignIoPinId>(pin),
+                                                detail::toStorageId<DesignNetId>(net));
+}
+
+bool Database::destroyIoPin(IoPinId id)
+{
+  return state().design().netlistStorage().destroyIoPin(detail::toStorageId<DesignIoPinId>(id));
+}
+
+IoPinRef Database::ioPin(IoPinId id) const noexcept
+{
+  return contains(id) ? IoPinRef{*_state, id} : IoPinRef{};
+}
+
+WireId Database::createWire(WireMetadata metadata, WireRoutingData routing)
+{
+  return detail::toApiId<WireId>(state().design().routingStorage().createWire(
+      detail::toStorage(metadata), detail::toStorage(routing)));
+}
+
+bool Database::contains(WireId id) const noexcept
+{
+  return _state && _state->design().routingStorage().contains(detail::toStorageId<DesignWireId>(id));
+}
+
+std::optional<WireMetadata> Database::wireMetadata(WireId id) const
+{
+  if (!contains(id)) return std::nullopt;
+  return detail::toApi(state().design().routingStorage().wire(detail::toStorageId<DesignWireId>(id)));
+}
+
+std::optional<WireRoutingData> Database::wireRoutingData(WireId id) const
+{
+  if (!contains(id)) return std::nullopt;
+  auto& storage = state().design().routingStorage();
+  const auto storage_id = detail::toStorageId<DesignWireId>(id);
+  WireRoutingData result;
+  result.paths.reserve(storage.pathCount(storage_id));
+  storage.forEachPath(storage_id, [&result](const DesignWirePathView path) {
+    result.paths.push_back(detail::toApi(path));
+  });
+  return result;
+}
+
+std::vector<WireId> Database::wireIds() const
+{
+  std::vector<WireId> result;
+  for (const auto id : state().design().routingStorage().wires()) {
+    result.push_back(detail::toApiId<WireId>(id));
   }
   return result;
 }
 
-std::vector<Net> Database::getSpecialNets() const
+void Database::updateWire(WireId id, WireMetadata metadata, WireRoutingData routing)
 {
-  std::vector<Net> result;
-  auto& api = state();
-  auto& design = api.design();
-  for (const auto id : design.netlistStorage().specialNets()) {
-    result.push_back(Net{api, id});
+  state().design().routingStorage().updateWire(detail::toStorageId<DesignWireId>(id),
+                                                detail::toStorage(metadata),
+                                                detail::toStorage(routing));
+}
+
+bool Database::destroyWire(WireId id)
+{
+  return state().design().routingStorage().destroyWire(detail::toStorageId<DesignWireId>(id));
+}
+
+WireRef Database::wire(WireId id) const noexcept
+{
+  return contains(id) ? WireRef{*_state, id} : WireRef{};
+}
+
+ViaId Database::createDesignVia(DesignViaData value)
+{
+  return detail::toApiId<ViaId>(
+      state().design().routingStorage().createVia(detail::toStorage(value)));
+}
+
+bool Database::contains(ViaId id) const noexcept
+{
+  return _state && _state->design().routingStorage().contains(detail::toStorageId<DesignViaId>(id));
+}
+
+std::optional<DesignViaData> Database::designViaData(ViaId id) const
+{
+  if (!contains(id)) return std::nullopt;
+  return detail::toApi(state().design().routingStorage().via(detail::toStorageId<DesignViaId>(id)));
+}
+
+ViaId Database::findDesignViaId(std::string_view name) const noexcept
+{
+  return _state ? detail::toApiId<ViaId>(_state->design().routingStorage().findVia(name)) : ViaId{};
+}
+
+std::vector<ViaId> Database::designViaIds() const
+{
+  std::vector<ViaId> result;
+  for (const auto id : state().design().routingStorage().vias()) {
+    result.push_back(detail::toApiId<ViaId>(id));
   }
   return result;
 }
 
-Instance Database::createInstance(DesignInstance value)
+void Database::updateDesignVia(ViaId id, DesignViaData value)
 {
-  auto& api = state();
-  return Instance{api, api.design().netlistStorage().createInstance(std::move(value))};
+  state().design().routingStorage().updateVia(detail::toStorageId<DesignViaId>(id),
+                                               detail::toStorage(value));
 }
 
-Instance Database::getInstance(InstanceId id) const noexcept
+bool Database::destroyDesignVia(ViaId id)
 {
-  if (!_state) return {};
-  auto& design = _state->design();
-  return design.netlistStorage().contains(id) ? Instance{*_state, id} : Instance{};
+  return state().design().routingStorage().destroyVia(detail::toStorageId<DesignViaId>(id));
 }
 
-Instance Database::findInstance(std::string_view name) const noexcept
+DesignViaRef Database::designVia(ViaId id) const noexcept
 {
-  return _state ? getInstance(_state->design().netlistStorage().findInstance(name)) : Instance{};
-}
-
-std::vector<Instance> Database::getInstances() const
-{
-  std::vector<Instance> result;
-  auto& api = state();
-  auto& design = api.design();
-  for (const auto id : design.netlistStorage().instances()) {
-    result.push_back(Instance{api, id});
-  }
-  return result;
-}
-
-IoPin Database::createIoPin(DesignIoPin value)
-{
-  auto& api = state();
-  return IoPin{api, api.design().netlistStorage().createIoPin(std::move(value))};
-}
-
-IoPin Database::getIoPin(IoPinId id) const noexcept
-{
-  if (!_state) return {};
-  auto& design = _state->design();
-  return design.netlistStorage().contains(id) ? IoPin{*_state, id} : IoPin{};
-}
-
-IoPin Database::findIoPin(std::string_view name) const noexcept
-{
-  return _state ? getIoPin(_state->design().netlistStorage().findIoPin(name)) : IoPin{};
-}
-
-InstancePin Database::getInstancePin(InstancePinId id) const noexcept
-{
-  if (!_state) return {};
-  auto& design = _state->design();
-  return design.netlistStorage().contains(id) ? InstancePin{*_state, id} : InstancePin{};
-}
-
-std::vector<IoPin> Database::getIoPins() const
-{
-  std::vector<IoPin> result;
-  auto& api = state();
-  auto& design = api.design();
-  for (const auto id : design.netlistStorage().ioPins()) {
-    result.push_back(IoPin{api, id});
-  }
-  return result;
-}
-
-Wire Database::getWire(WireId id) const noexcept
-{
-  if (!_state) return {};
-  auto& design = _state->design();
-  return design.routingStorage().contains(id) ? Wire{*_state, id} : Wire{};
-}
-
-std::vector<Wire> Database::getWires() const
-{
-  std::vector<Wire> result;
-  auto& api = state();
-  auto& design = api.design();
-  for (const auto id : design.routingStorage().wires()) {
-    result.push_back(Wire{api, id});
-  }
-  return result;
-}
-
-Via Database::createVia(DesignVia value)
-{
-  auto& api = state();
-  return Via{api, api.design().routingStorage().createVia(std::move(value))};
-}
-
-Via Database::getVia(ViaId id) const noexcept
-{
-  if (!_state) return {};
-  auto& design = _state->design();
-  return design.routingStorage().contains(id) ? Via{*_state, id} : Via{};
-}
-
-Via Database::findVia(std::string_view name) const noexcept
-{
-  return _state ? getVia(_state->design().routingStorage().findVia(name)) : Via{};
-}
-
-std::vector<Via> Database::getVias() const
-{
-  std::vector<Via> result;
-  auto& api = state();
-  auto& design = api.design();
-  for (const auto id : design.routingStorage().vias()) {
-    result.push_back(Via{api, id});
-  }
-  return result;
+  return contains(id) ? DesignViaRef{*_state, id} : DesignViaRef{};
 }
 
 }  // namespace eccdb

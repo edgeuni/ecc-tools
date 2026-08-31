@@ -14,127 +14,106 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "eccdb/Instance.h"
+#include "eccdb/Ref.h"
 
 #include <stdexcept>
 #include <utility>
 
-#include "api/detail/DatabaseState.h"
-#include "design/DesignDatabase.h"
-#include "eccdb/Pin.h"
+#include "api/internal/StorageConversions.h"
+#include "api/internal/DatabaseState.h"
+#include "design/DesignStore.h"
 
 namespace eccdb {
 
-Instance::operator bool() const noexcept
+InstanceRef::operator bool() const noexcept
 {
-  return _state != nullptr && _state->design().netlistStorage().contains(_id);
+  return _state != nullptr
+         && _state->design().netlistStorage().contains(detail::toStorageId<DesignInstanceId>(_id));
 }
 
-detail::DatabaseState& Instance::state() const
+detail::DatabaseState& InstanceRef::state() const
 {
   if (!*this) {
-    throw std::out_of_range("invalid Instance handle");
+    throw std::out_of_range("invalid InstanceRef handle");
   }
   return *_state;
 }
 
-DesignInstance Instance::value() const
+InstanceData InstanceRef::data() const
 {
-  return state().design().netlistStorage().instance(_id);
+  return detail::toApi(
+      state().design().netlistStorage().instance(detail::toStorageId<DesignInstanceId>(_id)));
 }
 
-std::string_view Instance::getName() const
+std::string_view InstanceRef::name() const
 {
-  return state().design().netlistStorage().instance(_id).name;
+  return state().design().netlistStorage().instance(detail::toStorageId<DesignInstanceId>(_id)).name;
 }
 
-LibraryCellMasterId Instance::getMaster() const
-{
-  return state().design().netlistStorage().instance(_id).master;
-}
-
-Point Instance::getOrigin() const
-{
-  return state().design().netlistStorage().instance(_id).origin;
-}
-
-DesignOrientation Instance::getOrientation() const
-{
-  return state().design().netlistStorage().instance(_id).orientation;
-}
-
-DesignPlacementStatus Instance::getPlacementStatus() const
-{
-  return state().design().netlistStorage().instance(_id).placement_status;
-}
-
-DesignInstanceSource Instance::getSource() const
-{
-  return state().design().netlistStorage().instance(_id).source;
-}
-
-std::vector<InstancePin> Instance::getPins() const
+std::vector<InstancePinRef> InstanceRef::pins() const
 {
   auto& api = state();
-  auto& db = api.design();
-  std::vector<InstancePin> result;
-  for (const auto id : db.netlistStorage().instancePins(_id)) {
-    result.push_back(InstancePin{api, id});
+  std::vector<InstancePinRef> result;
+  for (const auto id : api.design().netlistStorage().instancePins(
+           detail::toStorageId<DesignInstanceId>(_id))) {
+    result.push_back(InstancePinRef{api, detail::toApiId<InstancePinId>(id)});
   }
   return result;
 }
 
-InstancePin Instance::findPin(std::string_view term_name) const
+InstancePinRef InstanceRef::findPin(std::string_view term_name) const
 {
   auto& api = state();
-  auto& db = api.design();
-  const auto id = db.netlistStorage().findInstancePin(_id, term_name);
-  return id ? InstancePin{api, id} : InstancePin{};
+  const auto id = api.design().netlistStorage().findInstancePin(
+      detail::toStorageId<DesignInstanceId>(_id), term_name);
+  return id ? InstancePinRef{api, detail::toApiId<InstancePinId>(id)} : InstancePinRef{};
 }
 
-void Instance::rename(std::string name)
+void InstanceRef::rename(std::string name)
 {
-  auto instance = value();
-  instance.name = std::move(name);
-  replace(std::move(instance));
+  auto value = data();
+  value.name = std::move(name);
+  update(std::move(value));
 }
 
-void Instance::setOrigin(Point origin)
+void InstanceRef::setOrigin(Point origin)
 {
-  auto instance = value();
-  instance.origin = origin;
-  replace(std::move(instance));
+  auto value = data();
+  value.origin = origin;
+  update(std::move(value));
 }
 
-void Instance::setOrientation(DesignOrientation orientation)
+void InstanceRef::setOrientation(Orientation orientation)
 {
-  auto instance = value();
-  instance.orientation = orientation;
-  replace(std::move(instance));
+  auto value = data();
+  value.orientation = orientation;
+  update(std::move(value));
 }
 
-void Instance::setPlacementStatus(DesignPlacementStatus status)
+void InstanceRef::setPlacementStatus(PlacementStatus status)
 {
-  auto instance = value();
-  instance.placement_status = status;
-  replace(std::move(instance));
+  auto value = data();
+  value.placement_status = status;
+  update(std::move(value));
 }
 
-void Instance::setSource(DesignInstanceSource source)
+void InstanceRef::setSource(InstanceSource source)
 {
-  auto instance = value();
-  instance.source = source;
-  replace(std::move(instance));
+  auto value = data();
+  value.source = source;
+  update(std::move(value));
 }
 
-void Instance::replace(DesignInstance value)
+void InstanceRef::update(InstanceData value)
 {
-  state().design().netlistStorage().updateInstance(_id, std::move(value));
+  state().design().netlistStorage().updateInstance(detail::toStorageId<DesignInstanceId>(_id),
+                                                    detail::toStorage(value));
 }
 
-bool Instance::destroy()
+bool InstanceRef::destroy()
 {
-  if (!*this || !_state->design().netlistStorage().destroyInstance(_id)) {
+  if (!*this
+      || !_state->design().netlistStorage().destroyInstance(detail::toStorageId<DesignInstanceId>(_id))) {
     return false;
   }
   _state = nullptr;

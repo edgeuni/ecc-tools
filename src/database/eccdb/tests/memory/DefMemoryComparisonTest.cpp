@@ -22,11 +22,11 @@
 #include <vector>
 
 #include "builder.h"
-#include "design/DesignDatabase.h"
+#include "design/DesignStore.h"
 #include "design/netlist/model/NetlistComponents.h"
-#include "import/def/DefDesignImporter.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
+#include "def/DefDesignImporter.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
 #include "tech/common/TechLayerTypes.h"
 
 namespace eccdb {
@@ -211,7 +211,7 @@ DatabaseCounts countLegacyDatabase(::idb::IdbLayout& layout, ::idb::IdbDesign& d
   return result;
 }
 
-DatabaseCounts countEnttDatabase(const TechDatabase& technology, const LibraryDatabase& library, const DesignDatabase& design)
+DatabaseCounts countEnttDatabase(const TechStore& technology, const LibraryStore& library, const DesignStore& design)
 {
   DatabaseCounts result;
   const auto* layer_storage = technology.techRegistry().registry().storage<TechLayerInfo>();
@@ -269,15 +269,15 @@ Measurement measureEntt(const CorpusFiles& files)
   result.baseline = settledProcessMemory();
 
   const auto lef_start = std::chrono::steady_clock::now();
-  auto technology = std::make_unique<TechDatabase>();
+  auto technology = std::make_unique<TechStore>();
   LefTechImporter(*technology).import(files.lef);
-  auto library = std::make_unique<LibraryDatabase>(technology->techRegistry());
+  auto library = std::make_unique<LibraryStore>(technology->techRegistry());
   LefLibraryImporter(*technology, *library).import(files.lef);
   result.lef_milliseconds = elapsedMilliseconds(lef_start);
   result.after_lef = settledProcessMemory();
 
   const auto def_start = std::chrono::steady_clock::now();
-  auto design = std::make_unique<DesignDatabase>(technology->techRegistry(), library->libraryRegistry());
+  auto design = std::make_unique<DesignStore>(technology->techRegistry(), library->libraryRegistry());
   DefDesignImporter importer(*design);
   importer.import(files.def);
   if (!importer.diagnostics().empty()) {

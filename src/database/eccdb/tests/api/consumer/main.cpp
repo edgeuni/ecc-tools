@@ -17,13 +17,20 @@
 #include <eccdb/eccdb.h>
 
 #include <type_traits>
+#include <unordered_map>
 
 int main()
 {
   static_assert(!std::is_copy_constructible_v<eccdb::Database>);
+  static_assert(std::is_trivially_copyable_v<eccdb::NetId>);
+  static_assert(std::is_copy_constructible_v<eccdb::NetData>);
+  static_assert(std::is_copy_constructible_v<eccdb::NetRef>);
+  std::unordered_map<eccdb::NetId, eccdb::NetData> snapshots;
+  snapshots.emplace(eccdb::NetId{1}, eccdb::NetData{.name = "example"});
   eccdb::Config config{
       .input = eccdb::BinaryInput{.files = {.technology = "tech.edb", .library = "library.edb", .design = "design.edb"}},
   };
+  static_cast<void>(snapshots);
   static_cast<void>(config);
   return eccdb::Database::supportsLefDef() ? 0 : 0;
 }

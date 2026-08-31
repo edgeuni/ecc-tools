@@ -14,22 +14,22 @@
 #include <string_view>
 #include <vector>
 
-#include "design/DesignDatabase.h"
+#include "design/DesignStore.h"
 #include "design/netlist/model/NetlistComponents.h"
 #include "design/routing/component/RoutingComponents.h"
 #include "design/routing/pool/WireRoutingInput.h"
-#include "export/def/DefDesignExporter.h"
-#include "export/lef/LefLibraryExporter.h"
-#include "export/lef/LefTechExporter.h"
+#include "def/DefDesignExporter.h"
+#include "lef/LefLibraryExporter.h"
+#include "lef/LefTechExporter.h"
 #include "geometry/GeometryPool.h"
-#include "import/def/DefDesignImporter.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
-#include "library/LibraryDatabase.h"
+#include "def/DefDesignImporter.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
+#include "library/LibraryStore.h"
 #include "library/cell_master/model/MasterObsComponents.h"
 #include "library/master_port/model/MasterPortComponents.h"
 #include "library/master_term/model/MasterTermComponents.h"
-#include "tech/TechDatabase.h"
+#include "tech/TechStore.h"
 #include "tech/common/TechLayerTypes.h"
 #include "tech/via_master/storage/ViaMasterStorage.h"
 
@@ -189,9 +189,9 @@ void writeJson(std::ostream& output, const Record& record, std::string_view case
 
 struct EnttContext
 {
-  std::unique_ptr<TechDatabase> technology;
-  std::unique_ptr<LibraryDatabase> library;
-  std::unique_ptr<DesignDatabase> design;
+  std::unique_ptr<TechStore> technology;
+  std::unique_ptr<LibraryStore> library;
+  std::unique_ptr<DesignStore> design;
 };
 
 struct EnttCounts
@@ -230,9 +230,9 @@ EnttContext loadEntt(const Options& options, std::vector<Record>& records)
 {
   EnttContext context;
   measure(records, "entt", "lef_read", fileSize(options.lef), [&]() {
-    context.technology = std::make_unique<TechDatabase>();
+    context.technology = std::make_unique<TechStore>();
     LefTechImporter(*context.technology).import(options.lef);
-    context.library = std::make_unique<LibraryDatabase>(context.technology->techRegistry());
+    context.library = std::make_unique<LibraryStore>(context.technology->techRegistry());
     LefLibraryImporter(*context.technology, *context.library).import(options.lef);
     const auto layers = context.technology->layerSequence().size();
     const auto masters = context.library->cellMasterStorage().cellMasterCount();
@@ -240,7 +240,7 @@ EnttContext loadEntt(const Options& options, std::vector<Record>& records)
                                       + context.library->geometryPool().pointCount()};
   });
   measure(records, "entt", "def_read", fileSize(options.def), [&]() {
-    context.design = std::make_unique<DesignDatabase>(context.technology->techRegistry(), context.library->libraryRegistry());
+    context.design = std::make_unique<DesignStore>(context.technology->techRegistry(), context.library->libraryRegistry());
     DefDesignImporter importer(*context.design);
     importer.import(options.def);
     const auto counts = countEntt(context);

@@ -14,200 +14,169 @@
 //
 // See the Mulan PSL v2 for more details.
 // ***************************************************************************************
-#include "eccdb/Net.h"
+#include "eccdb/Ref.h"
 
 #include <stdexcept>
 #include <utility>
 
-#include "api/detail/DatabaseState.h"
-#include "design/DesignDatabase.h"
-#include "eccdb/Pin.h"
-#include "eccdb/Wire.h"
+#include "api/internal/StorageConversions.h"
+#include "api/internal/DatabaseState.h"
+#include "design/DesignStore.h"
 
 namespace eccdb {
 
-Net::operator bool() const noexcept
+NetRef::operator bool() const noexcept
 {
-  return _state != nullptr && _state->design().netlistStorage().contains(_id);
+  return _state != nullptr
+         && _state->design().netlistStorage().contains(detail::toStorageId<DesignNetId>(_id));
 }
 
-detail::DatabaseState& Net::state() const
+detail::DatabaseState& NetRef::state() const
 {
   if (!*this) {
-    throw std::out_of_range("invalid Net handle");
+    throw std::out_of_range("invalid NetRef handle");
   }
   return *_state;
 }
 
-DesignNet Net::value() const
+NetData NetRef::data() const
 {
-  return state().design().netlistStorage().net(_id);
+  return detail::toApi(
+      state().design().netlistStorage().net(detail::toStorageId<DesignNetId>(_id)));
 }
 
-std::string_view Net::getName() const
+std::string_view NetRef::name() const
 {
-  return state().design().netlistStorage().net(_id).name;
+  return state().design().netlistStorage().net(detail::toStorageId<DesignNetId>(_id)).name;
 }
 
-bool Net::isSpecial() const
+bool NetRef::isSpecial() const
 {
-  return state().design().netlistStorage().isSpecialNet(_id);
+  return state().design().netlistStorage().isSpecialNet(detail::toStorageId<DesignNetId>(_id));
 }
 
-DesignSignalUse Net::getUse() const
+std::optional<NetOptions> NetRef::options() const
 {
-  return state().design().netlistStorage().net(_id).use;
+  const auto* value = state().design().netlistStorage().netOptions(
+      detail::toStorageId<DesignNetId>(_id));
+  return value ? std::optional<NetOptions>{detail::toApi(*value)} : std::nullopt;
 }
 
-DesignNetSource Net::getSource() const
-{
-  return state().design().netlistStorage().net(_id).source;
-}
-
-bool Net::hasWeight() const
-{
-  return (state().design().netlistStorage().net(_id).flags & DesignNetFlag::kHasWeight) != 0u;
-}
-
-int32_t Net::getWeight() const
-{
-  return state().design().netlistStorage().net(_id).weight;
-}
-
-TechNonDefaultRuleId Net::getTechNonDefaultRule() const
-{
-  return state().design().netlistStorage().net(_id).non_default_rule;
-}
-
-DesignNonDefaultRuleId Net::getDesignNonDefaultRule() const
-{
-  return state().design().netlistStorage().net(_id).design_non_default_rule;
-}
-
-const DesignNetOptions* Net::getOptions() const
-{
-  return state().design().netlistStorage().netOptions(_id);
-}
-
-std::vector<InstancePin> Net::getInstancePins() const
+std::vector<InstancePinRef> NetRef::instancePins() const
 {
   auto& api = state();
-  auto& db = api.design();
-  std::vector<InstancePin> result;
-  for (const auto id : db.netlistStorage().instancePins(_id)) {
-    result.push_back(InstancePin{api, id});
+  std::vector<InstancePinRef> result;
+  for (const auto id : api.design().netlistStorage().instancePins(
+           detail::toStorageId<DesignNetId>(_id))) {
+    result.push_back(InstancePinRef{api, detail::toApiId<InstancePinId>(id)});
   }
   return result;
 }
 
-std::vector<IoPin> Net::getIoPins() const
+std::vector<IoPinRef> NetRef::ioPins() const
 {
   auto& api = state();
-  auto& db = api.design();
-  std::vector<IoPin> result;
-  for (const auto id : db.netlistStorage().ioPins(_id)) {
-    result.push_back(IoPin{api, id});
+  std::vector<IoPinRef> result;
+  for (const auto id : api.design().netlistStorage().ioPins(detail::toStorageId<DesignNetId>(_id))) {
+    result.push_back(IoPinRef{api, detail::toApiId<IoPinId>(id)});
   }
   return result;
 }
 
-std::vector<Wire> Net::getWires() const
+std::vector<WireRef> NetRef::wires() const
 {
   auto& api = state();
-  auto& db = api.design();
-  std::vector<Wire> result;
-  for (const auto id : db.routingStorage().wireIds(_id)) {
-    result.push_back(Wire{api, id});
+  std::vector<WireRef> result;
+  for (const auto id : api.design().routingStorage().wireIds(detail::toStorageId<DesignNetId>(_id))) {
+    result.push_back(WireRef{api, detail::toApiId<WireId>(id)});
   }
   return result;
 }
 
-void Net::rename(std::string name)
+void NetRef::rename(std::string name)
 {
-  auto net = value();
-  net.name = std::move(name);
-  replace(std::move(net));
+  auto value = data();
+  value.name = std::move(name);
+  update(std::move(value));
 }
 
-void Net::setUse(DesignSignalUse use)
+void NetRef::setUse(SignalUse use)
 {
-  auto net = value();
-  net.use = use;
-  replace(std::move(net));
+  auto value = data();
+  value.use = use;
+  update(std::move(value));
 }
 
-void Net::setSource(DesignNetSource source)
+void NetRef::setSource(NetSource source)
 {
-  auto net = value();
-  net.source = source;
-  replace(std::move(net));
+  auto value = data();
+  value.source = source;
+  update(std::move(value));
 }
 
-void Net::setWeight(int32_t weight)
+void NetRef::setWeight(int32_t weight)
 {
-  auto net = value();
-  net.flags |= DesignNetFlag::kHasWeight;
-  net.weight = weight;
-  replace(std::move(net));
+  auto value = data();
+  value.weight = weight;
+  update(std::move(value));
 }
 
-void Net::clearWeight()
+void NetRef::clearWeight()
 {
-  auto net = value();
-  net.flags &= ~DesignNetFlag::kHasWeight;
-  net.weight = 0;
-  replace(std::move(net));
+  auto value = data();
+  value.weight.reset();
+  update(std::move(value));
 }
 
-void Net::setTechNonDefaultRule(TechNonDefaultRuleId rule)
+void NetRef::setTechNonDefaultRule(TechRuleId rule)
 {
-  auto net = value();
-  net.flags |= DesignNetFlag::kHasNonDefaultRule;
-  net.non_default_rule = rule;
-  net.design_non_default_rule = {};
-  replace(std::move(net));
+  auto value = data();
+  value.tech_non_default_rule = rule;
+  value.design_non_default_rule = {};
+  update(std::move(value));
 }
 
-void Net::setDesignNonDefaultRule(DesignNonDefaultRuleId rule)
+void NetRef::setDesignNonDefaultRule(DesignRuleId rule)
 {
-  auto net = value();
-  net.flags |= DesignNetFlag::kHasNonDefaultRule;
-  net.non_default_rule = {};
-  net.design_non_default_rule = rule;
-  replace(std::move(net));
+  auto value = data();
+  value.tech_non_default_rule = {};
+  value.design_non_default_rule = rule;
+  update(std::move(value));
 }
 
-void Net::clearNonDefaultRule()
+void NetRef::clearNonDefaultRule()
 {
-  auto net = value();
-  net.flags &= ~DesignNetFlag::kHasNonDefaultRule;
-  net.non_default_rule = {};
-  net.design_non_default_rule = {};
-  replace(std::move(net));
+  auto value = data();
+  value.tech_non_default_rule = {};
+  value.design_non_default_rule = {};
+  update(std::move(value));
 }
 
-void Net::setOptions(DesignNetOptions options)
+void NetRef::setOptions(NetOptions options)
 {
-  state().design().netlistStorage().setNetOptions(_id, std::move(options));
+  state().design().netlistStorage().setNetOptions(detail::toStorageId<DesignNetId>(_id),
+                                                   detail::toStorage(options));
 }
 
-void Net::replace(DesignNet value)
+void NetRef::update(NetData value)
 {
-  state().design().netlistStorage().updateNet(_id, std::move(value));
+  state().design().netlistStorage().updateNet(detail::toStorageId<DesignNetId>(_id),
+                                               detail::toStorage(value));
 }
 
-Wire Net::createWire(DesignWireRoutingInput routing, DesignWireStatus status, std::string shield_net)
+WireRef NetRef::createWire(WireRoutingData routing, WireStatus status, std::string shield_net)
 {
   auto& api = state();
-  auto& db = api.design();
-  const auto id = db.routingStorage().createWire(
-      DesignWire{.net = _id, .status = status, .shield_net = std::move(shield_net)}, std::move(routing));
-  return Wire{api, id};
+  const auto id = api.design().routingStorage().createWire(
+      detail::toStorage(WireMetadata{.net = _id, .status = status, .shield_net = std::move(shield_net)}),
+      detail::toStorage(routing));
+  return WireRef{api, detail::toApiId<WireId>(id)};
 }
 
-bool Net::destroy()
+bool NetRef::destroy()
 {
-  if (!*this || !_state->design().netlistStorage().destroyNet(_id)) {
+  if (!*this
+      || !_state->design().netlistStorage().destroyNet(detail::toStorageId<DesignNetId>(_id))) {
     return false;
   }
   _state = nullptr;

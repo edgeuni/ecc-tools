@@ -4,7 +4,7 @@ find_package(GTest REQUIRED)
 include(GoogleTest)
 
 add_executable(eccdb_library_site_cell_master_test
-  LibraryDatabaseTest.cpp
+  LibraryStoreTest.cpp
 )
 target_compile_features(eccdb_library_site_cell_master_test PRIVATE cxx_std_20)
 target_link_libraries(eccdb_library_site_cell_master_test

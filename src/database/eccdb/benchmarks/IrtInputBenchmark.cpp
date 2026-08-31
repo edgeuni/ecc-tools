@@ -19,13 +19,13 @@
 #include "Database.hpp"
 #include "Logger.hpp"
 #include "RTInterface.hpp"
-#include "design/DesignDatabase.h"
+#include "design/DesignStore.h"
 #include "idm.h"
-#include "import/def/DefDesignImporter.h"
-#include "import/lef/LefLibraryImporter.h"
-#include "import/lef/LefTechImporter.h"
-#include "library/LibraryDatabase.h"
-#include "tech/TechDatabase.h"
+#include "def/DefDesignImporter.h"
+#include "lef/LefLibraryImporter.h"
+#include "lef/LefTechImporter.h"
+#include "library/LibraryStore.h"
+#include "tech/TechStore.h"
 
 namespace {
 
@@ -183,19 +183,19 @@ void loadIdb(const Options& options)
 
 struct EnttContext
 {
-  std::unique_ptr<eccdb::TechDatabase> tech;
-  std::unique_ptr<eccdb::LibraryDatabase> library;
-  std::unique_ptr<eccdb::DesignDatabase> design;
+  std::unique_ptr<eccdb::TechStore> tech;
+  std::unique_ptr<eccdb::LibraryStore> library;
+  std::unique_ptr<eccdb::DesignStore> design;
 };
 
 EnttContext loadEntt(const Options& options)
 {
   EnttContext context;
-  context.tech = std::make_unique<eccdb::TechDatabase>();
+  context.tech = std::make_unique<eccdb::TechStore>();
   eccdb::LefTechImporter(*context.tech).import(options.lef);
-  context.library = std::make_unique<eccdb::LibraryDatabase>(context.tech->techRegistry());
+  context.library = std::make_unique<eccdb::LibraryStore>(context.tech->techRegistry());
   eccdb::LefLibraryImporter(*context.tech, *context.library).import(options.lef);
-  context.design = std::make_unique<eccdb::DesignDatabase>(context.tech->techRegistry(), context.library->libraryRegistry());
+  context.design = std::make_unique<eccdb::DesignStore>(context.tech->techRegistry(), context.library->libraryRegistry());
   eccdb::DefDesignImporter(*context.design).import(options.def);
   return context;
 }
