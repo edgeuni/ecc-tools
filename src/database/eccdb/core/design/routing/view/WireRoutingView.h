@@ -8,7 +8,7 @@
 
 #include "design/routing/pool/RoutingPoolRecords.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 template <typename Range, typename Value>
 class DesignWireValueIterator
@@ -156,4 +156,4 @@ class DesignWirePathView
   std::span<const DesignWireRectangle> _rectangles;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

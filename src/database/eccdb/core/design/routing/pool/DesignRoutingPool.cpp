@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 uint32_t checkedPoolEnd(std::size_t value)
@@ -425,4 +425,4 @@ DesignRoutingPoolStatistics DesignRoutingPool::statistics() const noexcept
                                      .dynamic_string_capacity_bytes = dynamic_string_capacity_bytes};
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

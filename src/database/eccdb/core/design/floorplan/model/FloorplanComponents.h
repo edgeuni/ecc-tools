@@ -9,7 +9,7 @@
 #include "library/common/LibraryTypes.h"
 #include "tech/common/TechLayerIds.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Optional operational Core boundary. DEF has no COREAREA statement; when
 // absent, DesignFloorplanStorage derives the Core from non-PAD Rows.
@@ -65,4 +65,4 @@ struct DesignGCellGrid
   int32_t step = 0;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

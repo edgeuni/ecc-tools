@@ -10,7 +10,7 @@
 #include "library/master_port/model/MasterPortComponents.h"
 #include "library/master_port/storage/MasterPortInput.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechRegistry;
 
@@ -49,4 +49,4 @@ class LibraryMasterPortStorage
   GeometryPool& _geometry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

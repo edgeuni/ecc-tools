@@ -6,7 +6,7 @@
 #include "geometry/GeometryHandle.h"
 #include "library/common/LibraryGeometry.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 namespace LibraryObsLayerFlag {
 constexpr uint32_t kExceptPgNet = 1u << 0;
@@ -41,4 +41,4 @@ struct LibraryMasterObs
   std::vector<LibraryViaPlacement> vias;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

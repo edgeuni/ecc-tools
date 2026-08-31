@@ -6,7 +6,7 @@
 #include "library/common/LibraryGeometry.h"
 #include "library/master_port/model/MasterPortComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct LibraryPortLayerGeometryInput
 {
@@ -21,4 +21,4 @@ struct LibraryMasterPortInput
   std::vector<LibraryViaPlacement> vias;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

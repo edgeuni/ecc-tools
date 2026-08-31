@@ -11,7 +11,7 @@
 #include "library/cell_master/model/MasterObsComponents.h"
 #include "library/cell_master/storage/MasterObsInput.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechRegistry;
 
@@ -57,4 +57,4 @@ class LibraryCellMasterStorage
   GeometryPool& _geometry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

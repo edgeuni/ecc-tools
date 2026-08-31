@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 uint32_t checkedPoolEnd(std::size_t value)
@@ -101,4 +101,4 @@ DesignWirePathView DesignWireRoutingInput::path(std::size_t index) const
           rectangle_begin, record.rectangle_end.value - rectangle_begin));
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

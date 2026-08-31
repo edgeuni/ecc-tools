@@ -9,7 +9,7 @@
 #include "tech/common/TechLayerTypes.h"
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct TechViaRuleGenerate;
 struct TechViaRuleGenerateBottomLayer;
@@ -95,4 +95,4 @@ struct TechViaRuleGenerateTopLayer
   int32_t metal_overhang = 0;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

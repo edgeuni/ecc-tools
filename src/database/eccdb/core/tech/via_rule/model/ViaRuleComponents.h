@@ -9,7 +9,7 @@
 #include "tech/common/TechLayerTypes.h"
 #include "tech/via_master/model/ViaMasterComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct TechViaRule;
 struct TechViaRuleLowerLayer;
@@ -76,4 +76,4 @@ struct TechViaRuleProperties
   std::vector<TechViaRuleProperty> values;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

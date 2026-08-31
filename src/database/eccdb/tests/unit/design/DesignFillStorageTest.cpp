@@ -5,7 +5,7 @@
 #include "DesignTestFixture.h"
 #include "design/fill/model/FillComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 TEST_F(DesignStorageTest, ManagesRectangularLayerFills)
@@ -51,4 +51,4 @@ TEST_F(DesignStorageTest, RestrictsMustJoinToRegularComponentPins)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

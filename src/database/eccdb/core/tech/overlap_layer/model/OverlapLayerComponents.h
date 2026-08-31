@@ -1,6 +1,6 @@
 #pragma once
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // LEF 5.8 OVERLAP layer:
 //   LAYER name
@@ -12,4 +12,4 @@ struct TechOverlapLayer
 {
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

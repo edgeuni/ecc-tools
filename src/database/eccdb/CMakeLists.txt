@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.20)
 
 set(ECCDB_STANDALONE OFF)
 set(ECCDB_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+# The public API is a shared library even when the surrounding project uses
+# static internal targets. Its private dependency closure must therefore be
+# position independent.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
   set(ECCDB_STANDALONE ON)
   project(eccdb LANGUAGES CXX)
@@ -178,6 +182,7 @@ add_subdirectory(io/export)
 if(TARGET def)
   add_subdirectory(io/import/def)
 endif()
+add_subdirectory(api)
 
 if(ECCDB_BUILD_TESTS)
   add_subdirectory(tests/unit/geometry)
@@ -212,6 +217,7 @@ set(_eccdb_database_targets
   eccdb_design
   eccdb_lef_export
   eccdb_library
+  eccdb_api
   eccdb_tech_database
 )
 foreach(_target IN ITEMS
@@ -233,3 +239,81 @@ add_custom_target(eccdb_via_rule_generate DEPENDS eccdb_tech_via_rule_generate)
 add_custom_target(eccdb_tech_layer DEPENDS eccdb_tech_layers)
 add_custom_target(eccdb_tech_database_api DEPENDS eccdb_tech_database)
 add_custom_target(eccdb_non_default_rule DEPENDS eccdb_tech_non_default_rule)
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+set(ECCDB_INSTALL_CMAKEDIR
+    "${CMAKE_INSTALL_LIBDIR}/cmake/EccDB"
+    CACHE STRING "Install directory for the EccDB CMake API package")
+
+install(TARGETS eccdb_api
+  EXPORT EccDBTargets
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)
+install(DIRECTORY "${ECCDB_SOURCE_DIR}/include/eccdb"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.h"
+)
+
+# Current public CRUD values reuse a focused set of core value records. Install
+# only that transitive header set; Storage, Registry and internal Database
+# headers are deliberately absent from the public API package.
+set(_eccdb_public_value_headers
+  common/EnttId.h
+  common/GeometryTypes.h
+  design/common/DesignGeometry.h
+  design/common/DesignTypes.h
+  design/netlist/model/NetlistComponents.h
+  design/routing/component/RoutingComponents.h
+  design/routing/pool/RoutingPoolRecords.h
+  design/routing/pool/WireRoutingInput.h
+  design/routing/view/RoutingViewTypes.h
+  design/routing/view/WireRoutingView.h
+  design/schema/DesignEntitySchema.h
+  design/via/component/ViaComponents.h
+  geometry/GeometryHandle.h
+  library/common/LibraryTypes.h
+  tech/common/TechEntity.h
+  tech/common/TechLayerIds.h
+  tech/common/TechLayerTypes.h
+  tech/non_default_rule/model/NonDefaultRuleComponents.h
+  tech/routing_layer/model/RoutingLayerComponents.h
+  tech/via_master/model/ViaMasterComponents.h
+  tech/via_rule_generate/model/ViaRuleGenerateComponents.h
+)
+foreach(_header IN LISTS _eccdb_public_value_headers)
+  get_filename_component(_header_directory "${_header}" DIRECTORY)
+  install(FILES "${ECCDB_SOURCE_DIR}/core/${_header}"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${_header_directory}"
+  )
+endforeach()
+install(DIRECTORY "${ECCDB_ECC_TOOLS_ROOT}/src/third_party/entt/entt"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING
+    PATTERN "*.h"
+    PATTERN "*.hpp"
+    PATTERN "natvis" EXCLUDE
+)
+
+configure_package_config_file(
+  "${ECCDB_SOURCE_DIR}/cmake/EccDBConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/EccDBConfig.cmake"
+  INSTALL_DESTINATION "${ECCDB_INSTALL_CMAKEDIR}"
+)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/EccDBConfigVersion.cmake"
+  VERSION "0.1.0"
+  COMPATIBILITY SameMajorVersion
+)
+install(EXPORT EccDBTargets
+  FILE EccDBTargets.cmake
+  NAMESPACE EccDB::
+  DESTINATION "${ECCDB_INSTALL_CMAKEDIR}"
+)
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/EccDBConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/EccDBConfigVersion.cmake"
+  DESTINATION "${ECCDB_INSTALL_CMAKEDIR}"
+)

@@ -6,7 +6,7 @@
 #include "design/routing/pool/RoutingPoolRecords.h"
 #include "design/routing/view/WireRoutingView.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 inline constexpr uint32_t kInvalidDesignWirePathExtraIndex = std::numeric_limits<uint32_t>::max();
 
@@ -54,4 +54,4 @@ struct DesignWireRoutingInput
   [[nodiscard]] DesignWirePathView path(std::size_t index) const;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

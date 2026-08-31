@@ -8,7 +8,7 @@
 #include "library/cell_master/model/CellMasterComponents.h"
 #include "library/master_port/model/MasterPortComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 LibraryMasterTermId LibraryMasterTermStorage::createMasterTerm(LibraryCellMasterId owner, LibraryMasterTerm term)
 {
@@ -172,4 +172,4 @@ void LibraryMasterTermStorage::validateMasterTerm(LibraryCellMasterId owner, con
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -6,7 +6,7 @@
 
 #include "common/GeometryTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct DesignRoot
 {
@@ -27,4 +27,4 @@ struct DesignDieArea
   std::vector<Point> boundary;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

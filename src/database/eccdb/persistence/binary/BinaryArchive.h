@@ -19,7 +19,7 @@
 
 #include "common/EnttId.h"
 
-namespace idb::eccdb::binary_detail {
+namespace eccdb::binary_detail {
 
 template <typename>
 inline constexpr bool kUnsupportedArchiveType = false;
@@ -386,4 +386,4 @@ class BinaryInputArchive
   uint64_t _byte_count = 0;
 };
 
-}  // namespace idb::eccdb::binary_detail
+}  // namespace eccdb::binary_detail

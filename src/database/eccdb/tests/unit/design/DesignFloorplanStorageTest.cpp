@@ -9,7 +9,7 @@
 #include "design/floorplan/model/FloorplanComponents.h"
 #include "design/global/model/DesignGlobalComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 static_assert(!std::is_copy_constructible_v<DesignDatabase>);
@@ -164,4 +164,4 @@ TEST_F(DesignStorageTest, ValidatesRowsAndProvidesLayerTrackQueries)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

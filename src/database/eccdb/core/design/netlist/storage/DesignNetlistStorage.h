@@ -11,7 +11,7 @@
 #include "design/DesignRegistry.h"
 #include "design/netlist/model/NetlistComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class LibraryRegistry;
 class TechRegistry;
@@ -175,4 +175,4 @@ class DesignNetlistStorage
   NameIndex<DesignNetId> _special_net_names;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

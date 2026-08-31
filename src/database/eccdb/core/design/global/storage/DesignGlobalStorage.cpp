@@ -5,7 +5,7 @@
 
 #include "design/common/DesignGeometryValidation.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 bool DesignGlobalStorage::containsRoot() const noexcept
 {
@@ -84,4 +84,4 @@ Rect DesignGlobalStorage::validateAndGetDieBounds(const DesignDieArea& die_area)
   return validateDesignOrthogonalBoundary(die_area.boundary, "design die area");
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

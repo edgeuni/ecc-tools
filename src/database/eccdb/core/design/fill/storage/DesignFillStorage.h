@@ -6,7 +6,7 @@
 #include "design/DesignRegistry.h"
 #include "design/fill/model/FillComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechRegistry;
 
@@ -36,4 +36,4 @@ class DesignFillStorage
   const TechRegistry& _tech_registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

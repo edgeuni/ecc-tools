@@ -26,7 +26,7 @@
 #include "persistence/binary/BinaryFormat.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 class TemporaryFile
@@ -280,4 +280,4 @@ TEST(DesignBinaryDatabaseArchiveTest, LargeIspd19RoutingPoolReachesByteExactFixe
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

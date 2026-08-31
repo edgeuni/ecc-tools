@@ -41,6 +41,58 @@ optional, and tests that require unavailable external corpora are skipped.
 Every standalone configure emits `compile_commands.json` in its build
 directory for clangd.
 
+## Installable C++ API
+
+Build and install the public API with direct LEF/DEF support:
+
+```bash
+cmake -S src/database/eccdb -B build/eccdb-api -G Ninja \
+  -DECCDB_BUILD_TESTS=ON \
+  -DECCDB_STANDALONE_LEF_DEF=ON \
+  -DCMAKE_INSTALL_PREFIX=/opt/eccdb
+cmake --build build/eccdb-api --target eccdb_api --parallel 128
+cmake --install build/eccdb-api
+```
+
+An external CMake project consumes the installed package as follows:
+
+```cmake
+find_package(EccDB CONFIG REQUIRED)
+target_link_libraries(my_tool PRIVATE EccDB::eccdb)
+```
+
+The public C++ entry point is:
+
+```cpp
+#include <eccdb/eccdb.h>
+
+eccdb::Config config{
+    .input = eccdb::LefDefInput{
+        .lef_files = {"technology.lef", "cells.lef"},
+        .def_file = "design.def",
+    },
+};
+auto database = eccdb::Database::open(config);
+```
+
+Binary input and output use three files because technology, library and
+design registries have independent schemas:
+
+```cpp
+eccdb::BinaryFiles files{
+    .technology = "technology.edb",
+    .library = "library.edb",
+    .design = "design.edb",
+};
+database.writeBinary(files);
+auto restored = eccdb::Database::open(
+    {.input = eccdb::BinaryInput{.files = files}});
+```
+
+A standalone build without `ECCDB_STANDALONE_LEF_DEF=ON` can still open and
+write binary databases. `Database::supportsLefDef()` reports whether the
+installed library contains the direct text importers.
+
 ## Legacy iDB LEF adapter differential tests
 
 ```bash

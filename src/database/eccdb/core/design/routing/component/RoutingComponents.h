@@ -8,7 +8,7 @@
 #include "tech/common/TechLayerIds.h"
 #include "tech/via_master/model/ViaMasterComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class DesignWireStatus : uint8_t
 {
@@ -86,4 +86,4 @@ struct DesignNetGeometry
   std::vector<DesignNetVia> vias;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -6,7 +6,7 @@
 
 #include "library/common/LibraryTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // LEF PIN attributes represented by the logical master-terminal entity.
 enum class LibraryMasterTermDirection : uint8_t
@@ -60,4 +60,4 @@ struct LibraryMasterTerm
   std::vector<LibraryMasterPortId> ports;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

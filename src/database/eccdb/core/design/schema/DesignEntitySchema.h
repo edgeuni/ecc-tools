@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class DesignEntityMode : uint8_t
 {
@@ -60,4 +60,4 @@ enum class DesignEntity : DesignEntityUnderlying
 {
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -8,7 +8,7 @@
 #include "library/LibraryRegistry.h"
 #include "library/master_term/model/MasterTermComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class LibraryMasterTermStorage
 {
@@ -39,4 +39,4 @@ class LibraryMasterTermStorage
   registry_type& _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

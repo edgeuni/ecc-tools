@@ -4,7 +4,7 @@
 
 #include "common/GeometryTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Write-side polygon value. GeometryPool converts it into an internal polygon
 // record and a contiguous point range.
@@ -23,4 +23,4 @@ struct GeometryInput
   [[nodiscard]] bool empty() const noexcept { return rects.empty() && polygons.empty(); }
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

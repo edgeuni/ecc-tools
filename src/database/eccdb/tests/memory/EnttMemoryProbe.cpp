@@ -27,7 +27,7 @@
 #include "tech/TechDatabase.h"
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 struct Memory
@@ -525,7 +525,7 @@ void printMemoryBreakdown(const MemoryBreakdown& value)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb
 
 int main(int argc, char** argv)
 {
@@ -537,36 +537,36 @@ int main(int argc, char** argv)
   try {
     const std::filesystem::path lef = argv[1];
     const std::filesystem::path def = argv[2];
-    const auto baseline = idb::eccdb::settledMemory();
+    const auto baseline = eccdb::settledMemory();
 
     const auto lef_start = std::chrono::steady_clock::now();
-    idb::eccdb::TechDatabase technology;
-    idb::eccdb::LefTechImporter(technology).import(lef);
-    idb::eccdb::LibraryDatabase library(technology.techRegistry());
-    idb::eccdb::LefLibraryImporter(technology, library).import(lef);
-    const auto lef_milliseconds = idb::eccdb::elapsedMilliseconds(lef_start);
-    const auto after_lef = idb::eccdb::settledMemory();
+    eccdb::TechDatabase technology;
+    eccdb::LefTechImporter(technology).import(lef);
+    eccdb::LibraryDatabase library(technology.techRegistry());
+    eccdb::LefLibraryImporter(technology, library).import(lef);
+    const auto lef_milliseconds = eccdb::elapsedMilliseconds(lef_start);
+    const auto after_lef = eccdb::settledMemory();
 
     const auto def_start = std::chrono::steady_clock::now();
-    idb::eccdb::DesignDatabase design(technology.techRegistry(), library.libraryRegistry());
-    idb::eccdb::DefDesignImporter importer(design);
+    eccdb::DesignDatabase design(technology.techRegistry(), library.libraryRegistry());
+    eccdb::DefDesignImporter importer(design);
     importer.import(def);
-    const auto def_milliseconds = idb::eccdb::elapsedMilliseconds(def_start);
-    const auto after_def = idb::eccdb::settledMemory();
-    const auto counts = idb::eccdb::countDatabase(technology, library, design);
-    const auto breakdown = idb::eccdb::memoryBreakdown(design, after_def.allocator_in_use_kib * 1024u);
+    const auto def_milliseconds = eccdb::elapsedMilliseconds(def_start);
+    const auto after_def = eccdb::settledMemory();
+    const auto counts = eccdb::countDatabase(technology, library, design);
+    const auto breakdown = eccdb::memoryBreakdown(design, after_def.allocator_in_use_kib * 1024u);
 
     std::cout << "ENTT_MEMORY_JSON={\"baseline\":";
-    idb::eccdb::printMemory(baseline);
+    eccdb::printMemory(baseline);
     std::cout << ",\"after_lef\":";
-    idb::eccdb::printMemory(after_lef);
+    eccdb::printMemory(after_lef);
     std::cout << ",\"after_def\":";
-    idb::eccdb::printMemory(after_def);
+    eccdb::printMemory(after_def);
     std::cout << ",\"lef_milliseconds\":" << lef_milliseconds << ",\"def_milliseconds\":" << def_milliseconds
               << ",\"diagnostics_count\":" << importer.diagnostics().size() << ",\"counts\":";
-    idb::eccdb::printCounts(counts);
+    eccdb::printCounts(counts);
     std::cout << ",\"memory_breakdown\":";
-    idb::eccdb::printMemoryBreakdown(breakdown);
+    eccdb::printMemoryBreakdown(breakdown);
     std::cout << "}\n";
     return 0;
   } catch (const std::exception& error) {

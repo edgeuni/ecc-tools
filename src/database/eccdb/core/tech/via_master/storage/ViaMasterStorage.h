@@ -10,7 +10,7 @@
 #include "tech/via_master/model/ViaMasterComponents.h"
 #include "tech/via_master/storage/ViaMasterInput.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Facade for concrete technology VIA definitions. Fixed and generated VIAs
 // share TechViaMaster and TechViaGeometry; only generated VIAs carry the extra
@@ -67,4 +67,4 @@ class TechViaMasterStorage
   GeometryPool& _geometry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

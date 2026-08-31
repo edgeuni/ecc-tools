@@ -8,7 +8,7 @@
 
 #include "persistence/binary/BinaryArchive.h"
 
-namespace idb::eccdb::binary_detail {
+namespace eccdb::binary_detail {
 namespace {
 
 constexpr std::array<uint8_t, 8> kMagic{'I', 'E', 'D', 'A', 'E', 'D', 'B', 0};
@@ -100,4 +100,4 @@ void readBinaryFile(const std::filesystem::path& path, BinaryDatabaseKind expect
   }
 }
 
-}  // namespace idb::eccdb::binary_detail
+}  // namespace eccdb::binary_detail

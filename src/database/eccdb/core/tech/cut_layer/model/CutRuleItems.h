@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // These values are not database objects. They are ordinary rows inside the
 // variable-length vectors owned by their complete Rule component.
@@ -49,4 +49,4 @@ struct TechCutLef58SpacingTablePrlEntry
   int32_t prl = 0;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

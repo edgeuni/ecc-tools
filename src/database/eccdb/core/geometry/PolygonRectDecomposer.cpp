@@ -6,7 +6,7 @@
 
 #include <boost/polygon/polygon.hpp>
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 void validatePolygon(std::span<const Point> points)
@@ -61,4 +61,4 @@ std::vector<Rect> decomposePolygonToRectangles(std::span<const Point> points)
   return rectangles;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

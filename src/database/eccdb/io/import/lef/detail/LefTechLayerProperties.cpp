@@ -20,7 +20,12 @@
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 #include "tech/routing_layer/storage/RoutingLayerStorage.h"
 
-namespace idb::eccdb::lef_detail {
+namespace eccdb::lef_detail {
+
+namespace cutlayer_property = idb::cutlayer_property;
+namespace layer_property = idb::layer_property;
+namespace routinglayer_property = idb::routinglayer_property;
+
 namespace {
 
 std::string upper(std::string value)
@@ -1040,4 +1045,4 @@ void commitTrimmedMetalRule(TechDatabase& database, TechMastersliceLayerId owner
       owner, TechTrimmedMetalRule{.flags = source.flags, .metal_layer = TechRoutingLayerId{layer.entity()}, .mask = source.mask});
 }
 
-}  // namespace idb::eccdb::lef_detail
+}  // namespace eccdb::lef_detail

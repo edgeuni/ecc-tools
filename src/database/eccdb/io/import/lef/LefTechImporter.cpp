@@ -33,7 +33,10 @@
 #include "lefrReader.hpp"
 #include "property_parser/lef58_property/layer_property_parser.h"
 
-namespace idb::eccdb {
+namespace eccdb {
+
+namespace layer_property = idb::layer_property;
+
 namespace {
 
 struct StagedMaxViaStack
@@ -1097,4 +1100,4 @@ void LefTechImporter::import(std::span<const std::filesystem::path> files)
   commitImport(_database, prepared);
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -3,7 +3,7 @@
 #include "common/EnttId.h"
 #include "tech/common/TechEntity.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct TechRoutingSpacingRule;
 struct TechRoutingEndOfLineSpacingRule;
@@ -45,4 +45,4 @@ using TechRoutingLef58SpacingEolRuleId = EnttId<TechEntity, TechRoutingLef58Spac
 using TechRoutingLef58SpacingNotchLengthRuleId = EnttId<TechEntity, TechRoutingLef58SpacingNotchLengthRule>;
 using TechRoutingLef58SpacingTableJogToJogRuleId = EnttId<TechEntity, TechRoutingLef58SpacingTableJogToJogRule>;
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

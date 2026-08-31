@@ -13,7 +13,7 @@ namespace LefDefParser {
 class lefiLayer;
 }
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechCutLayerStorage;
 class TechRoutingLayerStorage;
@@ -206,4 +206,4 @@ void commitRoutingRules(TechRoutingLayerStorage& storage, TechRoutingLayerId own
 void commitCutRules(TechCutLayerStorage& storage, TechCutLayerId owner, const PreparedCutRules& rules);
 
 }  // namespace lef_detail
-}  // namespace idb::eccdb
+}  // namespace eccdb

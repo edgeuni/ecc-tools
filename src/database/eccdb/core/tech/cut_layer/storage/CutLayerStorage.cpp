@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 template <typename Value>
@@ -1108,4 +1108,4 @@ TechCutLayerId TechCutLayerStorage::ownerOf(TechEntity rule) const
   return owner;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

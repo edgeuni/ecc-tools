@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Routing wire direction used by LEF layer clauses. This describes the routing
 // wire orientation, not the direction of a via object.
@@ -13,4 +13,4 @@ enum class RoutingDirection : uint8_t
   kVertical
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

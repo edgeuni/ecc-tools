@@ -374,8 +374,8 @@ void RTInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   /////////////////////////////////////////////
 }
 
-void RTInterface::setDesignSource(idb::eccdb::DesignDatabase* design, idb::eccdb::TechDatabase* tech,
-                                  idb::eccdb::LibraryDatabase* library)
+void RTInterface::setDesignSource(eccdb::DesignDatabase* design, eccdb::TechDatabase* tech,
+                                  eccdb::LibraryDatabase* library)
 {
   _design = design;
   _tech = tech;

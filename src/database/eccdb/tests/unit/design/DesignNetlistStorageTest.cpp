@@ -5,7 +5,7 @@
 
 #include "DesignTestFixture.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 TEST_F(DesignStorageTest, MaterializesInstancePinsAndConnectsBothPinKinds)
@@ -265,4 +265,4 @@ TEST_F(DesignStorageTest, StoresAndValidatesOptionalNetOptions)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

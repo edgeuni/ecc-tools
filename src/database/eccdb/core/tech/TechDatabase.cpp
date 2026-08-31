@@ -4,7 +4,7 @@
 #include <string>
 #include <utility>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 TechDatabase::TechDatabase(TechDatabaseOptions options)
     : _geometry(options.geometry),
@@ -232,4 +232,4 @@ void TechDatabase::ensureLayer(TechLayerId id) const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

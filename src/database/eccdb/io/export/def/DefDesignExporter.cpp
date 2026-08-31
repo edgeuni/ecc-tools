@@ -29,7 +29,7 @@
 #include "tech/non_default_rule/model/NonDefaultRuleComponents.h"
 #include "tech/via_master/model/ViaMasterComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 class DefTextOutput
@@ -1249,4 +1249,4 @@ void DefDesignExporter::write(const std::filesystem::path& file) const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

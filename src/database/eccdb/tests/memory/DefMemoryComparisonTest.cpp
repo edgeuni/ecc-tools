@@ -29,7 +29,7 @@
 #include "import/lef/LefTechImporter.h"
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 enum class DatabaseKind : uint8_t
@@ -472,4 +472,4 @@ TEST(DefMemoryComparisonTest, ComparesLarge01InIsolatedProcesses)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

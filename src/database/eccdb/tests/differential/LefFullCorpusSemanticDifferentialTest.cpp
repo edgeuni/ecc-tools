@@ -31,7 +31,7 @@
 #include "import/lef/LefTechImporter.h"
 #include "LefPdkCorpus.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 enum class LayerKind
@@ -1293,4 +1293,4 @@ TEST(LefFullCorpusSemanticDifferentialTest, TechCanonicalExportReachesAFixedPoin
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

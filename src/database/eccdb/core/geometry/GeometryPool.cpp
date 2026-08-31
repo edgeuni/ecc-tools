@@ -7,7 +7,7 @@
 
 #include "geometry/PolygonRectDecomposer.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 template <typename Value>
@@ -289,4 +289,4 @@ Rect GeometryPool::boundsFor(std::span<const Point> points)
   return result;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

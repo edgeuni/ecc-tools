@@ -4,7 +4,7 @@
 
 #include "DesignTestFixture.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 TEST_F(DesignStorageTest, StoresWirePathsWithTechAndDesignViaReferences)
@@ -335,4 +335,4 @@ TEST_F(DesignStorageTest, RejectsInvalidWireAndConstraintPayloads)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

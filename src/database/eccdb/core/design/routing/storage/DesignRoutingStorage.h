@@ -14,7 +14,7 @@
 #include "design/routing/pool/DesignRoutingPool.h"
 #include "design/via/component/ViaComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechRegistry;
 
@@ -116,4 +116,4 @@ class DesignRoutingStorage
   std::unordered_map<uint64_t, std::vector<DesignWireId>> _wires_by_net;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

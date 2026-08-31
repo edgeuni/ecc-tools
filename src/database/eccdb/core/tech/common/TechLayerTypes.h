@@ -8,7 +8,7 @@
 
 #include "tech/common/TechLayerIds.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class TechConductorLayerKind : uint8_t
 {
@@ -131,4 +131,4 @@ struct TechLayerProperties
   std::vector<TechProperty> values;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -12,7 +12,7 @@
 #include "tech/TechRegistry.h"
 #include "tech/via_master/model/ViaMasterComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 static_assert(std::is_same_v<decltype(LibrarySite::name), std::string>);
@@ -323,4 +323,4 @@ TEST(LibraryDatabaseTest, StoresMasterTermsPortsAndUnifiedObsWithTechReferences)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

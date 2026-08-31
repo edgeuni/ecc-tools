@@ -9,7 +9,7 @@
 #include "tech/common/TechLayerTypes.h"
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 bool isValidRegionType(DesignRegionType type)
@@ -394,4 +394,4 @@ void DesignConstraintStorage::ensureBlockage(DesignBlockageId id) const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -7,7 +7,7 @@
 
 #include "design/DesignDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct DefDesignImportDiagnostic
 {
@@ -33,4 +33,4 @@ class DefDesignImporter
   bool _used = false;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

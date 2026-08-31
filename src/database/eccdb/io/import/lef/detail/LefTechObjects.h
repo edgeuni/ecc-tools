@@ -17,7 +17,7 @@ class lefiVia;
 class lefiViaRule;
 }  // namespace LefDefParser
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechDatabase;
 
@@ -260,4 +260,4 @@ struct PreparedTechObjects
 void commitTechObjects(TechDatabase& database, const PreparedTechObjects& objects);
 
 }  // namespace lef_detail
-}  // namespace idb::eccdb
+}  // namespace eccdb

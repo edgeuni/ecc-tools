@@ -11,7 +11,7 @@
 #include "tech/common/TechLayerIds.h"
 #include "tech/non_default_rule/model/NonDefaultRuleComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class DesignPlacementStatus : uint8_t
 {
@@ -282,4 +282,4 @@ struct DesignNetOptions
   std::vector<DesignNetSpacingRule> spacing_rules;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -12,7 +12,7 @@
 #include "design/routing/component/RoutingComponents.h"
 #include "design/routing/pool/WireRoutingInput.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct DesignRoutingPoolArrayStatistics
 {
@@ -241,4 +241,4 @@ class DesignRoutingPool
   std::vector<DesignRoutingPathExtraEntry> _path_extras;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

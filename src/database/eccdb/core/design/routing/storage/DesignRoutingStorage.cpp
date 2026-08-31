@@ -13,7 +13,7 @@
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 bool isValidWireStatus(DesignWireStatus status)
@@ -835,4 +835,4 @@ void DesignRoutingStorage::ensureWire(DesignWireId id) const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

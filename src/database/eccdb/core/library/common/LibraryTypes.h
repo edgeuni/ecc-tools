@@ -4,7 +4,7 @@
 
 #include "common/EnttId.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Every complete object loaded from one cell library is allocated by this
 // registry-local EnTT entity domain.
@@ -22,4 +22,4 @@ using LibraryCellMasterId = EnttId<LibraryEntity, LibraryCellMaster>;
 using LibraryMasterTermId = EnttId<LibraryEntity, LibraryMasterTerm>;
 using LibraryMasterPortId = EnttId<LibraryEntity, LibraryMasterPort>;
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

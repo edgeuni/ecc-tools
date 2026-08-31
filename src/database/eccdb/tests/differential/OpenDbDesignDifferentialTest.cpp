@@ -25,7 +25,7 @@
 #include "library/LibraryDatabase.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 std::filesystem::path openDbTclExecutable()
@@ -1397,4 +1397,4 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<OpenDbCorpusCase>& info) { return info.param.name; });
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -8,7 +8,7 @@
 #include "tech/TechRegistry.h"
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 bool polygonHasArea(const std::vector<Point>& polygon)
@@ -130,4 +130,4 @@ void validateDesignLayerGeometry(const TechRegistry& technology, std::span<const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

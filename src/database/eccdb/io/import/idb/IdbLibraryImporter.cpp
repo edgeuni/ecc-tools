@@ -9,7 +9,7 @@
 #include "IdbObs.h"
 #include "import/idb/IdbTechImporter.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 LibrarySiteClass siteClass(::idb::IdbSiteClass source)
@@ -340,4 +340,4 @@ void IdbLibraryImporter::import(::idb::IdbLayout& source)
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

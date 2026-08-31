@@ -4,7 +4,7 @@
 
 #include "design/common/DesignTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class DesignRegistry
 {
@@ -19,4 +19,4 @@ class DesignRegistry
   registry_type _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

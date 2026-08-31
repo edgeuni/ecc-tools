@@ -8,7 +8,7 @@
 #include "tech/common/TechLayerIds.h"
 #include "tech/via_master/model/ViaMasterComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 namespace DesignWirePointFlag {
 constexpr uint32_t kHasExtension = 1u << 0;
@@ -72,4 +72,4 @@ struct DesignWirePathExtra
   int32_t style = 0;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

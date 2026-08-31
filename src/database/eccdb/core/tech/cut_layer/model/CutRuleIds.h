@@ -3,7 +3,7 @@
 #include "common/EnttId.h"
 #include "tech/common/TechEntity.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct TechCutSpacingRule;
 struct TechCutEnclosureRule;
@@ -29,4 +29,4 @@ using TechCutLef58EolSpacingRuleId = EnttId<TechEntity, TechCutLef58EolSpacingRu
 using TechCutLef58SpacingTableRuleId = EnttId<TechEntity, TechCutLef58SpacingTableRule>;
 using TechCutCurrentDensityRuleId = EnttId<TechEntity, TechCutCurrentDensityRule>;
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

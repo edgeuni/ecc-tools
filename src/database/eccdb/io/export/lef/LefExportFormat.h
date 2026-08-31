@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace idb::eccdb::lef_export_detail {
+namespace eccdb::lef_export_detail {
 
 // All geometry in ECCDB is integer DBU. Formatting through
 // this helper keeps LEF text stable and avoids silently rounding coordinates.
@@ -15,4 +15,4 @@ namespace idb::eccdb::lef_export_detail {
 
 void writeQuoted(std::ostream& output, std::string_view value);
 
-}  // namespace idb::eccdb::lef_export_detail
+}  // namespace eccdb::lef_export_detail

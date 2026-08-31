@@ -6,7 +6,7 @@
 #include "tech/TechRegistry.h"
 #include "tech/implant_layer/model/ImplantLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Storage facade for LEF IMPLANT layers. Each layer is one entity; repeated
 // SPACING clauses are value records in TechImplantSpacingRules on that entity.
@@ -38,4 +38,4 @@ class TechImplantLayerStorage
   registry_type& _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

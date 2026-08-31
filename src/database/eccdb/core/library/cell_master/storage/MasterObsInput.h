@@ -7,7 +7,7 @@
 #include "library/common/LibraryGeometry.h"
 #include "tech/common/TechLayerIds.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct LibraryObsLayerClauseInput
 {
@@ -25,4 +25,4 @@ struct LibraryMasterObsInput
   std::vector<LibraryViaPlacement> vias;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

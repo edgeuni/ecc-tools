@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Identifies one immutable geometry group inside a database-owned
 // GeometryPool. It does not identify an individual rectangle or polygon.
@@ -24,4 +24,4 @@ struct GeometryHandle
   return !(lhs == rhs);
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

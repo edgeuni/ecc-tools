@@ -4,7 +4,7 @@
 
 #include "tech/TechRegistry.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 void validateLibraryViaPlacements(const TechRegistry& tech_registry, const std::vector<LibraryViaPlacement>& placements)
 {
@@ -20,4 +20,4 @@ void validateLibraryViaPlacements(const TechRegistry& tech_registry, const std::
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

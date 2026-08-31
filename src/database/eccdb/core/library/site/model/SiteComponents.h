@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class LibrarySiteClass : uint8_t
 {
@@ -34,4 +34,4 @@ struct LibrarySite
   bool symmetry_r90 = false;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

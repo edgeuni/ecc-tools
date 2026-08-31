@@ -10,7 +10,7 @@
 #include "tech/via_master/model/ViaMasterComponents.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 namespace DesignNdrLayerRuleFlag {
 constexpr uint32_t kHasDiagWidth = 1u << 0;
@@ -58,4 +58,4 @@ struct DesignNonDefaultRule
   std::vector<DesignProperty> properties;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

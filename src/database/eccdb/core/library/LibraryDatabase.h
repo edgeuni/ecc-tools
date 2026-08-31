@@ -7,7 +7,7 @@
 #include "library/master_term/storage/MasterTermStorage.h"
 #include "library/site/storage/SiteStorage.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechRegistry;
 
@@ -53,4 +53,4 @@ class LibraryDatabase
   LibraryMasterPortStorage _master_ports;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -2,7 +2,7 @@
 
 #include <entt/entt.hpp>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Strong id exposed by the eccdb storage layer. The underlying value is an
 // EnTT entity identifier owned by exactly one registry domain.
@@ -24,4 +24,4 @@ class EnttId
   Entity _entity = entt::null;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

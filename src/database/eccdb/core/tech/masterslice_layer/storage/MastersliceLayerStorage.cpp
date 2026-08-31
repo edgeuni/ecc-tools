@@ -6,7 +6,7 @@
 
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 TechMastersliceLayerId TechMastersliceLayerStorage::createLayer(TechLayerInfo info, TechMastersliceLayer masterslice)
 {
@@ -123,4 +123,4 @@ void TechMastersliceLayerStorage::validateTrimmedMetalRule(TechMastersliceLayerI
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

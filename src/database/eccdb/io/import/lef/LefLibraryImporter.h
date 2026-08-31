@@ -10,7 +10,7 @@
 #include "library/LibraryDatabase.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct LefLibraryImportDiagnostic
 {
@@ -53,4 +53,4 @@ class LefLibraryImporter
   bool _used = false;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

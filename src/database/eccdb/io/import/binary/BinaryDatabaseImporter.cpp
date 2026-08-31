@@ -11,7 +11,7 @@
 #include "persistence/binary/BinarySchema.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 struct SerializedGeometry
@@ -100,4 +100,4 @@ std::unique_ptr<DesignDatabase> BinaryDatabaseImporter::loadDesign(const std::fi
   return result;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

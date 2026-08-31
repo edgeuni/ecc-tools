@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace idb::eccdb::lef_test {
+namespace eccdb::lef_test {
 
 struct LefPdkDomain
 {
@@ -87,4 +87,4 @@ inline std::vector<LefPdkDomain> fullIhp130Corpus(const std::filesystem::path& s
            .known_master = "RM_IHPSG13_1P_4096x16_c3_bm_bist"}};
 }
 
-}  // namespace idb::eccdb::lef_test
+}  // namespace eccdb::lef_test

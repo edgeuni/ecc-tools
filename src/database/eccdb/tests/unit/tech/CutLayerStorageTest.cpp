@@ -9,7 +9,7 @@
 
 #include "tech/cut_layer/storage/CutLayerStorage.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 static_assert(std::is_same_v<decltype(TechCutLef58CutClassRule::name), std::string>);
@@ -215,4 +215,4 @@ TEST_F(CutLayerStorageTest, RejectsInvalidCurrentDensityAxes)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

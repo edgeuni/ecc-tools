@@ -10,7 +10,7 @@ class IdbLayer;
 class IdbLayout;
 }  // namespace idb
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // One-shot adapter from the legacy LEF/iDB layout into the EnTT Tech model.
 // Source pointers are used only while importing; no legacy pointer or ID is
@@ -31,4 +31,4 @@ class IdbTechImporter
   bool _imported = false;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

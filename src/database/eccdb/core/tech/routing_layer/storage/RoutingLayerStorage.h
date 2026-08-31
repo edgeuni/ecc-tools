@@ -13,7 +13,7 @@
 #include "tech/routing_layer/model/RoutingRuleComponents.h"
 #include "tech/routing_layer/model/RoutingRuleIds.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // ROUTING facade over the shared Tech registry. A complete Rule is one EnTT
 // entity; its variable-size attributes are ordinary vectors in that Rule
@@ -233,4 +233,4 @@ class TechRoutingLayerStorage
   registry_type& _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

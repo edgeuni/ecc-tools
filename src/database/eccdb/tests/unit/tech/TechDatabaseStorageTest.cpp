@@ -11,7 +11,7 @@
 
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 static_assert(std::is_same_v<decltype(TechLayerInfo::name), std::string>);
@@ -349,4 +349,4 @@ TEST_F(TechDatabaseStorageTest, ValidatesMaxViaStackRangesAgainstCurrentRoutingL
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

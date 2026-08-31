@@ -10,7 +10,7 @@
 
 #include "IdbLayout.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 std::string upper(std::string value)
@@ -1657,4 +1657,4 @@ TechViaMasterId IdbTechImporter::viaMasterId(std::string_view name) const
   return id;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

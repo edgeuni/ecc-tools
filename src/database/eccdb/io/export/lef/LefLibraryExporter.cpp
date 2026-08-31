@@ -12,7 +12,7 @@
 #include "library/LibraryDatabase.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 std::string_view siteClassName(LibrarySiteClass value)
@@ -401,4 +401,4 @@ void LefLibraryExporter::write(const std::filesystem::path& path, const TechData
   write(output, technology, library);
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

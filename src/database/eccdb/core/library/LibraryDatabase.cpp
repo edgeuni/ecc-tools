@@ -1,6 +1,6 @@
 #include "library/LibraryDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 LibraryDatabase::LibraryDatabase(const TechRegistry& tech_registry, LibraryDatabaseOptions options)
     : _tech_registry(tech_registry),
@@ -12,4 +12,4 @@ LibraryDatabase::LibraryDatabase(const TechRegistry& tech_registry, LibraryDatab
 {
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -4,7 +4,7 @@
 #include <limits>
 #include <stdexcept>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 DesignWirePoint DesignWirePointRange::operator[](std::size_t index) const
 {
@@ -73,4 +73,4 @@ DesignWireVia DesignWireViaRange::operator[](std::size_t index) const
   return result;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

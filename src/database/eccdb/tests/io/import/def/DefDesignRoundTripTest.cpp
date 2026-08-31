@@ -18,7 +18,7 @@
 #include "tech/via_master/model/ViaMasterComponents.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 class RejectingStreamBuffer : public std::streambuf
@@ -673,4 +673,4 @@ END DESIGN
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

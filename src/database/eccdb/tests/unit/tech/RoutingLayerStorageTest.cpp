@@ -11,7 +11,7 @@
 #include "tech/cut_layer/storage/CutLayerStorage.h"
 #include "tech/routing_layer/storage/RoutingLayerStorage.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 static_assert(std::is_same_v<decltype(TechRoutingPrlSpacingTableRule::widths), std::vector<int32_t>>);
@@ -184,4 +184,4 @@ TEST_F(RoutingLayerStorageTest, RejectsNonIncreasingCurrentDensityAxes)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -5,7 +5,7 @@
 #include "common/GeometryTypes.h"
 #include "tech/via_master/model/ViaMasterComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechRegistry;
 
@@ -20,4 +20,4 @@ struct LibraryViaPlacement
 
 void validateLibraryViaPlacements(const TechRegistry& tech_registry, const std::vector<LibraryViaPlacement>& placements);
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

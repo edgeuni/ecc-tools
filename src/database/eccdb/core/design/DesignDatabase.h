@@ -10,7 +10,7 @@
 #include "library/LibraryRegistry.h"
 #include "tech/TechRegistry.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class BinaryDatabaseImporter;
 
@@ -62,4 +62,4 @@ class DesignDatabase
   DesignFillStorage _fills;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

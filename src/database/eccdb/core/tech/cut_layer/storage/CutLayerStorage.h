@@ -14,7 +14,7 @@
 #include "tech/cut_layer/model/CutRuleComponents.h"
 #include "tech/cut_layer/model/CutRuleIds.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // CUT facade over the shared Tech registry. A Rule is always its own entity;
 // its variable-length attributes remain ordinary vectors in that Rule's
@@ -224,4 +224,4 @@ class TechCutLayerStorage
   registry_type& _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

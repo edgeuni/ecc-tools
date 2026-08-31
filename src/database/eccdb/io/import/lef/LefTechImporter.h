@@ -5,7 +5,7 @@
 
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // One-shot direct importer from SI2 LEF parser callbacks into the EnTT Tech
 // model. Parsing is staged, so parser objects and partial input never become
@@ -23,4 +23,4 @@ class LefTechImporter
   bool _used = false;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

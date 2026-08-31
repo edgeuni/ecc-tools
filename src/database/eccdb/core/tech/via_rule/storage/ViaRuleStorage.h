@@ -8,7 +8,7 @@
 #include "tech/TechRegistry.h"
 #include "tech/via_rule/model/ViaRuleComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Facade for ordinary (non-GENERATE) LEF VIARULE objects. The two mandatory
 // routing-layer clauses are components on the rule entity; variable candidates
@@ -55,4 +55,4 @@ class ViaRuleStorage
   TechRootId _root;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

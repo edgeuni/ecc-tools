@@ -4,7 +4,7 @@
 
 #include "tech/common/TechEntity.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // The technology object domain. Layer and rule storage facades share this
 // registry so every complete Tech layer/rule receives an ID from one space.
@@ -21,4 +21,4 @@ class TechRegistry
   registry_type _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

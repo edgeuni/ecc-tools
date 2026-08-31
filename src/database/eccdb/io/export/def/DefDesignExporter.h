@@ -6,7 +6,7 @@
 
 #include "design/DesignDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Deterministic DEF 5.8 writer for the syntax represented by Design V1.
 class DefDesignExporter
@@ -22,4 +22,4 @@ class DefDesignExporter
   const DesignDatabase& _design;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

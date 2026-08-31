@@ -23,7 +23,7 @@
 #include "tech/via_rule/model/ViaRuleComponents.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb::lef_detail {
+namespace eccdb::lef_detail {
 namespace {
 
 std::string requiredText(const char* value, const char* field)
@@ -985,4 +985,4 @@ void commitTechObjects(TechDatabase& database, const PreparedTechObjects& object
   commitNonDefaultRules(database, objects.non_default_rules);
 }
 
-}  // namespace idb::eccdb::lef_detail
+}  // namespace eccdb::lef_detail

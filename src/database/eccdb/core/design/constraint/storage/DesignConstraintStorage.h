@@ -6,7 +6,7 @@
 #include "design/DesignRegistry.h"
 #include "design/constraint/model/ConstraintComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechRegistry;
 
@@ -63,4 +63,4 @@ class DesignConstraintStorage
   const TechRegistry& _tech_registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

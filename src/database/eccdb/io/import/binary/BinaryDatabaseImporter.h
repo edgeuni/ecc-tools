@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <memory>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class DesignDatabase;
 class LibraryDatabase;
@@ -19,4 +19,4 @@ class BinaryDatabaseImporter
                                                                   const LibraryDatabase& library);
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

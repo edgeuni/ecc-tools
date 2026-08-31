@@ -10,7 +10,7 @@
 #include "library/site/model/SiteComponents.h"
 #include "tech/TechRegistry.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 LibraryCellMasterId LibraryCellMasterStorage::createCellMaster(LibraryCellMaster master)
 {
@@ -297,4 +297,4 @@ LibraryMasterObs LibraryCellMasterStorage::materializeObs(LibraryMasterObsInput 
   return result;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

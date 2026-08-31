@@ -27,7 +27,7 @@
 #include "tech/via_master/model/ViaMasterComponents.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb::test {
+namespace eccdb::test {
 
 struct DesignSemanticSnapshot
 {
@@ -947,4 +947,4 @@ inline DesignSemanticSnapshot makeDesignSemanticSnapshot(const DesignDatabase& d
       .fills = detail::fillKeys(design)};
 }
 
-}  // namespace idb::eccdb::test
+}  // namespace eccdb::test

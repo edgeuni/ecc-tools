@@ -6,7 +6,7 @@
 #include "common/EnttId.h"
 #include "design/schema/DesignEntitySchema.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class DesignPropertyType : uint8_t
 {
@@ -101,4 +101,4 @@ enum class DesignAxis : uint8_t
   return axis == DesignAxis::kX || axis == DesignAxis::kY;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

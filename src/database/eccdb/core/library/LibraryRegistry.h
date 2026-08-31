@@ -4,7 +4,7 @@
 
 #include "library/common/LibraryTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // One registry owns all complete entities for one loaded cell library.
 class LibraryRegistry
@@ -20,4 +20,4 @@ class LibraryRegistry
   registry_type _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

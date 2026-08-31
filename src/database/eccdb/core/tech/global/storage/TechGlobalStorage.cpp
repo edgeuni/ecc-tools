@@ -5,7 +5,7 @@
 
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 void validateUnitValue(uint32_t flags, uint32_t flag, int32_t value, const char* message)
@@ -201,4 +201,4 @@ void TechGlobalStorage::validateMaxViaStack(const TechMaxViaStack& max_via_stack
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

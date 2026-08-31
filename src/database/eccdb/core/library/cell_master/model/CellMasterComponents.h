@@ -7,7 +7,7 @@
 
 #include "library/common/LibraryTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // The LEF MACRO CLASS variants currently represented by iDB.
 enum class LibraryCellMasterType : uint8_t
@@ -72,4 +72,4 @@ struct LibraryCellMaster
   std::vector<LibraryMasterTermId> terms;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -3,7 +3,7 @@
 #include "geometry/GeometryInput.h"
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Write-side geometry for one fixed or generated VIA. Storage validates the
 // layer roles and converts each GeometryInput into a GeometryHandle.
@@ -19,4 +19,4 @@ struct TechViaMasterShapeInput
   GeometryInput top_geometry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

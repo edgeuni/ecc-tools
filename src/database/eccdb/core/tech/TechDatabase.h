@@ -18,7 +18,7 @@
 #include "tech/via_rule/storage/ViaRuleStorage.h"
 #include "tech/via_rule_generate/storage/ViaRuleGenerateStorage.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class BinaryDatabaseImporter;
 
@@ -112,4 +112,4 @@ class TechDatabase
   TechViaMasterStorage _via_masters;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -7,7 +7,7 @@
 #include "tech/cut_layer/model/CutLayerTypes.h"
 #include "tech/cut_layer/model/CutRuleItems.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 namespace TechCutSpacingRuleFlag {
 constexpr uint32_t kHasAdjacentCuts = 1u << 0;
@@ -299,4 +299,4 @@ struct TechCutCurrentDensityRule
   [[nodiscard]] uint32_t tableEntryCount() const noexcept { return static_cast<uint32_t>(table_entries.size()); }
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -9,7 +9,7 @@
 
 #include "geometry/GeometryPool.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 static_assert(sizeof(GeometryHandle) == sizeof(uint32_t));
@@ -109,4 +109,4 @@ TEST(GeometryPoolTest, RejectsDegenerateGeometry)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

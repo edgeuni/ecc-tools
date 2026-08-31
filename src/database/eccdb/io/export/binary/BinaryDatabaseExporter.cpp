@@ -7,7 +7,7 @@
 #include "persistence/binary/BinarySchema.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 void BinaryDatabaseExporter::saveTech(const std::filesystem::path& path, const TechDatabase& database)
 {
   binary_detail::BinaryFileHeader header;
@@ -35,4 +35,4 @@ void BinaryDatabaseExporter::saveDesign(const std::filesystem::path& path, const
                                  [&design](std::ostream& output) { binary_detail::writeDesignPayload(output, design); });
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

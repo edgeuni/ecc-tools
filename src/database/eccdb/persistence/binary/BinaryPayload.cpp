@@ -9,7 +9,7 @@
 #include <cstddef>
 #include <type_traits>
 
-namespace idb::eccdb::binary_detail {
+namespace eccdb::binary_detail {
 namespace {
 
 template <typename Value>
@@ -90,4 +90,4 @@ void writeDesignPayload(std::ostream& output, const DesignDatabase& database)
   archive.flush();
 }
 
-}  // namespace idb::eccdb::binary_detail
+}  // namespace eccdb::binary_detail

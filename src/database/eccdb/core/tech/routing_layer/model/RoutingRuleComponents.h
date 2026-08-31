@@ -8,7 +8,7 @@
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 #include "tech/routing_layer/model/RoutingRuleItems.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class TechRoutingSpacingType : uint8_t
 {
@@ -470,4 +470,4 @@ struct TechRoutingLef58SpacingTableJogToJogRule
   [[nodiscard]] uint32_t widthCount() const noexcept { return static_cast<uint32_t>(widths.size()); }
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

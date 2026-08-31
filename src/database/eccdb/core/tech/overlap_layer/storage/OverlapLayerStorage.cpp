@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 TechOverlapLayerId TechOverlapLayerStorage::createLayer(TechLayerInfo info)
 {
@@ -62,4 +62,4 @@ void TechOverlapLayerStorage::validateInfo(const TechLayerInfo& info) const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -38,11 +38,11 @@ enum class IdbConnectType : uint8_t;
 class IdbRegularWireSegment;
 }  // namespace idb
 
-namespace idb::eccdb {
+namespace eccdb {
 class DesignDatabase;
 class TechDatabase;
 class LibraryDatabase;
-}  // namespace idb::eccdb
+}  // namespace eccdb
 
 namespace irt {
 class RoutingLayer;
@@ -99,8 +99,8 @@ class RTInterface
 #if 1  // TopData
 
 #if 1  // input
-  void setDesignSource(idb::eccdb::DesignDatabase* design, idb::eccdb::TechDatabase* tech,
-                       idb::eccdb::LibraryDatabase* library);
+  void setDesignSource(eccdb::DesignDatabase* design, eccdb::TechDatabase* tech,
+                       eccdb::LibraryDatabase* library);
   void input(std::map<std::string, std::any>& config_map);
   void wrapConfig(std::map<std::string, std::any>& config_map);
   void wrapDatabase();
@@ -172,9 +172,9 @@ class RTInterface
 
  private:
   static RTInterface* _rt_interface_instance;
-  idb::eccdb::DesignDatabase* _design = nullptr;
-  idb::eccdb::TechDatabase* _tech = nullptr;
-  idb::eccdb::LibraryDatabase* _library = nullptr;
+  eccdb::DesignDatabase* _design = nullptr;
+  eccdb::TechDatabase* _tech = nullptr;
+  eccdb::LibraryDatabase* _library = nullptr;
 
   RTInterface() = default;
   RTInterface(const RTInterface& other) = delete;

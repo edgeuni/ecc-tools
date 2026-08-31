@@ -8,7 +8,7 @@
 #include "design/common/DesignTypes.h"
 #include "tech/common/TechLayerIds.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class DesignRegionType : uint8_t
 {
@@ -69,4 +69,4 @@ struct DesignBlockage
   std::vector<std::vector<Point>> polygons;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

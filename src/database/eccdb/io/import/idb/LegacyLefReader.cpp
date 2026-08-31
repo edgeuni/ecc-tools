@@ -5,7 +5,7 @@
 #include "IdbTerm.h"
 #include "lef_read.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 LegacyLefReader::LegacyLefReader() = default;
 LegacyLefReader::~LegacyLefReader() = default;
@@ -73,4 +73,4 @@ void LegacyLefReader::normalizeMacroOrigins()
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

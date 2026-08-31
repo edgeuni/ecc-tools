@@ -5,7 +5,7 @@
 
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 namespace TechImplantLayerFlag {
 constexpr uint32_t kHasMinWidth = 1u << 0;
@@ -43,4 +43,4 @@ struct TechImplantSpacingRules
   std::vector<TechImplantSpacingRule> values;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

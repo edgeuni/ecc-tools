@@ -4,7 +4,7 @@
 
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Marker for the one technology root entity in a TechRegistry. It has no LEF
 // statement of its own; global LEF statements are optional components on it.
@@ -73,4 +73,4 @@ struct TechMaxViaStack
   TechRoutingLayerId top_layer;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

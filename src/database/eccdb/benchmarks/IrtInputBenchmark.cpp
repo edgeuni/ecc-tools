@@ -183,20 +183,20 @@ void loadIdb(const Options& options)
 
 struct EnttContext
 {
-  std::unique_ptr<idb::eccdb::TechDatabase> tech;
-  std::unique_ptr<idb::eccdb::LibraryDatabase> library;
-  std::unique_ptr<idb::eccdb::DesignDatabase> design;
+  std::unique_ptr<eccdb::TechDatabase> tech;
+  std::unique_ptr<eccdb::LibraryDatabase> library;
+  std::unique_ptr<eccdb::DesignDatabase> design;
 };
 
 EnttContext loadEntt(const Options& options)
 {
   EnttContext context;
-  context.tech = std::make_unique<idb::eccdb::TechDatabase>();
-  idb::eccdb::LefTechImporter(*context.tech).import(options.lef);
-  context.library = std::make_unique<idb::eccdb::LibraryDatabase>(context.tech->techRegistry());
-  idb::eccdb::LefLibraryImporter(*context.tech, *context.library).import(options.lef);
-  context.design = std::make_unique<idb::eccdb::DesignDatabase>(context.tech->techRegistry(), context.library->libraryRegistry());
-  idb::eccdb::DefDesignImporter(*context.design).import(options.def);
+  context.tech = std::make_unique<eccdb::TechDatabase>();
+  eccdb::LefTechImporter(*context.tech).import(options.lef);
+  context.library = std::make_unique<eccdb::LibraryDatabase>(context.tech->techRegistry());
+  eccdb::LefLibraryImporter(*context.tech, *context.library).import(options.lef);
+  context.design = std::make_unique<eccdb::DesignDatabase>(context.tech->techRegistry(), context.library->libraryRegistry());
+  eccdb::DefDesignImporter(*context.design).import(options.def);
   return context;
 }
 

@@ -9,7 +9,7 @@
 #include "tech/masterslice_layer/model/MastersliceLayerComponents.h"
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 TechViaGeometry makeViaGeometry(GeometryPool& geometry_pool, TechViaMasterShapeInput shapes)
@@ -553,4 +553,4 @@ void TechNonDefaultRuleStorage::validateSameNetSpacingRule(TechNonDefaultRuleId 
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

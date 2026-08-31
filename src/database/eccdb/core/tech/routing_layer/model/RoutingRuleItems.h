@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // These values are rule-internal rows, not database objects. They remain
 // ordinary values in the owning Rule component and therefore have no EnTT ID.
@@ -62,4 +62,4 @@ struct TechRoutingLef58JogToJogWidth
   int32_t long_jog_spacing = 0;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

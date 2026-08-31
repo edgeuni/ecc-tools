@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 namespace TechCutLayerFlag {
 constexpr uint32_t kHasWidth = 1u << 0;
@@ -24,4 +24,4 @@ struct TechCutLayer
   double resistance_per_cut = 0.0;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

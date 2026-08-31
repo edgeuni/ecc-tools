@@ -29,7 +29,7 @@
 #include "library/LibraryDatabase.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 struct DefCorpusCase
@@ -379,4 +379,4 @@ TEST(DefLargeCorpusTest, ImportsBeyondLegacyLimitAndReachesSemanticFixedPoint)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

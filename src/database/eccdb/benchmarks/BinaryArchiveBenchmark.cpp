@@ -24,7 +24,7 @@
 #include "library/LibraryDatabase.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 using Clock = std::chrono::steady_clock;
@@ -374,12 +374,12 @@ void run(const Options& options)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb
 
 int main(int argc, char** argv)
 {
   try {
-    idb::eccdb::run(idb::eccdb::parseOptions(argc, argv));
+    eccdb::run(eccdb::parseOptions(argc, argv));
     return 0;
   } catch (const std::exception& error) {
     std::cerr << "binary archive benchmark failed: " << error.what() << '\n';

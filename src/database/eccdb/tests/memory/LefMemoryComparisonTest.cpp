@@ -34,7 +34,7 @@
 #include "import/lef/LefTechImporter.h"
 #include "LefPdkCorpus.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 constexpr std::size_t kDefaultSampleCount = 5;
@@ -793,4 +793,4 @@ TEST(LefMemoryComparisonTest, DISABLED_ComparesRectangularizedFullIhp130ImportsI
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

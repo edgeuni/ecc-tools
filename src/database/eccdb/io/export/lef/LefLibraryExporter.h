@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <iosfwd>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class LibraryDatabase;
 class TechDatabase;
@@ -17,4 +17,4 @@ class LefLibraryExporter
   static void write(const std::filesystem::path& path, const TechDatabase& technology, const LibraryDatabase& library);
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

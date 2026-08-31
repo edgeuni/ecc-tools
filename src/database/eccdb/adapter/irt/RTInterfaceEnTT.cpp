@@ -112,20 +112,20 @@ struct WrapperEntityTables
   {
   }
 
-  EntityPointerTable<idb::eccdb::DesignInstance, idb::eccdb::DesignRegistry::registry_type> instances;
-  EntityPointerTable<idb::eccdb::DesignInstancePin, idb::eccdb::DesignRegistry::registry_type> instance_pins;
-  EntityPointerTable<idb::eccdb::DesignIoPin, idb::eccdb::DesignRegistry::registry_type> io_pins;
-  EntityPointerTable<idb::eccdb::DesignNet, idb::eccdb::DesignRegistry::registry_type> nets;
-  EntityPointerTable<idb::eccdb::LibraryCellMaster, idb::eccdb::LibraryRegistry::registry_type> masters;
-  EntityPointerTable<idb::eccdb::LibraryMasterObs, idb::eccdb::LibraryRegistry::registry_type> master_obs;
-  EntityPointerTable<idb::eccdb::LibraryMasterTerm, idb::eccdb::LibraryRegistry::registry_type> master_terms;
-  EntityPointerTable<idb::eccdb::LibraryMasterPort, idb::eccdb::LibraryRegistry::registry_type> master_ports;
+  EntityPointerTable<eccdb::DesignInstance, eccdb::DesignRegistry::registry_type> instances;
+  EntityPointerTable<eccdb::DesignInstancePin, eccdb::DesignRegistry::registry_type> instance_pins;
+  EntityPointerTable<eccdb::DesignIoPin, eccdb::DesignRegistry::registry_type> io_pins;
+  EntityPointerTable<eccdb::DesignNet, eccdb::DesignRegistry::registry_type> nets;
+  EntityPointerTable<eccdb::LibraryCellMaster, eccdb::LibraryRegistry::registry_type> masters;
+  EntityPointerTable<eccdb::LibraryMasterObs, eccdb::LibraryRegistry::registry_type> master_obs;
+  EntityPointerTable<eccdb::LibraryMasterTerm, eccdb::LibraryRegistry::registry_type> master_terms;
+  EntityPointerTable<eccdb::LibraryMasterPort, eccdb::LibraryRegistry::registry_type> master_ports;
 };
 
 class EnttLayerTable
 {
  public:
-  explicit EnttLayerTable(const idb::eccdb::TechDatabase& tech)
+  explicit EnttLayerTable(const eccdb::TechDatabase& tech)
   {
     int32_t routing_idx = 0;
     int32_t cut_idx = 0;
@@ -140,10 +140,10 @@ class EnttLayerTable
       EnttLayerIndex index;
       index.packed = static_cast<uint32_t>(layer.packed());
       index.order = order;
-      if (tech.routingLayerStorage().contains(idb::eccdb::TechRoutingLayerId{layer.entity()})) {
+      if (tech.routingLayerStorage().contains(eccdb::TechRoutingLayerId{layer.entity()})) {
         index.routing = true;
         index.wrap_idx = routing_idx++;
-      } else if (tech.cutLayerStorage().contains(idb::eccdb::TechCutLayerId{layer.entity()})) {
+      } else if (tech.cutLayerStorage().contains(eccdb::TechCutLayerId{layer.entity()})) {
         index.cut = true;
         index.wrap_idx = cut_idx++;
       }
@@ -153,7 +153,7 @@ class EnttLayerTable
     _cut_count = cut_idx;
   }
 
-  [[nodiscard]] const EnttLayerIndex* find(idb::eccdb::TechLayerId layer) const
+  [[nodiscard]] const EnttLayerIndex* find(eccdb::TechLayerId layer) const
   {
     if (!layer) {
       return nullptr;
@@ -174,105 +174,105 @@ class EnttLayerTable
   int32_t _cut_count = 0;
 };
 
-Direction directionFromTech(idb::eccdb::TechRoutingDirection direction)
+Direction directionFromTech(eccdb::TechRoutingDirection direction)
 {
   switch (direction) {
-    case idb::eccdb::TechRoutingDirection::kHorizontal:
+    case eccdb::TechRoutingDirection::kHorizontal:
       return Direction::kHorizontal;
-    case idb::eccdb::TechRoutingDirection::kVertical:
+    case eccdb::TechRoutingDirection::kVertical:
       return Direction::kVertical;
     default:
       return Direction::kOblique;
   }
 }
 
-ConnectType connectTypeFromUse(idb::eccdb::DesignSignalUse use)
+ConnectType connectTypeFromUse(eccdb::DesignSignalUse use)
 {
-  return use == idb::eccdb::DesignSignalUse::kClock ? ConnectType::kClock : ConnectType::kSignal;
+  return use == eccdb::DesignSignalUse::kClock ? ConnectType::kClock : ConnectType::kSignal;
 }
 
-bool isCoreMaster(idb::eccdb::LibraryCellMasterType type)
+bool isCoreMaster(eccdb::LibraryCellMasterType type)
 {
-  return type >= idb::eccdb::LibraryCellMasterType::kCore && type <= idb::eccdb::LibraryCellMasterType::kEndcapBottomRight;
+  return type >= eccdb::LibraryCellMasterType::kCore && type <= eccdb::LibraryCellMasterType::kEndcapBottomRight;
 }
 
-bool isPadMaster(idb::eccdb::LibraryCellMasterType type)
+bool isPadMaster(eccdb::LibraryCellMasterType type)
 {
-  return type >= idb::eccdb::LibraryCellMasterType::kPad && type <= idb::eccdb::LibraryCellMasterType::kPadAreaIo;
+  return type >= eccdb::LibraryCellMasterType::kPad && type <= eccdb::LibraryCellMasterType::kPadAreaIo;
 }
 
-int32_t irtOrientation(idb::eccdb::DesignOrientation orientation)
+int32_t irtOrientation(eccdb::DesignOrientation orientation)
 {
   switch (orientation) {
-    case idb::eccdb::DesignOrientation::kN:
+    case eccdb::DesignOrientation::kN:
       return 1;
-    case idb::eccdb::DesignOrientation::kW:
+    case eccdb::DesignOrientation::kW:
       return 2;
-    case idb::eccdb::DesignOrientation::kS:
+    case eccdb::DesignOrientation::kS:
       return 3;
-    case idb::eccdb::DesignOrientation::kE:
+    case eccdb::DesignOrientation::kE:
       return 4;
-    case idb::eccdb::DesignOrientation::kFN:
+    case eccdb::DesignOrientation::kFN:
       return 5;
-    case idb::eccdb::DesignOrientation::kFE:
+    case eccdb::DesignOrientation::kFE:
       return 6;
-    case idb::eccdb::DesignOrientation::kFS:
+    case eccdb::DesignOrientation::kFS:
       return 7;
-    case idb::eccdb::DesignOrientation::kFW:
+    case eccdb::DesignOrientation::kFW:
       return 8;
   }
   return 0;
 }
 
-void transformCoordinate(int32_t& x, int32_t& y, idb::eccdb::DesignOrientation orient, idb::eccdb::Point origin, int32_t width,
+void transformCoordinate(int32_t& x, int32_t& y, eccdb::DesignOrientation orient, eccdb::Point origin, int32_t width,
                          int32_t height)
 {
   switch (orient) {
-    case idb::eccdb::DesignOrientation::kN:
+    case eccdb::DesignOrientation::kN:
       return;
-    case idb::eccdb::DesignOrientation::kW: {
+    case eccdb::DesignOrientation::kW: {
       const int32_t dx = x - origin.x;
       const int32_t dy = y - origin.y;
       x = -dy + height + origin.x;
       y = dx + origin.y;
       return;
     }
-    case idb::eccdb::DesignOrientation::kS: {
+    case eccdb::DesignOrientation::kS: {
       const int32_t dx = x - origin.x;
       const int32_t dy = y - origin.y;
       x = -dx + width + origin.x;
       y = -dy + height + origin.y;
       return;
     }
-    case idb::eccdb::DesignOrientation::kE: {
+    case eccdb::DesignOrientation::kE: {
       const int32_t dx = x - origin.x;
       const int32_t dy = y - origin.y;
       x = dy + origin.x;
       y = -dx + width + origin.y;
       return;
     }
-    case idb::eccdb::DesignOrientation::kFN: {
+    case eccdb::DesignOrientation::kFN: {
       const int32_t dx = x - origin.x;
       const int32_t dy = y - origin.y;
       x = -dx + width + origin.x;
       y = dy + origin.y;
       return;
     }
-    case idb::eccdb::DesignOrientation::kFS: {
+    case eccdb::DesignOrientation::kFS: {
       const int32_t dx = x - origin.x;
       const int32_t dy = y - origin.y;
       x = dx + origin.x;
       y = -dy + height + origin.y;
       return;
     }
-    case idb::eccdb::DesignOrientation::kFW: {
+    case eccdb::DesignOrientation::kFW: {
       const int32_t dx = x - origin.x;
       const int32_t dy = y - origin.y;
       x = dy + origin.x;
       y = dx + origin.y;
       return;
     }
-    case idb::eccdb::DesignOrientation::kFE: {
+    case eccdb::DesignOrientation::kFE: {
       const int32_t dx = x - origin.x;
       const int32_t dy = y - origin.y;
       x = -dy + height + origin.x;
@@ -282,7 +282,7 @@ void transformCoordinate(int32_t& x, int32_t& y, idb::eccdb::DesignOrientation o
   }
 }
 
-idb::eccdb::Rect transformRect(idb::eccdb::Rect rect, idb::eccdb::DesignOrientation orient, idb::eccdb::Point origin,
+eccdb::Rect transformRect(eccdb::Rect rect, eccdb::DesignOrientation orient, eccdb::Point origin,
                                   int32_t width, int32_t height)
 {
   int32_t ll_x = rect.ll_x;
@@ -291,56 +291,56 @@ idb::eccdb::Rect transformRect(idb::eccdb::Rect rect, idb::eccdb::DesignOrientat
   int32_t ur_y = rect.ur_y;
   transformCoordinate(ll_x, ll_y, orient, origin, width, height);
   transformCoordinate(ur_x, ur_y, orient, origin, width, height);
-  return idb::eccdb::Rect{.ll_x = std::min(ll_x, ur_x),
+  return eccdb::Rect{.ll_x = std::min(ll_x, ur_x),
                              .ll_y = std::min(ll_y, ur_y),
                              .ur_x = std::max(ll_x, ur_x),
                              .ur_y = std::max(ll_y, ur_y)};
 }
 
-idb::eccdb::Rect placeMasterRect(idb::eccdb::Rect local, idb::eccdb::Point origin, idb::eccdb::DesignOrientation orient,
+eccdb::Rect placeMasterRect(eccdb::Rect local, eccdb::Point origin, eccdb::DesignOrientation orient,
                                     int32_t width, int32_t height)
 {
   return transformRect(local.offset(origin.x, origin.y), orient, origin, width, height);
 }
 
-idb::eccdb::Point placeMasterPoint(idb::eccdb::Point local, idb::eccdb::Point origin, idb::eccdb::DesignOrientation orient,
+eccdb::Point placeMasterPoint(eccdb::Point local, eccdb::Point origin, eccdb::DesignOrientation orient,
                                       int32_t width, int32_t height)
 {
-  idb::eccdb::Point placed{local.x + origin.x, local.y + origin.y};
+  eccdb::Point placed{local.x + origin.x, local.y + origin.y};
   transformCoordinate(placed.x, placed.y, orient, origin, width, height);
   return placed;
 }
 
-std::vector<idb::eccdb::Rect> geometryRects(const idb::eccdb::GeometryPool& pool, idb::eccdb::GeometryHandle handle)
+std::vector<eccdb::Rect> geometryRects(const eccdb::GeometryPool& pool, eccdb::GeometryHandle handle)
 {
-  std::vector<idb::eccdb::Rect> rects;
+  std::vector<eccdb::Rect> rects;
   const auto stored = pool.rectangles(handle);
   rects.insert(rects.end(), stored.begin(), stored.end());
   for (uint32_t index = 0; index < pool.polygonCount(handle); ++index) {
     const auto points = pool.polygonPoints(handle, index);
-    auto decomposed = idb::eccdb::decomposePolygonToRectangles(points);
+    auto decomposed = eccdb::decomposePolygonToRectangles(points);
     rects.insert(rects.end(), decomposed.begin(), decomposed.end());
   }
   return rects;
 }
 
 template <typename Function>
-void forEachGeometryRect(const idb::eccdb::GeometryPool& pool, idb::eccdb::GeometryHandle handle, Function&& function)
+void forEachGeometryRect(const eccdb::GeometryPool& pool, eccdb::GeometryHandle handle, Function&& function)
 {
   for (const auto& rect : pool.rectangles(handle)) {
     std::invoke(function, rect);
   }
   for (uint32_t index = 0; index < pool.polygonCount(handle); ++index) {
     const auto points = pool.polygonPoints(handle, index);
-    for (const auto& rect : idb::eccdb::decomposePolygonToRectangles(points)) {
+    for (const auto& rect : eccdb::decomposePolygonToRectangles(points)) {
       std::invoke(function, rect);
     }
   }
 }
 
-idb::eccdb::Rect boundingBox(const std::vector<idb::eccdb::Rect>& rects)
+eccdb::Rect boundingBox(const std::vector<eccdb::Rect>& rects)
 {
-  idb::eccdb::Rect box;
+  eccdb::Rect box;
   bool first = true;
   for (const auto& rect : rects) {
     box = first ? rect : box.united(rect);
@@ -351,8 +351,8 @@ idb::eccdb::Rect boundingBox(const std::vector<idb::eccdb::Rect>& rects)
 
 struct LayeredRect
 {
-  idb::eccdb::TechLayerId layer;
-  idb::eccdb::Rect rect;
+  eccdb::TechLayerId layer;
+  eccdb::Rect rect;
   const EnttLayerIndex* index = nullptr;
 };
 
@@ -362,11 +362,11 @@ struct ViaShapes
   std::vector<LayeredRect> cut;
 };
 
-ViaShapes techViaShapes(const idb::eccdb::TechDatabase& tech, idb::eccdb::TechViaMasterId via_id, idb::eccdb::Point origin)
+ViaShapes techViaShapes(const eccdb::TechDatabase& tech, eccdb::TechViaMasterId via_id, eccdb::Point origin)
 {
   ViaShapes shapes;
   const auto& geometry = tech.viaMasterStorage().geometry(via_id);
-  auto append = [&](idb::eccdb::TechLayerId layer, const std::vector<idb::eccdb::Rect>& rects, bool cut) {
+  auto append = [&](eccdb::TechLayerId layer, const std::vector<eccdb::Rect>& rects, bool cut) {
     for (const auto& rect : rects) {
       LayeredRect placed{.layer = layer, .rect = rect.offset(origin.x, origin.y)};
       if (cut) {
@@ -377,12 +377,12 @@ ViaShapes techViaShapes(const idb::eccdb::TechDatabase& tech, idb::eccdb::TechVi
     }
   };
   append(geometry.bottom_layer.layer(), geometryRects(tech.geometryPool(), geometry.bottom_geometry), false);
-  append(idb::eccdb::TechLayerId{geometry.cut_layer.entity()}, geometryRects(tech.geometryPool(), geometry.cut_geometry), true);
+  append(eccdb::TechLayerId{geometry.cut_layer.entity()}, geometryRects(tech.geometryPool(), geometry.cut_geometry), true);
   append(geometry.top_layer.layer(), geometryRects(tech.geometryPool(), geometry.top_geometry), false);
   return shapes;
 }
 
-ViaShapes generatedViaShapes(const idb::eccdb::DesignVia& via, idb::eccdb::Point origin)
+ViaShapes generatedViaShapes(const eccdb::DesignVia& via, eccdb::Point origin)
 {
   // Match IdbViaMasterGenerate / IdbViaMaster::set_layer_shape: center the cut
   // array, then grow top/bottom enclosures from the cut bounding box. OFFSET is
@@ -392,15 +392,15 @@ ViaShapes generatedViaShapes(const idb::eccdb::DesignVia& via, idb::eccdb::Point
   const int32_t rows = static_cast<int32_t>(std::max(generated.row_count, 1u));
   const int32_t columns = static_cast<int32_t>(std::max(generated.column_count, 1u));
   const int32_t origin_x
-      = (generated.flags & idb::eccdb::DesignGeneratedViaFlag::kHasOrigin) != 0 ? generated.origin.x : 0;
+      = (generated.flags & eccdb::DesignGeneratedViaFlag::kHasOrigin) != 0 ? generated.origin.x : 0;
   const int32_t origin_y
-      = (generated.flags & idb::eccdb::DesignGeneratedViaFlag::kHasOrigin) != 0 ? generated.origin.y : 0;
+      = (generated.flags & eccdb::DesignGeneratedViaFlag::kHasOrigin) != 0 ? generated.origin.y : 0;
   const int32_t cut_width_total = columns * generated.cut_size_x + (columns - 1) * generated.cut_spacing_x;
   const int32_t cut_height_total = rows * generated.cut_size_y + (rows - 1) * generated.cut_spacing_y;
   const int32_t ll_x_min = (-cut_width_total / 2) + origin_x;
   const int32_t ll_y_min = (-cut_height_total / 2) + origin_y;
 
-  auto append = [&](idb::eccdb::TechLayerId layer, idb::eccdb::Rect rect, bool cut) {
+  auto append = [&](eccdb::TechLayerId layer, eccdb::Rect rect, bool cut) {
     LayeredRect placed{.layer = layer, .rect = rect.offset(origin.x, origin.y)};
     if (cut) {
       shapes.cut.push_back(placed);
@@ -413,24 +413,24 @@ ViaShapes generatedViaShapes(const idb::eccdb::DesignVia& via, idb::eccdb::Point
     for (int32_t column = 0; column < columns; ++column) {
       const int32_t ll_x = ll_x_min + column * (generated.cut_size_x + generated.cut_spacing_x);
       const int32_t ll_y = ll_y_min + row * (generated.cut_size_y + generated.cut_spacing_y);
-      append(idb::eccdb::TechLayerId{generated.cut_layer.entity()},
-             idb::eccdb::Rect{.ll_x = ll_x, .ll_y = ll_y, .ur_x = ll_x + generated.cut_size_x, .ur_y = ll_y + generated.cut_size_y},
+      append(eccdb::TechLayerId{generated.cut_layer.entity()},
+             eccdb::Rect{.ll_x = ll_x, .ll_y = ll_y, .ur_x = ll_x + generated.cut_size_x, .ur_y = ll_y + generated.cut_size_y},
              true);
     }
   }
 
-  const idb::eccdb::Rect cut_box{.ll_x = ll_x_min,
+  const eccdb::Rect cut_box{.ll_x = ll_x_min,
                                     .ll_y = ll_y_min,
                                     .ur_x = ll_x_min + cut_width_total,
                                     .ur_y = ll_y_min + cut_height_total};
-  append(idb::eccdb::TechLayerId{generated.bottom_layer.entity()},
-         idb::eccdb::Rect{.ll_x = cut_box.ll_x - generated.bottom_enclosure_x,
+  append(eccdb::TechLayerId{generated.bottom_layer.entity()},
+         eccdb::Rect{.ll_x = cut_box.ll_x - generated.bottom_enclosure_x,
                              .ll_y = cut_box.ll_y - generated.bottom_enclosure_y,
                              .ur_x = cut_box.ur_x + generated.bottom_enclosure_x,
                              .ur_y = cut_box.ur_y + generated.bottom_enclosure_y},
          false);
-  append(idb::eccdb::TechLayerId{generated.top_layer.entity()},
-         idb::eccdb::Rect{.ll_x = cut_box.ll_x - generated.top_enclosure_x,
+  append(eccdb::TechLayerId{generated.top_layer.entity()},
+         eccdb::Rect{.ll_x = cut_box.ll_x - generated.top_enclosure_x,
                              .ll_y = cut_box.ll_y - generated.top_enclosure_y,
                              .ur_x = cut_box.ur_x + generated.top_enclosure_x,
                              .ur_y = cut_box.ur_y + generated.top_enclosure_y},
@@ -438,18 +438,18 @@ ViaShapes generatedViaShapes(const idb::eccdb::DesignVia& via, idb::eccdb::Point
   return shapes;
 }
 
-ViaShapes designViaShapes(const idb::eccdb::DesignDatabase& design, const idb::eccdb::TechDatabase& tech,
-                          idb::eccdb::DesignViaId via_id, idb::eccdb::Point origin)
+ViaShapes designViaShapes(const eccdb::DesignDatabase& design, const eccdb::TechDatabase& tech,
+                          eccdb::DesignViaId via_id, eccdb::Point origin)
 {
   const auto& via = design.routingStorage().via(via_id);
-  if ((via.flags & idb::eccdb::DesignViaFlag::kGenerated) != 0) {
+  if ((via.flags & eccdb::DesignViaFlag::kGenerated) != 0) {
     return generatedViaShapes(via, origin);
   }
 
   ViaShapes shapes;
-  auto append_rect = [&](idb::eccdb::TechLayerId layer, idb::eccdb::Rect rect) {
+  auto append_rect = [&](eccdb::TechLayerId layer, eccdb::Rect rect) {
     LayeredRect placed{.layer = layer, .rect = rect.offset(origin.x, origin.y)};
-    if (tech.cutLayerStorage().contains(idb::eccdb::TechCutLayerId{layer.entity()})) {
+    if (tech.cutLayerStorage().contains(eccdb::TechCutLayerId{layer.entity()})) {
       shapes.cut.push_back(placed);
     } else {
       shapes.routing.push_back(placed);
@@ -459,15 +459,15 @@ ViaShapes designViaShapes(const idb::eccdb::DesignDatabase& design, const idb::e
     append_rect(rect.layer, rect.rectangle);
   }
   for (const auto& polygon : via.polygons) {
-    for (const auto& rect : idb::eccdb::decomposePolygonToRectangles(polygon.points)) {
+    for (const auto& rect : eccdb::decomposePolygonToRectangles(polygon.points)) {
       append_rect(polygon.layer, rect);
     }
   }
   return shapes;
 }
 
-ViaShapes resolveViaShapes(const idb::eccdb::DesignDatabase& design, const idb::eccdb::TechDatabase& tech,
-                           idb::eccdb::TechViaMasterId tech_via, idb::eccdb::DesignViaId design_via, idb::eccdb::Point origin)
+ViaShapes resolveViaShapes(const eccdb::DesignDatabase& design, const eccdb::TechDatabase& tech,
+                           eccdb::TechViaMasterId tech_via, eccdb::DesignViaId design_via, eccdb::Point origin)
 {
   if (tech_via) {
     return techViaShapes(tech, tech_via, origin);
@@ -493,19 +493,19 @@ void fillPrlTable(SpacingTable& table, const std::vector<int32_t>& widths, const
   }
 }
 
-int32_t effectiveMinWidth(const idb::eccdb::TechRoutingLayer& tech_layer)
+int32_t effectiveMinWidth(const eccdb::TechRoutingLayer& tech_layer)
 {
   // iDB lef_read defaults omitted MINWIDTH to WIDTH.
-  return (tech_layer.flags & idb::eccdb::TechRoutingLayerFlag::kHasMinWidth) != 0 ? tech_layer.min_width : tech_layer.width;
+  return (tech_layer.flags & eccdb::TechRoutingLayerFlag::kHasMinWidth) != 0 ? tech_layer.min_width : tech_layer.width;
 }
 
-void wrapTrackAxisFromEnTT(RoutingLayer& routing_layer, const idb::eccdb::TechRoutingLayer& tech_layer)
+void wrapTrackAxisFromEnTT(RoutingLayer& routing_layer, const eccdb::TechRoutingLayer& tech_layer)
 {
   // iDB lef_read defaults a missing OFFSET to pitch/2. EnTT stores the omitted
   // clause as offset_form=kNone and offset=0; apply the same default here.
-  const int32_t offset_x = tech_layer.offset_form == idb::eccdb::TechRoutingAxisValueForm::kNone ? tech_layer.pitch_x / 2
+  const int32_t offset_x = tech_layer.offset_form == eccdb::TechRoutingAxisValueForm::kNone ? tech_layer.pitch_x / 2
                                                                                                    : tech_layer.offset_x;
-  const int32_t offset_y = tech_layer.offset_form == idb::eccdb::TechRoutingAxisValueForm::kNone ? tech_layer.pitch_y / 2
+  const int32_t offset_y = tech_layer.offset_form == eccdb::TechRoutingAxisValueForm::kNone ? tech_layer.pitch_y / 2
                                                                                                    : tech_layer.offset_y;
   ScaleAxis& track_axis = routing_layer.get_track_axis();
   ScaleGrid x_track_grid;
@@ -518,12 +518,12 @@ void wrapTrackAxisFromEnTT(RoutingLayer& routing_layer, const idb::eccdb::TechRo
   track_axis.get_y_grid_list().push_back(y_track_grid);
 }
 
-void wrapRoutingDesignRuleFromEnTT(RoutingLayer& routing_layer, idb::eccdb::TechRoutingLayerId layer_id,
-                                   const idb::eccdb::TechDatabase& tech)
+void wrapRoutingDesignRuleFromEnTT(RoutingLayer& routing_layer, eccdb::TechRoutingLayerId layer_id,
+                                   const eccdb::TechDatabase& tech)
 {
   const auto& storage = tech.routingLayerStorage();
   const auto& tech_layer = storage.routingLayer(layer_id);
-  const auto& name = tech.layerInfo(idb::eccdb::TechLayerId{layer_id.entity()}).name;
+  const auto& name = tech.layerInfo(eccdb::TechLayerId{layer_id.entity()}).name;
 
   routing_layer.set_min_width(effectiveMinWidth(tech_layer));
   routing_layer.set_min_area(static_cast<int32_t>(tech_layer.area));
@@ -556,7 +556,7 @@ void wrapRoutingDesignRuleFromEnTT(RoutingLayer& routing_layer, idb::eccdb::Tech
       std::vector<SpacingRow> rows;
       for (const auto spacing_id : spacing_ids) {
         const auto& src = storage.rule(spacing_id);
-        rows.push_back(SpacingRow{.is_default = src.type == idb::eccdb::TechRoutingSpacingType::kDefault,
+        rows.push_back(SpacingRow{.is_default = src.type == eccdb::TechRoutingSpacingType::kDefault,
                                   .min_width = src.min_width,
                                   .min_spacing = src.min_spacing});
       }
@@ -583,7 +583,7 @@ void wrapRoutingDesignRuleFromEnTT(RoutingLayer& routing_layer, idb::eccdb::Tech
   if (!eol_ids.empty()) {
     const auto& src = storage.rule(eol_ids.front());
     routing_layer.set_eol_spacing(src.eol_space);
-    routing_layer.set_eol_ete((src.flags & idb::eccdb::TechRoutingLef58SpacingEolRuleFlag::kHasEndToEnd) != 0 ? src.end_to_end_space
+    routing_layer.set_eol_ete((src.flags & eccdb::TechRoutingLef58SpacingEolRuleFlag::kHasEndToEnd) != 0 ? src.end_to_end_space
                                                                                                                  : 0);
     routing_layer.set_eol_within(src.eol_within);
   } else {
@@ -594,10 +594,10 @@ void wrapRoutingDesignRuleFromEnTT(RoutingLayer& routing_layer, idb::eccdb::Tech
   }
 }
 
-void wrapCutDesignRuleFromEnTT(CutLayer& cut_layer, idb::eccdb::TechCutLayerId layer_id, const idb::eccdb::TechDatabase& tech)
+void wrapCutDesignRuleFromEnTT(CutLayer& cut_layer, eccdb::TechCutLayerId layer_id, const eccdb::TechDatabase& tech)
 {
   const auto& storage = tech.cutLayerStorage();
-  const auto& name = tech.layerInfo(idb::eccdb::TechLayerId{layer_id.entity()}).name;
+  const auto& name = tech.layerInfo(eccdb::TechLayerId{layer_id.entity()}).name;
   const auto spacing_ids = storage.spacingRules(layer_id);
   const auto table_ids = storage.lef58SpacingTableRules(layer_id);
 
@@ -607,10 +607,10 @@ void wrapCutDesignRuleFromEnTT(CutLayer& cut_layer, idb::eccdb::TechCutLayerId l
     cut_layer.set_curr_prl(0);
     cut_layer.set_curr_prl_spacing(spacing);
   } else {
-    const idb::eccdb::TechCutLef58SpacingTableRule* same_table = nullptr;
+    const eccdb::TechCutLef58SpacingTableRule* same_table = nullptr;
     for (const auto table_id : table_ids) {
       const auto& table = storage.lef58SpacingTableRule(table_id);
-      if ((table.flags & idb::eccdb::TechCutLef58SpacingTableRuleFlag::kHasSecondLayer) == 0) {
+      if ((table.flags & eccdb::TechCutLef58SpacingTableRuleFlag::kHasSecondLayer) == 0) {
         same_table = &table;
       }
     }
@@ -640,10 +640,10 @@ void wrapCutDesignRuleFromEnTT(CutLayer& cut_layer, idb::eccdb::TechCutLayerId l
     cut_layer.set_curr_eol_prl_spacing(0);
   }
 
-  const idb::eccdb::TechCutLef58SpacingTableRule* below_table = nullptr;
+  const eccdb::TechCutLef58SpacingTableRule* below_table = nullptr;
   for (const auto table_id : table_ids) {
     const auto& table = storage.lef58SpacingTableRule(table_id);
-    if ((table.flags & idb::eccdb::TechCutLef58SpacingTableRuleFlag::kHasSecondLayer) != 0) {
+    if ((table.flags & eccdb::TechCutLef58SpacingTableRuleFlag::kHasSecondLayer) != 0) {
       below_table = &table;
     }
   }
@@ -660,15 +660,15 @@ void wrapCutDesignRuleFromEnTT(CutLayer& cut_layer, idb::eccdb::TechCutLayerId l
   }
 }
 
-idb::eccdb::Rect wireSegmentBox(idb::eccdb::Point a, idb::eccdb::Point b, int32_t width)
+eccdb::Rect wireSegmentBox(eccdb::Point a, eccdb::Point b, int32_t width)
 {
   if (a.y == b.y) {
-    return idb::eccdb::Rect{.ll_x = std::min(a.x, b.x),
+    return eccdb::Rect{.ll_x = std::min(a.x, b.x),
                                .ll_y = a.y - width / 2,
                                .ur_x = std::max(a.x, b.x),
                                .ur_y = a.y - width / 2 + width};
   }
-  return idb::eccdb::Rect{.ll_x = a.x - width / 2,
+  return eccdb::Rect{.ll_x = a.x - width / 2,
                              .ll_y = std::min(a.y, b.y),
                              .ur_x = a.x - width / 2 + width,
                              .ur_y = std::max(a.y, b.y)};
@@ -681,7 +681,7 @@ struct ObstacleSink
   const EnttLayerTable& layers;
 };
 
-void appendObstacle(ObstacleSink& sink, const EnttLayerIndex& index, idb::eccdb::Rect rect)
+void appendObstacle(ObstacleSink& sink, const EnttLayerIndex& index, eccdb::Rect rect)
 {
   if (index.wrap_idx < 0) {
     return;
@@ -698,7 +698,7 @@ void appendObstacle(ObstacleSink& sink, const EnttLayerIndex& index, idb::eccdb:
   target->emplace_back(rect.ll_x, rect.ll_y, rect.ur_x, rect.ur_y, index.wrap_idx);
 }
 
-void appendObstacle(ObstacleSink& sink, idb::eccdb::TechLayerId layer, idb::eccdb::Rect rect)
+void appendObstacle(ObstacleSink& sink, eccdb::TechLayerId layer, eccdb::Rect rect)
 {
   const auto* index = sink.layers.find(layer);
   if (index != nullptr) {
@@ -754,7 +754,7 @@ struct NetSkipCache
 
   std::vector<Entry> values;
 
-  [[nodiscard]] const NetSkipInfo* find(idb::eccdb::DesignNetId net) const noexcept
+  [[nodiscard]] const NetSkipInfo* find(eccdb::DesignNetId net) const noexcept
   {
     const auto entity = static_cast<size_t>(entt::to_entity(net.entity()));
     if (entity >= values.size() || !values[entity].valid || values[entity].packed != static_cast<uint32_t>(net.packed())) {
@@ -764,7 +764,7 @@ struct NetSkipCache
   }
 };
 
-NetSkipInfo analyzeNetSkip(const idb::eccdb::DesignDatabase& design, const WrapperEntityTables& entities, idb::eccdb::DesignNetId net)
+NetSkipInfo analyzeNetSkip(const eccdb::DesignDatabase& design, const WrapperEntityTables& entities, eccdb::DesignNetId net)
 {
   NetSkipInfo info;
   if (!net) {
@@ -772,12 +772,12 @@ NetSkipInfo analyzeNetSkip(const idb::eccdb::DesignDatabase& design, const Wrapp
     return info;
   }
   const auto& design_registry = design.designRegistry().registry();
-  const auto* io_pin_component = design_registry.try_get<const idb::eccdb::DesignNetIoPins>(net.entity());
-  const auto* instance_pin_component = design_registry.try_get<const idb::eccdb::DesignNetInstancePins>(net.entity());
-  const auto io_pins = io_pin_component == nullptr ? std::span<const idb::eccdb::DesignIoPinId>{}
-                                                    : std::span<const idb::eccdb::DesignIoPinId>{io_pin_component->values};
-  const auto instance_pins = instance_pin_component == nullptr ? std::span<const idb::eccdb::DesignInstancePinId>{}
-                                                                : std::span<const idb::eccdb::DesignInstancePinId>{instance_pin_component->values};
+  const auto* io_pin_component = design_registry.try_get<const eccdb::DesignNetIoPins>(net.entity());
+  const auto* instance_pin_component = design_registry.try_get<const eccdb::DesignNetInstancePins>(net.entity());
+  const auto io_pins = io_pin_component == nullptr ? std::span<const eccdb::DesignIoPinId>{}
+                                                    : std::span<const eccdb::DesignIoPinId>{io_pin_component->values};
+  const auto instance_pins = instance_pin_component == nullptr ? std::span<const eccdb::DesignInstancePinId>{}
+                                                                : std::span<const eccdb::DesignInstancePinId>{instance_pin_component->values};
   const bool has_io_pin = io_pins.size() == 1;
   bool has_io_cell = false;
   if (instance_pins.size() == 1) {
@@ -808,7 +808,7 @@ NetSkipInfo analyzeNetSkip(const idb::eccdb::DesignDatabase& design, const Wrapp
   return info;
 }
 
-bool netIsSkipping(const idb::eccdb::DesignDatabase& design, const WrapperEntityTables& entities, idb::eccdb::DesignNetId net, NetSkipCache& cache,
+bool netIsSkipping(const eccdb::DesignDatabase& design, const WrapperEntityTables& entities, eccdb::DesignNetId net, NetSkipCache& cache,
                    bool with_log)
 {
   if (!net) {
@@ -831,12 +831,12 @@ bool netIsSkipping(const idb::eccdb::DesignDatabase& design, const WrapperEntity
 // iDB wrapObstacleList calls isSkipping(pin->get_net()), which is the regular
 // net only. Special-net-only pins (VDD/VSS) have a null regular net and become
 // obstacles. Do not fall back to special_net here.
-idb::eccdb::DesignNetId instancePinNet(const idb::eccdb::DesignInstancePin& pin)
+eccdb::DesignNetId instancePinNet(const eccdb::DesignInstancePin& pin)
 {
   return pin.net;
 }
 
-idb::eccdb::DesignNetId ioPinNet(const idb::eccdb::DesignIoPin& pin)
+eccdb::DesignNetId ioPinNet(const eccdb::DesignIoPin& pin)
 {
   return pin.net;
 }
@@ -951,7 +951,7 @@ void appendViaToPin(Pin& pin, const ViaShapes& shapes, const EnttLayerTable& lay
   appendPinShapes(pin, {}, shapes.cut, layers);
 }
 
-void appendOffsetViaToPin(Pin& pin, const ViaShapes& shapes, idb::eccdb::Point offset, const EnttLayerTable& layers,
+void appendOffsetViaToPin(Pin& pin, const ViaShapes& shapes, eccdb::Point offset, const EnttLayerTable& layers,
                           std::vector<LayerBox>& boxes)
 {
   boxes.clear();
@@ -996,7 +996,7 @@ class OrientedGeometryCache
 {
  public:
   template <typename Id, typename Builder>
-  const Geometry& get(Id id, idb::eccdb::DesignOrientation orientation, Builder&& builder)
+  const Geometry& get(Id id, eccdb::DesignOrientation orientation, Builder&& builder)
   {
     auto& entries = _values[static_cast<uint32_t>(id.packed())];
     auto& entry = entries[static_cast<size_t>(orientation)];
@@ -1007,7 +1007,7 @@ class OrientedGeometryCache
   }
 
   template <typename Id>
-  [[nodiscard]] const Geometry& at(Id id, idb::eccdb::DesignOrientation orientation) const
+  [[nodiscard]] const Geometry& at(Id id, eccdb::DesignOrientation orientation) const
   {
     return _values.at(static_cast<uint32_t>(id.packed()))[static_cast<size_t>(orientation)].value();
   }
@@ -1072,7 +1072,7 @@ class FixedObstacleSink
  public:
   FixedObstacleSink(std::span<Obstacle> routing, std::span<Obstacle> cut) : _routing(routing), _cut(cut) {}
 
-  void append(const CachedMasterGeometry& geometry, idb::eccdb::Point origin)
+  void append(const CachedMasterGeometry& geometry, eccdb::Point origin)
   {
     for (const auto& shape : geometry.obstacle_routing) {
       const auto rect = shape.rect.offset(origin.x, origin.y);
@@ -1093,10 +1093,10 @@ class FixedObstacleSink
 
 struct InstanceObstacleWork
 {
-  idb::eccdb::LibraryCellMasterId master;
-  idb::eccdb::Point origin;
-  idb::eccdb::DesignOrientation orientation = idb::eccdb::DesignOrientation::kN;
-  std::span<const idb::eccdb::DesignInstancePinId> pins;
+  eccdb::LibraryCellMasterId master;
+  eccdb::Point origin;
+  eccdb::DesignOrientation orientation = eccdb::DesignOrientation::kN;
+  std::span<const eccdb::DesignInstancePinId> pins;
   const CachedMasterGeometry* obs_geometry = nullptr;
   size_t routing_offset = 0;
   size_t routing_count = 0;
@@ -1121,20 +1121,20 @@ void RTInterface::wrapDatabaseFromEnTT()
   const auto& design_registry = design.designRegistry().registry();
   const auto& library_registry = library.libraryRegistry().registry();
   const WrapperEntityTables entities{design_registry, library_registry};
-  const auto net_instance_pins_for = [&design_registry](idb::eccdb::DesignNetId net) {
-    const auto* pins = design_registry.try_get<const idb::eccdb::DesignNetInstancePins>(net.entity());
-    return pins == nullptr ? std::span<const idb::eccdb::DesignInstancePinId>{}
-                           : std::span<const idb::eccdb::DesignInstancePinId>{pins->values};
+  const auto net_instance_pins_for = [&design_registry](eccdb::DesignNetId net) {
+    const auto* pins = design_registry.try_get<const eccdb::DesignNetInstancePins>(net.entity());
+    return pins == nullptr ? std::span<const eccdb::DesignInstancePinId>{}
+                           : std::span<const eccdb::DesignInstancePinId>{pins->values};
   };
-  const auto net_io_pins_for = [&design_registry](idb::eccdb::DesignNetId net) {
-    const auto* pins = design_registry.try_get<const idb::eccdb::DesignNetIoPins>(net.entity());
-    return pins == nullptr ? std::span<const idb::eccdb::DesignIoPinId>{}
-                           : std::span<const idb::eccdb::DesignIoPinId>{pins->values};
+  const auto net_io_pins_for = [&design_registry](eccdb::DesignNetId net) {
+    const auto* pins = design_registry.try_get<const eccdb::DesignNetIoPins>(net.entity());
+    return pins == nullptr ? std::span<const eccdb::DesignIoPinId>{}
+                           : std::span<const eccdb::DesignIoPinId>{pins->values};
   };
   const EnttLayerTable layers(tech);
   OrientedGeometryCache<CachedMasterGeometry> obs_geometry_cache;
   OrientedGeometryCache<CachedMasterGeometry> term_geometry_cache;
-  const auto build_obs_geometry = [&](idb::eccdb::LibraryCellMasterId master_id, idb::eccdb::DesignOrientation orientation) {
+  const auto build_obs_geometry = [&](eccdb::LibraryCellMasterId master_id, eccdb::DesignOrientation orientation) {
     CachedMasterGeometry geometry;
     const auto& master = entities.masters.get(master_id.entity());
     const int32_t width = static_cast<int32_t>(master.width);
@@ -1146,7 +1146,7 @@ void RTInterface::wrapDatabaseFromEnTT()
         if (index == nullptr) {
           continue;
         }
-        forEachGeometryRect(library.geometryPool(), clause.geometry, [&](const idb::eccdb::Rect& rect) {
+        forEachGeometryRect(library.geometryPool(), clause.geometry, [&](const eccdb::Rect& rect) {
           LayeredRect shape{.layer = clause.layer, .rect = placeMasterRect(rect, {}, orientation, width, height), .index = index};
           if (index->cut) {
             geometry.cut.push_back(shape);
@@ -1165,7 +1165,7 @@ void RTInterface::wrapDatabaseFromEnTT()
     finalizeCachedObstacleGeometry(geometry);
     return geometry;
   };
-  const auto build_term_geometry = [&](idb::eccdb::LibraryMasterTermId term_id, idb::eccdb::DesignOrientation orientation) {
+  const auto build_term_geometry = [&](eccdb::LibraryMasterTermId term_id, eccdb::DesignOrientation orientation) {
     CachedMasterGeometry geometry;
     const auto& term = entities.master_terms.get(term_id.entity());
     const auto& master = entities.masters.get(term.master.entity());
@@ -1178,7 +1178,7 @@ void RTInterface::wrapDatabaseFromEnTT()
         if (index == nullptr) {
           continue;
         }
-        forEachGeometryRect(library.geometryPool(), clause.geometry, [&](const idb::eccdb::Rect& rect) {
+        forEachGeometryRect(library.geometryPool(), clause.geometry, [&](const eccdb::Rect& rect) {
           LayeredRect shape{.layer = clause.layer, .rect = placeMasterRect(rect, {}, orientation, width, height), .index = index};
           if (index->cut) {
             geometry.cut.push_back(shape);
@@ -1259,7 +1259,7 @@ void RTInterface::wrapDatabaseFromEnTT()
       continue;
     }
     if (index->routing) {
-      const auto routing_id = idb::eccdb::TechRoutingLayerId{layer.entity()};
+      const auto routing_id = eccdb::TechRoutingLayerId{layer.entity()};
       const auto& tech_layer = tech.routingLayerStorage().routingLayer(routing_id);
       RoutingLayer routing_layer;
       routing_layer.set_layer_idx(index->wrap_idx);
@@ -1270,7 +1270,7 @@ void RTInterface::wrapDatabaseFromEnTT()
       wrapRoutingDesignRuleFromEnTT(routing_layer, routing_id, tech);
       routing_layer_list.push_back(std::move(routing_layer));
     } else if (index->cut) {
-      const auto cut_id = idb::eccdb::TechCutLayerId{layer.entity()};
+      const auto cut_id = eccdb::TechCutLayerId{layer.entity()};
       CutLayer cut_layer;
       cut_layer.set_layer_idx(index->wrap_idx);
       cut_layer.set_layer_order(index->order);
@@ -1289,7 +1289,7 @@ void RTInterface::wrapDatabaseFromEnTT()
     }
     for (const auto via_id : tech.viaMasterStorage().viaMasters()) {
       const auto& master = tech.viaMasterStorage().viaMaster(via_id);
-      if ((master.flags & idb::eccdb::TechViaMasterFlag::kDefault) == 0) {
+      if ((master.flags & eccdb::TechViaMasterFlag::kDefault) == 0) {
         continue;
       }
       const auto& geometry = tech.viaMasterStorage().geometry(via_id);
@@ -1298,7 +1298,7 @@ void RTInterface::wrapDatabaseFromEnTT()
       const auto cut_rects = geometryRects(tech.geometryPool(), geometry.cut_geometry);
       const auto* top_index = layers.find(geometry.top_layer.layer());
       const auto* bottom_index = layers.find(geometry.bottom_layer.layer());
-      const auto* cut_index = layers.find(idb::eccdb::TechLayerId{geometry.cut_layer.entity()});
+      const auto* cut_index = layers.find(eccdb::TechLayerId{geometry.cut_layer.entity()});
       if (top_index == nullptr || bottom_index == nullptr || cut_index == nullptr) {
         continue;
       }
@@ -1307,14 +1307,14 @@ void RTInterface::wrapDatabaseFromEnTT()
       ViaMaster via_master;
       via_master.set_via_name(master.name);
       via_master.set_above_enclosure(LayerRect(top_box.ll_x, top_box.ll_y, top_box.ur_x, top_box.ur_y, top_index->wrap_idx));
-      if (geometry.top_layer.kind == idb::eccdb::TechConductorLayerKind::kRouting) {
+      if (geometry.top_layer.kind == eccdb::TechConductorLayerKind::kRouting) {
         via_master.set_above_direction(directionFromTech(
-            tech.routingLayerStorage().routingLayer(idb::eccdb::TechRoutingLayerId{geometry.top_layer.entity}).direction));
+            tech.routingLayerStorage().routingLayer(eccdb::TechRoutingLayerId{geometry.top_layer.entity}).direction));
       }
       via_master.set_below_enclosure(LayerRect(bottom_box.ll_x, bottom_box.ll_y, bottom_box.ur_x, bottom_box.ur_y, bottom_index->wrap_idx));
-      if (geometry.bottom_layer.kind == idb::eccdb::TechConductorLayerKind::kRouting) {
+      if (geometry.bottom_layer.kind == eccdb::TechConductorLayerKind::kRouting) {
         via_master.set_below_direction(directionFromTech(
-            tech.routingLayerStorage().routingLayer(idb::eccdb::TechRoutingLayerId{geometry.bottom_layer.entity}).direction));
+            tech.routingLayerStorage().routingLayer(eccdb::TechRoutingLayerId{geometry.bottom_layer.entity}).direction));
       }
       std::vector<PlanarRect> cut_shape_list;
       for (const auto& rect : cut_rects) {
@@ -1398,14 +1398,14 @@ void RTInterface::wrapDatabaseFromEnTT()
         for (std::size_t path_index = 0; path_index < path_count; ++path_index) {
           const auto path = design.routingStorage().path(wire_id, path_index);
           const auto points = path.points();
-          const auto* path_layer = layers.find(idb::eccdb::TechLayerId{path.layer().entity()});
+          const auto* path_layer = layers.find(eccdb::TechLayerId{path.layer().entity()});
           if (path.vias().empty()) {
             // Keep compatibility with DefRead::parse_pdn_wire: FLUSHPOINT and
             // VIRTUALPOINT tokens are ignored there, and every non-via path
             // still contributes one segment (a zero box when fewer than two
             // ordinary POINT tokens remain).
-            idb::eccdb::Point first;
-            idb::eccdb::Point second;
+            eccdb::Point first;
+            eccdb::Point second;
             std::size_t ordinary_point_count = 0;
             for (const auto& point : points) {
               if (point.flags != 0u) {
@@ -1420,7 +1420,7 @@ void RTInterface::wrapDatabaseFromEnTT()
               }
               ordinary_point_count = 1;
             }
-            const auto rectangle = ordinary_point_count == 2 ? wireSegmentBox(first, second, path.width()) : idb::eccdb::Rect{};
+            const auto rectangle = ordinary_point_count == 2 ? wireSegmentBox(first, second, path.width()) : eccdb::Rect{};
             if (path_layer != nullptr) {
               appendObstacle(sink, *path_layer, rectangle);
             }
@@ -1434,7 +1434,7 @@ void RTInterface::wrapDatabaseFromEnTT()
             const uint32_t columns = std::max(via.columns, 1u);
             for (uint32_t row = 0; row < rows; ++row) {
               for (uint32_t column = 0; column < columns; ++column) {
-                const idb::eccdb::Point origin{base.x + static_cast<int32_t>(column) * via.step_x,
+                const eccdb::Point origin{base.x + static_cast<int32_t>(column) * via.step_x,
                                                   base.y + static_cast<int32_t>(row) * via.step_y};
                 const auto shapes = resolveViaShapes(design, tech, via.tech_via, via.design_via, origin);
                 for (const auto& shape : shapes.routing) {
@@ -1459,11 +1459,11 @@ void RTInterface::wrapDatabaseFromEnTT()
       });
       if (const auto* geometry = design.routingStorage().netGeometry(net_id); geometry != nullptr) {
         for (const auto& rect : geometry->rectangles) {
-          appendObstacle(sink, idb::eccdb::TechLayerId{rect.layer.entity()}, rect.rectangle);
+          appendObstacle(sink, eccdb::TechLayerId{rect.layer.entity()}, rect.rectangle);
         }
         for (const auto& polygon : geometry->polygons) {
-          for (const auto& rect : idb::eccdb::decomposePolygonToRectangles(polygon.points)) {
-            appendObstacle(sink, idb::eccdb::TechLayerId{polygon.layer.entity()}, rect);
+          for (const auto& rect : eccdb::decomposePolygonToRectangles(polygon.points)) {
+            appendObstacle(sink, eccdb::TechLayerId{polygon.layer.entity()}, rect);
           }
         }
         for (const auto& via : geometry->vias) {
@@ -1485,15 +1485,15 @@ void RTInterface::wrapDatabaseFromEnTT()
         return;
       }
       for (const auto& port : io_pin.ports) {
-        if (port.placement_status == idb::eccdb::DesignPlacementStatus::kUnplaced
-            && (port.flags & idb::eccdb::DesignIoPinPortFlag::kHasPlacement) == 0) {
+        if (port.placement_status == eccdb::DesignPlacementStatus::kUnplaced
+            && (port.flags & eccdb::DesignIoPinPortFlag::kHasPlacement) == 0) {
           continue;
         }
         for (const auto& rect : port.rectangles) {
           appendObstacle(sink, rect.layer, placeMasterRect(rect.rectangle, port.origin, port.orientation, 0, 0));
         }
         for (const auto& polygon : port.polygons) {
-          for (const auto& rect : idb::eccdb::decomposePolygonToRectangles(polygon.points)) {
+          for (const auto& rect : eccdb::decomposePolygonToRectangles(polygon.points)) {
             appendObstacle(sink, polygon.layer, placeMasterRect(rect, port.origin, port.orientation, 0, 0));
           }
         }
@@ -1523,20 +1523,20 @@ void RTInterface::wrapDatabaseFromEnTT()
     std::vector<Obstacle> derived_macro_obstacles;
     for (const auto& work : instance_work) {
       const auto& master = entities.masters.get(work.master.entity());
-      const bool is_block = master.type == idb::eccdb::LibraryCellMasterType::kBlock
-                            || master.type == idb::eccdb::LibraryCellMasterType::kBlockBlackbox
-                            || master.type == idb::eccdb::LibraryCellMasterType::kBlockSoft;
+      const bool is_block = master.type == eccdb::LibraryCellMasterType::kBlock
+                            || master.type == eccdb::LibraryCellMasterType::kBlockBlackbox
+                            || master.type == eccdb::LibraryCellMasterType::kBlockSoft;
       if (!is_block || active_routing_layer_indices.empty()) {
         continue;
       }
 
-      const auto body = placeMasterRect(idb::eccdb::Rect{.ll_x = 0,
+      const auto body = placeMasterRect(eccdb::Rect{.ll_x = 0,
                                                             .ll_y = 0,
                                                             .ur_x = static_cast<int32_t>(master.width),
                                                             .ur_y = static_cast<int32_t>(master.height)},
                                         work.origin, work.orientation, static_cast<int32_t>(master.width),
                                         static_cast<int32_t>(master.height));
-      std::vector<std::vector<idb::eccdb::Rect>> obstacles_by_layer(static_cast<size_t>(layers.routingCount()));
+      std::vector<std::vector<eccdb::Rect>> obstacles_by_layer(static_cast<size_t>(layers.routingCount()));
       std::vector<int32_t> x_coordinates{body.ll_x, body.ur_x};
       std::vector<int32_t> y_coordinates{body.ll_y, body.ur_y};
       for (const auto& shape : work.obs_geometry->routing) {
@@ -1548,7 +1548,7 @@ void RTInterface::wrapDatabaseFromEnTT()
         if (!body.intersects(placed, false)) {
           continue;
         }
-        const idb::eccdb::Rect overlap{.ll_x = std::max(body.ll_x, placed.ll_x),
+        const eccdb::Rect overlap{.ll_x = std::max(body.ll_x, placed.ll_x),
                                           .ll_y = std::max(body.ll_y, placed.ll_y),
                                           .ur_x = std::min(body.ur_x, placed.ur_x),
                                           .ur_y = std::min(body.ur_y, placed.ur_y)};
@@ -1564,7 +1564,7 @@ void RTInterface::wrapDatabaseFromEnTT()
       y_coordinates.erase(std::ranges::unique(y_coordinates).begin(), y_coordinates.end());
       for (size_t x = 0; x + 1 < x_coordinates.size(); ++x) {
         for (size_t y = 0; y + 1 < y_coordinates.size(); ++y) {
-          const idb::eccdb::Rect tile{.ll_x = x_coordinates[x],
+          const eccdb::Rect tile{.ll_x = x_coordinates[x],
                                          .ll_y = y_coordinates[y],
                                          .ur_x = x_coordinates[x + 1],
                                          .ur_y = y_coordinates[y + 1]};
@@ -1573,7 +1573,7 @@ void RTInterface::wrapDatabaseFromEnTT()
           for (const int32_t layer_idx : active_routing_layer_indices) {
             const auto& layer_obstacles = obstacles_by_layer[static_cast<size_t>(layer_idx)];
             const bool blocked = std::ranges::any_of(
-                layer_obstacles, [&](const idb::eccdb::Rect obstacle) { return tile.intersects(obstacle, false); });
+                layer_obstacles, [&](const eccdb::Rect obstacle) { return tile.intersects(obstacle, false); });
             if (!blocked) {
               available_layer = layer_idx;
               ++available_count;
@@ -1598,12 +1598,12 @@ void RTInterface::wrapDatabaseFromEnTT()
     auto& macro_list = RTDM.getDatabase().get_macro_list();
     design.netlistStorage().forEachInstance([&](const auto, const auto& instance, const auto) {
       const auto& master = entities.masters.get(instance.master.entity());
-      if (master.type != idb::eccdb::LibraryCellMasterType::kBlock
-          && master.type != idb::eccdb::LibraryCellMasterType::kBlockBlackbox
-          && master.type != idb::eccdb::LibraryCellMasterType::kBlockSoft) {
+      if (master.type != eccdb::LibraryCellMasterType::kBlock
+          && master.type != eccdb::LibraryCellMasterType::kBlockBlackbox
+          && master.type != eccdb::LibraryCellMasterType::kBlockSoft) {
         return;
       }
-      const auto body = placeMasterRect(idb::eccdb::Rect{.ll_x = 0,
+      const auto body = placeMasterRect(eccdb::Rect{.ll_x = 0,
                                                             .ll_y = 0,
                                                             .ur_x = static_cast<int32_t>(master.width),
                                                             .ur_y = static_cast<int32_t>(master.height)},
@@ -1618,7 +1618,7 @@ void RTInterface::wrapDatabaseFromEnTT()
 
   {
     auto& net_list = RTDM.getDatabase().get_net_list();
-    std::vector<idb::eccdb::DesignNetId> valid_nets;
+    std::vector<eccdb::DesignNetId> valid_nets;
     design.netlistStorage().forEachRegularNet([&](const auto net_id, const auto&) {
       if (netIsSkipping(design, entities, net_id, skip_cache, true)) {
         return;
@@ -1669,9 +1669,9 @@ void RTInterface::wrapDatabaseFromEnTT()
           pin.set_inst_origin(PlanarCoord{instance.origin.x, instance.origin.y});
           pin.set_local_pin_name(term.name);
           pin.set_is_core(isCoreMaster(master.type));
-          pin.set_is_macro(master.type == idb::eccdb::LibraryCellMasterType::kBlock
-                           || master.type == idb::eccdb::LibraryCellMasterType::kBlockBlackbox
-                           || master.type == idb::eccdb::LibraryCellMasterType::kBlockSoft);
+          pin.set_is_macro(master.type == eccdb::LibraryCellMasterType::kBlock
+                           || master.type == eccdb::LibraryCellMasterType::kBlockBlackbox
+                           || master.type == eccdb::LibraryCellMasterType::kBlockSoft);
           pin.set_is_pad(isPadMaster(master.type));
           const auto& term_geometry = term_geometry_cache.at(instance_pin.master_term, instance.orientation);
           routing_scratch.clear();
@@ -1693,7 +1693,7 @@ void RTInterface::wrapDatabaseFromEnTT()
             appendOffsetViaToPin(pin, via, instance.origin, layers, via_boxes_scratch);
           }
           if (pin.get_is_macro() || pin.get_is_pad()) {
-            const auto body = placeMasterRect(idb::eccdb::Rect{.ll_x = 0,
+            const auto body = placeMasterRect(eccdb::Rect{.ll_x = 0,
                                                                   .ll_y = 0,
                                                                   .ur_x = static_cast<int32_t>(master.width),
                                                                   .ur_y = static_cast<int32_t>(master.height)},
@@ -1720,8 +1720,8 @@ void RTInterface::wrapDatabaseFromEnTT()
           pin.set_pin_name(io_pin.name);
           pin.set_is_core(false);
           for (const auto& port : io_pin.ports) {
-            if (port.placement_status == idb::eccdb::DesignPlacementStatus::kUnplaced
-                && (port.flags & idb::eccdb::DesignIoPinPortFlag::kHasPlacement) == 0) {
+            if (port.placement_status == eccdb::DesignPlacementStatus::kUnplaced
+                && (port.flags & eccdb::DesignIoPinPortFlag::kHasPlacement) == 0) {
               continue;
             }
             routing_scratch.clear();
@@ -1736,7 +1736,7 @@ void RTInterface::wrapDatabaseFromEnTT()
               }
             }
             for (const auto& polygon : port.polygons) {
-              for (const auto& rect : idb::eccdb::decomposePolygonToRectangles(polygon.points)) {
+              for (const auto& rect : eccdb::decomposePolygonToRectangles(polygon.points)) {
                 const auto* index = layers.find(polygon.layer);
                 LayeredRect placed{.layer = polygon.layer, .rect = placeMasterRect(rect, port.origin, port.orientation, 0, 0), .index = index};
                 if (index != nullptr && index->cut) {
@@ -1785,8 +1785,8 @@ void RTInterface::wrapDatabaseFromEnTT()
         for (const auto pin_id : instance_pins) {
           const auto& instance_pin = entities.instance_pins.get(pin_id.entity());
           const auto& term = entities.master_terms.get(instance_pin.master_term.entity());
-          if (term.direction == idb::eccdb::LibraryMasterTermDirection::kOutput
-              || term.direction == idb::eccdb::LibraryMasterTermDirection::kOutputTriState) {
+          if (term.direction == eccdb::LibraryMasterTermDirection::kOutput
+              || term.direction == eccdb::LibraryMasterTermDirection::kOutputTriState) {
             driven_name = RTUTIL.getString(entities.instances.get(instance_pin.instance.entity()).name, ":", term.name);
             found_driven = true;
             break;
@@ -1795,7 +1795,7 @@ void RTInterface::wrapDatabaseFromEnTT()
         if (!found_driven) {
           for (const auto pin_id : io_pins) {
             const auto& io_pin = entities.io_pins.get(pin_id.entity());
-            if (io_pin.direction == idb::eccdb::DesignIoPinDirection::kInput) {
+            if (io_pin.direction == eccdb::DesignIoPinDirection::kInput) {
               driven_name = io_pin.name;
               found_driven = true;
               break;
@@ -1805,7 +1805,7 @@ void RTInterface::wrapDatabaseFromEnTT()
         if (!found_driven) {
           for (const auto pin_id : io_pins) {
             const auto& io_pin = entities.io_pins.get(pin_id.entity());
-            if (io_pin.direction == idb::eccdb::DesignIoPinDirection::kInOut) {
+            if (io_pin.direction == eccdb::DesignIoPinDirection::kInOut) {
               driven_name = io_pin.name;
               found_driven = true;
               break;
@@ -1837,14 +1837,14 @@ void RTInterface::wrapDatabaseFromEnTT()
 
 namespace {
 
-idb::eccdb::TechRoutingLayerId requireEnttRoutingLayer(const idb::eccdb::TechDatabase& tech,
+eccdb::TechRoutingLayerId requireEnttRoutingLayer(const eccdb::TechDatabase& tech,
                                                           std::vector<RoutingLayer>& routing_layers, int32_t layer_idx)
 {
   if (layer_idx < 0 || layer_idx >= static_cast<int32_t>(routing_layers.size())) {
     throw std::out_of_range("iRT output routing layer index is out of range: " + std::to_string(layer_idx));
   }
   const auto layer = tech.findLayer(routing_layers[static_cast<std::size_t>(layer_idx)].get_layer_name());
-  const idb::eccdb::TechRoutingLayerId routing_layer{layer.entity()};
+  const eccdb::TechRoutingLayerId routing_layer{layer.entity()};
   if (!layer || !tech.routingLayerStorage().contains(routing_layer)) {
     throw std::runtime_error("iRT output cannot resolve routing layer: "
                              + routing_layers[static_cast<std::size_t>(layer_idx)].get_layer_name());
@@ -1876,19 +1876,19 @@ void RTInterface::outputTrackGridToEnTT()
   auto& floorplan = _design->floorplanStorage();
   const auto old_grids = floorplan.trackGrids();
   auto& routing_layers = RTDM.getDatabase().get_routing_layer_list();
-  std::vector<idb::eccdb::DesignTrackGrid> replacements;
+  std::vector<eccdb::DesignTrackGrid> replacements;
   for (int32_t index = static_cast<int32_t>(routing_layers.size()) - 1; index >= 0; --index) {
     const auto layer = requireEnttRoutingLayer(*_tech, routing_layers, index);
     auto& axis = routing_layers[static_cast<std::size_t>(index)].get_track_axis();
     for (const ScaleGrid& grid : axis.get_x_grid_list()) {
-      replacements.push_back(idb::eccdb::DesignTrackGrid{.axis = idb::eccdb::DesignAxis::kX,
+      replacements.push_back(eccdb::DesignTrackGrid{.axis = eccdb::DesignAxis::kX,
                                                             .start = grid.get_start_line(),
                                                             .track_count = static_cast<uint32_t>(grid.get_step_num() + 1),
                                                             .step = grid.get_step_length(),
                                                             .layers = {layer}});
     }
     for (const ScaleGrid& grid : axis.get_y_grid_list()) {
-      replacements.push_back(idb::eccdb::DesignTrackGrid{.axis = idb::eccdb::DesignAxis::kY,
+      replacements.push_back(eccdb::DesignTrackGrid{.axis = eccdb::DesignAxis::kY,
                                                             .start = grid.get_start_line(),
                                                             .track_count = static_cast<uint32_t>(grid.get_step_num() + 1),
                                                             .step = grid.get_step_length(),
@@ -1896,7 +1896,7 @@ void RTInterface::outputTrackGridToEnTT()
     }
   }
 
-  std::vector<idb::eccdb::DesignTrackGridId> created;
+  std::vector<eccdb::DesignTrackGridId> created;
   try {
     created.reserve(replacements.size());
     for (auto& grid : replacements) {
@@ -1918,21 +1918,21 @@ void RTInterface::outputGCellGridToEnTT()
   auto& floorplan = _design->floorplanStorage();
   const auto old_grids = floorplan.gcellGrids();
   auto& axis = RTDM.getDatabase().get_gcell_axis();
-  std::vector<idb::eccdb::DesignGCellGrid> replacements;
+  std::vector<eccdb::DesignGCellGrid> replacements;
   for (const ScaleGrid& grid : axis.get_x_grid_list()) {
-    replacements.push_back(idb::eccdb::DesignGCellGrid{.axis = idb::eccdb::DesignAxis::kX,
+    replacements.push_back(eccdb::DesignGCellGrid{.axis = eccdb::DesignAxis::kX,
                                                           .start = grid.get_start_line(),
                                                           .line_count = static_cast<uint32_t>(grid.get_step_num() + 1),
                                                           .step = grid.get_step_length()});
   }
   for (const ScaleGrid& grid : axis.get_y_grid_list()) {
-    replacements.push_back(idb::eccdb::DesignGCellGrid{.axis = idb::eccdb::DesignAxis::kY,
+    replacements.push_back(eccdb::DesignGCellGrid{.axis = eccdb::DesignAxis::kY,
                                                           .start = grid.get_start_line(),
                                                           .line_count = static_cast<uint32_t>(grid.get_step_num() + 1),
                                                           .step = grid.get_step_length()});
   }
 
-  std::vector<idb::eccdb::DesignGCellGridId> created;
+  std::vector<eccdb::DesignGCellGridId> created;
   try {
     created.reserve(replacements.size());
     for (auto& grid : replacements) {
@@ -1953,8 +1953,8 @@ void RTInterface::outputNetListToEnTT()
 {
   struct PendingWire
   {
-    idb::eccdb::DesignNetId net;
-    idb::eccdb::DesignWireRoutingInput routing;
+    eccdb::DesignNetId net;
+    eccdb::DesignWireRoutingInput routing;
   };
 
   auto& routing = _design->routingStorage();
@@ -1983,7 +1983,7 @@ void RTInterface::outputNetListToEnTT()
       continue;
     }
 
-    idb::eccdb::DesignWireRoutingInput input;
+    eccdb::DesignWireRoutingInput input;
     if (const auto found = result_map.find(net_idx); found != result_map.end()) {
       std::vector<Segment<LayerCoord>*> segments(found->second.begin(), found->second.end());
       std::sort(segments.begin(), segments.end(), [](const auto* lhs, const auto* rhs) {
@@ -1992,7 +1992,7 @@ void RTInterface::outputNetListToEnTT()
       for (const auto* segment : segments) {
         const LayerCoord& first = segment->get_first();
         const LayerCoord& second = segment->get_second();
-        idb::eccdb::DesignWirePath path;
+        eccdb::DesignWirePath path;
         if (first.get_layer_idx() == second.get_layer_idx()) {
           path.layer = requireEnttRoutingLayer(*_tech, routing_layers, first.get_layer_idx());
           path.points = {{{first.get_x(), first.get_y()}}, {{second.get_x(), second.get_y()}}};
@@ -2012,7 +2012,7 @@ void RTInterface::outputNetListToEnTT()
           }
           path.layer = requireEnttRoutingLayer(*_tech, routing_layers, top_layer);
           path.points = {{{first.get_x(), first.get_y()}}};
-          path.vias.push_back(idb::eccdb::DesignWireVia{.point_index = 0, .tech_via = tech_via, .design_via = design_via});
+          path.vias.push_back(eccdb::DesignWireVia{.point_index = 0, .tech_via = tech_via, .design_via = design_via});
         }
         input.appendPath(std::move(path));
       }
@@ -2023,10 +2023,10 @@ void RTInterface::outputNetListToEnTT()
         return canonicalPatchKey(lhs) < canonicalPatchKey(rhs);
       });
       for (const auto* patch : patches) {
-        idb::eccdb::DesignWirePath path;
+        eccdb::DesignWirePath path;
         path.layer = requireEnttRoutingLayer(*_tech, routing_layers, patch->get_layer_idx());
         path.points = {{{patch->get_real_ll_x(), patch->get_real_ll_y()}}};
-        path.rectangles.push_back(idb::eccdb::DesignWireRectangle{
+        path.rectangles.push_back(eccdb::DesignWireRectangle{
             .point_index = 0,
             .delta = {.ll_x = 0,
                       .ll_y = 0,
@@ -2040,16 +2040,16 @@ void RTInterface::outputNetListToEnTT()
     }
   }
 
-  std::vector<idb::eccdb::DesignWireId> old_wires;
+  std::vector<eccdb::DesignWireId> old_wires;
   netlist.forEachRegularNet([&](const auto net, const auto&) {
     routing.forEachWire(net, [&](const auto wire, const auto&) { old_wires.push_back(wire); });
   });
 
-  std::vector<idb::eccdb::DesignWireId> created;
+  std::vector<eccdb::DesignWireId> created;
   try {
     created.reserve(pending.size());
     for (auto& wire : pending) {
-      created.push_back(routing.createWire(idb::eccdb::DesignWire{.net = wire.net, .status = idb::eccdb::DesignWireStatus::kRouted},
+      created.push_back(routing.createWire(eccdb::DesignWire{.net = wire.net, .status = eccdb::DesignWireStatus::kRouted},
                                            std::move(wire.routing)));
     }
   } catch (...) {

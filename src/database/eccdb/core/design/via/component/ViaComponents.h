@@ -8,7 +8,7 @@
 #include "tech/common/TechLayerIds.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct DesignViaRectangle
 {
@@ -71,4 +71,4 @@ struct DesignVia
   DesignGeneratedVia generated;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

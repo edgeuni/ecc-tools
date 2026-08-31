@@ -13,7 +13,7 @@
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 #include "tech/via_master/model/ViaMasterComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class DesignStorageTest : public testing::Test
 {
@@ -65,4 +65,4 @@ class DesignStorageTest : public testing::Test
   LibraryMasterTermId output_term;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

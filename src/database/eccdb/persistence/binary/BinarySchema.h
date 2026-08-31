@@ -32,7 +32,7 @@
 #include "tech/via_rule/model/ViaRuleComponents.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // TechConductorLayerRef has convenience constructors and is intentionally not
 // an aggregate. It is the only model value that needs an explicit PFR bypass.
@@ -121,4 +121,4 @@ void readRegistrySnapshot(Registry& registry, Archive& archive, BinaryTypeList<C
 }
 
 }  // namespace binary_detail
-}  // namespace idb::eccdb
+}  // namespace eccdb

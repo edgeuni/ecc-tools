@@ -5,7 +5,7 @@
 #include "tech/TechRegistry.h"
 #include "tech/global/model/TechGlobalComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechDatabase;
 
@@ -58,4 +58,4 @@ class TechGlobalStorage
   TechRootId _root;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

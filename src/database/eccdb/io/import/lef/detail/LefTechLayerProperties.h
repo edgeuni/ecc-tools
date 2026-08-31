@@ -9,7 +9,7 @@
 #include "tech/cut_layer/model/CutRuleComponents.h"
 #include "tech/routing_layer/model/RoutingRuleComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechDatabase;
 class TechCutLayerStorage;
@@ -63,4 +63,4 @@ void commitCutLef58Properties(TechCutLayerStorage& storage, TechCutLayerId owner
 void commitTrimmedMetalRule(TechDatabase& database, TechMastersliceLayerId owner, const PreparedTrimmedMetalRule& rule);
 
 }  // namespace lef_detail
-}  // namespace idb::eccdb
+}  // namespace eccdb

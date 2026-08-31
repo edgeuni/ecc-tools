@@ -12,7 +12,7 @@
 #include "tech/cut_layer/storage/CutLayerStorage.h"
 #include "tech/routing_layer/storage/RoutingLayerStorage.h"
 
-namespace idb::eccdb::lef_detail {
+namespace eccdb::lef_detail {
 namespace {
 
 std::string upper(const char* value)
@@ -713,4 +713,4 @@ void commitCutRules(TechCutLayerStorage& storage, TechCutLayerId owner, const Pr
   }
 }
 
-}  // namespace idb::eccdb::lef_detail
+}  // namespace eccdb::lef_detail

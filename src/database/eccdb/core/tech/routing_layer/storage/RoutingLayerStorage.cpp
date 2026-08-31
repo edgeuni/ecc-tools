@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 template <typename Value>
@@ -731,4 +731,4 @@ void TechRoutingLayerStorage::validateLef58WidthTable(const TechRoutingLef58Widt
   requireStrictlyIncreasing(rule.widths, "routing LEF58 width table widths must be strictly increasing");
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

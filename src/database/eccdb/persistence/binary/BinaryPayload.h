@@ -2,7 +2,7 @@
 
 #include <iosfwd>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class DesignDatabase;
 class LibraryDatabase;
@@ -15,4 +15,4 @@ void writeLibraryPayload(std::ostream& output, const LibraryDatabase& database);
 void writeDesignPayload(std::ostream& output, const DesignDatabase& database);
 
 }  // namespace binary_detail
-}  // namespace idb::eccdb
+}  // namespace eccdb

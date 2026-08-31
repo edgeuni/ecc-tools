@@ -21,7 +21,7 @@
 #include "import/lef/LefTechImporter.h"
 #include "LefPdkCorpus.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 class TemporaryLef
@@ -333,4 +333,4 @@ TEST(LefLibraryExporterTest, FullSky130AndIhp130LibrariesReachCanonicalFixedPoin
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

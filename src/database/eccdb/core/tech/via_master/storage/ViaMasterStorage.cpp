@@ -10,7 +10,7 @@
 #include "tech/non_default_rule/model/NonDefaultRuleComponents.h"
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 namespace {
 
@@ -351,4 +351,4 @@ void TechViaMasterStorage::validateGenerated(const TechGeneratedViaMaster& gener
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

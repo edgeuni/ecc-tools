@@ -14,7 +14,7 @@
 #include "export/lef/LefTechExporter.h"
 #include "import/lef/LefTechImporter.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 class LefTechExporterTest : public testing::Test
@@ -741,4 +741,4 @@ TEST(LefTechExporter, RejectsDatabaseWithoutUnits)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

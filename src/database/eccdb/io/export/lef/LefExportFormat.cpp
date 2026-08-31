@@ -6,7 +6,7 @@
 #include <ostream>
 #include <stdexcept>
 
-namespace idb::eccdb::lef_export_detail {
+namespace eccdb::lef_export_detail {
 namespace {
 
 std::string decimal(int64_t value, int64_t denominator)
@@ -81,4 +81,4 @@ void writeQuoted(std::ostream& output, std::string_view value)
   output.put('"');
 }
 
-}  // namespace idb::eccdb::lef_export_detail
+}  // namespace eccdb::lef_export_detail

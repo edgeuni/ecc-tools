@@ -6,7 +6,7 @@
 #include "design/DesignRegistry.h"
 #include "design/floorplan/model/FloorplanComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class LibraryRegistry;
 class TechRegistry;
@@ -80,4 +80,4 @@ class DesignFloorplanStorage
   DesignRootId _root;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -6,7 +6,7 @@
 #include "tech/TechRegistry.h"
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 DesignFillId DesignFillStorage::createFill(DesignFill value)
 {
@@ -92,4 +92,4 @@ void DesignFillStorage::ensureFill(DesignFillId id) const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

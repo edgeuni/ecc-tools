@@ -5,7 +5,7 @@
 
 #include "tech/common/TechEntity.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Shared complete-object relationships in the technology registry. Every
 // complete Rule is a separate entity and keeps one reverse owner reference.
@@ -31,4 +31,4 @@ struct TechRuleRef
   RuleId rule;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

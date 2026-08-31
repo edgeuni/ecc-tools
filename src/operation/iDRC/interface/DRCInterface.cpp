@@ -385,8 +385,8 @@ void DRCInterface::wrapConfig(std::map<std::string, std::any>& config_map)
   /////////////////////////////////////////////
 }
 
-void DRCInterface::setDesignSource(idb::eccdb::DesignDatabase* design, idb::eccdb::TechDatabase* tech,
-                                   idb::eccdb::LibraryDatabase* library)
+void DRCInterface::setDesignSource(eccdb::DesignDatabase* design, eccdb::TechDatabase* tech,
+                                   eccdb::LibraryDatabase* library)
 {
   _design = design;
   _tech = tech;

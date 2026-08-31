@@ -5,7 +5,7 @@
 #include <functional>
 #include <iosfwd>
 
-namespace idb::eccdb::binary_detail {
+namespace eccdb::binary_detail {
 
 enum class BinaryDatabaseKind : uint32_t
 {
@@ -28,4 +28,4 @@ void writeBinaryFile(const std::filesystem::path& path, BinaryFileHeader header,
 void readBinaryFile(const std::filesystem::path& path, BinaryDatabaseKind expected_kind, uint32_t expected_schema_version,
                     const BinaryPayloadReader& reader);
 
-}  // namespace idb::eccdb::binary_detail
+}  // namespace eccdb::binary_detail

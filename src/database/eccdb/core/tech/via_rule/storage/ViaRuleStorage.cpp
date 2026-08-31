@@ -6,7 +6,7 @@
 
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 TechViaRuleId ViaRuleStorage::createViaRule(TechViaRule rule, TechViaRuleLowerLayer lower, TechViaRuleUpperLayer upper,
                                             std::vector<TechViaMasterId> candidates, std::vector<TechViaRuleProperty> properties)
@@ -218,4 +218,4 @@ const TechLayerSequence& ViaRuleStorage::layerSequence() const
   return *sequence;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

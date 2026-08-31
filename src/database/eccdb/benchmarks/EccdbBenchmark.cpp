@@ -37,7 +37,7 @@
 #include "idm.h"
 #endif
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 using Clock = std::chrono::steady_clock;
@@ -682,16 +682,16 @@ Options parseOptions(int argc, char** argv)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb
 
 int main(int argc, char** argv)
 {
   try {
-    const auto options = idb::eccdb::parseOptions(argc, argv);
-    std::vector<idb::eccdb::Record> records;
-    if (options.source == "entt" || options.source == "both") idb::eccdb::benchmarkEntt(options, records);
+    const auto options = eccdb::parseOptions(argc, argv);
+    std::vector<eccdb::Record> records;
+    if (options.source == "entt" || options.source == "both") eccdb::benchmarkEntt(options, records);
 #if defined(ECCDB_BENCHMARK_HAS_LEGACY_IDB)
-    if (options.source == "idb" || options.source == "both") idb::eccdb::benchmarkLegacy(options, records);
+    if (options.source == "idb" || options.source == "both") eccdb::benchmarkLegacy(options, records);
 #else
     if (options.source == "idb" || options.source == "both") {
       throw std::runtime_error("this build does not contain the legacy IdbBuilder target");
@@ -712,8 +712,8 @@ int main(int argc, char** argv)
       if (!file) throw std::runtime_error("cannot open benchmark output: " + options.output.string());
       destination = &file;
     }
-    for (const auto& record : records) idb::eccdb::writeJson(*destination, record, case_name);
-    std::cerr << "benchmark completed: " << records.size() << " measurements, sink=" << idb::eccdb::g_sink << '\n';
+    for (const auto& record : records) eccdb::writeJson(*destination, record, case_name);
+    std::cerr << "benchmark completed: " << records.size() << " measurements, sink=" << eccdb::g_sink << '\n';
     return 0;
   } catch (const std::exception& error) {
     std::cerr << "benchmark failed: " << error.what() << '\n';

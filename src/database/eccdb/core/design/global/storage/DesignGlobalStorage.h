@@ -3,7 +3,7 @@
 #include "design/DesignRegistry.h"
 #include "design/global/model/DesignGlobalComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class DesignGlobalStorage
 {
@@ -34,4 +34,4 @@ class DesignGlobalStorage
   DesignRootId _root;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

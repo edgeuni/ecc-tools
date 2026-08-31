@@ -6,7 +6,7 @@
 #include "tech/common/TechLayerTypes.h"
 #include "tech/overlap_layer/model/OverlapLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechOverlapLayerStorage
 {
@@ -28,4 +28,4 @@ class TechOverlapLayerStorage
   registry_type& _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

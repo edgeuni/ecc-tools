@@ -5,7 +5,7 @@
 #include "tech/TechRegistry.h"
 #include "tech/masterslice_layer/model/MastersliceLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechMastersliceLayerStorage
 {
@@ -36,4 +36,4 @@ class TechMastersliceLayerStorage
   registry_type& _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

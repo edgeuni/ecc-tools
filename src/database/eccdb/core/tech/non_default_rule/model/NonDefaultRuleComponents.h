@@ -9,7 +9,7 @@
 #include "tech/via_master/model/ViaMasterComponents.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct TechNonDefaultRule;
 
@@ -138,4 +138,4 @@ struct TechNdrSameNetSpacingRules
   std::vector<TechNdrSameNetSpacingRule> values;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

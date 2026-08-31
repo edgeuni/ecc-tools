@@ -452,14 +452,14 @@ class EnttDesignFixture
   {
     static_cast<void>(LefDefParser::lefrClear());
     static_cast<void>(LefDefParser::defrClear());
-    idb::eccdb::LefTechImporter(technology).import(lef);
-    idb::eccdb::LefLibraryImporter(technology, library).import(lef);
-    idb::eccdb::DefDesignImporter(design).import(def);
+    eccdb::LefTechImporter(technology).import(lef);
+    eccdb::LefLibraryImporter(technology, library).import(lef);
+    eccdb::DefDesignImporter(design).import(def);
   }
 
-  idb::eccdb::TechDatabase technology;
-  idb::eccdb::LibraryDatabase library;
-  idb::eccdb::DesignDatabase design;
+  eccdb::TechDatabase technology;
+  eccdb::LibraryDatabase library;
+  eccdb::DesignDatabase design;
 };
 
 int32_t rtNetIndex(std::string_view name)
@@ -501,8 +501,8 @@ void injectWritebackResults()
   patch.set_real_rect(PlanarRect{750, 150, 850, 250});
 }
 
-void runInjectedWriteback(const std::filesystem::path& temp_directory, idb::eccdb::DesignDatabase* design = nullptr,
-                          idb::eccdb::TechDatabase* technology = nullptr, idb::eccdb::LibraryDatabase* library = nullptr)
+void runInjectedWriteback(const std::filesystem::path& temp_directory, eccdb::DesignDatabase* design = nullptr,
+                          eccdb::TechDatabase* technology = nullptr, eccdb::LibraryDatabase* library = nullptr)
 {
   Logger::initInst();
   RTI.setDesignSource(design, technology, library);
@@ -517,11 +517,11 @@ void runInjectedWriteback(const std::filesystem::path& temp_directory, idb::eccd
   RTI.setDesignSource(nullptr, nullptr, nullptr);
 }
 
-void expectWritebackSemanticsEqual(const idb::eccdb::DesignDatabase& expected, const idb::eccdb::DesignDatabase& actual,
+void expectWritebackSemanticsEqual(const eccdb::DesignDatabase& expected, const eccdb::DesignDatabase& actual,
                                    bool compare_vias = true)
 {
-  const auto expected_snapshot = idb::eccdb::test::makeDesignSemanticSnapshot(expected);
-  const auto actual_snapshot = idb::eccdb::test::makeDesignSemanticSnapshot(actual);
+  const auto expected_snapshot = eccdb::test::makeDesignSemanticSnapshot(expected);
+  const auto actual_snapshot = eccdb::test::makeDesignSemanticSnapshot(actual);
   EXPECT_EQ(expected_snapshot.component_counts, actual_snapshot.component_counts);
   EXPECT_EQ(expected_snapshot.global, actual_snapshot.global);
   EXPECT_EQ(expected_snapshot.track_grids, actual_snapshot.track_grids);
@@ -538,12 +538,12 @@ void expectWritebackSemanticsEqual(const idb::eccdb::DesignDatabase& expected, c
   EXPECT_EQ(expected_snapshot.groups, actual_snapshot.groups);
   EXPECT_EQ(expected_snapshot.blockages, actual_snapshot.blockages);
   EXPECT_EQ(expected_snapshot.fills, actual_snapshot.fills);
-  idb::eccdb::test::expectStructuredNetSemantics(expected, actual);
+  eccdb::test::expectStructuredNetSemantics(expected, actual);
 }
 
 using DrcShapeKey = std::tuple<std::string, int32_t, bool, int32_t, int32_t, int32_t, int32_t>;
 
-std::vector<std::string> enttNetNames(const idb::eccdb::DesignDatabase& design)
+std::vector<std::string> enttNetNames(const eccdb::DesignDatabase& design)
 {
   std::vector<std::string> names;
   for (const auto net : design.netlistStorage().regularNets()) {
@@ -568,11 +568,11 @@ std::vector<DrcShapeKey> canonicalDrcShapes(const std::vector<ids::Shape>& shape
   return result;
 }
 
-std::vector<idb::eccdb::test::structured::CanonicalNet> canonicalSpecialNets(const idb::eccdb::DesignDatabase& design)
+std::vector<eccdb::test::structured::CanonicalNet> canonicalSpecialNets(const eccdb::DesignDatabase& design)
 {
-  std::vector<idb::eccdb::test::structured::CanonicalNet> result;
+  std::vector<eccdb::test::structured::CanonicalNet> result;
   for (const auto net : design.netlistStorage().specialNets()) {
-    result.push_back(idb::eccdb::test::structured::canonicalNet(design, net));
+    result.push_back(eccdb::test::structured::canonicalNet(design, net));
   }
   std::sort(result.begin(), result.end(), [](const auto& lhs, const auto& rhs) { return lhs.name < rhs.name; });
   return result;
@@ -595,19 +595,19 @@ void expectWrappedEqual(Database& left, Database& right)
 
 std::pair<Database, Database> wrapIdbAndEntt(const std::filesystem::path& lef, const std::filesystem::path& def)
 {
-  idb::eccdb::TechDatabase tech;
-  std::unique_ptr<idb::eccdb::LibraryDatabase> library;
-  std::unique_ptr<idb::eccdb::DesignDatabase> design;
+  eccdb::TechDatabase tech;
+  std::unique_ptr<eccdb::LibraryDatabase> library;
+  std::unique_ptr<eccdb::DesignDatabase> design;
 
   // SI2 LEF/DEF parsers are process-global. Clear leftover callback and
   // parser state before starting the EnTT import sequence.
   static_cast<void>(LefDefParser::lefrClear());
   static_cast<void>(LefDefParser::defrClear());
-  idb::eccdb::LefTechImporter(tech).import(lef);
-  library = std::make_unique<idb::eccdb::LibraryDatabase>(tech.techRegistry());
-  idb::eccdb::LefLibraryImporter(tech, *library).import(lef);
-  design = std::make_unique<idb::eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
-  idb::eccdb::DefDesignImporter(*design).import(def);
+  eccdb::LefTechImporter(tech).import(lef);
+  library = std::make_unique<eccdb::LibraryDatabase>(tech.techRegistry());
+  eccdb::LefLibraryImporter(tech, *library).import(lef);
+  design = std::make_unique<eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
+  eccdb::DefDesignImporter(*design).import(def);
   loadIntoIdb(lef, def);
 
   Logger::initInst();
@@ -734,14 +734,14 @@ RoutedSnapshot runIdbRoutingOnce(const std::filesystem::path& lef, const std::fi
 RoutedSnapshot runEnttRoutingOnce(const std::filesystem::path& lef, const std::filesystem::path& def,
                                   const std::filesystem::path& temp_directory)
 {
-  idb::eccdb::TechDatabase tech;
+  eccdb::TechDatabase tech;
   static_cast<void>(LefDefParser::lefrClear());
   static_cast<void>(LefDefParser::defrClear());
-  idb::eccdb::LefTechImporter(tech).import(lef);
-  auto library = std::make_unique<idb::eccdb::LibraryDatabase>(tech.techRegistry());
-  idb::eccdb::LefLibraryImporter(tech, *library).import(lef);
-  auto design = std::make_unique<idb::eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
-  idb::eccdb::DefDesignImporter(*design).import(def);
+  eccdb::LefTechImporter(tech).import(lef);
+  auto library = std::make_unique<eccdb::LibraryDatabase>(tech.techRegistry());
+  eccdb::LefLibraryImporter(tech, *library).import(lef);
+  auto design = std::make_unique<eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
+  eccdb::DefDesignImporter(*design).import(def);
 
   RTI.setDesignSource(design.get(), &tech, library.get());
   std::map<std::string, std::any> config{{"-temp_directory_path", temp_directory.string()},
@@ -968,14 +968,14 @@ BuiltOrderSnapshot runIdbBuildOnce(const std::filesystem::path& lef, const std::
 BuiltOrderSnapshot runEnttBuildOnce(const std::filesystem::path& lef, const std::filesystem::path& def,
                                     const std::filesystem::path& temp_directory)
 {
-  idb::eccdb::TechDatabase tech;
+  eccdb::TechDatabase tech;
   static_cast<void>(LefDefParser::lefrClear());
   static_cast<void>(LefDefParser::defrClear());
-  idb::eccdb::LefTechImporter(tech).import(lef);
-  auto library = std::make_unique<idb::eccdb::LibraryDatabase>(tech.techRegistry());
-  idb::eccdb::LefLibraryImporter(tech, *library).import(lef);
-  auto design = std::make_unique<idb::eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
-  idb::eccdb::DefDesignImporter(*design).import(def);
+  eccdb::LefTechImporter(tech).import(lef);
+  auto library = std::make_unique<eccdb::LibraryDatabase>(tech.techRegistry());
+  eccdb::LefLibraryImporter(tech, *library).import(lef);
+  auto design = std::make_unique<eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
+  eccdb::DefDesignImporter(*design).import(def);
 
   RTI.setDesignSource(design.get(), &tech, library.get());
   RTI.initRT(buildOnlyConfig(temp_directory));
@@ -1193,7 +1193,7 @@ TEST_P(IspdRoutedWritebackDifferentialTest, NativeEnttMatchesLegacyIdbAfterRouti
   const pid_t entt_pid = launchRoutingWorker(entt_log, [&] {
     EnttDesignFixture fixture(compatible_lef, input_def);
     const auto snapshot = runEnttRoutingAndWriteback(fixture, workspace.path("entt-run"));
-    idb::eccdb::DefDesignExporter(fixture.design).write(entt_output_def);
+    eccdb::DefDesignExporter(fixture.design).write(entt_output_def);
     writeRoutedSnapshot(entt_snapshot_path, snapshot);
   });
 
@@ -1297,19 +1297,19 @@ TEST(Writeback, NativeEnttMatchesLegacyIdbDefAndRoundTrips)
   EnttDesignFixture actual(lef, input_def);
   const auto special_id = actual.design.netlistStorage().findSpecialNet("VDD");
   ASSERT_TRUE(special_id);
-  const auto special_before = idb::eccdb::test::structured::canonicalNet(actual.design, special_id);
+  const auto special_before = eccdb::test::structured::canonicalNet(actual.design, special_id);
   runInjectedWriteback(workspace.path("entt-run"), &actual.design, &actual.technology, &actual.library);
 
   EnttDesignFixture expected(lef, idb_output_def);
   expectWritebackSemanticsEqual(expected.design, actual.design);
-  EXPECT_EQ(special_before, idb::eccdb::test::structured::canonicalNet(actual.design, special_id));
+  EXPECT_EQ(special_before, eccdb::test::structured::canonicalNet(actual.design, special_id));
 
-  idb::eccdb::DefDesignExporter(actual.design).write(entt_output_def);
-  idb::eccdb::DesignDatabase roundtripped(actual.technology.techRegistry(), actual.library.libraryRegistry());
-  idb::eccdb::DefDesignImporter(roundtripped).import(entt_output_def);
+  eccdb::DefDesignExporter(actual.design).write(entt_output_def);
+  eccdb::DesignDatabase roundtripped(actual.technology.techRegistry(), actual.library.libraryRegistry());
+  eccdb::DefDesignImporter(roundtripped).import(entt_output_def);
   expectWritebackSemanticsEqual(actual.design, roundtripped);
 
-  const auto first_export = idb::eccdb::DefDesignExporter(actual.design).exportText();
+  const auto first_export = eccdb::DefDesignExporter(actual.design).exportText();
   const auto first_wire_count = actual.design.routingStorage().wireCount();
   const auto first_track_count = actual.design.floorplanStorage().trackGridCount();
   const auto first_gcell_count = actual.design.floorplanStorage().gcellGridCount();
@@ -1319,8 +1319,8 @@ TEST(Writeback, NativeEnttMatchesLegacyIdbDefAndRoundTrips)
   EXPECT_EQ(actual.design.routingStorage().wireCount(), first_wire_count);
   EXPECT_EQ(actual.design.floorplanStorage().trackGridCount(), first_track_count);
   EXPECT_EQ(actual.design.floorplanStorage().gcellGridCount(), first_gcell_count);
-  EXPECT_EQ(idb::eccdb::DefDesignExporter(actual.design).exportText(), first_export);
-  EXPECT_EQ(special_before, idb::eccdb::test::structured::canonicalNet(actual.design, special_id));
+  EXPECT_EQ(eccdb::DefDesignExporter(actual.design).exportText(), first_export);
+  EXPECT_EQ(special_before, eccdb::test::structured::canonicalNet(actual.design, special_id));
   expectWritebackSemanticsEqual(expected.design, actual.design);
   std::cout << "[EnTT writeback pool] paths=" << first_pool.paths.count << "->" << second_pool.paths.count
             << " points=" << first_pool.points.count << "->" << second_pool.points.count << " vias=" << first_pool.vias.count << "->"

@@ -4,7 +4,7 @@
 
 #include "design/routing/view/RoutingViewTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 template <typename T>
 struct DesignWirePoolEnd
@@ -85,4 +85,4 @@ struct DesignRoutingPathExtraEntry
   DesignWirePathExtra value;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

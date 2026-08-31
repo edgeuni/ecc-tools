@@ -1,6 +1,6 @@
 #include "import/lef/detail/LefParserMutex.h"
 
-namespace idb::eccdb::lef_detail {
+namespace eccdb::lef_detail {
 
 std::mutex& parserMutex()
 {
@@ -8,4 +8,4 @@ std::mutex& parserMutex()
   return mutex;
 }
 
-}  // namespace idb::eccdb::lef_detail
+}  // namespace eccdb::lef_detail

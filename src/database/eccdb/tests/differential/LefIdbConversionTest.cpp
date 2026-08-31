@@ -14,7 +14,7 @@
 #include "import/idb/IdbTechImporter.h"
 #include "import/idb/LegacyLefReader.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 struct Sky130Conversion
@@ -808,4 +808,4 @@ TEST(LefIdbConversionTest, MatchesEveryImportedLibraryObjectAndRectangleAgainstL
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

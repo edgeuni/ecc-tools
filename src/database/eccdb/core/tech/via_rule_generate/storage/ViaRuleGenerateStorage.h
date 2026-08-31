@@ -7,7 +7,7 @@
 #include "tech/TechRegistry.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // CRUD/query facade for complete LEF VIARULE ... GENERATE objects. Each rule
 // and its bottom/cut/top clauses occupy one entity in the shared TechRegistry.
@@ -54,4 +54,4 @@ class ViaRuleGenerateStorage
   registry_type& _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

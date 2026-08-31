@@ -4,7 +4,7 @@
 
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // PROPERTY LEF58_TYPE classification for TYPE MASTERSLICE.
 enum class TechMastersliceType : uint8_t
@@ -47,4 +47,4 @@ struct TechTrimmedMetalRule
   uint32_t mask = 0;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

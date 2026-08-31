@@ -9,7 +9,7 @@ class IdbLayout;
 class IdbSite;
 }  // namespace idb
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class IdbTechImporter;
 
@@ -32,4 +32,4 @@ class IdbLibraryImporter
   bool _imported = false;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

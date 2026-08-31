@@ -6,7 +6,7 @@
 
 #include "library/cell_master/model/CellMasterComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 LibrarySiteId LibrarySiteStorage::createSite(LibrarySite site)
 {
@@ -121,4 +121,4 @@ void LibrarySiteStorage::validateSite(const LibrarySite& site, LibrarySiteId ign
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

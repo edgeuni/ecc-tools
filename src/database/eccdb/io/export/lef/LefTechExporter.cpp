@@ -13,7 +13,7 @@
 #include "export/lef/LefExportFormat.h"
 #include "tech/TechDatabase.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 template <typename Integer>
@@ -1427,4 +1427,4 @@ void LefTechExporter::write(const std::filesystem::path& path, const TechDatabas
   write(output, database);
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

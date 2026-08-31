@@ -13,7 +13,7 @@
 #include "import/lef/LefLibraryImporter.h"
 #include "import/lef/LefTechImporter.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 class LefLibraryImporterTest : public testing::Test
@@ -504,4 +504,4 @@ TEST_F(LefLibraryImporterTest, DirectlyImportsIhpCellLibrary)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class GeometryLayerKind : uint8_t
 {
@@ -155,4 +155,4 @@ struct Rect
   return !(lhs == rhs);
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

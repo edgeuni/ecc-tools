@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class DesignDatabase;
 class LibraryDatabase;
@@ -16,4 +16,4 @@ class BinaryDatabaseExporter
   static void saveDesign(const std::filesystem::path& path, const DesignDatabase& design);
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

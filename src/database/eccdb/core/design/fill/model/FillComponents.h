@@ -6,7 +6,7 @@
 #include "common/GeometryTypes.h"
 #include "tech/common/TechLayerIds.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 namespace DesignFillFlag {
 constexpr uint32_t kOpc = 1u << 0;
@@ -29,4 +29,4 @@ struct DesignFill
   std::vector<Rect> rectangles;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

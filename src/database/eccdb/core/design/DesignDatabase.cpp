@@ -4,7 +4,7 @@
 
 #include "design/global/model/DesignGlobalComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 DesignRootId createRoot(DesignRegistry& registry)
@@ -59,4 +59,4 @@ void DesignDatabase::bindBinaryLoadedRoot()
   _routing.validateRestoredRoutingState();
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -7,7 +7,7 @@
 #include "geometry/GeometryHandle.h"
 #include "geometry/GeometryInput.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Native storage is lossless and remains the default. Rectangularized storage
 // intentionally preserves the legacy iDB Boost.Polygon conversion behavior.
@@ -101,4 +101,4 @@ class GeometryPool
   GeometryPoolOptions _options;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

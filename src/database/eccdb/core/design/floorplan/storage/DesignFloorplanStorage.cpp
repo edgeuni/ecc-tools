@@ -13,7 +13,7 @@
 #include "tech/common/TechLayerTypes.h"
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 int32_t checkedUpper(int32_t origin, uint32_t count, int32_t step, int32_t object_dimension)
@@ -484,4 +484,4 @@ void DesignFloorplanStorage::ensureGCellGrid(DesignGCellGridId id) const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

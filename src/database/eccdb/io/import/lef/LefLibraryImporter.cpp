@@ -26,7 +26,7 @@
 #include "lefiUnits.hpp"
 #include "lefrReader.hpp"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 using namespace LefDefParser;
@@ -1873,4 +1873,4 @@ void LefLibraryImporter::import(std::span<const std::filesystem::path> files)
   _diagnostics = buildDiagnostics(staging);
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

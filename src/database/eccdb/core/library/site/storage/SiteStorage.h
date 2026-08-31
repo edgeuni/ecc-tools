@@ -8,7 +8,7 @@
 #include "library/LibraryRegistry.h"
 #include "library/site/model/SiteComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class LibrarySiteStorage
 {
@@ -36,4 +36,4 @@ class LibrarySiteStorage
   registry_type& _registry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

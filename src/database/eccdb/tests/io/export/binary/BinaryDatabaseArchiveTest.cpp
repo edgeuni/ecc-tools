@@ -27,7 +27,7 @@
 #include "LefPdkCorpus.h"
 #include "persistence/binary/BinaryArchive.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 class TemporaryFile
@@ -474,4 +474,4 @@ TEST(BinaryDatabaseArchiveTest, FullSky130AndIhp130ReachBinaryFixedPoint)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

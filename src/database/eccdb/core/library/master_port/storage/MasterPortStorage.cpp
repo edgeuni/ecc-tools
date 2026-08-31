@@ -8,7 +8,7 @@
 #include "library/master_term/model/MasterTermComponents.h"
 #include "tech/TechRegistry.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 LibraryMasterPortId LibraryMasterPortStorage::createMasterPort(LibraryMasterTermId owner, LibraryMasterPortInput port)
 {
@@ -215,4 +215,4 @@ LibraryMasterPort LibraryMasterPortStorage::materializeMasterPort(LibraryMasterP
   return result;
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

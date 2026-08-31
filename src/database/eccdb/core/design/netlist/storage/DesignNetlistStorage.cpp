@@ -18,7 +18,7 @@
 #include "tech/non_default_rule/model/NonDefaultRuleComponents.h"
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 bool isValidPlacementStatus(DesignPlacementStatus status)
@@ -968,4 +968,4 @@ void DesignNetlistStorage::ensureNet(DesignNetId id) const
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

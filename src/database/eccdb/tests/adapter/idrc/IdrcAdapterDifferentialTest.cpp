@@ -273,7 +273,7 @@ NetNames idbNetNames()
   return names;
 }
 
-NetNames enttNetNames(const idb::eccdb::DesignDatabase& design)
+NetNames enttNetNames(const eccdb::DesignDatabase& design)
 {
   NetNames names;
   for (const auto net : design.netlistStorage().regularNets()) {
@@ -432,19 +432,19 @@ void compareIdbAndEntt(const Ispd18Case& test_case, const std::filesystem::path&
   std::filesystem::create_directories(repair_workspace);
   const auto [lef, def] = ispd18LefDef(root, test_case, repair_workspace);
 
-  idb::eccdb::TechDatabase tech;
-  std::unique_ptr<idb::eccdb::LibraryDatabase> library;
-  std::unique_ptr<idb::eccdb::DesignDatabase> design;
+  eccdb::TechDatabase tech;
+  std::unique_ptr<eccdb::LibraryDatabase> library;
+  std::unique_ptr<eccdb::DesignDatabase> design;
 
   // SI2 LEF/DEF parsers are process-global. Clear leftover callback and
   // parser state before starting the EnTT import sequence.
   static_cast<void>(LefDefParser::lefrClear());
   static_cast<void>(LefDefParser::defrClear());
-  idb::eccdb::LefTechImporter(tech).import(lef);
-  library = std::make_unique<idb::eccdb::LibraryDatabase>(tech.techRegistry());
-  idb::eccdb::LefLibraryImporter(tech, *library).import(lef);
-  design = std::make_unique<idb::eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
-  idb::eccdb::DefDesignImporter(*design).import(def);
+  eccdb::LefTechImporter(tech).import(lef);
+  library = std::make_unique<eccdb::LibraryDatabase>(tech.techRegistry());
+  eccdb::LefLibraryImporter(tech, *library).import(lef);
+  design = std::make_unique<eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
+  eccdb::DefDesignImporter(*design).import(def);
   loadIspd18IntoIdb(lef, def);
 
   Logger::initInst();
@@ -487,17 +487,17 @@ TEST(Shapes, GeneratedViaAndRegularWireMatch)
   writeText(lef, kShapeFixtureLef);
   writeText(def, kShapeFixtureDef);
 
-  idb::eccdb::TechDatabase tech;
-  std::unique_ptr<idb::eccdb::LibraryDatabase> library;
-  std::unique_ptr<idb::eccdb::DesignDatabase> design;
+  eccdb::TechDatabase tech;
+  std::unique_ptr<eccdb::LibraryDatabase> library;
+  std::unique_ptr<eccdb::DesignDatabase> design;
 
   static_cast<void>(LefDefParser::lefrClear());
   static_cast<void>(LefDefParser::defrClear());
-  idb::eccdb::LefTechImporter(tech).import(lef);
-  library = std::make_unique<idb::eccdb::LibraryDatabase>(tech.techRegistry());
-  idb::eccdb::LefLibraryImporter(tech, *library).import(lef);
-  design = std::make_unique<idb::eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
-  idb::eccdb::DefDesignImporter(*design).import(def);
+  eccdb::LefTechImporter(tech).import(lef);
+  library = std::make_unique<eccdb::LibraryDatabase>(tech.techRegistry());
+  eccdb::LefLibraryImporter(tech, *library).import(lef);
+  design = std::make_unique<eccdb::DesignDatabase>(tech.techRegistry(), library->libraryRegistry());
+  eccdb::DefDesignImporter(*design).import(def);
   loadIspd18IntoIdb(lef, def);
   const auto idb_names = idbNetNames();
   const auto entt_names = enttNetNames(*design);

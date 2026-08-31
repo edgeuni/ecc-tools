@@ -8,7 +8,7 @@
 #include "tech/masterslice_layer/model/MastersliceLayerComponents.h"
 #include "tech/routing_layer/model/RoutingLayerComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 TechViaRuleGenerateId ViaRuleGenerateStorage::createViaRuleGenerate(TechViaRuleGenerate rule, TechViaRuleGenerateBottomLayer bottom,
                                                                     TechViaRuleGenerateCutLayer cut, TechViaRuleGenerateTopLayer top)
@@ -263,4 +263,4 @@ void ViaRuleGenerateStorage::validateCutLayer(const TechViaRuleGenerateCutLayer&
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 TechImplantLayerId TechImplantLayerStorage::createLayer(TechLayerInfo info, TechImplantLayer implant)
 {
@@ -129,4 +129,4 @@ void TechImplantLayerStorage::validateSpacingRule(TechImplantLayerId owner, cons
   }
 }
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

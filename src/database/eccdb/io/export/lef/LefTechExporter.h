@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <iosfwd>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechDatabase;
 
@@ -17,4 +17,4 @@ class LefTechExporter
   static void write(const std::filesystem::path& path, const TechDatabase& database);
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

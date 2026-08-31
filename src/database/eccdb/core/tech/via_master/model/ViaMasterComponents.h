@@ -9,7 +9,7 @@
 #include "tech/common/TechLayerTypes.h"
 #include "tech/via_rule_generate/model/ViaRuleGenerateComponents.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct TechViaMaster;
 struct TechViaGeometry;
@@ -102,4 +102,4 @@ struct TechGeneratedViaMaster
   std::string pattern;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

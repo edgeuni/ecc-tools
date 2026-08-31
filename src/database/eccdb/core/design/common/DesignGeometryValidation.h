@@ -5,7 +5,7 @@
 
 #include "design/common/DesignGeometry.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 class TechRegistry;
 
@@ -14,4 +14,4 @@ void validateDesignShapeSet(const DesignShapeSet& shapes, bool require_nonempty 
 void validateDesignLayerGeometry(const TechRegistry& technology, std::span<const DesignLayerGeometry> geometry,
                                  bool require_nonempty = true);
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

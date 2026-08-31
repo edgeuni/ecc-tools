@@ -12,7 +12,7 @@
 
 #include "import/lef/LefTechImporter.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 class LefTechImporterTest : public testing::Test
@@ -1074,4 +1074,4 @@ TEST_F(LefTechImporterTest, DirectlyImportsIhpTechnologyNativeRules)
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

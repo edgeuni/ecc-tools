@@ -21,7 +21,7 @@
 #include "import/lef/LefLibraryImporter.h"
 #include "import/lef/LefTechImporter.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 namespace {
 
 enum class LayerKind
@@ -780,4 +780,4 @@ TEST(DirectLefDifferentialTest, MatchesLegacyIdbAdapterForViaObjectsAndPortPlace
 }
 
 }  // namespace
-}  // namespace idb::eccdb
+}  // namespace eccdb

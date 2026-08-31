@@ -4,7 +4,7 @@
 
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 enum class TechRoutingDirection : uint8_t
 {
@@ -104,4 +104,4 @@ struct TechRoutingLayer
   int32_t protrusion_width2 = 0;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

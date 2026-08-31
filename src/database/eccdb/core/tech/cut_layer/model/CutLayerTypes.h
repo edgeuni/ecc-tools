@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Horizontal/vertical orientation used by cut classes and selected LEF58 rules.
 enum class CutDirection : uint8_t
@@ -36,4 +36,4 @@ enum class Lef58EolEnclosureApplication : uint8_t
   kShortEdgeOnly
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

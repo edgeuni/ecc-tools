@@ -10,7 +10,7 @@
 #include "tech/non_default_rule/model/NonDefaultRuleComponents.h"
 #include "tech/via_master/storage/ViaMasterInput.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // CRUD facade for tech-scope LEF NONDEFAULTRULE objects.
 //
@@ -91,4 +91,4 @@ class TechNonDefaultRuleStorage
   GeometryPool& _geometry;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

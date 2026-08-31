@@ -26,7 +26,7 @@
 
 #include "DesignSemanticSnapshot.h"
 
-namespace idb::eccdb::test {
+namespace eccdb::test {
 
 inline DesignSignalUse canonicalSignalUse(DesignSignalUse use)
 {
@@ -1071,4 +1071,4 @@ inline void expectStructuredNetSemantics(const DesignDatabase& expected, const D
   }
 }
 
-}  // namespace idb::eccdb::test
+}  // namespace eccdb::test

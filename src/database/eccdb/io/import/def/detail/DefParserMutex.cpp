@@ -1,6 +1,6 @@
 #include "import/def/detail/DefParserMutex.h"
 
-namespace idb::eccdb::def_detail {
+namespace eccdb::def_detail {
 
 std::mutex& parserMutex()
 {
@@ -8,4 +8,4 @@ std::mutex& parserMutex()
   return mutex;
 }
 
-}  // namespace idb::eccdb::def_detail
+}  // namespace eccdb::def_detail

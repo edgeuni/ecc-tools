@@ -6,7 +6,7 @@
 
 #include "lef_service.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // Minimal legacy LEF loading path used by adapter differential tests. It
 // deliberately excludes DEF, Verilog, GDS, JSON, and the full IdbBuilder.
@@ -28,4 +28,4 @@ class LegacyLefReader
   std::unique_ptr<::idb::IdbLefService> _service;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

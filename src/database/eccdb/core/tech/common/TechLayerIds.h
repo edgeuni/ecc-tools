@@ -3,7 +3,7 @@
 #include "common/EnttId.h"
 #include "tech/common/TechEntity.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 struct TechRoot;
 struct TechLayerInfo;
@@ -21,4 +21,4 @@ using TechImplantLayerId = EnttId<TechEntity, TechImplantLayer>;
 using TechMastersliceLayerId = EnttId<TechEntity, TechMastersliceLayer>;
 using TechOverlapLayerId = EnttId<TechEntity, TechOverlapLayer>;
 
-}  // namespace idb::eccdb
+}  // namespace eccdb

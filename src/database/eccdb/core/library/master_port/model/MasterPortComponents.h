@@ -7,7 +7,7 @@
 #include "library/common/LibraryGeometry.h"
 #include "tech/common/TechLayerTypes.h"
 
-namespace idb::eccdb {
+namespace eccdb {
 
 // One LEF PORT is a physical connection group below a logical master term:
 //   PORT
@@ -43,4 +43,4 @@ struct LibraryMasterPort
   LibraryMasterTermId term;
 };
 
-}  // namespace idb::eccdb
+}  // namespace eccdb
