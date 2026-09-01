@@ -44,7 +44,7 @@ The standalone EccDB differential build requires:
 - a C++20 compiler;
 - CMake 3.20 or newer;
 - Ninja;
-- Boost 1.83 or newer, including Boost.PFR;
+- Boost 1.75 or newer, including Boost.PFR;
 - GoogleTest;
 - checked-in `src/third_party/lefdef` and `src/third_party/entt` sources.
 

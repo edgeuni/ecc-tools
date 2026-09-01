@@ -44,7 +44,7 @@ DEF 结构快照当前比较 component 数量以及 global、row、track grid、
 - 支持 C++20 的编译器；
 - CMake 3.20 或更新版本；
 - Ninja；
-- Boost 1.83 或更新版本，其中使用 Boost.PFR；
+- Boost 1.75 或更新版本，其中使用 Boost.PFR；
 - GoogleTest；
 - 仓库中的 `src/third_party/lefdef` 和 `src/third_party/entt`。
 

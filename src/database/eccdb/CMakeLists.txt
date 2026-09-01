@@ -18,7 +18,7 @@ endif()
 # Boost is a project-provided header dependency. PFR is consumed from the
 # system Boost installation together with the other Boost headers used by the
 # eccdb (Polygon, Spirit, and Variant).
-find_package(Boost 1.83 REQUIRED)
+find_package(Boost 1.75 REQUIRED)
 
 get_filename_component(_eccdb_default_ecc_tools_root
   "${CMAKE_CURRENT_LIST_DIR}/../../.."
